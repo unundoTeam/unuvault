@@ -81,5 +81,13 @@ describe("workspace entrypoints", () => {
     );
 
     expect(onboardingTest).toContain("@MainActor");
+    expect(onboardingTest).not.toContain("XCTAssertTrue(String(describing: view.body)");
+  });
+
+  it("keeps the iOS login test in a main-actor-safe context", () => {
+    const loginTest = readText("apps/ios/App/Tests/LoginViewTests.swift");
+
+    expect(loginTest).toContain("@MainActor");
+    expect(loginTest).not.toContain("XCTAssertTrue(String(describing: view.body)");
   });
 });
