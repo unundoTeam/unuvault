@@ -1,0 +1,9 @@
+{
+  "name": "@blackbox/domain",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "echo \"No tests yet for @blackbox/domain\"",
+    "lint": "echo \"No lint yet for @blackbox/domain\""
+  }
+}

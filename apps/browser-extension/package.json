@@ -1,0 +1,9 @@
+{
+  "name": "@blackbox/browser-extension",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "echo \"No tests yet for @blackbox/browser-extension\"",
+    "lint": "echo \"No lint yet for @blackbox/browser-extension\""
+  }
+}
