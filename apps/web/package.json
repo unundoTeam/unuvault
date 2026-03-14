@@ -1,9 +1,9 @@
 {
-  "name": "@blackbox/web",
+  "name": "@unuvault/web",
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "echo \"No tests yet for @blackbox/web\"",
-    "lint": "echo \"No lint yet for @blackbox/web\""
+    "test": "echo \"No tests yet for @unuvault/web\"",
+    "lint": "echo \"No lint yet for @unuvault/web\""
   }
 }

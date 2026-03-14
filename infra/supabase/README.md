@@ -1,6 +1,6 @@
-# Blackbox Supabase Boundary
+# unuvault Supabase Boundary
 
-This directory holds the phase-1 database migrations and local setup notes for the Supabase-backed Blackbox environment.
+This directory holds the phase-1 database migrations and local setup notes for the Supabase-backed unuvault environment.
 
 ## Scope
 

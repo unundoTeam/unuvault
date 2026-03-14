@@ -13,4 +13,4 @@ If a browser import does not look right, use the import report and review the so
 
 - Re-run the import with a fresh export if the browser data changed
 - Review duplicates before deleting anything from the browser
-- Keep the browser copy until Blackbox autofill works on real sites you use
+- Keep the browser copy until unuvault autofill works on real sites you use

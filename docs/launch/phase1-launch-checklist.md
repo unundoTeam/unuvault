@@ -1,4 +1,4 @@
-# Blackbox Phase 1 Launch Checklist
+# unuvault Phase 1 Launch Checklist
 
 - Confirm trust explanations appear in web onboarding and security surfaces
 - Confirm browser import creates an import job for Chrome, Edge, or Safari payloads

@@ -1,9 +1,9 @@
 {
-  "name": "@blackbox/browser-extension",
+  "name": "@unuvault/browser-extension",
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "echo \"No tests yet for @blackbox/browser-extension\"",
-    "lint": "echo \"No lint yet for @blackbox/browser-extension\""
+    "test": "echo \"No tests yet for @unuvault/browser-extension\"",
+    "lint": "echo \"No lint yet for @unuvault/browser-extension\""
   }
 }

@@ -1,9 +1,9 @@
 {
-  "name": "@blackbox/api",
+  "name": "@unuvault/api",
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "echo \"No tests yet for @blackbox/api\"",
-    "lint": "echo \"No lint yet for @blackbox/api\""
+    "test": "echo \"No tests yet for @unuvault/api\"",
+    "lint": "echo \"No lint yet for @unuvault/api\""
   }
 }

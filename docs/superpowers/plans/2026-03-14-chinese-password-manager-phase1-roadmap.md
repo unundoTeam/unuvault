@@ -1,4 +1,4 @@
-# Blackbox (黑匣子) Phase 1 Roadmap
+# unuvault Phase 1 Roadmap
 
 > Status: Canonical engineering execution plan as of 2026-03-14.
 > Product intent comes from `docs/superpowers/specs/2026-03-14-chinese-password-manager-phase1-design.md`.
@@ -6,7 +6,7 @@
 
 > **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Deliver phase 1 of Blackbox, a Chinese-first public cloud password manager with browser extension, web vault, and iPhone support, in a sequence that prioritizes security credibility, migration, and daily usability.
+**Goal:** Deliver phase 1 of unuvault, a Chinese-first public cloud password manager with browser extension, web vault, and iPhone support, in a sequence that prioritizes security credibility, migration, and daily usability.
 
 **Architecture:** Build the product as a monorepo with four apps (`api`, `web`, `browser-extension`, `ios`) on top of Supabase for Auth and Postgres, while keeping core vault business logic in a dedicated TypeScript API. Ship vertical milestones that each produce something testable and user-facing instead of completing one platform end to end before the others.
 

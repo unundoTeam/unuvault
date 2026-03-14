@@ -2,12 +2,12 @@
 
 ## Decision
 
-Blackbox uses Supabase for authentication and managed Postgres in phase 1, while keeping product logic in a dedicated TypeScript API.
+unuvault uses Supabase for authentication and managed Postgres in phase 1, while keeping product logic in a dedicated TypeScript API.
 
 ## Why
 
 - Supabase accelerates account bootstrap, hosted Postgres, and operational setup for an early product.
-- The Blackbox API still needs to own vault semantics, sync policy, import reporting, trust surfaces, and future cross-client behavior.
+- The unuvault API still needs to own vault semantics, sync policy, import reporting, trust surfaces, and future cross-client behavior.
 - This split lets the product move quickly now without binding every domain decision to direct database access patterns.
 
 ## Phase-1 Data Model

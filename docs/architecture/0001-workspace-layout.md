@@ -1,4 +1,4 @@
-# Blackbox Workspace Layout
+# unuvault Workspace Layout
 
 ## Validation Checklist
 

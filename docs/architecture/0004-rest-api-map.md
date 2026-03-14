@@ -2,7 +2,7 @@
 
 ## Goal
 
-Phase 1 organizes the Blackbox API by product domain so web, browser extension, and iPhone clients can share a predictable surface.
+Phase 1 organizes the unuvault API by product domain so web, browser extension, and iPhone clients can share a predictable surface.
 
 ## Route Groups
 

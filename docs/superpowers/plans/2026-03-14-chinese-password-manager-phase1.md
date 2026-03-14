@@ -1,4 +1,4 @@
-# Blackbox (黑匣子) Phase 1 Implementation Plan
+# unuvault Phase 1 Implementation Plan
 
 > Status: Reference draft only. Do not use this as the canonical execution plan.
 > The active engineering baseline is `docs/architecture/0000-phase1-execution-baseline.md` plus `docs/superpowers/plans/2026-03-14-chinese-password-manager-phase1-roadmap.md`.
@@ -6,7 +6,7 @@
 
 > **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build phase 1 of Blackbox, a public cloud password manager for Chinese-speaking technical users with browser extension, web vault, and iPhone support, using a Bitwarden-inspired baseline and shipping the security-first migration loop first.
+**Goal:** Build phase 1 of unuvault, a public cloud password manager for Chinese-speaking technical users with browser extension, web vault, and iPhone support, using a Bitwarden-inspired baseline and shipping the security-first migration loop first.
 
 **Architecture:** Start from a product workspace that keeps web, browser extension, iPhone, and API work in one coordinated root while borrowing the domain model and crypto expectations from Bitwarden. Deliver a thin but complete vertical slice: account creation, browser import, save/autofill, sync, iPhone unlock/autofill, and visible trust surfaces.
 

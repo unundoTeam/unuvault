@@ -1,4 +1,4 @@
-# Blackbox (黑匣子) Phase 1 Execution Baseline
+# unuvault Phase 1 Execution Baseline
 
 ## Purpose
 
@@ -6,9 +6,8 @@ This document resolves overlap between the phase-1 design spec and the two execu
 
 ## Product Name
 
-- Working product name: `Blackbox`
-- Chinese name: `黑匣子`
-- Treat both names as referring to the same phase-1 password manager product in all current planning documents.
+- Canonical product name: `unuvault`
+- Do not use legacy aliases from earlier planning drafts.
 
 ## Source-of-Truth Order
 

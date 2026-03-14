@@ -1,6 +1,6 @@
-# Blackbox
+# unuvault
 
-Blackbox (`黑匣子`) is a Chinese-first public cloud password manager for technical users who want a more trustworthy home for credentials than browser-native storage.
+unuvault is a Chinese-first public cloud password manager for technical users who want a more trustworthy home for credentials than browser-native storage.
 
 ## Source Of Truth
 

@@ -1,11 +1,11 @@
-# Blackbox (黑匣子) Phase 1 Design
+# unuvault Phase 1 Design
 
 > Status: Product source of truth for scope, target user, goals, non-goals, and trust posture.
 > Engineering execution details are governed by `docs/architecture/0000-phase1-execution-baseline.md` and `docs/superpowers/plans/2026-03-14-chinese-password-manager-phase1-roadmap.md`.
 
 ## Context
 
-Blackbox (`黑匣子`) targets Chinese-speaking technical users who currently rely on browser-native password storage in Chrome, Edge, or Safari. The product starts as a public cloud password manager. Security is the core product promise, and easy migration is the main adoption path.
+unuvault targets Chinese-speaking technical users who currently rely on browser-native password storage in Chrome, Edge, or Safari. The product starts as a public cloud password manager. Security is the core product promise, and easy migration is the main adoption path.
 
 The approved phase-1 scope is intentionally narrow:
 
@@ -17,7 +17,7 @@ The approved phase-1 scope is intentionally narrow:
 
 ## Product Statement
 
-Build Blackbox, a trustworthy public cloud password manager for Chinese-speaking technical users who have outgrown browser-native password storage and want a safer, clearer, more durable home for their credentials.
+Build unuvault, a trustworthy public cloud password manager for Chinese-speaking technical users who have outgrown browser-native password storage and want a safer, clearer, more durable home for their credentials.
 
 The product should feel more secure and more intentional than browser storage, without feeling heavier or harder to adopt than traditional password managers.
 
@@ -63,7 +63,7 @@ Security and trust first. Smooth migration second. Polished daily use third.
 
 ### Positioning sentence
 
-Blackbox is a public cloud password manager for Chinese-speaking technical users who want to upgrade from browser-native password storage to a product that is more secure, more transparent, and easier to live in every day.
+unuvault is a public cloud password manager for Chinese-speaking technical users who want to upgrade from browser-native password storage to a product that is more secure, more transparent, and easier to live in every day.
 
 ### Competitive posture
 
