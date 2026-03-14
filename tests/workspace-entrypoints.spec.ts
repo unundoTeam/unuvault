@@ -54,6 +54,7 @@ describe("workspace entrypoints", () => {
 
     expect(workflow).toContain("pnpm lint");
     expect(workflow).toContain("pnpm test");
+    expect(workflow).not.toContain("cache: pnpm");
   });
 
   it("adds an iOS workflow that calls the iOS wrapper", () => {
@@ -72,5 +73,13 @@ describe("workspace entrypoints", () => {
 
     expect(testRunner).toContain('pnpm_bin="$repo_root/node_modules/.bin/pnpm"');
     expect(lintRunner).toContain('pnpm_bin="$repo_root/node_modules/.bin/pnpm"');
+  });
+
+  it("keeps the iOS onboarding test in a main-actor-safe context", () => {
+    const onboardingTest = readText(
+      "apps/ios/App/Tests/AutofillOnboardingViewTests.swift",
+    );
+
+    expect(onboardingTest).toContain("@MainActor");
   });
 });

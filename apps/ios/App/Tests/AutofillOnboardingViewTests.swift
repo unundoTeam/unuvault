@@ -1,6 +1,7 @@
 import XCTest
 @testable import App
 
+@MainActor
 final class AutofillOnboardingViewTests: XCTestCase {
     func testAutofillOnboardingShowsEnableAutofill() {
         let view = AutofillOnboardingView()
