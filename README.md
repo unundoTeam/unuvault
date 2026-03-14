@@ -21,4 +21,15 @@ unuvault is a Chinese-first public cloud password manager for technical users wh
 
 ## Current Status
 
-This repository currently contains the bootstrap workspace skeleton and planning docs for phase 1. The next planned step is defining the phase-1 schema boundary and the client-side security model.
+This repository now includes the phase-1 schema boundary, client-side security model, and stable local/CI validation entrypoints for the JavaScript and iOS surfaces.
+
+## Development
+
+- `pnpm lint` runs repository-level and workspace TypeScript checks
+- `pnpm test` runs the repository meta tests plus all workspace Vitest suites
+- `bash scripts/testing/run-ios.sh` runs the Swift package tests for the iPhone app
+
+## CI Status
+
+- `.github/workflows/ci.yml` is the default JS gate for lint and test
+- `.github/workflows/ios.yml` keeps the iOS test pass separate and callable on demand
