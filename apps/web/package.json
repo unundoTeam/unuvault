@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "echo \"No tests yet for @unuvault/web\"",
-    "lint": "echo \"No lint yet for @unuvault/web\""
+    "test": "vitest --run tests",
+    "lint": "tsc --noEmit -p tsconfig.json"
   }
 }

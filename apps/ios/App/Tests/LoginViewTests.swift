@@ -1,9 +1,12 @@
 import XCTest
 @testable import App
 
+@MainActor
 final class LoginViewTests: XCTestCase {
     func testLoginViewShowsSecureSyncMessage() {
         let view = LoginView()
-        XCTAssertTrue(String(describing: view.body).contains("securely synced"))
+        let renderedBody = String(describing: view.body)
+
+        XCTAssertTrue(renderedBody.contains("securely synced"))
     }
 }

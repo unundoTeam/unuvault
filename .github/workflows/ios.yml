@@ -1,0 +1,20 @@
+name: iOS
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "apps/ios/**"
+      - "scripts/testing/run-ios.sh"
+      - ".github/workflows/ios.yml"
+
+jobs:
+  test-ios:
+    runs-on: macos-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Run iOS tests
+        run: bash scripts/testing/run-ios.sh
