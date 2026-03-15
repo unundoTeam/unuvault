@@ -12,11 +12,14 @@ describe("syncVault", () => {
       }),
     });
 
-    const response = await syncVault(fetcher, { changed_items: [] });
+    const response = await syncVault(fetcher, "jwt-token", {
+      changed_items: [],
+    });
 
     expect(fetcher).toHaveBeenCalledWith("/vault/sync", {
       method: "POST",
       headers: {
+        authorization: "Bearer jwt-token",
         "content-type": "application/json",
       },
       body: JSON.stringify({ changed_items: [] }),

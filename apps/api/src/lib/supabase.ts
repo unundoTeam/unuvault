@@ -1,4 +1,5 @@
 import { createAuthBootstrapService } from "../services/auth-bootstrap-service";
+import { createVaultSyncService } from "../services/vault-service";
 
 type AuthUser = {
   id: string;
@@ -22,6 +23,13 @@ type AuthBootstrapProfile = {
   locale: string;
 };
 
+type UserProfile = {
+  id: string;
+  auth_user_id: string;
+  email: string;
+  locale: string;
+};
+
 type SupabaseResult<T> = PromiseLike<{
   data: T | null;
   error: unknown | null;
@@ -32,6 +40,11 @@ type SupabaseClientLike = {
     getUser(token: string): SupabaseResult<{ user: ProviderAuthUser | null }>;
   };
   from(table: string): {
+    select(columns: string): {
+      eq(column: string, value: string): {
+        single(): SupabaseResult<UserProfile>;
+      };
+    };
     upsert(
       values: UserProfileRecord,
       options: { onConflict: string },
@@ -90,11 +103,31 @@ export function createSupabaseAuthBootstrapDependencies(
 
       return result.data;
     },
+
+    async getUserProfileByAuthUserId(
+      authUserId: string,
+    ): Promise<UserProfile | null> {
+      const result = await client
+        .from("users_profile")
+        .select("id, auth_user_id, email, locale")
+        .eq("auth_user_id", authUserId)
+        .single();
+
+      if (result.error) {
+        return null;
+      }
+
+      return result.data;
+    },
   };
 }
 
-async function createServerSupabaseClient() {
-  const { createClient } = await import("@supabase/supabase-js");
+async function createServerSupabaseClient(): Promise<SupabaseClientLike> {
+  const { createClient: importedCreateClient } = await import("@supabase/supabase-js");
+  const createClient = importedCreateClient as unknown as (
+    url: string,
+    key: string,
+  ) => SupabaseClientLike;
 
   return createClient(
     readRequiredEnv("SUPABASE_URL"),
@@ -104,6 +137,9 @@ async function createServerSupabaseClient() {
 
 let configuredService:
   | ReturnType<typeof createAuthBootstrapService>
+  | undefined;
+let configuredVaultSyncService:
+  | ReturnType<typeof createVaultSyncService>
   | undefined;
 
 export function createConfiguredAuthBootstrapService() {
@@ -117,6 +153,21 @@ export function createConfiguredAuthBootstrapService() {
       }
 
       return configuredService.bootstrapProfileFromToken(token);
+    },
+  };
+}
+
+export function createConfiguredVaultSyncService() {
+  return {
+    async syncVaultFromToken(token: string) {
+      if (!configuredVaultSyncService) {
+        const client = await createServerSupabaseClient();
+        configuredVaultSyncService = createVaultSyncService(
+          createSupabaseAuthBootstrapDependencies(client),
+        );
+      }
+
+      return configuredVaultSyncService.syncVaultFromToken(token);
     },
   };
 }
