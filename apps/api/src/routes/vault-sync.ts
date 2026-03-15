@@ -1,4 +1,4 @@
-import type { FastifyPluginAsync } from "fastify";
+import type { FastifyInstance, FastifyPluginAsync } from "fastify";
 import { createConfiguredVaultSyncService } from "../lib/supabase";
 import {
   VaultSyncProfileNotFoundError,
@@ -62,7 +62,7 @@ export function createVaultSyncRoutes(
   };
 }
 
-export function registerVaultSyncRoute(app: { register: FastifyPluginAsync }) {
+export function registerVaultSyncRoute(app: FastifyInstance) {
   app.register(
     createVaultSyncRoutes(createConfiguredVaultSyncService()),
   );

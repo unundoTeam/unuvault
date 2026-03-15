@@ -122,8 +122,12 @@ export function createSupabaseAuthBootstrapDependencies(
   };
 }
 
-async function createServerSupabaseClient() {
-  const { createClient } = await import("@supabase/supabase-js");
+async function createServerSupabaseClient(): Promise<SupabaseClientLike> {
+  const { createClient: importedCreateClient } = await import("@supabase/supabase-js");
+  const createClient = importedCreateClient as unknown as (
+    url: string,
+    key: string,
+  ) => SupabaseClientLike;
 
   return createClient(
     readRequiredEnv("SUPABASE_URL"),
