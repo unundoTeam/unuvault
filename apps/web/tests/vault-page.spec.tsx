@@ -231,4 +231,49 @@ describe("VaultPage", () => {
       },
     );
   });
+
+  it("preserves the last successful list when sync fails", async () => {
+    mocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: "jwt-token",
+        },
+      },
+      error: null,
+    });
+    mocks.syncVault
+      .mockResolvedValueOnce({
+        server_time: "2026-03-16T00:00:00.000Z",
+        updated_items: [
+          {
+            id: "item-1",
+            item_type: "login",
+            title: "GitHub",
+            encrypted_payload: {
+              schema_version: 1,
+              username: "",
+            },
+            favorite: false,
+            source: "manual",
+            last_used_at: null,
+            created_at: "2026-03-16T00:00:00.000Z",
+            updated_at: "2026-03-16T00:00:00.000Z",
+          },
+        ],
+        deleted_item_ids: [],
+        conflicts: [],
+      })
+      .mockRejectedValueOnce(new Error("sync failed"));
+
+    render(<VaultPage />);
+
+    expect(await screen.findByText("GitHub")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete GitHub" }));
+
+    expect(
+      await screen.findByText("We couldn't sync your vault. Please try again."),
+    ).toBeInTheDocument();
+    expect(screen.getByText("GitHub")).toBeInTheDocument();
+  });
 });
