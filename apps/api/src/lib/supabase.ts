@@ -1,5 +1,6 @@
 import { createAuthBootstrapService } from "../services/auth-bootstrap-service";
 import { createVaultSyncService } from "../services/vault-service";
+import type { VaultSyncItem } from "../../../../packages/api-client/src/vault";
 
 type AuthUser = {
   id: string;
@@ -55,15 +56,9 @@ type SupabaseClientLike = {
   from(table: string): {
     select(columns: string): {
       eq(column: string, value: string): unknown;
+      in(column: string, values: string[]): unknown;
     };
-    upsert(
-      values: UserProfileRecord,
-      options: { onConflict: string },
-    ): {
-      select(columns: string): {
-        single(): SupabaseResult<AuthBootstrapProfile>;
-      };
-    };
+    upsert(values: unknown, options: { onConflict: string }): unknown;
   };
 };
 
@@ -102,9 +97,15 @@ export function createSupabaseAuthBootstrapDependencies(
     async upsertUserProfile(
       profile: UserProfileRecord,
     ): Promise<AuthBootstrapProfile> {
-      const result = await client
-        .from("users_profile")
-        .upsert(profile, { onConflict: "auth_user_id" })
+      const result = await (
+        client
+          .from("users_profile")
+          .upsert(profile, { onConflict: "auth_user_id" }) as {
+          select(columns: string): {
+            single(): SupabaseResult<AuthBootstrapProfile>;
+          };
+        }
+      )
         .select("id, email, locale")
         .single();
 
@@ -150,6 +151,51 @@ export function createSupabaseAuthBootstrapDependencies(
 
       return result.data ?? [];
     },
+
+    async listVaultItemsByIds(itemIds: string[]): Promise<VaultItemRow[]> {
+      if (itemIds.length === 0) {
+        return [];
+      }
+
+      const result = await (
+        client
+          .from("vault_items")
+          .select(
+            "id, user_profile_id, item_type, title, encrypted_payload, favorite, source, last_used_at, created_at, updated_at",
+          )
+          .in("id", itemIds) as SupabaseResult<VaultItemRow[]>
+      );
+
+      if (result.error) {
+        throw result.error;
+      }
+
+      return result.data ?? [];
+    },
+
+    async upsertVaultItems(
+      profileId: string,
+      items: VaultSyncItem[],
+    ): Promise<void> {
+      if (items.length === 0) {
+        return;
+      }
+
+      const records: VaultItemRow[] = items.map((item) => ({
+        ...item,
+        user_profile_id: profileId,
+      }));
+
+      const result = await (
+        client
+          .from("vault_items")
+          .upsert(records, { onConflict: "id" }) as SupabaseResult<null>
+      );
+
+      if (result.error) {
+        throw result.error;
+      }
+    },
   };
 }
 
@@ -190,7 +236,12 @@ export function createConfiguredAuthBootstrapService() {
 
 export function createConfiguredVaultSyncService() {
   return {
-    async syncVaultFromToken(token: string) {
+    async syncVaultFromToken(
+      token: string,
+      payload: Parameters<
+        ReturnType<typeof createVaultSyncService>["syncVaultFromToken"]
+      >[1],
+    ) {
       if (!configuredVaultSyncService) {
         const client = await createServerSupabaseClient();
         configuredVaultSyncService = createVaultSyncService(
@@ -198,7 +249,7 @@ export function createConfiguredVaultSyncService() {
         );
       }
 
-      return configuredVaultSyncService.syncVaultFromToken(token);
+      return configuredVaultSyncService.syncVaultFromToken(token, payload);
     },
   };
 }
