@@ -34,7 +34,9 @@ type VaultSyncServiceDependencies = {
   getUserProfileByAuthUserId(authUserId: string): Promise<VaultSyncProfile | null>;
   listVaultItemsByIds(itemIds: string[]): Promise<VaultItemRow[]>;
   upsertVaultItems(profileId: string, items: VaultSyncItem[]): Promise<void>;
+  softDeleteVaultItems(profileId: string, itemIds: string[]): Promise<void>;
   listVaultItemsByProfileId(profileId: string): Promise<VaultItemRow[]>;
+  listDeletedVaultItemIdsByProfileId(profileId: string): Promise<string[]>;
 };
 
 export class VaultSyncUnauthorizedError extends Error {}
@@ -60,13 +62,18 @@ function mapVaultItemRowToSyncItem(row: VaultItemRow): VaultSyncItem {
 export function buildVaultSyncPayload(
   _profile: VaultSyncProfile,
   vaultItems: VaultItemRow[],
+  deletedItemIds: string[],
 ): VaultSyncResponse {
   return {
     server_time: new Date().toISOString(),
     updated_items: vaultItems.map(mapVaultItemRowToSyncItem),
-    deleted_item_ids: [],
+    deleted_item_ids: deletedItemIds,
     conflicts: [],
   };
+}
+
+function uniqueIds(itemIds: string[]): string[] {
+  return [...new Set(itemIds)];
 }
 
 export function createVaultSyncService(deps: VaultSyncServiceDependencies) {
@@ -88,10 +95,18 @@ export function createVaultSyncService(deps: VaultSyncServiceDependencies) {
         );
       }
 
-      if (payload.changed_items.length > 0) {
-        const existingItems = await deps.listVaultItemsByIds(
-          payload.changed_items.map((item) => item.id),
-        );
+      const deletedItemIds = uniqueIds(payload.deleted_item_ids);
+      const deletedItemIdSet = new Set(deletedItemIds);
+      const changedItems = payload.changed_items.filter(
+        (item) => !deletedItemIdSet.has(item.id),
+      );
+      const referencedItemIds = uniqueIds([
+        ...changedItems.map((item) => item.id),
+        ...deletedItemIds,
+      ]);
+
+      if (referencedItemIds.length > 0) {
+        const existingItems = await deps.listVaultItemsByIds(referencedItemIds);
         const foreignOwnedItem = existingItems.find(
           (item) => item.user_profile_id !== profile.id,
         );
@@ -101,13 +116,21 @@ export function createVaultSyncService(deps: VaultSyncServiceDependencies) {
             "item id belongs to another profile",
           );
         }
+      }
 
-        await deps.upsertVaultItems(profile.id, payload.changed_items);
+      if (changedItems.length > 0) {
+        await deps.upsertVaultItems(profile.id, changedItems);
+      }
+
+      if (deletedItemIds.length > 0) {
+        await deps.softDeleteVaultItems(profile.id, deletedItemIds);
       }
 
       const vaultItems = await deps.listVaultItemsByProfileId(profile.id);
+      const profileDeletedItemIds =
+        await deps.listDeletedVaultItemIdsByProfileId(profile.id);
 
-      return buildVaultSyncPayload(profile, vaultItems);
+      return buildVaultSyncPayload(profile, vaultItems, profileDeletedItemIds);
     },
   };
 }
