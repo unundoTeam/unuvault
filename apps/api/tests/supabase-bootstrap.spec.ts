@@ -126,7 +126,7 @@ describe("createSupabaseAuthBootstrapDependencies", () => {
   });
 
   it("lists vault_items for a user profile", async () => {
-    const eq = vi.fn().mockResolvedValue({
+    const is = vi.fn().mockResolvedValue({
       data: [
         {
           id: "item-1",
@@ -145,6 +145,7 @@ describe("createSupabaseAuthBootstrapDependencies", () => {
       ],
       error: null,
     });
+    const eq = vi.fn().mockReturnValue({ is });
     const select = vi.fn().mockReturnValue({ eq });
     const from = vi.fn().mockReturnValue({ select });
 
@@ -160,6 +161,7 @@ describe("createSupabaseAuthBootstrapDependencies", () => {
       "id, user_profile_id, item_type, title, encrypted_payload, favorite, source, last_used_at, created_at, updated_at",
     );
     expect(eq).toHaveBeenCalledWith("user_profile_id", "profile-1");
+    expect(is).toHaveBeenCalledWith("deleted_at", null);
     expect(items).toEqual([
       {
         id: "item-1",
@@ -176,6 +178,29 @@ describe("createSupabaseAuthBootstrapDependencies", () => {
         updated_at: "2026-03-15T00:00:00.000Z",
       },
     ]);
+  });
+
+  it("lists deleted vault item ids for a user profile", async () => {
+    const not = vi.fn().mockResolvedValue({
+      data: [{ id: "item-2" }],
+      error: null,
+    });
+    const eq = vi.fn().mockReturnValue({ not });
+    const select = vi.fn().mockReturnValue({ eq });
+    const from = vi.fn().mockReturnValue({ select });
+
+    const deps = createSupabaseAuthBootstrapDependencies({
+      auth: { getUser: vi.fn() },
+      from,
+    } as never);
+
+    const ids = await deps.listDeletedVaultItemIdsByProfileId("profile-1");
+
+    expect(from).toHaveBeenCalledWith("vault_items");
+    expect(select).toHaveBeenCalledWith("id");
+    expect(eq).toHaveBeenCalledWith("user_profile_id", "profile-1");
+    expect(not).toHaveBeenCalledWith("deleted_at", "is", null);
+    expect(ids).toEqual(["item-2"]);
   });
 
   it("upserts vault_items for a user profile", async () => {
@@ -222,6 +247,7 @@ describe("createSupabaseAuthBootstrapDependencies", () => {
           last_used_at: null,
           created_at: "2026-03-14T00:00:00.000Z",
           updated_at: "2026-03-15T00:00:00.000Z",
+          deleted_at: null,
         },
       ],
       {
@@ -281,5 +307,29 @@ describe("createSupabaseAuthBootstrapDependencies", () => {
         updated_at: "2026-03-15T00:00:00.000Z",
       },
     ]);
+  });
+
+  it("soft deletes vault_items for a user profile", async () => {
+    const eq = vi.fn().mockResolvedValue({
+      data: null,
+      error: null,
+    });
+    const inQuery = vi.fn().mockReturnValue({ eq });
+    const update = vi.fn().mockReturnValue({ in: inQuery });
+    const from = vi.fn().mockReturnValue({ update });
+
+    const deps = createSupabaseAuthBootstrapDependencies({
+      auth: { getUser: vi.fn() },
+      from,
+    } as never);
+
+    await deps.softDeleteVaultItems("profile-1", ["item-2"]);
+
+    expect(from).toHaveBeenCalledWith("vault_items");
+    expect(update).toHaveBeenCalledWith({
+      deleted_at: expect.any(String),
+    });
+    expect(inQuery).toHaveBeenCalledWith("id", ["item-2"]);
+    expect(eq).toHaveBeenCalledWith("user_profile_id", "profile-1");
   });
 });
