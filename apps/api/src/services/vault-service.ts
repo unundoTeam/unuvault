@@ -1,4 +1,5 @@
 import type {
+  VaultSyncRequest,
   VaultSyncItem,
   VaultSyncResponse,
 } from "../../../../packages/api-client/src/vault";
@@ -31,12 +32,16 @@ type VaultItemRow = {
 type VaultSyncServiceDependencies = {
   getUserByToken(token: string): Promise<AuthUser | null>;
   getUserProfileByAuthUserId(authUserId: string): Promise<VaultSyncProfile | null>;
+  listVaultItemsByIds(itemIds: string[]): Promise<VaultItemRow[]>;
+  upsertVaultItems(profileId: string, items: VaultSyncItem[]): Promise<void>;
   listVaultItemsByProfileId(profileId: string): Promise<VaultItemRow[]>;
 };
 
 export class VaultSyncUnauthorizedError extends Error {}
 
 export class VaultSyncProfileNotFoundError extends Error {}
+
+export class VaultSyncItemConflictError extends Error {}
 
 function mapVaultItemRowToSyncItem(row: VaultItemRow): VaultSyncItem {
   return {
@@ -66,7 +71,7 @@ export function buildVaultSyncPayload(
 
 export function createVaultSyncService(deps: VaultSyncServiceDependencies) {
   return {
-    async syncVaultFromToken(token: string) {
+    async syncVaultFromToken(token: string, payload: VaultSyncRequest) {
       const user = await deps.getUserByToken(token);
 
       if (!user?.id) {
@@ -81,6 +86,23 @@ export function createVaultSyncService(deps: VaultSyncServiceDependencies) {
         throw new VaultSyncProfileNotFoundError(
           "authenticated user has no users_profile",
         );
+      }
+
+      if (payload.changed_items.length > 0) {
+        const existingItems = await deps.listVaultItemsByIds(
+          payload.changed_items.map((item) => item.id),
+        );
+        const foreignOwnedItem = existingItems.find(
+          (item) => item.user_profile_id !== profile.id,
+        );
+
+        if (foreignOwnedItem) {
+          throw new VaultSyncItemConflictError(
+            "item id belongs to another profile",
+          );
+        }
+
+        await deps.upsertVaultItems(profile.id, payload.changed_items);
       }
 
       const vaultItems = await deps.listVaultItemsByProfileId(profile.id);

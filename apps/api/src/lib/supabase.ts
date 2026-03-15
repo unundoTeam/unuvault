@@ -236,7 +236,12 @@ export function createConfiguredAuthBootstrapService() {
 
 export function createConfiguredVaultSyncService() {
   return {
-    async syncVaultFromToken(token: string) {
+    async syncVaultFromToken(
+      token: string,
+      payload: Parameters<
+        ReturnType<typeof createVaultSyncService>["syncVaultFromToken"]
+      >[1],
+    ) {
       if (!configuredVaultSyncService) {
         const client = await createServerSupabaseClient();
         configuredVaultSyncService = createVaultSyncService(
@@ -244,7 +249,7 @@ export function createConfiguredVaultSyncService() {
         );
       }
 
-      return configuredVaultSyncService.syncVaultFromToken(token);
+      return configuredVaultSyncService.syncVaultFromToken(token, payload);
     },
   };
 }

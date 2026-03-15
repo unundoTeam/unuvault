@@ -1,39 +1,45 @@
 import Fastify from "fastify";
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 import { createVaultSyncRoutes } from "../src/routes/vault-sync";
 import {
+  VaultSyncItemConflictError,
   VaultSyncProfileNotFoundError,
   VaultSyncUnauthorizedError,
 } from "../src/services/vault-service";
 
 describe("POST /vault/sync", () => {
+  const syncVaultFromToken = vi.fn().mockResolvedValue({
+    server_time: "2026-03-15T00:00:00.000Z",
+    updated_items: [
+      {
+        id: "item-1",
+        item_type: "login",
+        title: "GitHub",
+        encrypted_payload: {
+          ciphertext: "abc",
+        },
+        favorite: true,
+        source: "manual",
+        last_used_at: null,
+        created_at: "2026-03-14T00:00:00.000Z",
+        updated_at: "2026-03-15T00:00:00.000Z",
+      },
+    ],
+    deleted_item_ids: [],
+    conflicts: [],
+  });
   const app = Fastify();
 
   app.register(
     createVaultSyncRoutes({
-      syncVaultFromToken: async () => ({
-        server_time: "2026-03-15T00:00:00.000Z",
-        updated_items: [
-          {
-            id: "item-1",
-            item_type: "login",
-            title: "GitHub",
-            encrypted_payload: {
-              ciphertext: "abc",
-            },
-            favorite: true,
-            source: "manual",
-            last_used_at: null,
-            created_at: "2026-03-14T00:00:00.000Z",
-            updated_at: "2026-03-15T00:00:00.000Z",
-          },
-        ],
-        deleted_item_ids: [],
-        conflicts: [],
-      }),
+      syncVaultFromToken,
     }),
     { prefix: "/vault" },
   );
+
+  afterEach(() => {
+    syncVaultFromToken.mockClear();
+  });
 
   afterAll(async () => {
     await app.close();
@@ -87,6 +93,40 @@ describe("POST /vault/sync", () => {
     await profileMissingApp.close();
   });
 
+  it("returns item_id_conflict when an item id belongs to another user", async () => {
+    const conflictApp = Fastify();
+
+    conflictApp.register(
+      createVaultSyncRoutes({
+        syncVaultFromToken: async () => {
+          throw new VaultSyncItemConflictError(
+            "item id belongs to another profile",
+          );
+        },
+      }),
+      { prefix: "/vault" },
+    );
+
+    await conflictApp.ready();
+
+    const response = await conflictApp.inject({
+      method: "POST",
+      url: "/vault/sync",
+      headers: {
+        authorization: "Bearer jwt-token",
+      },
+      payload: { changed_items: [] },
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toEqual({
+      ok: false,
+      error: "item_id_conflict",
+    });
+
+    await conflictApp.close();
+  });
+
   it("returns invalid_token when the token cannot be resolved", async () => {
     const unauthorizedApp = Fastify();
 
@@ -122,15 +162,34 @@ describe("POST /vault/sync", () => {
   it("returns sync payload for an authenticated user", async () => {
     await app.ready();
 
+    const changedItems = [
+      {
+        id: "item-1",
+        item_type: "login",
+        title: "GitHub",
+        encrypted_payload: {
+          ciphertext: "abc",
+        },
+        favorite: true,
+        source: "manual",
+        last_used_at: null,
+        created_at: "2026-03-14T00:00:00.000Z",
+        updated_at: "2026-03-15T00:00:00.000Z",
+      },
+    ];
+
     const response = await app.inject({
       method: "POST",
       url: "/vault/sync",
       headers: {
         authorization: "Bearer jwt-token",
       },
-      payload: { changed_items: [] },
+      payload: { changed_items: changedItems },
     });
 
+    expect(syncVaultFromToken).toHaveBeenCalledWith("jwt-token", {
+      changed_items: changedItems,
+    });
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
       server_time: "2026-03-15T00:00:00.000Z",

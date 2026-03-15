@@ -1,13 +1,20 @@
 import type { FastifyInstance, FastifyPluginAsync } from "fastify";
-import type { VaultSyncResponse } from "../../../../packages/api-client/src/vault";
+import type {
+  VaultSyncRequest,
+  VaultSyncResponse,
+} from "../../../../packages/api-client/src/vault";
 import { createConfiguredVaultSyncService } from "../lib/supabase";
 import {
+  VaultSyncItemConflictError,
   VaultSyncProfileNotFoundError,
   VaultSyncUnauthorizedError,
 } from "../services/vault-service";
 
 type VaultSyncRouteDependencies = {
-  syncVaultFromToken(token: string): Promise<VaultSyncResponse>;
+  syncVaultFromToken(
+    token: string,
+    payload: VaultSyncRequest,
+  ): Promise<VaultSyncResponse>;
 };
 
 export function createVaultSyncRoutes(
@@ -26,9 +33,12 @@ export function createVaultSyncRoutes(
       }
 
       const token = authorization.slice("Bearer ".length);
+      const payload = (request.body ?? {
+        changed_items: [],
+      }) as VaultSyncRequest;
 
       try {
-        return await deps.syncVaultFromToken(token);
+        return await deps.syncVaultFromToken(token, payload);
       } catch (error) {
         if (error instanceof VaultSyncUnauthorizedError) {
           reply.code(401);
@@ -43,6 +53,14 @@ export function createVaultSyncRoutes(
           return {
             ok: false,
             error: "profile_not_found",
+          };
+        }
+
+        if (error instanceof VaultSyncItemConflictError) {
+          reply.code(409);
+          return {
+            ok: false,
+            error: "item_id_conflict",
           };
         }
 
