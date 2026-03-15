@@ -1,6 +1,6 @@
 # MVP Auth with Supabase Design
 
-**Problem:** `unuvault` already has a phase-1 schema, route groups, and trust-boundary docs, but authentication is still a placeholder in both the API and web app. The product needs a minimal real login foundation before `vault/sync` and other user-scoped features can become trustworthy.
+**Problem:** `unuvault` already has a phase-1 schema, route groups, and trust-boundary docs, but authentication is still a placeholder in both the API and web app. The product needs a minimal real signup foundation before `vault/sync` and other user-scoped features can become trustworthy.
 
 ## Current State
 
@@ -46,7 +46,7 @@ Use option 2 and keep the first deliverable web-only.
 ### Architecture
 
 - `Supabase Auth` is responsible for account creation, login, and session issuance.
-- `apps/web` owns the initial register/login UX and uses Supabase's client library for auth primitives.
+- `apps/web` owns the initial register UX and uses Supabase's client library for auth primitives.
 - `apps/api` adds a thin authenticated bootstrap endpoint that turns a Supabase identity into a product profile.
 - `users_profile` stays the only product table touched in this slice.
 
@@ -92,6 +92,7 @@ Use option 2 and keep the first deliverable web-only.
 ## Non-Goals
 
 - Browser extension or iPhone login flows
+- A dedicated standalone login page
 - Email verification and password recovery flows
 - Device session persistence in `device_sessions`
 - Password hint UX
