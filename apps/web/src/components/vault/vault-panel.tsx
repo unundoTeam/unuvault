@@ -5,7 +5,8 @@ import { useState } from "react";
 import { useVaultSync } from "./use-vault-sync";
 
 export function VaultPanel() {
-  const { createItem, errorMessage, isAuthenticated, isLoading, items } = useVaultSync();
+  const { createItem, deleteItem, errorMessage, isAuthenticated, isLoading, items } =
+    useVaultSync();
   const [draftTitle, setDraftTitle] = useState("");
   const [validationMessage, setValidationMessage] = useState<string | null>(null);
 
@@ -61,7 +62,16 @@ export function VaultPanel() {
           {items.length > 0 ? (
             <ul>
               {items.map((item) => (
-                <li key={item.id}>{item.title}</li>
+                <li key={item.id}>
+                  <span>{item.title}</span>
+                  <button
+                    type="button"
+                    onClick={() => void deleteItem(item.id)}
+                    disabled={isLoading}
+                  >
+                    Delete {item.title}
+                  </button>
+                </li>
               ))}
             </ul>
           ) : (

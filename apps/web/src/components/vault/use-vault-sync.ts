@@ -10,6 +10,7 @@ import { createBrowserSupabaseClient } from "../../lib/supabase-browser";
 
 type VaultSyncState = {
   createItem(title: string): Promise<boolean>;
+  deleteItem(itemId: string): Promise<boolean>;
   errorMessage: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
@@ -82,6 +83,18 @@ export function useVaultSync(): VaultSyncState {
     });
   }
 
+  async function deleteItem(itemId: string): Promise<boolean> {
+    if (!accessToken) {
+      setErrorMessage("Sign in from the register flow first.");
+      return false;
+    }
+
+    return runSync(accessToken, {
+      changed_items: [],
+      deleted_item_ids: [itemId],
+    });
+  }
+
   useEffect(() => {
     let isCancelled = false;
 
@@ -136,6 +149,7 @@ export function useVaultSync(): VaultSyncState {
 
   return {
     createItem,
+    deleteItem,
     errorMessage,
     isAuthenticated,
     isLoading,

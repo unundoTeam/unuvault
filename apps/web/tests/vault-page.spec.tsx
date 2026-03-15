@@ -175,4 +175,60 @@ describe("VaultPage", () => {
     expect(await screen.findByText("Title is required.")).toBeInTheDocument();
     expect(mocks.syncVault).toHaveBeenCalledTimes(1);
   });
+
+  it("deletes a vault item through deleted_item_ids", async () => {
+    mocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: "jwt-token",
+        },
+      },
+      error: null,
+    });
+    mocks.syncVault
+      .mockResolvedValueOnce({
+        server_time: "2026-03-16T00:00:00.000Z",
+        updated_items: [
+          {
+            id: "item-1",
+            item_type: "login",
+            title: "GitHub",
+            encrypted_payload: {
+              schema_version: 1,
+              username: "",
+            },
+            favorite: false,
+            source: "manual",
+            last_used_at: null,
+            created_at: "2026-03-16T00:00:00.000Z",
+            updated_at: "2026-03-16T00:00:00.000Z",
+          },
+        ],
+        deleted_item_ids: [],
+        conflicts: [],
+      })
+      .mockResolvedValueOnce({
+        server_time: "2026-03-16T00:00:01.000Z",
+        updated_items: [],
+        deleted_item_ids: ["item-1"],
+        conflicts: [],
+      });
+
+    render(<VaultPage />);
+
+    expect(await screen.findByText("GitHub")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete GitHub" }));
+
+    expect(await screen.findByText("No vault items yet.")).toBeInTheDocument();
+    expect(mocks.syncVault).toHaveBeenNthCalledWith(
+      2,
+      expect.any(Function),
+      "jwt-token",
+      {
+        changed_items: [],
+        deleted_item_ids: ["item-1"],
+      },
+    );
+  });
 });
