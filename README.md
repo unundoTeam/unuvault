@@ -29,6 +29,13 @@ This repository now includes the phase-1 schema boundary, client-side security m
 - `pnpm test` runs the repository meta tests plus all workspace Vitest suites
 - `bash scripts/testing/run-ios.sh` runs the Swift package tests for the iPhone app
 
+## Local MVP Auth Setup
+
+- `apps/web/.env.example` shows the browser-facing Supabase values needed for signup: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and `NEXT_PUBLIC_API_BASE_URL`
+- `apps/api/.env.example` shows the server-only values needed for auth bootstrap: `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` is safe for the browser; `SUPABASE_SERVICE_ROLE_KEY` must stay in server-only env files and never ship to the client
+- The local verification order is: create the Supabase-backed signup in web, let the web app call `POST /auth/bootstrap`, then confirm the API can upsert `users_profile`
+
 ## CI Status
 
 - `.github/workflows/ci.yml` is the default JS gate for lint and test
