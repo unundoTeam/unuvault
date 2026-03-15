@@ -33,9 +33,11 @@ export function createVaultSyncRoutes(
       }
 
       const token = authorization.slice("Bearer ".length);
-      const payload = (request.body ?? {
-        changed_items: [],
-      }) as VaultSyncRequest;
+      const body = (request.body ?? {}) as Partial<VaultSyncRequest>;
+      const payload: VaultSyncRequest = {
+        changed_items: body.changed_items ?? [],
+        deleted_item_ids: body.deleted_item_ids ?? [],
+      };
 
       try {
         return await deps.syncVaultFromToken(token, payload);
