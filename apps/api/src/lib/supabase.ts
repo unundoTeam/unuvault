@@ -45,6 +45,8 @@ type VaultItemRow = {
   deleted_at: string | null;
 };
 
+type VaultItemWriteRow = Omit<VaultItemRow, "deleted_at">;
+
 type SupabaseResult<T> = PromiseLike<{
   data: T | null;
   error: unknown | null;
@@ -210,10 +212,9 @@ export function createSupabaseAuthBootstrapDependencies(
         return;
       }
 
-      const records: VaultItemRow[] = items.map((item) => ({
+      const records: VaultItemWriteRow[] = items.map((item) => ({
         ...item,
         user_profile_id: profileId,
-        deleted_at: null,
       }));
 
       const result = await (

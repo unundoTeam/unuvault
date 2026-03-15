@@ -20,7 +20,6 @@ create table if not exists vault_items (
   favorite boolean not null default false,
   source text not null default 'manual',
   last_used_at timestamptz,
-  deleted_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

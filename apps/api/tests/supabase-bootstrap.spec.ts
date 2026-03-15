@@ -247,7 +247,6 @@ describe("createSupabaseAuthBootstrapDependencies", () => {
           last_used_at: null,
           created_at: "2026-03-14T00:00:00.000Z",
           updated_at: "2026-03-15T00:00:00.000Z",
-          deleted_at: null,
         },
       ],
       {
