@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make authenticated `POST /vault/sync` upsert full-record `changed_items` into the caller's `vault_items`, then return the caller's refreshed full vault.
+**Goal:** Make authenticated `POST /vault/sync` save full-record `changed_items` into the caller's `vault_items` without cross-user overwrites, then return the caller's refreshed full vault.
 
-**Architecture:** Reuse the current authenticated sync path and extend it in three thin layers. First, make the shared request contract typed. Second, teach the Supabase dependency adapter how to bulk-upsert rows scoped to one `user_profile_id`. Third, pass typed `changed_items` through the route into the vault service so the service can write, then re-read, the caller's vault before returning the existing sync response shape.
+**Architecture:** Reuse the current authenticated sync path and extend it in three thin layers. First, make the shared request contract typed. Second, teach the Supabase dependency adapter how to list existing rows by `id` and save rows scoped to one `user_profile_id`. Third, pass typed `changed_items` through the route into the vault service so the service can reject cross-user `id` collisions, write allowed items, then re-read the caller's vault before returning the existing sync response shape.
 
 **Tech Stack:** TypeScript, Fastify, Supabase Auth, Supabase Data API, Vitest
 
@@ -17,9 +17,9 @@
 - Modify: `packages/api-client/tests/vault-client.spec.ts`
   Cover typed `changed_items` on the shared sync request contract.
 - Modify: `apps/api/src/lib/supabase.ts`
-  Add a bulk upsert helper for `vault_items` scoped to one `user_profile_id`.
+  Add ownership-aware read/write helpers for `vault_items`.
 - Modify: `apps/api/tests/supabase-bootstrap.spec.ts`
-  Cover bulk upsert behavior in the Supabase adapter.
+  Cover listing existing rows by `id` plus the scoped save helper in the Supabase adapter.
 - Modify: `apps/api/src/services/vault-service.ts`
   Accept typed sync payloads, upsert incoming items, then return the refreshed full vault.
 - Modify: `apps/api/tests/vault-service.spec.ts`
@@ -106,7 +106,7 @@ git commit -m "feat: type vault sync changed items"
 
 ## Chunk 2: Database write boundary
 
-### Task 2: Add a bulk upsert helper for `vault_items`
+### Task 2: Add ownership-aware Supabase helpers for `vault_items`
 
 **Files:**
 - Modify: `apps/api/src/lib/supabase.ts`
@@ -114,9 +114,45 @@ git commit -m "feat: type vault sync changed items"
 
 - [ ] **Step 1: Write the failing Supabase adapter test**
 
-Add a test like:
+Add tests like:
 
 ```ts
+it("lists vault_items by id", async () => {
+  const inQuery = vi.fn().mockResolvedValue({
+    data: [
+      {
+        id: "item-1",
+        user_profile_id: "profile-foreign",
+        item_type: "login",
+        title: "GitHub",
+        encrypted_payload: { ciphertext: "abc" },
+        favorite: true,
+        source: "manual",
+        last_used_at: null,
+        created_at: "2026-03-14T00:00:00.000Z",
+        updated_at: "2026-03-15T00:00:00.000Z",
+      },
+    ],
+    error: null,
+  });
+  const select = vi.fn().mockReturnValue({ in: inQuery });
+  const from = vi.fn().mockReturnValue({ select });
+
+  const deps = createSupabaseAuthBootstrapDependencies({
+    auth: { getUser: vi.fn() },
+    from,
+  } as never);
+
+  const items = await deps.listVaultItemsByIds(["item-1"]);
+
+  expect(from).toHaveBeenCalledWith("vault_items");
+  expect(select).toHaveBeenCalledWith(
+    "id, user_profile_id, item_type, title, encrypted_payload, favorite, source, last_used_at, created_at, updated_at",
+  );
+  expect(inQuery).toHaveBeenCalledWith("id", ["item-1"]);
+  expect(items).toHaveLength(1);
+});
+
 it("upserts vault_items for a user profile", async () => {
   const upsert = vi.fn().mockResolvedValue({
     data: null,
@@ -167,15 +203,17 @@ it("upserts vault_items for a user profile", async () => {
 - [ ] **Step 2: Run the adapter test to verify it fails**
 
 Run: `./node_modules/.bin/vitest --run apps/api/tests/supabase-bootstrap.spec.ts`
-Expected: FAIL because `upsertVaultItems` does not exist yet
+Expected: FAIL because the ownership-aware helper(s) do not exist yet
 
-- [ ] **Step 3: Implement the smallest bulk upsert adapter**
+- [ ] **Step 3: Implement the smallest ownership-aware read/write helpers**
 
 Implementation notes:
+- add a helper like `listVaultItemsByIds(ids)`
 - add a helper like `upsertVaultItems(profileId, items)`
 - convert typed sync items into `vault_items` rows by injecting `user_profile_id`
 - use Supabase `upsert(..., { onConflict: "id" })`
 - do not trust any user ownership field from the client
+- keep the ownership decision out of the database helper itself; the service will make that decision
 
 - [ ] **Step 4: Re-run the adapter test**
 
@@ -186,12 +224,12 @@ Expected: PASS
 
 ```bash
 git add apps/api/src/lib/supabase.ts apps/api/tests/supabase-bootstrap.spec.ts
-git commit -m "feat: add vault item upsert adapter"
+git commit -m "feat: add vault item save helpers"
 ```
 
 ## Chunk 3: Write-then-read sync service
 
-### Task 3: Upsert incoming items before returning the refreshed vault
+### Task 3: Save incoming items only when ownership is safe
 
 **Files:**
 - Modify: `apps/api/src/services/vault-service.ts`
@@ -202,7 +240,8 @@ git commit -m "feat: add vault item upsert adapter"
 Extend the service tests with cases like:
 
 ```ts
-it("upserts changed_items before reading the current vault", async () => {
+it("saves changed_items before reading the current vault", async () => {
+  const listVaultItemsByIds = vi.fn().mockResolvedValue([]);
   const upsertVaultItems = vi.fn().mockResolvedValue(undefined);
   const listVaultItemsByProfileId = vi.fn().mockResolvedValue([
     {
@@ -227,6 +266,7 @@ it("upserts changed_items before reading the current vault", async () => {
       email: "user@example.com",
       locale: "zh-CN",
     }),
+    listVaultItemsByIds,
     upsertVaultItems,
     listVaultItemsByProfileId,
   });
@@ -247,6 +287,7 @@ it("upserts changed_items before reading the current vault", async () => {
     ],
   });
 
+  expect(listVaultItemsByIds).toHaveBeenCalledWith(["item-1"]);
   expect(upsertVaultItems).toHaveBeenCalledWith("profile-1", [
     {
       id: "item-1",
@@ -268,17 +309,20 @@ it("upserts changed_items before reading the current vault", async () => {
 Also keep or extend coverage for:
 - empty `changed_items` skips the upsert helper
 - same-profile overwrite still returns the refreshed item list from the read-back
+- another profile owning the same `id` throws a stable conflict error and does not call `upsertVaultItems`
 
 - [ ] **Step 2: Run the service tests to verify they fail**
 
 Run: `./node_modules/.bin/vitest --run apps/api/tests/vault-service.spec.ts`
-Expected: FAIL because the service does not accept typed payloads or call an upsert helper yet
+Expected: FAIL because the service does not accept typed payloads, list existing ids, or guard against foreign ownership
 
 - [ ] **Step 3: Implement the smallest write-then-read service**
 
 Implementation notes:
 - change `syncVaultFromToken` to accept `payload: VaultSyncRequest`
-- after resolving `profile`, call `upsertVaultItems(profile.id, payload.changed_items)` when the array is non-empty
+- after resolving `profile`, call `listVaultItemsByIds(payload.changed_items.map((item) => item.id))`
+- if any returned row belongs to another `user_profile_id`, throw a stable conflict error
+- otherwise call `upsertVaultItems(profile.id, payload.changed_items)` when the array is non-empty
 - then call `listVaultItemsByProfileId(profile.id)` and build the existing response shape
 - keep `deleted_item_ids` and `conflicts` empty
 
@@ -291,7 +335,7 @@ Expected: PASS
 
 ```bash
 git add apps/api/src/services/vault-service.ts apps/api/tests/vault-service.spec.ts
-git commit -m "feat: upsert changed items during vault sync"
+git commit -m "feat: save changed items during vault sync"
 ```
 
 ### Task 4: Thread the typed payload through the route and verify the repo
@@ -303,6 +347,16 @@ git commit -m "feat: upsert changed items during vault sync"
 - [ ] **Step 1: Update the route happy-path test**
 
 Adjust the happy-path route test so it posts one real `changed_items` record and expects the dependency to be called successfully before returning the refreshed item payload.
+
+Also add a route test for the new stable conflict error:
+
+```ts
+expect(response.statusCode).toBe(409);
+expect(response.json()).toEqual({
+  ok: false,
+  error: "item_id_conflict",
+});
+```
 
 At minimum, the route test payload should look like:
 
@@ -344,5 +398,5 @@ Expected: PASS
 
 ```bash
 git add apps/api/src/routes/vault-sync.ts apps/api/tests/vault-sync.spec.ts
-git commit -m "test: align vault sync route with write items flow"
+git commit -m "test: align vault sync route with safe write flow"
 ```
