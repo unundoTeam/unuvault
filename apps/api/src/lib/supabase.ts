@@ -42,7 +42,10 @@ type VaultItemRow = {
   last_used_at: string | null;
   created_at: string;
   updated_at: string;
+  deleted_at: string | null;
 };
+
+type VaultItemWriteRow = Omit<VaultItemRow, "deleted_at">;
 
 type SupabaseResult<T> = PromiseLike<{
   data: T | null;
@@ -59,6 +62,9 @@ type SupabaseClientLike = {
       in(column: string, values: string[]): unknown;
     };
     upsert(values: unknown, options: { onConflict: string }): unknown;
+    update(values: unknown): {
+      in(column: string, values: string[]): unknown;
+    };
   };
 };
 
@@ -142,14 +148,39 @@ export function createSupabaseAuthBootstrapDependencies(
           .select(
             "id, user_profile_id, item_type, title, encrypted_payload, favorite, source, last_used_at, created_at, updated_at",
           )
-          .eq("user_profile_id", profileId) as SupabaseResult<VaultItemRow[]>
-      );
+          .eq("user_profile_id", profileId) as {
+          is(column: string, value: null): SupabaseResult<VaultItemRow[]>;
+        }
+      ).is("deleted_at", null);
 
       if (result.error) {
         throw result.error;
       }
 
       return result.data ?? [];
+    },
+
+    async listDeletedVaultItemIdsByProfileId(
+      profileId: string,
+    ): Promise<string[]> {
+      const result = await (
+        client
+          .from("vault_items")
+          .select("id")
+          .eq("user_profile_id", profileId) as {
+          not(
+            column: string,
+            operator: string,
+            value: null,
+          ): SupabaseResult<Array<{ id: string }>>;
+        }
+      ).not("deleted_at", "is", null);
+
+      if (result.error) {
+        throw result.error;
+      }
+
+      return (result.data ?? []).map((row) => row.id);
     },
 
     async listVaultItemsByIds(itemIds: string[]): Promise<VaultItemRow[]> {
@@ -181,7 +212,7 @@ export function createSupabaseAuthBootstrapDependencies(
         return;
       }
 
-      const records: VaultItemRow[] = items.map((item) => ({
+      const records: VaultItemWriteRow[] = items.map((item) => ({
         ...item,
         user_profile_id: profileId,
       }));
@@ -191,6 +222,33 @@ export function createSupabaseAuthBootstrapDependencies(
           .from("vault_items")
           .upsert(records, { onConflict: "id" }) as SupabaseResult<null>
       );
+
+      if (result.error) {
+        throw result.error;
+      }
+    },
+
+    async softDeleteVaultItems(
+      profileId: string,
+      itemIds: string[],
+    ): Promise<void> {
+      if (itemIds.length === 0) {
+        return;
+      }
+
+      const result = await (
+        client
+          .from("vault_items")
+          .update({
+            deleted_at: new Date().toISOString(),
+          }) as {
+          in(column: string, values: string[]): {
+            eq(column: string, value: string): SupabaseResult<null>;
+          };
+        }
+      )
+        .in("id", itemIds)
+        .eq("user_profile_id", profileId);
 
       if (result.error) {
         throw result.error;

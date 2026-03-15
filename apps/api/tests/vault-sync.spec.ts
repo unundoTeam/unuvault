@@ -51,7 +51,7 @@ describe("POST /vault/sync", () => {
     const response = await app.inject({
       method: "POST",
       url: "/vault/sync",
-      payload: { changed_items: [] },
+      payload: { changed_items: [], deleted_item_ids: [] },
     });
 
     expect(response.statusCode).toBe(401);
@@ -81,7 +81,7 @@ describe("POST /vault/sync", () => {
       headers: {
         authorization: "Bearer jwt-token",
       },
-      payload: { changed_items: [] },
+      payload: { changed_items: [], deleted_item_ids: [] },
     });
 
     expect(response.statusCode).toBe(404);
@@ -115,7 +115,7 @@ describe("POST /vault/sync", () => {
       headers: {
         authorization: "Bearer jwt-token",
       },
-      payload: { changed_items: [] },
+      payload: { changed_items: [], deleted_item_ids: [] },
     });
 
     expect(response.statusCode).toBe(409);
@@ -147,7 +147,7 @@ describe("POST /vault/sync", () => {
       headers: {
         authorization: "Bearer bad-token",
       },
-      payload: { changed_items: [] },
+      payload: { changed_items: [], deleted_item_ids: [] },
     });
 
     expect(response.statusCode).toBe(401);
@@ -161,6 +161,26 @@ describe("POST /vault/sync", () => {
 
   it("returns sync payload for an authenticated user", async () => {
     await app.ready();
+    syncVaultFromToken.mockResolvedValueOnce({
+      server_time: "2026-03-15T00:00:00.000Z",
+      updated_items: [
+        {
+          id: "item-1",
+          item_type: "login",
+          title: "GitHub",
+          encrypted_payload: {
+            ciphertext: "abc",
+          },
+          favorite: true,
+          source: "manual",
+          last_used_at: null,
+          created_at: "2026-03-14T00:00:00.000Z",
+          updated_at: "2026-03-15T00:00:00.000Z",
+        },
+      ],
+      deleted_item_ids: ["item-2"],
+      conflicts: [],
+    });
 
     const changedItems = [
       {
@@ -177,6 +197,7 @@ describe("POST /vault/sync", () => {
         updated_at: "2026-03-15T00:00:00.000Z",
       },
     ];
+    const deletedItemIds = ["item-2"];
 
     const response = await app.inject({
       method: "POST",
@@ -184,11 +205,50 @@ describe("POST /vault/sync", () => {
       headers: {
         authorization: "Bearer jwt-token",
       },
-      payload: { changed_items: changedItems },
+      payload: { changed_items: changedItems, deleted_item_ids: deletedItemIds },
     });
 
     expect(syncVaultFromToken).toHaveBeenCalledWith("jwt-token", {
       changed_items: changedItems,
+      deleted_item_ids: deletedItemIds,
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      server_time: "2026-03-15T00:00:00.000Z",
+      updated_items: [
+        {
+          id: "item-1",
+          item_type: "login",
+          title: "GitHub",
+          encrypted_payload: {
+            ciphertext: "abc",
+          },
+          favorite: true,
+          source: "manual",
+          last_used_at: null,
+          created_at: "2026-03-14T00:00:00.000Z",
+          updated_at: "2026-03-15T00:00:00.000Z",
+        },
+      ],
+      deleted_item_ids: ["item-2"],
+      conflicts: [],
+    });
+  });
+
+  it("defaults missing sync arrays when the request body is omitted", async () => {
+    await app.ready();
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/vault/sync",
+      headers: {
+        authorization: "Bearer jwt-token",
+      },
+    });
+
+    expect(syncVaultFromToken).toHaveBeenCalledWith("jwt-token", {
+      changed_items: [],
+      deleted_item_ids: [],
     });
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
