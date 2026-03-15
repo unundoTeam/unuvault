@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, expectTypeOf, it, vi } from "vitest";
 import { syncVault } from "../src/vault";
 
 describe("syncVault", () => {
@@ -6,7 +6,21 @@ describe("syncVault", () => {
     const fetcher = vi.fn().mockResolvedValue({
       json: async () => ({
         server_time: "2026-03-14T00:00:00.000Z",
-        updated_items: [],
+        updated_items: [
+          {
+            id: "item-1",
+            item_type: "login",
+            title: "GitHub",
+            encrypted_payload: {
+              ciphertext: "abc",
+            },
+            favorite: true,
+            source: "manual",
+            last_used_at: "2026-03-15T00:00:00.000Z",
+            created_at: "2026-03-14T00:00:00.000Z",
+            updated_at: "2026-03-15T00:00:00.000Z",
+          },
+        ],
         deleted_item_ids: [],
         conflicts: [],
       }),
@@ -24,7 +38,23 @@ describe("syncVault", () => {
       },
       body: JSON.stringify({ changed_items: [] }),
     });
-    expect(response.updated_items).toEqual([]);
+    expect(response.updated_items[0]?.title).toBe("GitHub");
+    expect(response.updated_items[0]?.encrypted_payload).toEqual({
+      ciphertext: "abc",
+    });
+    expectTypeOf(response.updated_items).toEqualTypeOf<
+      Array<{
+        id: string;
+        item_type: string;
+        title: string;
+        encrypted_payload: Record<string, unknown>;
+        favorite: boolean;
+        source: string;
+        last_used_at: string | null;
+        created_at: string;
+        updated_at: string;
+      }>
+    >();
     expect(response.conflicts).toEqual([]);
   });
 });

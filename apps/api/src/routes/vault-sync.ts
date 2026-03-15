@@ -1,16 +1,10 @@
 import type { FastifyInstance, FastifyPluginAsync } from "fastify";
+import type { VaultSyncResponse } from "../../../../packages/api-client/src/vault";
 import { createConfiguredVaultSyncService } from "../lib/supabase";
 import {
   VaultSyncProfileNotFoundError,
   VaultSyncUnauthorizedError,
 } from "../services/vault-service";
-
-type VaultSyncResponse = {
-  server_time: string;
-  updated_items: unknown[];
-  deleted_item_ids: string[];
-  conflicts: unknown[];
-};
 
 type VaultSyncRouteDependencies = {
   syncVaultFromToken(token: string): Promise<VaultSyncResponse>;

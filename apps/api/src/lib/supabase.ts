@@ -30,6 +30,19 @@ type UserProfile = {
   locale: string;
 };
 
+type VaultItemRow = {
+  id: string;
+  user_profile_id: string;
+  item_type: string;
+  title: string;
+  encrypted_payload: Record<string, unknown>;
+  favorite: boolean;
+  source: string;
+  last_used_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 type SupabaseResult<T> = PromiseLike<{
   data: T | null;
   error: unknown | null;
@@ -41,9 +54,7 @@ type SupabaseClientLike = {
   };
   from(table: string): {
     select(columns: string): {
-      eq(column: string, value: string): {
-        single(): SupabaseResult<UserProfile>;
-      };
+      eq(column: string, value: string): unknown;
     };
     upsert(
       values: UserProfileRecord,
@@ -107,17 +118,37 @@ export function createSupabaseAuthBootstrapDependencies(
     async getUserProfileByAuthUserId(
       authUserId: string,
     ): Promise<UserProfile | null> {
-      const result = await client
-        .from("users_profile")
-        .select("id, auth_user_id, email, locale")
-        .eq("auth_user_id", authUserId)
-        .single();
+      const result = await (
+        client
+          .from("users_profile")
+          .select("id, auth_user_id, email, locale")
+          .eq("auth_user_id", authUserId) as {
+          single(): SupabaseResult<UserProfile>;
+        }
+      ).single();
 
       if (result.error) {
         return null;
       }
 
       return result.data;
+    },
+
+    async listVaultItemsByProfileId(profileId: string): Promise<VaultItemRow[]> {
+      const result = await (
+        client
+          .from("vault_items")
+          .select(
+            "id, user_profile_id, item_type, title, encrypted_payload, favorite, source, last_used_at, created_at, updated_at",
+          )
+          .eq("user_profile_id", profileId) as SupabaseResult<VaultItemRow[]>
+      );
+
+      if (result.error) {
+        throw result.error;
+      }
+
+      return result.data ?? [];
     },
   };
 }
