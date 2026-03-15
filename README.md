@@ -31,10 +31,15 @@ This repository now includes the phase-1 schema boundary, client-side security m
 
 ## Local MVP Auth Setup
 
-- `apps/web/.env.example` shows the browser-facing Supabase values needed for signup: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and `NEXT_PUBLIC_API_BASE_URL`
-- `apps/api/.env.example` shows the server-only values needed for auth bootstrap: `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`
+- copy `apps/web/.env.example` to `apps/web/.env.local`
+- copy `apps/api/.env.example` to `apps/api/.env.local`
+- `apps/web/.env.local` needs the browser-facing values for signup: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and `NEXT_PUBLIC_API_BASE_URL`
+- `apps/api/.env.local` needs the server-only values for auth bootstrap: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `PORT`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY` is safe for the browser; `SUPABASE_SERVICE_ROLE_KEY` must stay in server-only env files and never ship to the client
-- The local verification order is: create the Supabase-backed signup in web, let the web app call `POST /auth/bootstrap`, then confirm the API can upsert `users_profile`
+- start the API in one terminal with `pnpm dev:api`
+- start the web app in a second terminal with `pnpm dev:web`
+- open `http://127.0.0.1:3001/register`
+- the local verification order is: create the Supabase-backed signup in web, let the web app call `POST /auth/bootstrap`, then confirm the API can upsert `users_profile`
 
 ## CI Status
 
