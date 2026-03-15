@@ -92,4 +92,36 @@ describe("createSupabaseAuthBootstrapDependencies", () => {
       locale: "zh-CN",
     });
   });
+
+  it("finds users_profile by authenticated auth_user_id", async () => {
+    const single = vi.fn().mockResolvedValue({
+      data: {
+        id: "profile-1",
+        auth_user_id: "auth-user-1",
+        email: "user@example.com",
+        locale: "zh-CN",
+      },
+      error: null,
+    });
+    const eq = vi.fn().mockReturnValue({ single });
+    const select = vi.fn().mockReturnValue({ eq });
+    const from = vi.fn().mockReturnValue({ select });
+
+    const deps = createSupabaseAuthBootstrapDependencies({
+      auth: { getUser: vi.fn() },
+      from,
+    } as never);
+
+    const profile = await deps.getUserProfileByAuthUserId("auth-user-1");
+
+    expect(from).toHaveBeenCalledWith("users_profile");
+    expect(select).toHaveBeenCalledWith("id, auth_user_id, email, locale");
+    expect(eq).toHaveBeenCalledWith("auth_user_id", "auth-user-1");
+    expect(profile).toEqual({
+      id: "profile-1",
+      auth_user_id: "auth-user-1",
+      email: "user@example.com",
+      locale: "zh-CN",
+    });
+  });
 });

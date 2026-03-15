@@ -22,6 +22,13 @@ type AuthBootstrapProfile = {
   locale: string;
 };
 
+type UserProfile = {
+  id: string;
+  auth_user_id: string;
+  email: string;
+  locale: string;
+};
+
 type SupabaseResult<T> = PromiseLike<{
   data: T | null;
   error: unknown | null;
@@ -32,6 +39,11 @@ type SupabaseClientLike = {
     getUser(token: string): SupabaseResult<{ user: ProviderAuthUser | null }>;
   };
   from(table: string): {
+    select(columns: string): {
+      eq(column: string, value: string): {
+        single(): SupabaseResult<UserProfile>;
+      };
+    };
     upsert(
       values: UserProfileRecord,
       options: { onConflict: string },
@@ -86,6 +98,22 @@ export function createSupabaseAuthBootstrapDependencies(
 
       if (result.error || !result.data) {
         throw result.error ?? new Error("failed to upsert users_profile");
+      }
+
+      return result.data;
+    },
+
+    async getUserProfileByAuthUserId(
+      authUserId: string,
+    ): Promise<UserProfile | null> {
+      const result = await client
+        .from("users_profile")
+        .select("id, auth_user_id, email, locale")
+        .eq("auth_user_id", authUserId)
+        .single();
+
+      if (result.error) {
+        return null;
       }
 
       return result.data;
