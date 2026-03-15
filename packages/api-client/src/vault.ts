@@ -2,9 +2,21 @@ export type VaultSyncRequest = {
   changed_items: unknown[];
 };
 
+export type VaultSyncItem = {
+  id: string;
+  item_type: string;
+  title: string;
+  encrypted_payload: Record<string, unknown>;
+  favorite: boolean;
+  source: string;
+  last_used_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type VaultSyncResponse = {
   server_time: string;
-  updated_items: unknown[];
+  updated_items: VaultSyncItem[];
   deleted_item_ids: string[];
   conflicts: unknown[];
 };
