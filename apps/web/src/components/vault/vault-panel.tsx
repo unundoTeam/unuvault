@@ -58,7 +58,16 @@ export function VaultPanel() {
       return;
     }
 
-    const didSave = await updateItemTitle(editingItemId, editingTitle.trim());
+    const nextTitle = editingTitle.trim();
+
+    if (!nextTitle) {
+      setEditingValidationMessage("Edited title is required.");
+      return;
+    }
+
+    setEditingValidationMessage(null);
+
+    const didSave = await updateItemTitle(editingItemId, nextTitle);
 
     if (didSave) {
       cancelEditing();
@@ -107,7 +116,10 @@ export function VaultPanel() {
                           name={`edit-title-${item.id}`}
                           type="text"
                           value={editingTitle}
-                          onChange={(event) => setEditingTitle(event.target.value)}
+                          onChange={(event) => {
+                            setEditingTitle(event.target.value);
+                            setEditingValidationMessage(null);
+                          }}
                         />
                       </label>
                       <button
