@@ -3,6 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "dev": "DOTENV_CONFIG_PATH=.env.local tsx watch src/server.ts",
+    "start": "DOTENV_CONFIG_PATH=.env.local tsx src/server.ts",
     "test": "vitest --run tests",
     "lint": "tsc --noEmit -p tsconfig.json"
   }
