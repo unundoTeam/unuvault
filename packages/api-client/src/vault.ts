@@ -1,5 +1,6 @@
 export type VaultSyncRequest = {
   changed_items: VaultSyncItem[];
+  deleted_item_ids: string[];
 };
 
 export type VaultSyncItem = {

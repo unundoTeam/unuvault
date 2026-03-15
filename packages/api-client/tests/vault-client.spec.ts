@@ -43,6 +43,7 @@ describe("syncVault", () => {
 
     const response = await syncVault(fetcher, "jwt-token", {
       changed_items: changedItems,
+      deleted_item_ids: ["item-2"],
     });
 
     expect(fetcher).toHaveBeenCalledWith("/vault/sync", {
@@ -51,7 +52,10 @@ describe("syncVault", () => {
         authorization: "Bearer jwt-token",
         "content-type": "application/json",
       },
-      body: JSON.stringify({ changed_items: changedItems }),
+      body: JSON.stringify({
+        changed_items: changedItems,
+        deleted_item_ids: ["item-2"],
+      }),
     });
     expect(response.updated_items[0]?.title).toBe("GitHub");
     expect(response.updated_items[0]?.encrypted_payload).toEqual({
@@ -69,6 +73,7 @@ describe("syncVault", () => {
         created_at: string;
         updated_at: string;
       }>;
+      deleted_item_ids: string[];
     }>();
     expectTypeOf(response.updated_items).toEqualTypeOf<
       Array<{
