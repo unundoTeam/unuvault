@@ -124,4 +124,57 @@ describe("createSupabaseAuthBootstrapDependencies", () => {
       locale: "zh-CN",
     });
   });
+
+  it("lists vault_items for a user profile", async () => {
+    const eq = vi.fn().mockResolvedValue({
+      data: [
+        {
+          id: "item-1",
+          user_profile_id: "profile-1",
+          item_type: "login",
+          title: "GitHub",
+          encrypted_payload: {
+            ciphertext: "abc",
+          },
+          favorite: false,
+          source: "manual",
+          last_used_at: null,
+          created_at: "2026-03-14T00:00:00.000Z",
+          updated_at: "2026-03-15T00:00:00.000Z",
+        },
+      ],
+      error: null,
+    });
+    const select = vi.fn().mockReturnValue({ eq });
+    const from = vi.fn().mockReturnValue({ select });
+
+    const deps = createSupabaseAuthBootstrapDependencies({
+      auth: { getUser: vi.fn() },
+      from,
+    } as never);
+
+    const items = await deps.listVaultItemsByProfileId("profile-1");
+
+    expect(from).toHaveBeenCalledWith("vault_items");
+    expect(select).toHaveBeenCalledWith(
+      "id, user_profile_id, item_type, title, encrypted_payload, favorite, source, last_used_at, created_at, updated_at",
+    );
+    expect(eq).toHaveBeenCalledWith("user_profile_id", "profile-1");
+    expect(items).toEqual([
+      {
+        id: "item-1",
+        user_profile_id: "profile-1",
+        item_type: "login",
+        title: "GitHub",
+        encrypted_payload: {
+          ciphertext: "abc",
+        },
+        favorite: false,
+        source: "manual",
+        last_used_at: null,
+        created_at: "2026-03-14T00:00:00.000Z",
+        updated_at: "2026-03-15T00:00:00.000Z",
+      },
+    ]);
+  });
 });
