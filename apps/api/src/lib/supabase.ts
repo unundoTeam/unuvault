@@ -1,4 +1,5 @@
 import { createAuthBootstrapService } from "../services/auth-bootstrap-service";
+import { createVaultSyncService } from "../services/vault-service";
 
 type AuthUser = {
   id: string;
@@ -133,6 +134,9 @@ async function createServerSupabaseClient() {
 let configuredService:
   | ReturnType<typeof createAuthBootstrapService>
   | undefined;
+let configuredVaultSyncService:
+  | ReturnType<typeof createVaultSyncService>
+  | undefined;
 
 export function createConfiguredAuthBootstrapService() {
   return {
@@ -145,6 +149,21 @@ export function createConfiguredAuthBootstrapService() {
       }
 
       return configuredService.bootstrapProfileFromToken(token);
+    },
+  };
+}
+
+export function createConfiguredVaultSyncService() {
+  return {
+    async syncVaultFromToken(token: string) {
+      if (!configuredVaultSyncService) {
+        const client = await createServerSupabaseClient();
+        configuredVaultSyncService = createVaultSyncService(
+          createSupabaseAuthBootstrapDependencies(client),
+        );
+      }
+
+      return configuredVaultSyncService.syncVaultFromToken(token);
     },
   };
 }
