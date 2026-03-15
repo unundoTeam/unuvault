@@ -5,8 +5,15 @@ import { useState } from "react";
 import { useVaultSync } from "./use-vault-sync";
 
 export function VaultPanel() {
-  const { createItem, deleteItem, errorMessage, isAuthenticated, isLoading, items } =
-    useVaultSync();
+  const {
+    createItem,
+    deleteItem,
+    errorMessage,
+    isAuthenticated,
+    isLoading,
+    items,
+    updateItemTitle,
+  } = useVaultSync();
   const [draftTitle, setDraftTitle] = useState("");
   const [validationMessage, setValidationMessage] = useState<string | null>(null);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
@@ -44,6 +51,18 @@ export function VaultPanel() {
     setEditingItemId(null);
     setEditingTitle("");
     setEditingValidationMessage(null);
+  }
+
+  async function saveEditing() {
+    if (!editingItemId) {
+      return;
+    }
+
+    const didSave = await updateItemTitle(editingItemId, editingTitle.trim());
+
+    if (didSave) {
+      cancelEditing();
+    }
   }
 
   return (
@@ -91,7 +110,11 @@ export function VaultPanel() {
                           onChange={(event) => setEditingTitle(event.target.value)}
                         />
                       </label>
-                      <button type="button" disabled={isLoading}>
+                      <button
+                        type="button"
+                        onClick={() => void saveEditing()}
+                        disabled={isLoading}
+                      >
                         Save
                       </button>
                       <button type="button" onClick={cancelEditing} disabled={isLoading}>
