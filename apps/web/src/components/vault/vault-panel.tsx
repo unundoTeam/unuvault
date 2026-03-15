@@ -1,9 +1,32 @@
 "use client";
 
+import type { FormEvent } from "react";
+import { useState } from "react";
 import { useVaultSync } from "./use-vault-sync";
 
 export function VaultPanel() {
-  const { errorMessage, isAuthenticated, isLoading, items } = useVaultSync();
+  const { createItem, errorMessage, isAuthenticated, isLoading, items } = useVaultSync();
+  const [draftTitle, setDraftTitle] = useState("");
+  const [validationMessage, setValidationMessage] = useState<string | null>(null);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const nextTitle = draftTitle.trim();
+
+    if (!nextTitle) {
+      setValidationMessage("Title is required.");
+      return;
+    }
+
+    setValidationMessage(null);
+
+    const didCreate = await createItem(nextTitle);
+
+    if (didCreate) {
+      setDraftTitle("");
+    }
+  }
 
   return (
     <section>
@@ -17,15 +40,34 @@ export function VaultPanel() {
       {errorMessage ? <p>{errorMessage}</p> : null}
 
       {!isLoading && isAuthenticated ? (
-        items.length > 0 ? (
-          <ul>
-            {items.map((item) => (
-              <li key={item.id}>{item.title}</li>
-            ))}
-          </ul>
-        ) : (
-          <p>No vault items yet.</p>
-        )
+        <>
+          <form onSubmit={handleSubmit}>
+            <label>
+              <span>Title</span>
+              <input
+                name="title"
+                type="text"
+                value={draftTitle}
+                onChange={(event) => setDraftTitle(event.target.value)}
+              />
+            </label>
+            <button type="submit" disabled={isLoading}>
+              Save item
+            </button>
+          </form>
+
+          {validationMessage ? <p>{validationMessage}</p> : null}
+
+          {items.length > 0 ? (
+            <ul>
+              {items.map((item) => (
+                <li key={item.id}>{item.title}</li>
+              ))}
+            </ul>
+          ) : (
+            <p>No vault items yet.</p>
+          )}
+        </>
       ) : null}
     </section>
   );
