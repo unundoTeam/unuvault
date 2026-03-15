@@ -1,5 +1,5 @@
 export type VaultSyncRequest = {
-  changed_items: unknown[];
+  changed_items: VaultSyncItem[];
 };
 
 export type VaultSyncItem = {
