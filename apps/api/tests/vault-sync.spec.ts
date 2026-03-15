@@ -13,7 +13,21 @@ describe("POST /vault/sync", () => {
     createVaultSyncRoutes({
       syncVaultFromToken: async () => ({
         server_time: "2026-03-15T00:00:00.000Z",
-        updated_items: [],
+        updated_items: [
+          {
+            id: "item-1",
+            item_type: "login",
+            title: "GitHub",
+            encrypted_payload: {
+              ciphertext: "abc",
+            },
+            favorite: true,
+            source: "manual",
+            last_used_at: null,
+            created_at: "2026-03-14T00:00:00.000Z",
+            updated_at: "2026-03-15T00:00:00.000Z",
+          },
+        ],
         deleted_item_ids: [],
         conflicts: [],
       }),
@@ -120,7 +134,21 @@ describe("POST /vault/sync", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
       server_time: "2026-03-15T00:00:00.000Z",
-      updated_items: [],
+      updated_items: [
+        {
+          id: "item-1",
+          item_type: "login",
+          title: "GitHub",
+          encrypted_payload: {
+            ciphertext: "abc",
+          },
+          favorite: true,
+          source: "manual",
+          last_used_at: null,
+          created_at: "2026-03-14T00:00:00.000Z",
+          updated_at: "2026-03-15T00:00:00.000Z",
+        },
+      ],
       deleted_item_ids: [],
       conflicts: [],
     });
