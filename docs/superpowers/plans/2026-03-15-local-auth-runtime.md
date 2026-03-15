@@ -53,7 +53,7 @@
 
 - [ ] **Step 1: Capture the current missing-runtime failure**
 
-Run: `./node_modules/.bin/pnpm --filter @unuvault/web dev`  
+Run: `./node_modules/.bin/pnpm --filter @unuvault/web dev`
 Expected: FAIL with a missing `dev` script
 
 - [ ] **Step 2: Add the minimal web runtime dependencies and scripts**
@@ -77,7 +77,7 @@ Implementation notes:
 
 - [ ] **Step 3: Re-run the command to see the next expected failure**
 
-Run: `./node_modules/.bin/pnpm --filter @unuvault/web dev`  
+Run: `./node_modules/.bin/pnpm --filter @unuvault/web dev`
 Expected: FAIL because the Next app shell is still incomplete
 
 - [ ] **Step 4: Commit the web runtime dependency slice**
@@ -116,7 +116,7 @@ it("points local developers to the register flow", () => {
 
 - [ ] **Step 2: Run the failing web shell test**
 
-Run: `./node_modules/.bin/vitest --run apps/web/tests/home-page.spec.tsx`  
+Run: `./node_modules/.bin/vitest --run apps/web/tests/home-page.spec.tsx`
 Expected: FAIL because `src/app/page.tsx` does not exist yet
 
 - [ ] **Step 3: Add the smallest valid Next app shell**
@@ -129,7 +129,7 @@ Implementation notes:
 
 - [ ] **Step 4: Re-run the web shell and existing register tests**
 
-Run: `./node_modules/.bin/vitest --run apps/web/tests/home-page.spec.tsx apps/web/tests/register-page.spec.tsx`  
+Run: `./node_modules/.bin/vitest --run apps/web/tests/home-page.spec.tsx apps/web/tests/register-page.spec.tsx`
 Expected: PASS
 
 - [ ] **Step 5: Commit the app-shell slice**
@@ -173,7 +173,7 @@ describe("startApiServer", () => {
 
 - [ ] **Step 2: Run the failing API runtime test**
 
-Run: `./node_modules/.bin/vitest --run apps/api/tests/server-runtime.spec.ts`  
+Run: `./node_modules/.bin/vitest --run apps/api/tests/server-runtime.spec.ts`
 Expected: FAIL because `src/server-runtime.ts` does not exist yet
 
 - [ ] **Step 3: Add the smallest startable API runtime**
@@ -196,7 +196,7 @@ export async function startApiServer(server: FastifyListenLike, env = process.en
 
 - [ ] **Step 4: Re-run the API runtime test and API auth smoke**
 
-Run: `./node_modules/.bin/vitest --run apps/api/tests/server-runtime.spec.ts apps/api/tests/auth-bootstrap.spec.ts apps/api/tests/routes.spec.ts`  
+Run: `./node_modules/.bin/vitest --run apps/api/tests/server-runtime.spec.ts apps/api/tests/auth-bootstrap.spec.ts apps/api/tests/routes.spec.ts`
 Expected: PASS
 
 - [ ] **Step 5: Commit the API runtime slice**
@@ -244,10 +244,10 @@ Required sections:
 
 - [ ] **Step 4: Re-run lint and JS tests**
 
-Run: `bash scripts/testing/lint-runner.sh`  
+Run: `bash scripts/testing/lint-runner.sh`
 Expected: PASS
 
-Run: `bash scripts/testing/test-runner.sh`  
+Run: `bash scripts/testing/test-runner.sh`
 Expected: PASS
 
 - [ ] **Step 5: Commit the local runtime docs slice**
@@ -281,17 +281,17 @@ PORT=3000
 
 - [ ] **Step 2: Start the API runtime**
 
-Run: `./node_modules/.bin/pnpm dev:api`  
+Run: `./node_modules/.bin/pnpm dev:api`
 Expected: server log contains `API listening at http://127.0.0.1:3000`
 
 - [ ] **Step 3: Start the web runtime in a second terminal**
 
-Run: `./node_modules/.bin/pnpm dev:web`  
+Run: `./node_modules/.bin/pnpm dev:web`
 Expected: Next reports it is ready on `http://localhost:3001`
 
 - [ ] **Step 4: Verify the local register page loads**
 
-Run: `curl -s http://127.0.0.1:3001/register | grep "Create your unuvault account"`  
+Run: `curl -s http://127.0.0.1:3001/register | grep "Create your unuvault account"`
 Expected: finds the heading in the rendered HTML
 
 - [ ] **Step 5: Complete a real signup/bootstrap verification**
@@ -303,5 +303,5 @@ Verification target:
 
 - [ ] **Step 6: Confirm secrets stay untracked**
 
-Run: `git status --short --branch`  
+Run: `git status --short --branch`
 Expected: clean branch state with `.env.local` ignored
