@@ -36,6 +36,7 @@ This repository now includes the phase-1 schema boundary, client-side security m
 - `apps/web/.env.local` needs the browser-facing values for signup: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and `NEXT_PUBLIC_API_BASE_URL`
 - `apps/api/.env.local` needs the server-only values for auth bootstrap: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `PORT`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY` is safe for the browser; `SUPABASE_SERVICE_ROLE_KEY` must stay in server-only env files and never ship to the client
+- for the current MVP `signup -> bootstrap` loop, disable email confirmation in the Supabase project first; otherwise `signUp` creates a user but does not return a session, so the local register page cannot continue into `POST /auth/bootstrap`
 - start the API in one terminal with `pnpm dev:api`
 - start the web app in a second terminal with `pnpm dev:web`
 - open `http://127.0.0.1:3001/register`
