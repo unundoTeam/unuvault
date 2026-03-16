@@ -4,6 +4,7 @@ import "@testing-library/jest-dom/vitest";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import VaultPage from "../src/app/vault/page";
+import { createMasterPasswordVerifier } from "../../../packages/security/src/master-password-verifier";
 import {
   openStoredVaultPassword,
   sealVaultPassword,
@@ -12,6 +13,7 @@ import {
 afterEach(() => {
   cleanup();
   vi.useRealTimers();
+  window.localStorage.clear();
   mocks.getSession.mockReset();
   mocks.syncVault.mockReset();
 });
@@ -24,14 +26,42 @@ const mocks = vi.hoisted(() => ({
 const storedPassword = (password: string, passphrase?: string): string =>
   sealVaultPassword(password, passphrase);
 
+async function setMasterPassword(
+  password: string,
+  confirmation: string = password,
+) {
+  fireEvent.change(await screen.findByLabelText("Master password"), {
+    target: { value: password },
+  });
+  fireEvent.change(screen.getByLabelText("Confirm master password"), {
+    target: { value: confirmation },
+  });
+
+  fireEvent.click(screen.getByRole("button", { name: "Set master password" }));
+}
+
+async function unlockWithMasterPassword(password: string) {
+  fireEvent.change(await screen.findByLabelText("Master password"), {
+    target: { value: password },
+  });
+
+  fireEvent.click(screen.getByRole("button", { name: "Unlock vault" }));
+}
+
 async function unlockVault(passphrase: string) {
-  fireEvent.change(await screen.findByLabelText("Unlock passphrase"), {
+  fireEvent.change(await screen.findByLabelText("Master password"), {
     target: { value: passphrase },
   });
 
-  fireEvent.click(
-    screen.getByRole("button", { name: /Set unlock passphrase|Unlock vault/ }),
-  );
+  const confirmation = screen.queryByLabelText("Confirm master password");
+
+  if (confirmation) {
+    fireEvent.change(confirmation, {
+      target: { value: passphrase },
+    });
+  }
+
+  fireEvent.click(screen.getByRole("button", { name: /Set master password|Unlock vault/ }));
 }
 
 vi.mock("../src/lib/supabase-browser", () => ({
@@ -140,7 +170,110 @@ describe("VaultPage", () => {
     expect(await screen.findByText("Last synced at 00:00 UTC")).toBeInTheDocument();
   });
 
-  it("starts locked when the vault contains a saved password", async () => {
+  it("shows setup mode when no master password verifier is stored", async () => {
+    mocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: "jwt-token",
+        },
+      },
+      error: null,
+    });
+    mocks.syncVault.mockResolvedValue({
+      server_time: "2026-03-16T00:00:00.000Z",
+      updated_items: [],
+      deleted_item_ids: [],
+      conflicts: [],
+    });
+
+    render(<VaultPage />);
+
+    expect(await screen.findByRole("button", { name: "Set master password" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Master password")).toBeInTheDocument();
+    expect(screen.getByLabelText("Confirm master password")).toBeInTheDocument();
+  });
+
+  it("unlocks immediately after setting the first master password", async () => {
+    mocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: "jwt-token",
+        },
+      },
+      error: null,
+    });
+    mocks.syncVault.mockResolvedValue({
+      server_time: "2026-03-16T00:00:00.000Z",
+      updated_items: [],
+      deleted_item_ids: [],
+      conflicts: [],
+    });
+
+    render(<VaultPage />);
+
+    await setMasterPassword("correct horse");
+
+    expect(await screen.findByText("Vault unlocked")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Lock vault" })).toBeInTheDocument();
+  });
+
+  it("shows locked mode when a stored master password verifier already exists", async () => {
+    window.localStorage.setItem(
+      "unuvault.web.master-password-verifier",
+      JSON.stringify(createMasterPasswordVerifier("correct horse")),
+    );
+
+    mocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: "jwt-token",
+        },
+      },
+      error: null,
+    });
+    mocks.syncVault.mockResolvedValue({
+      server_time: "2026-03-16T00:00:00.000Z",
+      updated_items: [],
+      deleted_item_ids: [],
+      conflicts: [],
+    });
+
+    render(<VaultPage />);
+
+    expect(await screen.findByRole("button", { name: "Unlock vault" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Set master password" })).not.toBeInTheDocument();
+  });
+
+  it("shows an error for a wrong master password", async () => {
+    window.localStorage.setItem(
+      "unuvault.web.master-password-verifier",
+      JSON.stringify(createMasterPasswordVerifier("correct horse")),
+    );
+
+    mocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: "jwt-token",
+        },
+      },
+      error: null,
+    });
+    mocks.syncVault.mockResolvedValue({
+      server_time: "2026-03-16T00:00:00.000Z",
+      updated_items: [],
+      deleted_item_ids: [],
+      conflicts: [],
+    });
+
+    render(<VaultPage />);
+
+    await unlockWithMasterPassword("wrong battery");
+
+    expect(await screen.findByText("Wrong master password")).toBeInTheDocument();
+    expect(screen.queryByText("Vault unlocked")).not.toBeInTheDocument();
+  });
+
+  it("requires setup before unlocking saved passwords when no verifier exists yet", async () => {
     mocks.getSession.mockResolvedValue({
       data: {
         session: {
@@ -176,10 +309,11 @@ describe("VaultPage", () => {
     render(<VaultPage />);
 
     expect(await screen.findByText("GitHub")).toBeInTheDocument();
-    expect(screen.getByText("Unlock vault")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Set master password" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Unlock vault" })).not.toBeInTheDocument();
   });
 
-  it("prompts to set an unlock passphrase when no saved passwords exist yet", async () => {
+  it("prompts to set a master password when no verifier exists yet", async () => {
     mocks.getSession.mockResolvedValue({
       data: {
         session: {
@@ -198,7 +332,8 @@ describe("VaultPage", () => {
     render(<VaultPage />);
 
     expect(await screen.findByText("No vault items yet.")).toBeInTheDocument();
-    expect(screen.getByText("Set unlock passphrase")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Set master password" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Confirm master password")).toBeInTheDocument();
   });
 
   it("creates a vault item from the title form", async () => {
@@ -788,12 +923,12 @@ describe("VaultPage", () => {
 
     render(<VaultPage />);
 
-    fireEvent.click(
+    expect(
       await screen.findByRole("button", { name: "Copy password GitHub" }),
-    );
+    ).toBeDisabled();
 
     expect(writeText).not.toHaveBeenCalled();
-    expect(screen.getByText("Unlock vault")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Set master password" })).toBeInTheDocument();
   });
 
   it("unlocks the vault with the correct passphrase before copying a saved password", async () => {
@@ -838,6 +973,11 @@ describe("VaultPage", () => {
       conflicts: [],
     });
 
+    window.localStorage.setItem(
+      "unuvault.web.master-password-verifier",
+      JSON.stringify(createMasterPasswordVerifier("correct horse")),
+    );
+
     render(<VaultPage />);
 
     await unlockVault("correct horse");
@@ -847,7 +987,7 @@ describe("VaultPage", () => {
     expect(writeText).toHaveBeenCalledWith("hunter2");
   });
 
-  it("shows an error and stays locked when the unlock passphrase is wrong", async () => {
+  it("shows an error and stays locked when the master password is wrong", async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
 
     Object.defineProperty(window.navigator, "clipboard", {
@@ -889,17 +1029,50 @@ describe("VaultPage", () => {
       conflicts: [],
     });
 
+    window.localStorage.setItem(
+      "unuvault.web.master-password-verifier",
+      JSON.stringify(createMasterPasswordVerifier("correct horse")),
+    );
+
     render(<VaultPage />);
 
     await unlockVault("wrong battery");
-    fireEvent.click(screen.getByRole("button", { name: "Copy password GitHub" }));
+    expect(screen.getByRole("button", { name: "Copy password GitHub" })).toBeDisabled();
 
-    expect(await screen.findByText("Wrong unlock passphrase")).toBeInTheDocument();
+    expect(await screen.findByText("Wrong master password")).toBeInTheDocument();
     expect(writeText).not.toHaveBeenCalled();
     expect(screen.queryByText("Vault unlocked")).not.toBeInTheDocument();
   });
 
-  it("requires the unlock passphrase to open every protected password", async () => {
+  it("returns to locked mode after remount when a verifier exists", async () => {
+    mocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: "jwt-token",
+        },
+      },
+      error: null,
+    });
+    mocks.syncVault.mockResolvedValue({
+      server_time: "2026-03-16T00:00:00.000Z",
+      updated_items: [],
+      deleted_item_ids: [],
+      conflicts: [],
+    });
+
+    const firstRender = render(<VaultPage />);
+
+    await setMasterPassword("correct horse");
+    expect(await screen.findByText("Vault unlocked")).toBeInTheDocument();
+
+    firstRender.unmount();
+    render(<VaultPage />);
+
+    expect(await screen.findByRole("button", { name: "Unlock vault" })).toBeInTheDocument();
+    expect(screen.queryByText("Vault unlocked")).not.toBeInTheDocument();
+  });
+
+  it("requires the master password to open every protected password during setup", async () => {
     mocks.getSession.mockResolvedValue({
       data: {
         session: {
@@ -952,7 +1125,9 @@ describe("VaultPage", () => {
 
     await unlockVault("correct horse");
 
-    expect(await screen.findByText("Wrong unlock passphrase")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Master password must unlock existing saved passwords"),
+    ).toBeInTheDocument();
     expect(screen.queryByText("Vault unlocked")).not.toBeInTheDocument();
   });
 

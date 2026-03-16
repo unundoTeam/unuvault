@@ -33,10 +33,13 @@ export function VaultPanel() {
     updateItem,
   } = useVaultSync();
   const {
+    draftConfirmPassphrase,
     draftPassphrase,
     isUnlocked,
     lock,
+    mode,
     submitUnlock,
+    setDraftConfirmPassphrase,
     setDraftPassphrase,
     submitLabel,
     unlockPassphrase,
@@ -238,14 +241,25 @@ export function VaultPanel() {
           }}
         >
           <label>
-            <span>Unlock passphrase</span>
+            <span>Master password</span>
             <input
-              name="unlock-passphrase"
+              name="master-password"
               type="password"
               value={draftPassphrase}
               onChange={(event) => setDraftPassphrase(event.target.value)}
             />
           </label>
+          {mode === "needs_setup" ? (
+            <label>
+              <span>Confirm master password</span>
+              <input
+                name="confirm-master-password"
+                type="password"
+                value={draftConfirmPassphrase}
+                onChange={(event) => setDraftConfirmPassphrase(event.target.value)}
+              />
+            </label>
+          ) : null}
           {isUnlocked ? (
             <button type="button" onClick={lock}>
               Lock vault
@@ -286,12 +300,13 @@ export function VaultPanel() {
                 type={isCreatePasswordVisible ? "text" : "password"}
                 value={draftPassword}
                 onChange={(event) => setDraftPassword(event.target.value)}
+                disabled={!isUnlocked}
               />
             </label>
             <button
               type="button"
               onClick={() => setIsCreatePasswordVisible((current) => !current)}
-              disabled={isSyncing}
+              disabled={isSyncing || !isUnlocked}
             >
               {isCreatePasswordVisible ? "Hide password" : "Show password"}
             </button>
@@ -418,7 +433,7 @@ export function VaultPanel() {
                                 ),
                               )
                             }
-                            disabled={isSyncing}
+                            disabled={isSyncing || !isUnlocked}
                           >
                             {copiedPasswordItemId === item.id
                               ? `Copied password ${item.title}`
@@ -429,7 +444,7 @@ export function VaultPanel() {
                           <button
                             type="button"
                             onClick={() => togglePasswordVisibility(item.id)}
-                            disabled={isSyncing}
+                            disabled={isSyncing || !isUnlocked}
                           >
                             {isPasswordRevealed
                               ? `Hide password ${item.title}`
