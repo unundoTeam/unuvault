@@ -48,6 +48,7 @@ export function useVaultSync(): VaultSyncState {
   ): Promise<boolean> {
     setIsLoading(true);
     setIsSyncing(true);
+    setLastAction(action);
     setErrorMessage(null);
 
     try {

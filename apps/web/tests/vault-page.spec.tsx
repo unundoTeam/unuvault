@@ -369,6 +369,113 @@ describe("VaultPage", () => {
     expect(await screen.findByText("Last synced at 00:02 UTC")).toBeInTheDocument();
   });
 
+  it("keeps the current vault list visible while a mutation sync is pending", async () => {
+    mocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: "jwt-token",
+        },
+      },
+      error: null,
+    });
+
+    let resolveMutation: ((value: {
+      server_time: string;
+      updated_items: {
+        id: string;
+        item_type: "login";
+        title: string;
+        encrypted_payload: {
+          schema_version: number;
+          username: string;
+        };
+        favorite: false;
+        source: "manual";
+        last_used_at: null;
+        created_at: string;
+        updated_at: string;
+      }[];
+      deleted_item_ids: never[];
+      conflicts: never[];
+    }) => void) | null = null;
+
+    mocks.syncVault
+      .mockResolvedValueOnce({
+        server_time: "2026-03-16T00:00:00.000Z",
+        updated_items: [
+          {
+            id: "item-1",
+            item_type: "login",
+            title: "GitHub",
+            encrypted_payload: {
+              schema_version: 1,
+              username: "",
+            },
+            favorite: false,
+            source: "manual",
+            last_used_at: null,
+            created_at: "2026-03-16T00:00:00.000Z",
+            updated_at: "2026-03-16T00:00:00.000Z",
+          },
+        ],
+        deleted_item_ids: [],
+        conflicts: [],
+      })
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveMutation = resolve;
+        }),
+      );
+
+    render(<VaultPage />);
+
+    expect(await screen.findByText("GitHub")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "GitLab" },
+    });
+    fireEvent.submit(screen.getByRole("button", { name: "Save item" }).closest("form")!);
+
+    expect(screen.getByText("GitHub")).toBeInTheDocument();
+    expect(screen.getByText("Saving item...")).toBeInTheDocument();
+
+    resolveMutation?.({
+      server_time: "2026-03-16T00:01:00.000Z",
+      updated_items: [
+        {
+          id: "item-1",
+          item_type: "login",
+          title: "GitHub",
+          encrypted_payload: {
+            schema_version: 1,
+            username: "",
+          },
+          favorite: false,
+          source: "manual",
+          last_used_at: null,
+          created_at: "2026-03-16T00:00:00.000Z",
+          updated_at: "2026-03-16T00:00:00.000Z",
+        },
+        {
+          id: "item-2",
+          item_type: "login",
+          title: "GitLab",
+          encrypted_payload: {
+            schema_version: 1,
+            username: "",
+          },
+          favorite: false,
+          source: "manual",
+          last_used_at: null,
+          created_at: "2026-03-16T00:01:00.000Z",
+          updated_at: "2026-03-16T00:01:00.000Z",
+        },
+      ],
+      deleted_item_ids: [],
+      conflicts: [],
+    });
+  });
+
   it("preserves the last successful list when sync fails", async () => {
     mocks.getSession.mockResolvedValue({
       data: {

@@ -19,7 +19,7 @@ export function VaultPanel() {
     errorMessage,
     isAuthenticated,
     isBootstrapping,
-    isLoading,
+    isSyncing,
     items,
     lastAction,
     lastSyncedAt,
@@ -85,17 +85,25 @@ export function VaultPanel() {
     }
   }
 
-  const statusMessage = isBootstrapping
-    ? "Syncing vault..."
-    : lastAction === "load"
-      ? "Vault synced"
-      : lastAction === "create"
-        ? "Item saved"
-        : lastAction === "update"
-          ? "Item updated"
-          : lastAction === "delete"
-            ? "Item deleted"
-            : null;
+  const statusMessage = errorMessage
+    ? null
+    : isBootstrapping
+      ? "Syncing vault..."
+      : isSyncing && lastAction === "create"
+        ? "Saving item..."
+        : isSyncing && lastAction === "update"
+          ? "Updating item..."
+          : isSyncing && lastAction === "delete"
+            ? "Deleting item..."
+            : lastAction === "load"
+              ? "Vault synced"
+              : lastAction === "create"
+                ? "Item saved"
+                : lastAction === "update"
+                  ? "Item updated"
+                  : lastAction === "delete"
+                    ? "Item deleted"
+                    : null;
 
   return (
     <section>
@@ -104,12 +112,12 @@ export function VaultPanel() {
 
       {statusMessage ? <p>{statusMessage}</p> : null}
       {lastSyncedAt ? <p>Last synced at {formatUtcSyncTime(lastSyncedAt)}</p> : null}
-      {!isLoading && !isAuthenticated ? (
+      {!isBootstrapping && !isAuthenticated ? (
         <p>Sign in from the register flow first.</p>
       ) : null}
       {errorMessage ? <p>{errorMessage}</p> : null}
 
-      {!isLoading && isAuthenticated ? (
+      {!isBootstrapping && isAuthenticated ? (
         <>
           <form onSubmit={handleSubmit}>
             <label>
@@ -121,7 +129,7 @@ export function VaultPanel() {
                 onChange={(event) => setDraftTitle(event.target.value)}
               />
             </label>
-            <button type="submit" disabled={isLoading}>
+            <button type="submit" disabled={isSyncing}>
               Save item
             </button>
           </form>
@@ -149,11 +157,11 @@ export function VaultPanel() {
                       <button
                         type="button"
                         onClick={() => void saveEditing()}
-                        disabled={isLoading}
+                        disabled={isSyncing}
                       >
                         Save
                       </button>
-                      <button type="button" onClick={cancelEditing} disabled={isLoading}>
+                      <button type="button" onClick={cancelEditing} disabled={isSyncing}>
                         Cancel
                       </button>
                       {editingValidationMessage ? <p>{editingValidationMessage}</p> : null}
@@ -164,14 +172,14 @@ export function VaultPanel() {
                       <button
                         type="button"
                         onClick={() => startEditing(item.id, item.title)}
-                        disabled={isLoading}
+                        disabled={isSyncing}
                       >
                         Edit {item.title}
                       </button>
                       <button
                         type="button"
                         onClick={() => void deleteItem(item.id)}
-                        disabled={isLoading}
+                        disabled={isSyncing}
                       >
                         Delete {item.title}
                       </button>
