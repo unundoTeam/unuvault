@@ -1197,6 +1197,57 @@ describe("VaultPage", () => {
     expect(screen.queryByText("hunter2")).not.toBeInTheDocument();
   });
 
+  it("copies a legacy plaintext password without requiring reveal first", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+
+    Object.defineProperty(window.navigator, "clipboard", {
+      configurable: true,
+      value: {
+        writeText,
+      },
+    });
+
+    mocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: "jwt-token",
+        },
+      },
+      error: null,
+    });
+    mocks.syncVault.mockResolvedValue({
+      server_time: "2026-03-16T00:00:00.000Z",
+      updated_items: [
+        {
+          id: "item-1",
+          item_type: "login",
+          title: "GitHub",
+          encrypted_payload: {
+            schema_version: 1,
+            username: "alice@example.com",
+            password_ciphertext: "hunter2",
+            notes: "",
+          },
+          favorite: false,
+          source: "manual",
+          last_used_at: null,
+          created_at: "2026-03-16T00:00:00.000Z",
+          updated_at: "2026-03-16T00:00:00.000Z",
+        },
+      ],
+      deleted_item_ids: [],
+      conflicts: [],
+    });
+
+    render(<VaultPage />);
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Copy password GitHub" }),
+    );
+
+    expect(writeText).toHaveBeenCalledWith("hunter2");
+  });
+
   it("shows copied password feedback only for the targeted item", async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
 
@@ -1919,6 +1970,83 @@ describe("VaultPage", () => {
       cipher: "xchacha20-poly1305",
       keyDerivation: "argon2id",
       encryptedPayload: "work-secret",
+    });
+  });
+
+  it("reseals a legacy plaintext password when the item is saved", async () => {
+    mocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: "jwt-token",
+        },
+      },
+      error: null,
+    });
+    mocks.syncVault
+      .mockResolvedValueOnce({
+        server_time: "2026-03-16T00:00:00.000Z",
+        updated_items: [
+          {
+            id: "item-1",
+            item_type: "login",
+            title: "GitHub",
+            encrypted_payload: {
+              schema_version: 1,
+              username: "alice@example.com",
+              password_ciphertext: "hunter2",
+              notes: "Personal account",
+            },
+            favorite: false,
+            source: "manual",
+            last_used_at: null,
+            created_at: "2026-03-16T00:00:00.000Z",
+            updated_at: "2026-03-16T00:00:00.000Z",
+          },
+        ],
+        deleted_item_ids: [],
+        conflicts: [],
+      })
+      .mockResolvedValueOnce({
+        server_time: "2026-03-16T00:03:00.000Z",
+        updated_items: [
+          {
+            id: "item-1",
+            item_type: "login",
+            title: "GitHub",
+            encrypted_payload: {
+              schema_version: 1,
+              username: "alice@example.com",
+              password_ciphertext: storedPassword("hunter2"),
+              notes: "Personal account",
+            },
+            favorite: false,
+            source: "manual",
+            last_used_at: null,
+            created_at: "2026-03-16T00:00:00.000Z",
+            updated_at: "2026-03-16T00:03:00.000Z",
+          },
+        ],
+        deleted_item_ids: [],
+        conflicts: [],
+      });
+
+    render(<VaultPage />);
+
+    expect(await screen.findByText("GitHub")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit GitHub" }));
+    expect(screen.getByLabelText("Edit password")).toHaveValue("hunter2");
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    const updatePayload = mocks.syncVault.mock.calls[1]?.[2].changed_items[0]
+      .encrypted_payload;
+
+    expect(updatePayload.password_ciphertext).not.toBe("hunter2");
+    expect(JSON.parse(updatePayload.password_ciphertext)).toMatchObject({
+      version: 1,
+      cipher: "xchacha20-poly1305",
+      keyDerivation: "argon2id",
+      encryptedPayload: "hunter2",
     });
   });
 

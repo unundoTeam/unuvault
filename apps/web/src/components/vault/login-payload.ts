@@ -1,6 +1,6 @@
 import type { VaultLoginPayload } from "../../../../../packages/api-client/src/vault";
 import {
-  openVaultPassword,
+  openStoredVaultPassword,
   sealVaultPassword,
 } from "../../../../../packages/security/src/vault-envelope";
 
@@ -28,7 +28,7 @@ export function getHiddenPasswordPlaceholder(payload: unknown): string {
 }
 
 export function readDraftPassword(payload: unknown): string {
-  return openVaultPassword(normalizeVaultLoginPayload(payload).password_ciphertext);
+  return openStoredVaultPassword(normalizeVaultLoginPayload(payload).password_ciphertext);
 }
 
 export function writeDraftPassword(
