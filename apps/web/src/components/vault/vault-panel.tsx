@@ -38,6 +38,7 @@ export function VaultPanel() {
   const [isCreatePasswordVisible, setIsCreatePasswordVisible] = useState(false);
   const [validationMessage, setValidationMessage] = useState<string | null>(null);
   const [copiedUsernameItemId, setCopiedUsernameItemId] = useState<string | null>(null);
+  const [copiedPasswordItemId, setCopiedPasswordItemId] = useState<string | null>(null);
   const [revealedPasswordItemIds, setRevealedPasswordItemIds] = useState<string[]>([]);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
@@ -116,7 +117,7 @@ export function VaultPanel() {
     }, 1500);
   }
 
-  async function copyPassword(password: string) {
+  async function copyPassword(itemId: string, password: string) {
     if (
       typeof navigator === "undefined" ||
       !navigator.clipboard ||
@@ -126,6 +127,11 @@ export function VaultPanel() {
     }
 
     await navigator.clipboard.writeText(password);
+    setCopiedPasswordItemId(itemId);
+
+    window.setTimeout(() => {
+      setCopiedPasswordItemId((current) => (current === itemId ? null : current));
+    }, 1500);
   }
 
   function togglePasswordVisibility(itemId: string) {
@@ -344,11 +350,16 @@ export function VaultPanel() {
                           <button
                             type="button"
                             onClick={() =>
-                              void copyPassword(readDraftPassword(item.encrypted_payload))
+                              void copyPassword(
+                                item.id,
+                                readDraftPassword(item.encrypted_payload),
+                              )
                             }
                             disabled={isSyncing}
                           >
-                            {`Copy password ${item.title}`}
+                            {copiedPasswordItemId === item.id
+                              ? `Copied password ${item.title}`
+                              : `Copy password ${item.title}`}
                           </button>
                         ) : null}
                         {hasPassword ? (
