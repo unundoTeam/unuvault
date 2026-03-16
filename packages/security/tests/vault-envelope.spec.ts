@@ -1,28 +1,52 @@
 import { describe, expect, it } from "vitest";
 import {
+  isPassphraseProtectedVaultPassword,
   openVaultPassword,
   openStoredVaultPassword,
   sealVaultPassword,
 } from "../src/vault-envelope";
 
 describe("vault envelope helpers", () => {
-  it("round-trips a plaintext password through a vault envelope", () => {
-    const sealed = sealVaultPassword("hunter2");
+  it("round-trips a plaintext password through a passphrase-protected envelope", () => {
+    const sealed = sealVaultPassword("hunter2", "correct horse");
 
     expect(sealed).not.toBe("");
     expect(sealed).not.toBe("hunter2");
-    expect(openVaultPassword(sealed)).toBe("hunter2");
+    expect(openVaultPassword(sealed, "correct horse")).toBe("hunter2");
   });
 
-  it("fails closed for invalid envelope input", () => {
-    expect(openVaultPassword("not-an-envelope")).toBe("");
+  it("fails closed when the unlock passphrase is wrong", () => {
+    const sealed = sealVaultPassword("hunter2", "correct horse");
+
+    expect(openVaultPassword(sealed, "wrong battery")).toBe("");
+  });
+
+  it("flags passphrase-protected envelope values", () => {
+    const sealed = sealVaultPassword("hunter2", "correct horse");
+
+    expect(isPassphraseProtectedVaultPassword(sealed)).toBe(true);
+    expect(isPassphraseProtectedVaultPassword("hunter2")).toBe(false);
   });
 
   it("opens legacy plaintext password values through the storage helper", () => {
-    expect(openStoredVaultPassword("hunter2")).toBe("hunter2");
+    expect(openStoredVaultPassword("hunter2", "correct horse")).toBe("hunter2");
+  });
+
+  it("opens legacy version 1 envelope values through the storage helper", () => {
+    expect(
+      openStoredVaultPassword(
+        JSON.stringify({
+          version: 1,
+          cipher: "xchacha20-poly1305",
+          encryptedPayload: "hunter2",
+          keyDerivation: "argon2id",
+        }),
+        "correct horse",
+      ),
+    ).toBe("hunter2");
   });
 
   it("fails closed for broken envelope-like storage values", () => {
-    expect(openStoredVaultPassword('{"version":1')).toBe("");
+    expect(openStoredVaultPassword('{"version":1', "correct horse")).toBe("");
   });
 });
