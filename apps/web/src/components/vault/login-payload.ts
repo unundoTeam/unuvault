@@ -22,3 +22,14 @@ export function hasSavedPassword(payload: unknown): boolean {
 export function getHiddenPasswordPlaceholder(payload: unknown): string {
   return hasSavedPassword(payload) ? "••••••••" : "No password saved";
 }
+
+export function getPasswordPlaceholderLabel(
+  payload: unknown,
+  isRevealed: boolean,
+): string {
+  if (!hasSavedPassword(payload)) {
+    return "No password saved";
+  }
+
+  return isRevealed ? "Encrypted password placeholder" : "••••••••";
+}

@@ -3,7 +3,7 @@
 import type { FormEvent } from "react";
 import { useState } from "react";
 import {
-  getHiddenPasswordPlaceholder,
+  getPasswordPlaceholderLabel,
   hasSavedPassword,
   normalizeVaultLoginPayload,
 } from "./login-payload";
@@ -35,6 +35,7 @@ export function VaultPanel() {
   const [draftNotes, setDraftNotes] = useState("");
   const [validationMessage, setValidationMessage] = useState<string | null>(null);
   const [copiedUsernameItemId, setCopiedUsernameItemId] = useState<string | null>(null);
+  const [revealedPasswordItemIds, setRevealedPasswordItemIds] = useState<string[]>([]);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
   const [editingUsername, setEditingUsername] = useState("");
@@ -101,6 +102,14 @@ export function VaultPanel() {
     window.setTimeout(() => {
       setCopiedUsernameItemId((current) => (current === itemId ? null : current));
     }, 1500);
+  }
+
+  function togglePasswordVisibility(itemId: string) {
+    setRevealedPasswordItemIds((current) =>
+      current.includes(itemId)
+        ? current.filter((currentItemId) => currentItemId !== itemId)
+        : [...current, itemId],
+    );
   }
 
   async function saveEditing() {
@@ -202,6 +211,8 @@ export function VaultPanel() {
                 <li key={item.id}>
                   {(() => {
                     const payload = normalizeVaultLoginPayload(item.encrypted_payload);
+                    const isPasswordRevealed = revealedPasswordItemIds.includes(item.id);
+                    const hasPassword = hasSavedPassword(item.encrypted_payload);
 
                     return editingItemId === item.id ? (
                       <>
@@ -251,7 +262,12 @@ export function VaultPanel() {
                         <span>{item.title}</span>
                         {payload.username ? <span>{payload.username}</span> : null}
                         {payload.notes.trim() ? <span>Notes added</span> : null}
-                        <span>{getHiddenPasswordPlaceholder(item.encrypted_payload)}</span>
+                        <span>
+                          {getPasswordPlaceholderLabel(
+                            item.encrypted_payload,
+                            isPasswordRevealed,
+                          )}
+                        </span>
                         {payload.username.trim() ? (
                           <button
                             type="button"
@@ -263,9 +279,15 @@ export function VaultPanel() {
                               : `Copy username ${item.title}`}
                           </button>
                         ) : null}
-                        {hasSavedPassword(item.encrypted_payload) ? (
-                          <button type="button" disabled={isSyncing}>
-                            Show password {item.title}
+                        {hasPassword ? (
+                          <button
+                            type="button"
+                            onClick={() => togglePasswordVisibility(item.id)}
+                            disabled={isSyncing}
+                          >
+                            {isPasswordRevealed
+                              ? `Hide password ${item.title}`
+                              : `Show password ${item.title}`}
                           </button>
                         ) : null}
                         <button
