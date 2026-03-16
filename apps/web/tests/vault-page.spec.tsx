@@ -1069,6 +1069,118 @@ describe("VaultPage", () => {
     ).toBeInTheDocument();
   });
 
+  it("shows copy password only when a saved password exists", async () => {
+    mocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: "jwt-token",
+        },
+      },
+      error: null,
+    });
+    mocks.syncVault.mockResolvedValue({
+      server_time: "2026-03-16T00:00:00.000Z",
+      updated_items: [
+        {
+          id: "item-1",
+          item_type: "login",
+          title: "GitHub",
+          encrypted_payload: {
+            schema_version: 1,
+            username: "alice@example.com",
+            password_ciphertext: "hunter2",
+            notes: "",
+          },
+          favorite: false,
+          source: "manual",
+          last_used_at: null,
+          created_at: "2026-03-16T00:00:00.000Z",
+          updated_at: "2026-03-16T00:00:00.000Z",
+        },
+        {
+          id: "item-2",
+          item_type: "login",
+          title: "Linear",
+          encrypted_payload: {
+            schema_version: 1,
+            username: "bob@example.com",
+            password_ciphertext: "",
+            notes: "",
+          },
+          favorite: false,
+          source: "manual",
+          last_used_at: null,
+          created_at: "2026-03-16T00:00:00.000Z",
+          updated_at: "2026-03-16T00:00:00.000Z",
+        },
+      ],
+      deleted_item_ids: [],
+      conflicts: [],
+    });
+
+    render(<VaultPage />);
+
+    expect(
+      await screen.findByRole("button", { name: "Copy password GitHub" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Copy password Linear" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("copies the saved password without requiring reveal first", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+
+    Object.defineProperty(window.navigator, "clipboard", {
+      configurable: true,
+      value: {
+        writeText,
+      },
+    });
+
+    mocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: "jwt-token",
+        },
+      },
+      error: null,
+    });
+    mocks.syncVault.mockResolvedValue({
+      server_time: "2026-03-16T00:00:00.000Z",
+      updated_items: [
+        {
+          id: "item-1",
+          item_type: "login",
+          title: "GitHub",
+          encrypted_payload: {
+            schema_version: 1,
+            username: "alice@example.com",
+            password_ciphertext: "hunter2",
+            notes: "",
+          },
+          favorite: false,
+          source: "manual",
+          last_used_at: null,
+          created_at: "2026-03-16T00:00:00.000Z",
+          updated_at: "2026-03-16T00:00:00.000Z",
+        },
+      ],
+      deleted_item_ids: [],
+      conflicts: [],
+    });
+
+    render(<VaultPage />);
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Copy password GitHub" }),
+    );
+
+    expect(writeText).toHaveBeenCalledWith("hunter2");
+    expect(screen.getByText("••••••••")).toBeInTheDocument();
+    expect(screen.queryByText("hunter2")).not.toBeInTheDocument();
+  });
+
   it("reveals only the targeted item's saved password value", async () => {
     mocks.getSession.mockResolvedValue({
       data: {

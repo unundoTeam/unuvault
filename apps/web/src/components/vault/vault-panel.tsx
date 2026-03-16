@@ -116,6 +116,18 @@ export function VaultPanel() {
     }, 1500);
   }
 
+  async function copyPassword(password: string) {
+    if (
+      typeof navigator === "undefined" ||
+      !navigator.clipboard ||
+      typeof navigator.clipboard.writeText !== "function"
+    ) {
+      return;
+    }
+
+    await navigator.clipboard.writeText(password);
+  }
+
   function togglePasswordVisibility(itemId: string) {
     setRevealedPasswordItemIds((current) =>
       current.includes(itemId)
@@ -326,6 +338,17 @@ export function VaultPanel() {
                             {copiedUsernameItemId === item.id
                               ? `Copied ${item.title}`
                               : `Copy username ${item.title}`}
+                          </button>
+                        ) : null}
+                        {hasPassword ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              void copyPassword(readDraftPassword(item.encrypted_payload))
+                            }
+                            disabled={isSyncing}
+                          >
+                            {`Copy password ${item.title}`}
                           </button>
                         ) : null}
                         {hasPassword ? (
