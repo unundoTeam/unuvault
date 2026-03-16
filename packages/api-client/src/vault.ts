@@ -1,3 +1,10 @@
+export type VaultLoginPayload = {
+  schema_version: 1;
+  username: string;
+  password_ciphertext: string;
+  notes: string;
+};
+
 export type VaultSyncRequest = {
   changed_items: VaultSyncItem[];
   deleted_item_ids: string[];
@@ -7,7 +14,7 @@ export type VaultSyncItem = {
   id: string;
   item_type: string;
   title: string;
-  encrypted_payload: Record<string, unknown>;
+  encrypted_payload: VaultLoginPayload;
   favorite: boolean;
   source: string;
   last_used_at: string | null;
