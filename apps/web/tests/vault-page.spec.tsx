@@ -377,6 +377,145 @@ describe("VaultPage", () => {
     expect(screen.getByLabelText("Notes")).toHaveValue("");
   });
 
+  it("creates a login item with a password value", async () => {
+    mocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: "jwt-token",
+        },
+      },
+      error: null,
+    });
+    mocks.syncVault
+      .mockResolvedValueOnce({
+        server_time: "2026-03-16T00:00:00.000Z",
+        updated_items: [],
+        deleted_item_ids: [],
+        conflicts: [],
+      })
+      .mockResolvedValueOnce({
+        server_time: "2026-03-16T00:01:00.000Z",
+        updated_items: [
+          {
+            id: "item-1",
+            item_type: "login",
+            title: "GitHub",
+            encrypted_payload: {
+              schema_version: 1,
+              username: "alice@example.com",
+              password_ciphertext: "hunter2",
+              notes: "Personal account",
+            },
+            favorite: false,
+            source: "manual",
+            last_used_at: null,
+            created_at: "2026-03-16T00:01:00.000Z",
+            updated_at: "2026-03-16T00:01:00.000Z",
+          },
+        ],
+        deleted_item_ids: [],
+        conflicts: [],
+      });
+
+    render(<VaultPage />);
+
+    expect(await screen.findByText("No vault items yet.")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "GitHub" },
+    });
+    fireEvent.change(screen.getByLabelText("Username"), {
+      target: { value: "alice@example.com" },
+    });
+    fireEvent.change(screen.getByLabelText("Password"), {
+      target: { value: "hunter2" },
+    });
+    fireEvent.change(screen.getByLabelText("Notes"), {
+      target: { value: "Personal account" },
+    });
+    fireEvent.submit(screen.getByRole("button", { name: "Save item" }).closest("form")!);
+
+    expect(mocks.syncVault).toHaveBeenNthCalledWith(
+      2,
+      expect.any(Function),
+      "jwt-token",
+      {
+        changed_items: [
+          expect.objectContaining({
+            title: "GitHub",
+            encrypted_payload: expect.objectContaining({
+              schema_version: 1,
+              username: "alice@example.com",
+              password_ciphertext: "hunter2",
+              notes: "Personal account",
+            }),
+          }),
+        ],
+        deleted_item_ids: [],
+      },
+    );
+  });
+
+  it("resets the create password field and hides it after save", async () => {
+    mocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: "jwt-token",
+        },
+      },
+      error: null,
+    });
+    mocks.syncVault
+      .mockResolvedValueOnce({
+        server_time: "2026-03-16T00:00:00.000Z",
+        updated_items: [],
+        deleted_item_ids: [],
+        conflicts: [],
+      })
+      .mockResolvedValueOnce({
+        server_time: "2026-03-16T00:01:00.000Z",
+        updated_items: [
+          {
+            id: "item-1",
+            item_type: "login",
+            title: "GitHub",
+            encrypted_payload: {
+              schema_version: 1,
+              username: "",
+              password_ciphertext: "hunter2",
+              notes: "",
+            },
+            favorite: false,
+            source: "manual",
+            last_used_at: null,
+            created_at: "2026-03-16T00:01:00.000Z",
+            updated_at: "2026-03-16T00:01:00.000Z",
+          },
+        ],
+        deleted_item_ids: [],
+        conflicts: [],
+      });
+
+    render(<VaultPage />);
+
+    expect(await screen.findByText("No vault items yet.")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Show password" }));
+    fireEvent.change(screen.getByLabelText("Password"), {
+      target: { value: "hunter2" },
+    });
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "GitHub" },
+    });
+    fireEvent.submit(screen.getByRole("button", { name: "Save item" }).closest("form")!);
+
+    await screen.findByText("GitHub");
+
+    expect(screen.getByLabelText("Password")).toHaveValue("");
+    expect(screen.getByLabelText("Password")).toHaveAttribute("type", "password");
+    expect(screen.getByRole("button", { name: "Show password" })).toBeInTheDocument();
+  });
+
   it("blocks blank titles before sending sync", async () => {
     mocks.getSession.mockResolvedValue({
       data: {
@@ -930,7 +1069,7 @@ describe("VaultPage", () => {
     ).toBeInTheDocument();
   });
 
-  it("reveals only the targeted item's password placeholder", async () => {
+  it("reveals only the targeted item's saved password value", async () => {
     mocks.getSession.mockResolvedValue({
       data: {
         session: {
@@ -949,7 +1088,7 @@ describe("VaultPage", () => {
           encrypted_payload: {
             schema_version: 1,
             username: "alice@example.com",
-            password_ciphertext: "ciphertext-1",
+            password_ciphertext: "hunter2",
             notes: "",
           },
           favorite: false,
@@ -965,7 +1104,7 @@ describe("VaultPage", () => {
           encrypted_payload: {
             schema_version: 1,
             username: "bob@example.com",
-            password_ciphertext: "ciphertext-2",
+            password_ciphertext: "linear-secret",
             notes: "",
           },
           favorite: false,
@@ -985,7 +1124,8 @@ describe("VaultPage", () => {
       await screen.findByRole("button", { name: "Show password GitHub" }),
     );
 
-    expect(await screen.findByText("Encrypted password placeholder")).toBeInTheDocument();
+    expect(await screen.findByText("hunter2")).toBeInTheDocument();
+    expect(screen.queryByText("linear-secret")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Hide password GitHub" })).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Show password Linear" }),
@@ -1122,6 +1262,53 @@ describe("VaultPage", () => {
     expect(screen.getByDisplayValue("GitHub")).toBeInTheDocument();
     expect(screen.getByDisplayValue("alice@example.com")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Personal account")).toBeInTheDocument();
+  });
+
+  it("prefills password in edit mode and keeps it hidden by default", async () => {
+    mocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: "jwt-token",
+        },
+      },
+      error: null,
+    });
+    mocks.syncVault.mockResolvedValue({
+      server_time: "2026-03-16T00:00:00.000Z",
+      updated_items: [
+        {
+          id: "item-1",
+          item_type: "login",
+          title: "GitHub",
+          encrypted_payload: {
+            schema_version: 1,
+            username: "alice@example.com",
+            password_ciphertext: "hunter2",
+            notes: "Personal account",
+          },
+          favorite: false,
+          source: "manual",
+          last_used_at: null,
+          created_at: "2026-03-16T00:00:00.000Z",
+          updated_at: "2026-03-16T00:00:00.000Z",
+        },
+      ],
+      deleted_item_ids: [],
+      conflicts: [],
+    });
+
+    render(<VaultPage />);
+
+    expect(await screen.findByText("GitHub")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit GitHub" }));
+
+    expect(screen.getByLabelText("Edit password")).toHaveValue("hunter2");
+    expect(screen.getByLabelText("Edit password")).toHaveAttribute("type", "password");
+
+    fireEvent.click(screen.getByRole("button", { name: "Show edit password" }));
+
+    expect(screen.getByLabelText("Edit password")).toHaveAttribute("type", "text");
   });
 
   it("saves an edited title through changed_items", async () => {
@@ -1357,6 +1544,93 @@ describe("VaultPage", () => {
               username: "alice@work.com",
               notes: "Work account",
               password_ciphertext: "",
+            }),
+          }),
+        ],
+        deleted_item_ids: [],
+      },
+    );
+  });
+
+  it("saves an edited password through changed_items", async () => {
+    mocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: "jwt-token",
+        },
+      },
+      error: null,
+    });
+    mocks.syncVault
+      .mockResolvedValueOnce({
+        server_time: "2026-03-16T00:00:00.000Z",
+        updated_items: [
+          {
+            id: "item-1",
+            item_type: "login",
+            title: "GitHub",
+            encrypted_payload: {
+              schema_version: 1,
+              username: "alice@example.com",
+              password_ciphertext: "hunter2",
+              notes: "Personal account",
+            },
+            favorite: false,
+            source: "manual",
+            last_used_at: null,
+            created_at: "2026-03-16T00:00:00.000Z",
+            updated_at: "2026-03-16T00:00:00.000Z",
+          },
+        ],
+        deleted_item_ids: [],
+        conflicts: [],
+      })
+      .mockResolvedValueOnce({
+        server_time: "2026-03-16T00:03:00.000Z",
+        updated_items: [
+          {
+            id: "item-1",
+            item_type: "login",
+            title: "GitHub",
+            encrypted_payload: {
+              schema_version: 1,
+              username: "alice@example.com",
+              password_ciphertext: "work-secret",
+              notes: "Personal account",
+            },
+            favorite: false,
+            source: "manual",
+            last_used_at: null,
+            created_at: "2026-03-16T00:00:00.000Z",
+            updated_at: "2026-03-16T00:03:00.000Z",
+          },
+        ],
+        deleted_item_ids: [],
+        conflicts: [],
+      });
+
+    render(<VaultPage />);
+
+    expect(await screen.findByText("GitHub")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit GitHub" }));
+    fireEvent.change(screen.getByLabelText("Edit password"), {
+      target: { value: "work-secret" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(mocks.syncVault).toHaveBeenNthCalledWith(
+      2,
+      expect.any(Function),
+      "jwt-token",
+      {
+        changed_items: [
+          expect.objectContaining({
+            id: "item-1",
+            encrypted_payload: expect.objectContaining({
+              username: "alice@example.com",
+              password_ciphertext: "work-secret",
+              notes: "Personal account",
             }),
           }),
         ],
