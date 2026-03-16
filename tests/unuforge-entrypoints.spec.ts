@@ -61,8 +61,16 @@ describe("unuforge entrypoints", () => {
         domain: "testing",
         visibility: "human-and-machine",
       },
+      {
+        name: "ios-test-runner",
+        type: "profile",
+        target: "ios-test-runner",
+        domain: "testing",
+        visibility: "human-and-machine",
+      },
     ]);
     expect(preset.entrypoints).toEqual({
+      ios_test_runner: "scripts/testing/run-ios.sh",
       lint_runner: "scripts/testing/lint-runner.sh",
       test_runner: "scripts/testing/test-runner.sh",
     });
@@ -79,10 +87,15 @@ describe("unuforge entrypoints", () => {
 
     const unuforgeShim = readText("unuforge/__init__.py");
     const hostShim = readText("unuvault_forge_host/__init__.py");
+    const hostSource = readText(
+      "packages/unuvault-forge-host/src/unuvault_forge_host/host.py",
+    );
 
     expect(unuforgeShim).toContain("UNUFORGE_SRC_ROOT");
     expect(unuforgeShim).toContain("UNUFORGE_REPO_ROOT");
     expect(hostShim).toContain("from .host import HOST");
+    expect(hostSource).toContain('"ios-test-runner"');
+    expect(hostSource).toContain('"run-ios.sh"');
   });
 
   it("keeps the existing root wrappers as the public lint and test entrypoints", () => {
