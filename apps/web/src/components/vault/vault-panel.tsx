@@ -89,7 +89,13 @@ export function VaultPanel() {
     ? "Syncing vault..."
     : lastAction === "load"
       ? "Vault synced"
-      : null;
+      : lastAction === "create"
+        ? "Item saved"
+        : lastAction === "update"
+          ? "Item updated"
+          : lastAction === "delete"
+            ? "Item deleted"
+            : null;
 
   return (
     <section>

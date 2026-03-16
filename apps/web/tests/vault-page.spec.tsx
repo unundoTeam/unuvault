@@ -188,6 +188,57 @@ describe("VaultPage", () => {
     );
   });
 
+  it("shows create success feedback after saving a new item", async () => {
+    mocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: "jwt-token",
+        },
+      },
+      error: null,
+    });
+    mocks.syncVault
+      .mockResolvedValueOnce({
+        server_time: "2026-03-16T00:00:00.000Z",
+        updated_items: [],
+        deleted_item_ids: [],
+        conflicts: [],
+      })
+      .mockResolvedValueOnce({
+        server_time: "2026-03-16T00:01:00.000Z",
+        updated_items: [
+          {
+            id: "item-1",
+            item_type: "login",
+            title: "GitHub",
+            encrypted_payload: {
+              schema_version: 1,
+              username: "",
+            },
+            favorite: false,
+            source: "manual",
+            last_used_at: null,
+            created_at: "2026-03-16T00:01:00.000Z",
+            updated_at: "2026-03-16T00:01:00.000Z",
+          },
+        ],
+        deleted_item_ids: [],
+        conflicts: [],
+      });
+
+    render(<VaultPage />);
+
+    expect(await screen.findByText("Vault synced")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "GitHub" },
+    });
+    fireEvent.submit(screen.getByRole("button", { name: "Save item" }).closest("form")!);
+
+    expect(await screen.findByText("Item saved")).toBeInTheDocument();
+    expect(await screen.findByText("Last synced at 00:01 UTC")).toBeInTheDocument();
+  });
+
   it("blocks blank titles before sending sync", async () => {
     mocks.getSession.mockResolvedValue({
       data: {
@@ -268,6 +319,54 @@ describe("VaultPage", () => {
         deleted_item_ids: ["item-1"],
       },
     );
+  });
+
+  it("shows delete success feedback after deleting an item", async () => {
+    mocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: "jwt-token",
+        },
+      },
+      error: null,
+    });
+    mocks.syncVault
+      .mockResolvedValueOnce({
+        server_time: "2026-03-16T00:00:00.000Z",
+        updated_items: [
+          {
+            id: "item-1",
+            item_type: "login",
+            title: "GitHub",
+            encrypted_payload: {
+              schema_version: 1,
+              username: "",
+            },
+            favorite: false,
+            source: "manual",
+            last_used_at: null,
+            created_at: "2026-03-16T00:00:00.000Z",
+            updated_at: "2026-03-16T00:00:00.000Z",
+          },
+        ],
+        deleted_item_ids: [],
+        conflicts: [],
+      })
+      .mockResolvedValueOnce({
+        server_time: "2026-03-16T00:02:00.000Z",
+        updated_items: [],
+        deleted_item_ids: ["item-1"],
+        conflicts: [],
+      });
+
+    render(<VaultPage />);
+
+    expect(await screen.findByText("GitHub")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete GitHub" }));
+
+    expect(await screen.findByText("Item deleted")).toBeInTheDocument();
+    expect(await screen.findByText("Last synced at 00:02 UTC")).toBeInTheDocument();
   });
 
   it("preserves the last successful list when sync fails", async () => {
@@ -435,6 +534,73 @@ describe("VaultPage", () => {
         deleted_item_ids: [],
       },
     );
+  });
+
+  it("shows update success feedback after editing an item", async () => {
+    mocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: "jwt-token",
+        },
+      },
+      error: null,
+    });
+    mocks.syncVault
+      .mockResolvedValueOnce({
+        server_time: "2026-03-16T00:00:00.000Z",
+        updated_items: [
+          {
+            id: "item-1",
+            item_type: "login",
+            title: "GitHub",
+            encrypted_payload: {
+              schema_version: 1,
+              username: "",
+            },
+            favorite: false,
+            source: "manual",
+            last_used_at: null,
+            created_at: "2026-03-16T00:00:00.000Z",
+            updated_at: "2026-03-16T00:00:00.000Z",
+          },
+        ],
+        deleted_item_ids: [],
+        conflicts: [],
+      })
+      .mockResolvedValueOnce({
+        server_time: "2026-03-16T00:03:00.000Z",
+        updated_items: [
+          {
+            id: "item-1",
+            item_type: "login",
+            title: "GitHub Personal",
+            encrypted_payload: {
+              schema_version: 1,
+              username: "",
+            },
+            favorite: false,
+            source: "manual",
+            last_used_at: null,
+            created_at: "2026-03-16T00:00:00.000Z",
+            updated_at: "2026-03-16T00:03:00.000Z",
+          },
+        ],
+        deleted_item_ids: [],
+        conflicts: [],
+      });
+
+    render(<VaultPage />);
+
+    expect(await screen.findByText("GitHub")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit GitHub" }));
+    fireEvent.change(screen.getByDisplayValue("GitHub"), {
+      target: { value: "GitHub Personal" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(await screen.findByText("Item updated")).toBeInTheDocument();
+    expect(await screen.findByText("Last synced at 00:03 UTC")).toBeInTheDocument();
   });
 
   it("cancels inline edit mode without sending sync", async () => {
