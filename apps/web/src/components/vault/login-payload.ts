@@ -1,4 +1,8 @@
 import type { VaultLoginPayload } from "../../../../../packages/api-client/src/vault";
+import {
+  openVaultPassword,
+  sealVaultPassword,
+} from "../../../../../packages/security/src/vault-envelope";
 
 export function normalizeVaultLoginPayload(payload: unknown): VaultLoginPayload {
   const value =
@@ -24,7 +28,7 @@ export function getHiddenPasswordPlaceholder(payload: unknown): string {
 }
 
 export function readDraftPassword(payload: unknown): string {
-  return normalizeVaultLoginPayload(payload).password_ciphertext;
+  return openVaultPassword(normalizeVaultLoginPayload(payload).password_ciphertext);
 }
 
 export function writeDraftPassword(
@@ -33,7 +37,7 @@ export function writeDraftPassword(
 ): VaultLoginPayload {
   return {
     ...normalizeVaultLoginPayload(payload),
-    password_ciphertext: password,
+    password_ciphertext: password ? sealVaultPassword(password) : "",
   };
 }
 
