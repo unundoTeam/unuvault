@@ -46,9 +46,10 @@ This repository now includes the phase-1 schema boundary, client-side security m
 ## Automation Surface
 
 - `presets/unuvault/release-preset.json` defines the phase-1 `unuforge` machine surface.
-- Phase 1 machine profiles are `lint-runner` and `test-runner`.
+- Phase 2 machine profiles are `lint-runner`, `test-runner`, and `ios-test-runner`.
 - Human-friendly entrypoints remain `pnpm lint` and `pnpm test`.
-- Phase 1 keeps CI on the existing `pnpm lint` / `pnpm test` entrypoints.
+- Human-friendly iOS entrypoint remains `bash scripts/testing/run-ios.sh`.
+- Phase 2 keeps both `.github/workflows/ci.yml` and `.github/workflows/ios.yml` on their existing shell entrypoints.
 
 ## CI Status
 
