@@ -84,6 +84,44 @@ describe("VaultPage", () => {
     });
   });
 
+  it("shows sync status and last synced time after initial load", async () => {
+    mocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: "jwt-token",
+        },
+      },
+      error: null,
+    });
+
+    let resolveSync: ((value: {
+      server_time: string;
+      updated_items: never[];
+      deleted_item_ids: never[];
+      conflicts: never[];
+    }) => void) | null = null;
+
+    mocks.syncVault.mockReturnValue(
+      new Promise((resolve) => {
+        resolveSync = resolve;
+      }),
+    );
+
+    render(<VaultPage />);
+
+    expect(await screen.findByText("Syncing vault...")).toBeInTheDocument();
+
+    resolveSync?.({
+      server_time: "2026-03-16T00:00:00.000Z",
+      updated_items: [],
+      deleted_item_ids: [],
+      conflicts: [],
+    });
+
+    expect(await screen.findByText("Vault synced")).toBeInTheDocument();
+    expect(await screen.findByText("Last synced at 00:00 UTC")).toBeInTheDocument();
+  });
+
   it("creates a vault item from the title form", async () => {
     mocks.getSession.mockResolvedValue({
       data: {

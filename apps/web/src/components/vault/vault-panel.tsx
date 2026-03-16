@@ -4,14 +4,25 @@ import type { FormEvent } from "react";
 import { useState } from "react";
 import { useVaultSync } from "./use-vault-sync";
 
+function formatUtcSyncTime(timestamp: string): string {
+  const value = new Date(timestamp);
+  const hours = value.getUTCHours().toString().padStart(2, "0");
+  const minutes = value.getUTCMinutes().toString().padStart(2, "0");
+
+  return `${hours}:${minutes} UTC`;
+}
+
 export function VaultPanel() {
   const {
     createItem,
     deleteItem,
     errorMessage,
     isAuthenticated,
+    isBootstrapping,
     isLoading,
     items,
+    lastAction,
+    lastSyncedAt,
     updateItemTitle,
   } = useVaultSync();
   const [draftTitle, setDraftTitle] = useState("");
@@ -74,12 +85,19 @@ export function VaultPanel() {
     }
   }
 
+  const statusMessage = isBootstrapping
+    ? "Syncing vault..."
+    : lastAction === "load"
+      ? "Vault synced"
+      : null;
+
   return (
     <section>
       <h1>Vault</h1>
       <p>Keep your current unuvault items in sync across every trusted surface.</p>
 
-      {isLoading ? <p>Loading vault...</p> : null}
+      {statusMessage ? <p>{statusMessage}</p> : null}
+      {lastSyncedAt ? <p>Last synced at {formatUtcSyncTime(lastSyncedAt)}</p> : null}
       {!isLoading && !isAuthenticated ? (
         <p>Sign in from the register flow first.</p>
       ) : null}

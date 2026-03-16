@@ -8,13 +8,19 @@ import type {
 import { syncVault } from "../../../../../packages/api-client/src/vault";
 import { createBrowserSupabaseClient } from "../../lib/supabase-browser";
 
+type VaultSyncAction = "load" | "create" | "update" | "delete";
+
 type VaultSyncState = {
   createItem(title: string): Promise<boolean>;
   deleteItem(itemId: string): Promise<boolean>;
   errorMessage: string | null;
   isAuthenticated: boolean;
+  isBootstrapping: boolean;
   isLoading: boolean;
+  isSyncing: boolean;
   items: VaultSyncItem[];
+  lastAction: VaultSyncAction | null;
+  lastSyncedAt: string | null;
   updateItemTitle(itemId: string, title: string): Promise<boolean>;
 };
 
@@ -28,25 +34,35 @@ export function useVaultSync(): VaultSyncState {
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [items, setItems] = useState<VaultSyncItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isBootstrapping, setIsBootstrapping] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [lastAction, setLastAction] = useState<VaultSyncAction | null>(null);
+  const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
 
   async function runSync(
     token: string,
     payload: VaultSyncRequest,
+    action: VaultSyncAction,
   ): Promise<boolean> {
     setIsLoading(true);
+    setIsSyncing(true);
     setErrorMessage(null);
 
     try {
       const response = await syncVault(createApiFetch(), token, payload);
       setItems(response.updated_items);
       setIsAuthenticated(true);
+      setLastAction(action);
+      setLastSyncedAt(response.server_time);
       setIsLoading(false);
+      setIsSyncing(false);
       return true;
     } catch {
       setErrorMessage("We couldn't sync your vault. Please try again.");
       setIsLoading(false);
+      setIsSyncing(false);
       return false;
     }
   }
@@ -78,10 +94,14 @@ export function useVaultSync(): VaultSyncState {
       updated_at: timestamp,
     };
 
-    return runSync(accessToken, {
-      changed_items: [item],
-      deleted_item_ids: [],
-    });
+    return runSync(
+      accessToken,
+      {
+        changed_items: [item],
+        deleted_item_ids: [],
+      },
+      "create",
+    );
   }
 
   async function deleteItem(itemId: string): Promise<boolean> {
@@ -90,10 +110,14 @@ export function useVaultSync(): VaultSyncState {
       return false;
     }
 
-    return runSync(accessToken, {
-      changed_items: [],
-      deleted_item_ids: [itemId],
-    });
+    return runSync(
+      accessToken,
+      {
+        changed_items: [],
+        deleted_item_ids: [itemId],
+      },
+      "delete",
+    );
   }
 
   async function updateItemTitle(itemId: string, title: string): Promise<boolean> {
@@ -109,16 +133,20 @@ export function useVaultSync(): VaultSyncState {
       return false;
     }
 
-    return runSync(accessToken, {
-      changed_items: [
-        {
-          ...currentItem,
-          title,
-          updated_at: new Date().toISOString(),
-        },
-      ],
-      deleted_item_ids: [],
-    });
+    return runSync(
+      accessToken,
+      {
+        changed_items: [
+          {
+            ...currentItem,
+            title,
+            updated_at: new Date().toISOString(),
+          },
+        ],
+        deleted_item_ids: [],
+      },
+      "update",
+    );
   }
 
   useEffect(() => {
@@ -126,6 +154,7 @@ export function useVaultSync(): VaultSyncState {
 
     async function loadVault() {
       setIsLoading(true);
+      setIsBootstrapping(true);
       setErrorMessage(null);
 
       try {
@@ -143,6 +172,7 @@ export function useVaultSync(): VaultSyncState {
             setItems([]);
             setAccessToken(null);
             setIsAuthenticated(false);
+            setIsBootstrapping(false);
             setIsLoading(false);
           }
           return;
@@ -150,10 +180,22 @@ export function useVaultSync(): VaultSyncState {
 
         if (!isCancelled) {
           setAccessToken(accessToken);
-          void runSync(accessToken, {
-            changed_items: [],
-            deleted_item_ids: [],
-          });
+          const didSync = await runSync(
+            accessToken,
+            {
+              changed_items: [],
+              deleted_item_ids: [],
+            },
+            "load",
+          );
+
+          if (!isCancelled && !didSync) {
+            setIsAuthenticated(false);
+          }
+
+          if (!isCancelled) {
+            setIsBootstrapping(false);
+          }
         }
       } catch {
         if (!isCancelled) {
@@ -161,6 +203,7 @@ export function useVaultSync(): VaultSyncState {
           setAccessToken(null);
           setIsAuthenticated(false);
           setErrorMessage("We couldn't sync your vault. Please try again.");
+          setIsBootstrapping(false);
           setIsLoading(false);
         }
       }
@@ -178,8 +221,12 @@ export function useVaultSync(): VaultSyncState {
     deleteItem,
     errorMessage,
     isAuthenticated,
+    isBootstrapping,
     isLoading,
+    isSyncing,
     items,
+    lastAction,
+    lastSyncedAt,
     updateItemTitle,
   };
 }
