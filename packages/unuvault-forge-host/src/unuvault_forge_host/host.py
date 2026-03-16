@@ -5,6 +5,7 @@ import subprocess
 
 ROOT = Path(__file__).resolve().parents[4]
 _PROFILE_SCRIPTS = {
+    "ios-test-runner": ROOT / "scripts" / "testing" / "run-ios.sh",
     "lint-runner": ROOT / "scripts" / "testing" / "lint-runner.sh",
     "test-runner": ROOT / "scripts" / "testing" / "test-runner.sh",
 }
@@ -55,7 +56,7 @@ class UnuvaultForgeHost:
         passthrough_args: list[str] | None = None,
     ):
         del preset_path, action_name, passthrough_args
-        raise ValueError("unuvault phase 1 does not expose machine actions")
+        raise ValueError("unuvault does not expose machine actions yet")
 
     def run_action(
         self,
@@ -64,7 +65,7 @@ class UnuvaultForgeHost:
         passthrough_args: list[str] | None = None,
     ) -> int:
         del preset_path, action_name, passthrough_args
-        raise ValueError("unuvault phase 1 does not expose machine actions")
+        raise ValueError("unuvault does not expose machine actions yet")
 
 
 HOST = UnuvaultForgeHost()

@@ -18,9 +18,17 @@
       "target": "test-runner",
       "domain": "testing",
       "visibility": "human-and-machine"
+    },
+    {
+      "name": "ios-test-runner",
+      "type": "profile",
+      "target": "ios-test-runner",
+      "domain": "testing",
+      "visibility": "human-and-machine"
     }
   ],
   "entrypoints": {
+    "ios_test_runner": "scripts/testing/run-ios.sh",
     "lint_runner": "scripts/testing/lint-runner.sh",
     "test_runner": "scripts/testing/test-runner.sh"
   }
