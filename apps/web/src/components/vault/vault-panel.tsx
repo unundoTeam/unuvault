@@ -9,6 +9,7 @@ import {
   readDraftPassword,
 } from "./login-payload";
 import { useVaultSync } from "./use-vault-sync";
+import { useVaultUnlock } from "./use-vault-unlock";
 
 function formatUtcSyncTime(timestamp: string): string {
   const value = new Date(timestamp);
@@ -31,6 +32,16 @@ export function VaultPanel() {
     lastSyncedAt,
     updateItem,
   } = useVaultSync();
+  const {
+    draftPassphrase,
+    isUnlocked,
+    lock,
+    submitUnlock,
+    setDraftPassphrase,
+    submitLabel,
+    unlockPassphrase,
+    unlockError,
+  } = useVaultUnlock(items);
   const [draftTitle, setDraftTitle] = useState("");
   const [draftUsername, setDraftUsername] = useState("");
   const [draftPassword, setDraftPassword] = useState("");
@@ -60,6 +71,11 @@ export function VaultPanel() {
       return;
     }
 
+    if (draftPassword && !isUnlocked) {
+      setValidationMessage("Unlock the vault before saving a password.");
+      return;
+    }
+
     setValidationMessage(null);
 
     const didCreate = await createItem({
@@ -67,6 +83,7 @@ export function VaultPanel() {
       username: draftUsername,
       password: draftPassword,
       notes: draftNotes,
+      unlockPassphrase: unlockPassphrase ?? undefined,
     });
 
     if (didCreate) {
@@ -84,7 +101,7 @@ export function VaultPanel() {
     setEditingItemId(item.id);
     setEditingTitle(item.title);
     setEditingUsername(payload.username);
-    setEditingPassword(readDraftPassword(item.encrypted_payload));
+    setEditingPassword(readDraftPassword(item.encrypted_payload, unlockPassphrase ?? undefined));
     setEditingNotes(payload.notes);
     setIsEditingPasswordVisible(false);
     setEditingValidationMessage(null);
@@ -118,6 +135,10 @@ export function VaultPanel() {
   }
 
   async function copyPassword(itemId: string, password: string) {
+    if (!isUnlocked || !password) {
+      return;
+    }
+
     if (
       typeof navigator === "undefined" ||
       !navigator.clipboard ||
@@ -135,6 +156,10 @@ export function VaultPanel() {
   }
 
   function togglePasswordVisibility(itemId: string) {
+    if (!isUnlocked) {
+      return;
+    }
+
     setRevealedPasswordItemIds((current) =>
       current.includes(itemId)
         ? current.filter((currentItemId) => currentItemId !== itemId)
@@ -154,13 +179,19 @@ export function VaultPanel() {
       return;
     }
 
+    if (editingPassword && !isUnlocked) {
+      setEditingValidationMessage("Unlock the vault before saving a password.");
+      return;
+    }
+
     setEditingValidationMessage(null);
 
     const didSave = await updateItem(editingItemId, {
       title: nextTitle,
       username: editingUsername,
-      password: editingPassword,
+      password: isUnlocked ? editingPassword : undefined,
       notes: editingNotes,
+      unlockPassphrase: unlockPassphrase ?? undefined,
     });
 
     if (didSave) {
@@ -199,6 +230,33 @@ export function VaultPanel() {
         <p>Sign in from the register flow first.</p>
       ) : null}
       {errorMessage ? <p>{errorMessage}</p> : null}
+      {!isBootstrapping && isAuthenticated ? (
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            submitUnlock();
+          }}
+        >
+          <label>
+            <span>Unlock passphrase</span>
+            <input
+              name="unlock-passphrase"
+              type="password"
+              value={draftPassphrase}
+              onChange={(event) => setDraftPassphrase(event.target.value)}
+            />
+          </label>
+          {isUnlocked ? (
+            <button type="button" onClick={lock}>
+              Lock vault
+            </button>
+          ) : (
+            <button type="submit">{submitLabel}</button>
+          )}
+          {isUnlocked ? <p>Vault unlocked</p> : null}
+          {unlockError ? <p>{unlockError}</p> : null}
+        </form>
+      ) : null}
 
       {!isBootstrapping && isAuthenticated ? (
         <>
@@ -291,6 +349,7 @@ export function VaultPanel() {
                             type={isEditingPasswordVisible ? "text" : "password"}
                             value={editingPassword}
                             onChange={(event) => setEditingPassword(event.target.value)}
+                            disabled={!isUnlocked}
                           />
                         </label>
                         <button
@@ -298,7 +357,7 @@ export function VaultPanel() {
                           onClick={() =>
                             setIsEditingPasswordVisible((current) => !current)
                           }
-                          disabled={isSyncing}
+                          disabled={isSyncing || !isUnlocked}
                         >
                           {isEditingPasswordVisible
                             ? "Hide edit password"
@@ -333,6 +392,7 @@ export function VaultPanel() {
                           {getPasswordPlaceholderLabel(
                             item.encrypted_payload,
                             isPasswordRevealed,
+                            unlockPassphrase ?? undefined,
                           )}
                         </span>
                         {payload.username.trim() ? (
@@ -352,7 +412,10 @@ export function VaultPanel() {
                             onClick={() =>
                               void copyPassword(
                                 item.id,
-                                readDraftPassword(item.encrypted_payload),
+                                readDraftPassword(
+                                  item.encrypted_payload,
+                                  unlockPassphrase ?? undefined,
+                                ),
                               )
                             }
                             disabled={isSyncing}

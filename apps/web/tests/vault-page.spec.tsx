@@ -4,7 +4,10 @@ import "@testing-library/jest-dom/vitest";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import VaultPage from "../src/app/vault/page";
-import { sealVaultPassword } from "../../../packages/security/src/vault-envelope";
+import {
+  openStoredVaultPassword,
+  sealVaultPassword,
+} from "../../../packages/security/src/vault-envelope";
 
 afterEach(() => {
   cleanup();
@@ -18,7 +21,18 @@ const mocks = vi.hoisted(() => ({
   syncVault: vi.fn(),
 }));
 
-const storedPassword = (password: string): string => sealVaultPassword(password);
+const storedPassword = (password: string, passphrase?: string): string =>
+  sealVaultPassword(password, passphrase);
+
+async function unlockVault(passphrase: string) {
+  fireEvent.change(await screen.findByLabelText("Unlock passphrase"), {
+    target: { value: passphrase },
+  });
+
+  fireEvent.click(
+    screen.getByRole("button", { name: /Set unlock passphrase|Unlock vault/ }),
+  );
+}
 
 vi.mock("../src/lib/supabase-browser", () => ({
   createBrowserSupabaseClient: () => ({
@@ -124,6 +138,67 @@ describe("VaultPage", () => {
 
     expect(await screen.findByText("Vault synced")).toBeInTheDocument();
     expect(await screen.findByText("Last synced at 00:00 UTC")).toBeInTheDocument();
+  });
+
+  it("starts locked when the vault contains a saved password", async () => {
+    mocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: "jwt-token",
+        },
+      },
+      error: null,
+    });
+    mocks.syncVault.mockResolvedValue({
+      server_time: "2026-03-16T00:00:00.000Z",
+      updated_items: [
+        {
+          id: "item-1",
+          item_type: "login",
+          title: "GitHub",
+          encrypted_payload: {
+            schema_version: 1,
+            username: "alice@example.com",
+            password_ciphertext: storedPassword("hunter2"),
+            notes: "",
+          },
+          favorite: false,
+          source: "manual",
+          last_used_at: null,
+          created_at: "2026-03-16T00:00:00.000Z",
+          updated_at: "2026-03-16T00:00:00.000Z",
+        },
+      ],
+      deleted_item_ids: [],
+      conflicts: [],
+    });
+
+    render(<VaultPage />);
+
+    expect(await screen.findByText("GitHub")).toBeInTheDocument();
+    expect(screen.getByText("Unlock vault")).toBeInTheDocument();
+  });
+
+  it("prompts to set an unlock passphrase when no saved passwords exist yet", async () => {
+    mocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: "jwt-token",
+        },
+      },
+      error: null,
+    });
+    mocks.syncVault.mockResolvedValue({
+      server_time: "2026-03-16T00:00:00.000Z",
+      updated_items: [],
+      deleted_item_ids: [],
+      conflicts: [],
+    });
+
+    render(<VaultPage />);
+
+    expect(await screen.findByText("No vault items yet.")).toBeInTheDocument();
+    expect(screen.getByText("Set unlock passphrase")).toBeInTheDocument();
   });
 
   it("creates a vault item from the title form", async () => {
@@ -409,7 +484,7 @@ describe("VaultPage", () => {
             encrypted_payload: {
               schema_version: 1,
               username: "alice@example.com",
-              password_ciphertext: storedPassword("hunter2"),
+              password_ciphertext: storedPassword("hunter2", "correct horse"),
               notes: "Personal account",
             },
             favorite: false,
@@ -426,6 +501,7 @@ describe("VaultPage", () => {
     render(<VaultPage />);
 
     expect(await screen.findByText("No vault items yet.")).toBeInTheDocument();
+    await unlockVault("correct horse");
 
     fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "GitHub" },
@@ -465,11 +541,16 @@ describe("VaultPage", () => {
 
     expect(createPayload.password_ciphertext).not.toBe("hunter2");
     expect(JSON.parse(createPayload.password_ciphertext)).toMatchObject({
-      version: 1,
-      cipher: "xchacha20-poly1305",
-      keyDerivation: "argon2id",
-      encryptedPayload: "hunter2",
+      version: 2,
+      cipher: "xor-stream-v1",
+      keyDerivation: "unlock-passphrase-v1",
+      unlockSalt: expect.any(String),
+      unlockTag: expect.any(String),
+      encryptedPayload: expect.any(String),
     });
+    expect(
+      openStoredVaultPassword(createPayload.password_ciphertext, "correct horse"),
+    ).toBe("hunter2");
   });
 
   it("resets the create password field and hides it after save", async () => {
@@ -498,7 +579,7 @@ describe("VaultPage", () => {
             encrypted_payload: {
               schema_version: 1,
               username: "",
-              password_ciphertext: storedPassword("hunter2"),
+              password_ciphertext: storedPassword("hunter2", "correct horse"),
               notes: "",
             },
             favorite: false,
@@ -515,6 +596,7 @@ describe("VaultPage", () => {
     render(<VaultPage />);
 
     expect(await screen.findByText("No vault items yet.")).toBeInTheDocument();
+    await unlockVault("correct horse");
 
     fireEvent.click(screen.getByRole("button", { name: "Show password" }));
     fireEvent.change(screen.getByLabelText("Password"), {
@@ -660,6 +742,218 @@ describe("VaultPage", () => {
 
     expect(await screen.findByText("Item deleted")).toBeInTheDocument();
     expect(await screen.findByText("Last synced at 00:02 UTC")).toBeInTheDocument();
+  });
+
+  it("blocks copying a passphrase-protected password while the vault is locked", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+
+    Object.defineProperty(window.navigator, "clipboard", {
+      configurable: true,
+      value: {
+        writeText,
+      },
+    });
+
+    mocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: "jwt-token",
+        },
+      },
+      error: null,
+    });
+    mocks.syncVault.mockResolvedValue({
+      server_time: "2026-03-16T00:00:00.000Z",
+      updated_items: [
+        {
+          id: "item-1",
+          item_type: "login",
+          title: "GitHub",
+          encrypted_payload: {
+            schema_version: 1,
+            username: "alice@example.com",
+            password_ciphertext: storedPassword("hunter2", "correct horse"),
+            notes: "",
+          },
+          favorite: false,
+          source: "manual",
+          last_used_at: null,
+          created_at: "2026-03-16T00:00:00.000Z",
+          updated_at: "2026-03-16T00:00:00.000Z",
+        },
+      ],
+      deleted_item_ids: [],
+      conflicts: [],
+    });
+
+    render(<VaultPage />);
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Copy password GitHub" }),
+    );
+
+    expect(writeText).not.toHaveBeenCalled();
+    expect(screen.getByText("Unlock vault")).toBeInTheDocument();
+  });
+
+  it("unlocks the vault with the correct passphrase before copying a saved password", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+
+    Object.defineProperty(window.navigator, "clipboard", {
+      configurable: true,
+      value: {
+        writeText,
+      },
+    });
+
+    mocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: "jwt-token",
+        },
+      },
+      error: null,
+    });
+    mocks.syncVault.mockResolvedValue({
+      server_time: "2026-03-16T00:00:00.000Z",
+      updated_items: [
+        {
+          id: "item-1",
+          item_type: "login",
+          title: "GitHub",
+          encrypted_payload: {
+            schema_version: 1,
+            username: "alice@example.com",
+            password_ciphertext: storedPassword("hunter2", "correct horse"),
+            notes: "",
+          },
+          favorite: false,
+          source: "manual",
+          last_used_at: null,
+          created_at: "2026-03-16T00:00:00.000Z",
+          updated_at: "2026-03-16T00:00:00.000Z",
+        },
+      ],
+      deleted_item_ids: [],
+      conflicts: [],
+    });
+
+    render(<VaultPage />);
+
+    await unlockVault("correct horse");
+    fireEvent.click(screen.getByRole("button", { name: "Copy password GitHub" }));
+
+    expect(await screen.findByText("Vault unlocked")).toBeInTheDocument();
+    expect(writeText).toHaveBeenCalledWith("hunter2");
+  });
+
+  it("shows an error and stays locked when the unlock passphrase is wrong", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+
+    Object.defineProperty(window.navigator, "clipboard", {
+      configurable: true,
+      value: {
+        writeText,
+      },
+    });
+
+    mocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: "jwt-token",
+        },
+      },
+      error: null,
+    });
+    mocks.syncVault.mockResolvedValue({
+      server_time: "2026-03-16T00:00:00.000Z",
+      updated_items: [
+        {
+          id: "item-1",
+          item_type: "login",
+          title: "GitHub",
+          encrypted_payload: {
+            schema_version: 1,
+            username: "alice@example.com",
+            password_ciphertext: storedPassword("hunter2", "correct horse"),
+            notes: "",
+          },
+          favorite: false,
+          source: "manual",
+          last_used_at: null,
+          created_at: "2026-03-16T00:00:00.000Z",
+          updated_at: "2026-03-16T00:00:00.000Z",
+        },
+      ],
+      deleted_item_ids: [],
+      conflicts: [],
+    });
+
+    render(<VaultPage />);
+
+    await unlockVault("wrong battery");
+    fireEvent.click(screen.getByRole("button", { name: "Copy password GitHub" }));
+
+    expect(await screen.findByText("Wrong unlock passphrase")).toBeInTheDocument();
+    expect(writeText).not.toHaveBeenCalled();
+    expect(screen.queryByText("Vault unlocked")).not.toBeInTheDocument();
+  });
+
+  it("requires the unlock passphrase to open every protected password", async () => {
+    mocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: "jwt-token",
+        },
+      },
+      error: null,
+    });
+    mocks.syncVault.mockResolvedValue({
+      server_time: "2026-03-16T00:00:00.000Z",
+      updated_items: [
+        {
+          id: "item-1",
+          item_type: "login",
+          title: "GitHub",
+          encrypted_payload: {
+            schema_version: 1,
+            username: "alice@example.com",
+            password_ciphertext: storedPassword("hunter2", "correct horse"),
+            notes: "",
+          },
+          favorite: false,
+          source: "manual",
+          last_used_at: null,
+          created_at: "2026-03-16T00:00:00.000Z",
+          updated_at: "2026-03-16T00:00:00.000Z",
+        },
+        {
+          id: "item-2",
+          item_type: "login",
+          title: "Linear",
+          encrypted_payload: {
+            schema_version: 1,
+            username: "bob@example.com",
+            password_ciphertext: storedPassword("linear-secret", "battery staple"),
+            notes: "",
+          },
+          favorite: false,
+          source: "manual",
+          last_used_at: null,
+          created_at: "2026-03-16T00:00:00.000Z",
+          updated_at: "2026-03-16T00:00:00.000Z",
+        },
+      ],
+      deleted_item_ids: [],
+      conflicts: [],
+    });
+
+    render(<VaultPage />);
+
+    await unlockVault("correct horse");
+
+    expect(await screen.findByText("Wrong unlock passphrase")).toBeInTheDocument();
+    expect(screen.queryByText("Vault unlocked")).not.toBeInTheDocument();
   });
 
   it("keeps the current vault list visible while a mutation sync is pending", async () => {
@@ -1144,7 +1438,7 @@ describe("VaultPage", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("copies the saved password without requiring reveal first", async () => {
+  it("copies the saved password after unlock without requiring reveal first", async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
 
     Object.defineProperty(window.navigator, "clipboard", {
@@ -1172,7 +1466,7 @@ describe("VaultPage", () => {
           encrypted_payload: {
             schema_version: 1,
             username: "alice@example.com",
-            password_ciphertext: storedPassword("hunter2"),
+            password_ciphertext: storedPassword("hunter2", "correct horse"),
             notes: "",
           },
           favorite: false,
@@ -1188,6 +1482,7 @@ describe("VaultPage", () => {
 
     render(<VaultPage />);
 
+    await unlockVault("correct horse");
     fireEvent.click(
       await screen.findByRole("button", { name: "Copy password GitHub" }),
     );
@@ -1197,7 +1492,7 @@ describe("VaultPage", () => {
     expect(screen.queryByText("hunter2")).not.toBeInTheDocument();
   });
 
-  it("copies a legacy plaintext password without requiring reveal first", async () => {
+  it("copies a legacy plaintext password after unlock without requiring reveal first", async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
 
     Object.defineProperty(window.navigator, "clipboard", {
@@ -1241,6 +1536,7 @@ describe("VaultPage", () => {
 
     render(<VaultPage />);
 
+    await unlockVault("correct horse");
     fireEvent.click(
       await screen.findByRole("button", { name: "Copy password GitHub" }),
     );
@@ -1276,7 +1572,7 @@ describe("VaultPage", () => {
           encrypted_payload: {
             schema_version: 1,
             username: "alice@example.com",
-            password_ciphertext: storedPassword("hunter2"),
+            password_ciphertext: storedPassword("hunter2", "correct horse"),
             notes: "",
           },
           favorite: false,
@@ -1292,7 +1588,7 @@ describe("VaultPage", () => {
           encrypted_payload: {
             schema_version: 1,
             username: "bob@example.com",
-            password_ciphertext: storedPassword("linear-secret"),
+            password_ciphertext: storedPassword("linear-secret", "correct horse"),
             notes: "",
           },
           favorite: false,
@@ -1308,6 +1604,7 @@ describe("VaultPage", () => {
 
     render(<VaultPage />);
 
+    await unlockVault("correct horse");
     fireEvent.click(
       await screen.findByRole("button", { name: "Copy password GitHub" }),
     );
@@ -1352,7 +1649,7 @@ describe("VaultPage", () => {
           encrypted_payload: {
             schema_version: 1,
             username: "alice@example.com",
-            password_ciphertext: storedPassword("hunter2"),
+            password_ciphertext: storedPassword("hunter2", "correct horse"),
             notes: "",
           },
           favorite: false,
@@ -1372,6 +1669,7 @@ describe("VaultPage", () => {
       name: "Copy password GitHub",
     });
 
+    await unlockVault("correct horse");
     vi.useFakeTimers();
 
     await act(async () => {
@@ -1411,7 +1709,7 @@ describe("VaultPage", () => {
           encrypted_payload: {
             schema_version: 1,
             username: "alice@example.com",
-            password_ciphertext: storedPassword("hunter2"),
+            password_ciphertext: storedPassword("hunter2", "correct horse"),
             notes: "",
           },
           favorite: false,
@@ -1427,7 +1725,7 @@ describe("VaultPage", () => {
           encrypted_payload: {
             schema_version: 1,
             username: "bob@example.com",
-            password_ciphertext: storedPassword("linear-secret"),
+            password_ciphertext: storedPassword("linear-secret", "correct horse"),
             notes: "",
           },
           favorite: false,
@@ -1443,6 +1741,7 @@ describe("VaultPage", () => {
 
     render(<VaultPage />);
 
+    await unlockVault("correct horse");
     fireEvent.click(
       await screen.findByRole("button", { name: "Show password GitHub" }),
     );
@@ -1474,7 +1773,7 @@ describe("VaultPage", () => {
           encrypted_payload: {
             schema_version: 1,
             username: "alice@example.com",
-            password_ciphertext: storedPassword("hunter2"),
+            password_ciphertext: storedPassword("hunter2", "correct horse"),
             notes: "",
           },
           favorite: false,
@@ -1490,6 +1789,7 @@ describe("VaultPage", () => {
 
     render(<VaultPage />);
 
+    await unlockVault("correct horse");
     fireEvent.click(
       await screen.findByRole("button", { name: "Show password GitHub" }),
     );
@@ -1606,7 +1906,7 @@ describe("VaultPage", () => {
           encrypted_payload: {
             schema_version: 1,
             username: "alice@example.com",
-            password_ciphertext: storedPassword("hunter2"),
+            password_ciphertext: storedPassword("hunter2", "correct horse"),
             notes: "Personal account",
           },
           favorite: false,
@@ -1624,6 +1924,7 @@ describe("VaultPage", () => {
 
     expect(await screen.findByText("GitHub")).toBeInTheDocument();
 
+    await unlockVault("correct horse");
     fireEvent.click(screen.getByRole("button", { name: "Edit GitHub" }));
 
     expect(screen.getByLabelText("Edit password")).toHaveValue("hunter2");
@@ -1896,7 +2197,7 @@ describe("VaultPage", () => {
             encrypted_payload: {
               schema_version: 1,
               username: "alice@example.com",
-              password_ciphertext: storedPassword("hunter2"),
+              password_ciphertext: storedPassword("hunter2", "correct horse"),
               notes: "Personal account",
             },
             favorite: false,
@@ -1919,7 +2220,7 @@ describe("VaultPage", () => {
             encrypted_payload: {
               schema_version: 1,
               username: "alice@example.com",
-              password_ciphertext: storedPassword("work-secret"),
+              password_ciphertext: storedPassword("work-secret", "correct horse"),
               notes: "Personal account",
             },
             favorite: false,
@@ -1937,6 +2238,7 @@ describe("VaultPage", () => {
 
     expect(await screen.findByText("GitHub")).toBeInTheDocument();
 
+    await unlockVault("correct horse");
     fireEvent.click(screen.getByRole("button", { name: "Edit GitHub" }));
     fireEvent.change(screen.getByLabelText("Edit password"), {
       target: { value: "work-secret" },
@@ -1966,11 +2268,16 @@ describe("VaultPage", () => {
 
     expect(updatePayload.password_ciphertext).not.toBe("work-secret");
     expect(JSON.parse(updatePayload.password_ciphertext)).toMatchObject({
-      version: 1,
-      cipher: "xchacha20-poly1305",
-      keyDerivation: "argon2id",
-      encryptedPayload: "work-secret",
+      version: 2,
+      cipher: "xor-stream-v1",
+      keyDerivation: "unlock-passphrase-v1",
+      unlockSalt: expect.any(String),
+      unlockTag: expect.any(String),
+      encryptedPayload: expect.any(String),
     });
+    expect(
+      openStoredVaultPassword(updatePayload.password_ciphertext, "correct horse"),
+    ).toBe("work-secret");
   });
 
   it("reseals a legacy plaintext password when the item is saved", async () => {
@@ -2034,6 +2341,7 @@ describe("VaultPage", () => {
 
     expect(await screen.findByText("GitHub")).toBeInTheDocument();
 
+    await unlockVault("correct horse");
     fireEvent.click(screen.getByRole("button", { name: "Edit GitHub" }));
     expect(screen.getByLabelText("Edit password")).toHaveValue("hunter2");
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
@@ -2043,11 +2351,16 @@ describe("VaultPage", () => {
 
     expect(updatePayload.password_ciphertext).not.toBe("hunter2");
     expect(JSON.parse(updatePayload.password_ciphertext)).toMatchObject({
-      version: 1,
-      cipher: "xchacha20-poly1305",
-      keyDerivation: "argon2id",
-      encryptedPayload: "hunter2",
+      version: 2,
+      cipher: "xor-stream-v1",
+      keyDerivation: "unlock-passphrase-v1",
+      unlockSalt: expect.any(String),
+      unlockTag: expect.any(String),
+      encryptedPayload: expect.any(String),
     });
+    expect(
+      openStoredVaultPassword(updatePayload.password_ciphertext, "correct horse"),
+    ).toBe("hunter2");
   });
 
   it("cancels inline edit mode without sending sync", async () => {
