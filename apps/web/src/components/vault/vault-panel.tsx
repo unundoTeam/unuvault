@@ -2,6 +2,7 @@
 
 import type { FormEvent } from "react";
 import { useState } from "react";
+import { normalizeVaultLoginPayload } from "./login-payload";
 import { useVaultSync } from "./use-vault-sync";
 
 function formatUtcSyncTime(timestamp: string): string {
@@ -23,12 +24,16 @@ export function VaultPanel() {
     items,
     lastAction,
     lastSyncedAt,
-    updateItemTitle,
+    updateItem,
   } = useVaultSync();
   const [draftTitle, setDraftTitle] = useState("");
+  const [draftUsername, setDraftUsername] = useState("");
+  const [draftNotes, setDraftNotes] = useState("");
   const [validationMessage, setValidationMessage] = useState<string | null>(null);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
+  const [editingUsername, setEditingUsername] = useState("");
+  const [editingNotes, setEditingNotes] = useState("");
   const [editingValidationMessage, setEditingValidationMessage] = useState<string | null>(
     null,
   );
@@ -45,22 +50,34 @@ export function VaultPanel() {
 
     setValidationMessage(null);
 
-    const didCreate = await createItem(nextTitle);
+    const didCreate = await createItem({
+      title: nextTitle,
+      username: draftUsername,
+      notes: draftNotes,
+    });
 
     if (didCreate) {
       setDraftTitle("");
+      setDraftUsername("");
+      setDraftNotes("");
     }
   }
 
-  function startEditing(itemId: string, title: string) {
-    setEditingItemId(itemId);
-    setEditingTitle(title);
+  function startEditing(item: (typeof items)[number]) {
+    const payload = normalizeVaultLoginPayload(item.encrypted_payload);
+
+    setEditingItemId(item.id);
+    setEditingTitle(item.title);
+    setEditingUsername(payload.username);
+    setEditingNotes(payload.notes);
     setEditingValidationMessage(null);
   }
 
   function cancelEditing() {
     setEditingItemId(null);
     setEditingTitle("");
+    setEditingUsername("");
+    setEditingNotes("");
     setEditingValidationMessage(null);
   }
 
@@ -78,7 +95,11 @@ export function VaultPanel() {
 
     setEditingValidationMessage(null);
 
-    const didSave = await updateItemTitle(editingItemId, nextTitle);
+    const didSave = await updateItem(editingItemId, {
+      title: nextTitle,
+      username: editingUsername,
+      notes: editingNotes,
+    });
 
     if (didSave) {
       cancelEditing();
@@ -129,6 +150,23 @@ export function VaultPanel() {
                 onChange={(event) => setDraftTitle(event.target.value)}
               />
             </label>
+            <label>
+              <span>Username</span>
+              <input
+                name="username"
+                type="text"
+                value={draftUsername}
+                onChange={(event) => setDraftUsername(event.target.value)}
+              />
+            </label>
+            <label>
+              <span>Notes</span>
+              <textarea
+                name="notes"
+                value={draftNotes}
+                onChange={(event) => setDraftNotes(event.target.value)}
+              />
+            </label>
             <button type="submit" disabled={isSyncing}>
               Save item
             </button>
@@ -140,51 +178,74 @@ export function VaultPanel() {
             <ul>
               {items.map((item) => (
                 <li key={item.id}>
-                  {editingItemId === item.id ? (
-                    <>
-                      <label>
-                        <span>Edit title</span>
-                        <input
-                          name={`edit-title-${item.id}`}
-                          type="text"
-                          value={editingTitle}
-                          onChange={(event) => {
-                            setEditingTitle(event.target.value);
-                            setEditingValidationMessage(null);
-                          }}
-                        />
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => void saveEditing()}
-                        disabled={isSyncing}
-                      >
-                        Save
-                      </button>
-                      <button type="button" onClick={cancelEditing} disabled={isSyncing}>
-                        Cancel
-                      </button>
-                      {editingValidationMessage ? <p>{editingValidationMessage}</p> : null}
-                    </>
-                  ) : (
-                    <>
-                      <span>{item.title}</span>
-                      <button
-                        type="button"
-                        onClick={() => startEditing(item.id, item.title)}
-                        disabled={isSyncing}
-                      >
-                        Edit {item.title}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => void deleteItem(item.id)}
-                        disabled={isSyncing}
-                      >
-                        Delete {item.title}
-                      </button>
-                    </>
-                  )}
+                  {(() => {
+                    const payload = normalizeVaultLoginPayload(item.encrypted_payload);
+
+                    return editingItemId === item.id ? (
+                      <>
+                        <label>
+                          <span>Edit title</span>
+                          <input
+                            name={`edit-title-${item.id}`}
+                            type="text"
+                            value={editingTitle}
+                            onChange={(event) => {
+                              setEditingTitle(event.target.value);
+                              setEditingValidationMessage(null);
+                            }}
+                          />
+                        </label>
+                        <label>
+                          <span>Edit username</span>
+                          <input
+                            name={`edit-username-${item.id}`}
+                            type="text"
+                            value={editingUsername}
+                            onChange={(event) => setEditingUsername(event.target.value)}
+                          />
+                        </label>
+                        <label>
+                          <span>Edit notes</span>
+                          <textarea
+                            name={`edit-notes-${item.id}`}
+                            value={editingNotes}
+                            onChange={(event) => setEditingNotes(event.target.value)}
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => void saveEditing()}
+                          disabled={isSyncing}
+                        >
+                          Save
+                        </button>
+                        <button type="button" onClick={cancelEditing} disabled={isSyncing}>
+                          Cancel
+                        </button>
+                        {editingValidationMessage ? <p>{editingValidationMessage}</p> : null}
+                      </>
+                    ) : (
+                      <>
+                        <span>{item.title}</span>
+                        {payload.username ? <span>{payload.username}</span> : null}
+                        {payload.notes.trim() ? <span>Notes added</span> : null}
+                        <button
+                          type="button"
+                          onClick={() => startEditing(item)}
+                          disabled={isSyncing}
+                        >
+                          Edit {item.title}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void deleteItem(item.id)}
+                          disabled={isSyncing}
+                        >
+                          Delete {item.title}
+                        </button>
+                      </>
+                    );
+                  })()}
                 </li>
               ))}
             </ul>

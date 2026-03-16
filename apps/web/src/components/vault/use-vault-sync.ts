@@ -7,11 +7,17 @@ import type {
 } from "../../../../../packages/api-client/src/vault";
 import { syncVault } from "../../../../../packages/api-client/src/vault";
 import { createBrowserSupabaseClient } from "../../lib/supabase-browser";
+import { normalizeVaultLoginPayload } from "./login-payload";
 
 type VaultSyncAction = "load" | "create" | "update" | "delete";
+type VaultLoginFields = {
+  title: string;
+  username: string;
+  notes: string;
+};
 
 type VaultSyncState = {
-  createItem(title: string): Promise<boolean>;
+  createItem(input: VaultLoginFields): Promise<boolean>;
   deleteItem(itemId: string): Promise<boolean>;
   errorMessage: string | null;
   isAuthenticated: boolean;
@@ -21,7 +27,7 @@ type VaultSyncState = {
   items: VaultSyncItem[];
   lastAction: VaultSyncAction | null;
   lastSyncedAt: string | null;
-  updateItemTitle(itemId: string, title: string): Promise<boolean>;
+  updateItem(itemId: string, input: VaultLoginFields): Promise<boolean>;
 };
 
 function createApiFetch() {
@@ -68,7 +74,7 @@ export function useVaultSync(): VaultSyncState {
     }
   }
 
-  async function createItem(title: string): Promise<boolean> {
+  async function createItem(input: VaultLoginFields): Promise<boolean> {
     if (!accessToken) {
       setErrorMessage("Sign in from the register flow first.");
       return false;
@@ -81,12 +87,12 @@ export function useVaultSync(): VaultSyncState {
           ? crypto.randomUUID()
           : `vault-${Date.now()}-${Math.random().toString(16).slice(2)}`,
       item_type: "login",
-      title,
+      title: input.title,
       encrypted_payload: {
         schema_version: 1,
-        username: "",
+        username: input.username,
         password_ciphertext: "",
-        notes: "",
+        notes: input.notes,
       },
       favorite: false,
       source: "manual",
@@ -121,7 +127,7 @@ export function useVaultSync(): VaultSyncState {
     );
   }
 
-  async function updateItemTitle(itemId: string, title: string): Promise<boolean> {
+  async function updateItem(itemId: string, input: VaultLoginFields): Promise<boolean> {
     if (!accessToken) {
       setErrorMessage("Sign in from the register flow first.");
       return false;
@@ -140,10 +146,15 @@ export function useVaultSync(): VaultSyncState {
         changed_items: [
           {
             ...currentItem,
-            title,
-            updated_at: new Date().toISOString(),
-          },
-        ],
+            title: input.title,
+            encrypted_payload: {
+              ...normalizeVaultLoginPayload(currentItem.encrypted_payload),
+              username: input.username,
+              notes: input.notes,
+            },
+          updated_at: new Date().toISOString(),
+        },
+      ],
         deleted_item_ids: [],
       },
       "update",
@@ -228,6 +239,6 @@ export function useVaultSync(): VaultSyncState {
     items,
     lastAction,
     lastSyncedAt,
-    updateItemTitle,
+    updateItem,
   };
 }

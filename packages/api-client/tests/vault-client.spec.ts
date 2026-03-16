@@ -1,15 +1,19 @@
 import { describe, expect, expectTypeOf, it, vi } from "vitest";
+import type { VaultSyncResponse } from "../src/vault";
 import { syncVault } from "../src/vault";
 
 describe("syncVault", () => {
   it("posts changed items and returns the sync payload", async () => {
-    const changedItems = [
+    const changedItems: Parameters<typeof syncVault>[2]["changed_items"] = [
       {
         id: "item-1",
         item_type: "login",
         title: "GitHub",
         encrypted_payload: {
-          ciphertext: "abc",
+          schema_version: 1,
+          username: "alice",
+          password_ciphertext: "",
+          notes: "Primary account",
         },
         favorite: true,
         source: "manual",
@@ -18,8 +22,7 @@ describe("syncVault", () => {
         updated_at: "2026-03-15T00:00:00.000Z",
       },
     ];
-    const fetcher = vi.fn().mockResolvedValue({
-      json: async () => ({
+    const syncResponse: VaultSyncResponse = {
         server_time: "2026-03-14T00:00:00.000Z",
         updated_items: [
           {
@@ -27,7 +30,10 @@ describe("syncVault", () => {
             item_type: "login",
             title: "GitHub",
             encrypted_payload: {
-              ciphertext: "abc",
+              schema_version: 1,
+              username: "alice",
+              password_ciphertext: "",
+              notes: "Primary account",
             },
             favorite: true,
             source: "manual",
@@ -38,7 +44,9 @@ describe("syncVault", () => {
         ],
         deleted_item_ids: [],
         conflicts: [],
-      }),
+      };
+    const fetcher = vi.fn().mockResolvedValue({
+      json: async () => syncResponse,
     });
 
     const response = await syncVault(fetcher, "jwt-token", {
@@ -59,14 +67,22 @@ describe("syncVault", () => {
     });
     expect(response.updated_items[0]?.title).toBe("GitHub");
     expect(response.updated_items[0]?.encrypted_payload).toEqual({
-      ciphertext: "abc",
+      schema_version: 1,
+      username: "alice",
+      password_ciphertext: "",
+      notes: "Primary account",
     });
     expectTypeOf<Parameters<typeof syncVault>[2]>().toEqualTypeOf<{
       changed_items: Array<{
         id: string;
         item_type: string;
         title: string;
-        encrypted_payload: Record<string, unknown>;
+        encrypted_payload: {
+          schema_version: 1;
+          username: string;
+          password_ciphertext: string;
+          notes: string;
+        };
         favorite: boolean;
         source: string;
         last_used_at: string | null;
@@ -80,7 +96,12 @@ describe("syncVault", () => {
         id: string;
         item_type: string;
         title: string;
-        encrypted_payload: Record<string, unknown>;
+        encrypted_payload: {
+          schema_version: 1;
+          username: string;
+          password_ciphertext: string;
+          notes: string;
+        };
         favorite: boolean;
         source: string;
         last_used_at: string | null;
@@ -89,5 +110,100 @@ describe("syncVault", () => {
       }>
     >();
     expect(response.conflicts).toEqual([]);
+  });
+
+  it("round-trips a login payload with username and notes", async () => {
+    const syncResponse: VaultSyncResponse = {
+        server_time: "2026-03-16T00:00:00.000Z",
+        updated_items: [
+          {
+            id: "item-2",
+            item_type: "login",
+            title: "Personal GitHub",
+            encrypted_payload: {
+              schema_version: 1,
+              username: "alice",
+              password_ciphertext: "",
+              notes: "MFA enabled",
+            },
+            favorite: false,
+            source: "manual",
+            last_used_at: null,
+            created_at: "2026-03-16T00:00:00.000Z",
+            updated_at: "2026-03-16T00:00:00.000Z",
+          },
+        ],
+        deleted_item_ids: [],
+        conflicts: [],
+      };
+    const fetcher = vi.fn().mockResolvedValue({
+      json: async () => syncResponse,
+    });
+
+    const response = await syncVault(fetcher, "jwt-token", {
+      changed_items: [
+        {
+          id: "item-2",
+          item_type: "login",
+          title: "Personal GitHub",
+          encrypted_payload: {
+            schema_version: 1,
+            username: "alice",
+            password_ciphertext: "",
+            notes: "MFA enabled",
+          },
+          favorite: false,
+          source: "manual",
+          last_used_at: null,
+          created_at: "2026-03-16T00:00:00.000Z",
+          updated_at: "2026-03-16T00:00:00.000Z",
+        },
+      ],
+      deleted_item_ids: [],
+    });
+
+    expect(response.updated_items[0]?.encrypted_payload).toEqual({
+      schema_version: 1,
+      username: "alice",
+      password_ciphertext: "",
+      notes: "MFA enabled",
+    });
+    expectTypeOf<Parameters<typeof syncVault>[2]>().toEqualTypeOf<{
+      changed_items: Array<{
+        id: string;
+        item_type: string;
+        title: string;
+        encrypted_payload: {
+          schema_version: 1;
+          username: string;
+          password_ciphertext: string;
+          notes: string;
+        };
+        favorite: boolean;
+        source: string;
+        last_used_at: string | null;
+        created_at: string;
+        updated_at: string;
+      }>;
+      deleted_item_ids: string[];
+    }>();
+    expectTypeOf(response.updated_items).toEqualTypeOf<
+      Array<{
+        id: string;
+        item_type: string;
+        title: string;
+        encrypted_payload: {
+          schema_version: 1;
+          username: string;
+          password_ciphertext: string;
+          notes: string;
+        };
+        favorite: boolean;
+        source: string;
+        last_used_at: string | null;
+        created_at: string;
+        updated_at: string;
+      }>
+    >();
   });
 });
