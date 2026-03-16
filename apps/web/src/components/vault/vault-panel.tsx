@@ -38,6 +38,7 @@ export function VaultPanel() {
   const [isCreatePasswordVisible, setIsCreatePasswordVisible] = useState(false);
   const [validationMessage, setValidationMessage] = useState<string | null>(null);
   const [copiedUsernameItemId, setCopiedUsernameItemId] = useState<string | null>(null);
+  const [copiedPasswordItemId, setCopiedPasswordItemId] = useState<string | null>(null);
   const [revealedPasswordItemIds, setRevealedPasswordItemIds] = useState<string[]>([]);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
@@ -113,6 +114,23 @@ export function VaultPanel() {
 
     window.setTimeout(() => {
       setCopiedUsernameItemId((current) => (current === itemId ? null : current));
+    }, 1500);
+  }
+
+  async function copyPassword(itemId: string, password: string) {
+    if (
+      typeof navigator === "undefined" ||
+      !navigator.clipboard ||
+      typeof navigator.clipboard.writeText !== "function"
+    ) {
+      return;
+    }
+
+    await navigator.clipboard.writeText(password);
+    setCopiedPasswordItemId(itemId);
+
+    window.setTimeout(() => {
+      setCopiedPasswordItemId((current) => (current === itemId ? null : current));
     }, 1500);
   }
 
@@ -326,6 +344,22 @@ export function VaultPanel() {
                             {copiedUsernameItemId === item.id
                               ? `Copied ${item.title}`
                               : `Copy username ${item.title}`}
+                          </button>
+                        ) : null}
+                        {hasPassword ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              void copyPassword(
+                                item.id,
+                                readDraftPassword(item.encrypted_payload),
+                              )
+                            }
+                            disabled={isSyncing}
+                          >
+                            {copiedPasswordItemId === item.id
+                              ? `Copied password ${item.title}`
+                              : `Copy password ${item.title}`}
                           </button>
                         ) : null}
                         {hasPassword ? (
