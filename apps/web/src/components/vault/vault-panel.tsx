@@ -6,6 +6,7 @@ import {
   getPasswordPlaceholderLabel,
   hasSavedPassword,
   normalizeVaultLoginPayload,
+  readDraftPassword,
 } from "./login-payload";
 import { useVaultSync } from "./use-vault-sync";
 
@@ -32,14 +33,18 @@ export function VaultPanel() {
   } = useVaultSync();
   const [draftTitle, setDraftTitle] = useState("");
   const [draftUsername, setDraftUsername] = useState("");
+  const [draftPassword, setDraftPassword] = useState("");
   const [draftNotes, setDraftNotes] = useState("");
+  const [isCreatePasswordVisible, setIsCreatePasswordVisible] = useState(false);
   const [validationMessage, setValidationMessage] = useState<string | null>(null);
   const [copiedUsernameItemId, setCopiedUsernameItemId] = useState<string | null>(null);
   const [revealedPasswordItemIds, setRevealedPasswordItemIds] = useState<string[]>([]);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
   const [editingUsername, setEditingUsername] = useState("");
+  const [editingPassword, setEditingPassword] = useState("");
   const [editingNotes, setEditingNotes] = useState("");
+  const [isEditingPasswordVisible, setIsEditingPasswordVisible] = useState(false);
   const [editingValidationMessage, setEditingValidationMessage] = useState<string | null>(
     null,
   );
@@ -59,13 +64,16 @@ export function VaultPanel() {
     const didCreate = await createItem({
       title: nextTitle,
       username: draftUsername,
+      password: draftPassword,
       notes: draftNotes,
     });
 
     if (didCreate) {
       setDraftTitle("");
       setDraftUsername("");
+      setDraftPassword("");
       setDraftNotes("");
+      setIsCreatePasswordVisible(false);
     }
   }
 
@@ -75,7 +83,9 @@ export function VaultPanel() {
     setEditingItemId(item.id);
     setEditingTitle(item.title);
     setEditingUsername(payload.username);
+    setEditingPassword(readDraftPassword(item.encrypted_payload));
     setEditingNotes(payload.notes);
+    setIsEditingPasswordVisible(false);
     setEditingValidationMessage(null);
   }
 
@@ -83,7 +93,9 @@ export function VaultPanel() {
     setEditingItemId(null);
     setEditingTitle("");
     setEditingUsername("");
+    setEditingPassword("");
     setEditingNotes("");
+    setIsEditingPasswordVisible(false);
     setEditingValidationMessage(null);
   }
 
@@ -129,6 +141,7 @@ export function VaultPanel() {
     const didSave = await updateItem(editingItemId, {
       title: nextTitle,
       username: editingUsername,
+      password: editingPassword,
       notes: editingNotes,
     });
 
@@ -191,6 +204,22 @@ export function VaultPanel() {
               />
             </label>
             <label>
+              <span>Password</span>
+              <input
+                name="password"
+                type={isCreatePasswordVisible ? "text" : "password"}
+                value={draftPassword}
+                onChange={(event) => setDraftPassword(event.target.value)}
+              />
+            </label>
+            <button
+              type="button"
+              onClick={() => setIsCreatePasswordVisible((current) => !current)}
+              disabled={isSyncing}
+            >
+              {isCreatePasswordVisible ? "Hide password" : "Show password"}
+            </button>
+            <label>
               <span>Notes</span>
               <textarea
                 name="notes"
@@ -237,6 +266,26 @@ export function VaultPanel() {
                             onChange={(event) => setEditingUsername(event.target.value)}
                           />
                         </label>
+                        <label>
+                          <span>Edit password</span>
+                          <input
+                            name={`edit-password-${item.id}`}
+                            type={isEditingPasswordVisible ? "text" : "password"}
+                            value={editingPassword}
+                            onChange={(event) => setEditingPassword(event.target.value)}
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setIsEditingPasswordVisible((current) => !current)
+                          }
+                          disabled={isSyncing}
+                        >
+                          {isEditingPasswordVisible
+                            ? "Hide edit password"
+                            : "Show edit password"}
+                        </button>
                         <label>
                           <span>Edit notes</span>
                           <textarea

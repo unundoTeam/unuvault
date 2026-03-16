@@ -7,12 +7,17 @@ import type {
 } from "../../../../../packages/api-client/src/vault";
 import { syncVault } from "../../../../../packages/api-client/src/vault";
 import { createBrowserSupabaseClient } from "../../lib/supabase-browser";
-import { normalizeVaultLoginPayload } from "./login-payload";
+import {
+  normalizeVaultLoginPayload,
+  readDraftPassword,
+  writeDraftPassword,
+} from "./login-payload";
 
 type VaultSyncAction = "load" | "create" | "update" | "delete";
 type VaultLoginFields = {
   title: string;
   username: string;
+  password?: string;
   notes: string;
 };
 
@@ -88,12 +93,15 @@ export function useVaultSync(): VaultSyncState {
           : `vault-${Date.now()}-${Math.random().toString(16).slice(2)}`,
       item_type: "login",
       title: input.title,
-      encrypted_payload: {
+      encrypted_payload: writeDraftPassword(
+        {
         schema_version: 1,
         username: input.username,
         password_ciphertext: "",
         notes: input.notes,
-      },
+        },
+        input.password ?? "",
+      ),
       favorite: false,
       source: "manual",
       last_used_at: null,
@@ -147,14 +155,17 @@ export function useVaultSync(): VaultSyncState {
           {
             ...currentItem,
             title: input.title,
-            encrypted_payload: {
+            encrypted_payload: writeDraftPassword(
+              {
               ...normalizeVaultLoginPayload(currentItem.encrypted_payload),
               username: input.username,
               notes: input.notes,
-            },
-          updated_at: new Date().toISOString(),
-        },
-      ],
+              },
+              input.password ?? readDraftPassword(currentItem.encrypted_payload),
+            ),
+            updated_at: new Date().toISOString(),
+          },
+        ],
         deleted_item_ids: [],
       },
       "update",
