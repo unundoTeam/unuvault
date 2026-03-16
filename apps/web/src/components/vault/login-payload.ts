@@ -14,3 +14,22 @@ export function normalizeVaultLoginPayload(payload: unknown): VaultLoginPayload 
     notes: typeof value.notes === "string" ? value.notes : "",
   };
 }
+
+export function hasSavedPassword(payload: unknown): boolean {
+  return normalizeVaultLoginPayload(payload).password_ciphertext.trim().length > 0;
+}
+
+export function getHiddenPasswordPlaceholder(payload: unknown): string {
+  return hasSavedPassword(payload) ? "••••••••" : "No password saved";
+}
+
+export function getPasswordPlaceholderLabel(
+  payload: unknown,
+  isRevealed: boolean,
+): string {
+  if (!hasSavedPassword(payload)) {
+    return "No password saved";
+  }
+
+  return isRevealed ? "Encrypted password placeholder" : "••••••••";
+}
