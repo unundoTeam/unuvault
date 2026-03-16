@@ -43,6 +43,13 @@ This repository now includes the phase-1 schema boundary, client-side security m
 - open `http://127.0.0.1:3001/register`
 - the local verification order is: create the Supabase-backed signup in web, let the web app call `POST /auth/bootstrap`, then confirm the API can upsert `users_profile`
 
+## Automation Surface
+
+- `presets/unuvault/release-preset.json` defines the phase-1 `unuforge` machine surface.
+- Phase 1 machine profiles are `lint-runner` and `test-runner`.
+- Human-friendly entrypoints remain `pnpm lint` and `pnpm test`.
+- Phase 1 keeps CI on the existing `pnpm lint` / `pnpm test` entrypoints.
+
 ## CI Status
 
 - `.github/workflows/ci.yml` is the default JS gate for lint and test
