@@ -99,3 +99,8 @@ phase 2 不修改 `.github/workflows/ios.yml`。
 - 不切换 JS CI 到 `unuforge.cli`
 - 不引入 deployment actions
 - 不复制 `unundo` 的更深治理运行时
+
+## Likely Next Follow-Ups
+
+- 如果 `ios-test-runner` 在本地和 CI 都稳定，再考虑把 `.github/workflows/ios.yml` 切到 `unuforge.cli`
+- 等 iOS 和 JS 两边的 machine surface 都稳定后，再评估是否让 `.github/workflows/ci.yml` 也消费 `unuforge.cli`
