@@ -75,6 +75,12 @@ describe("workspace entrypoints", () => {
     expect(lintRunner).toContain('pnpm_bin="$repo_root/node_modules/.bin/pnpm"');
   });
 
+  it("keeps the root test runner scoped to the current checkout", () => {
+    const testRunner = readText("scripts/testing/test-runner.sh");
+
+    expect(testRunner).toContain("--exclude='.worktrees/**'");
+  });
+
   it("keeps the iOS onboarding test in a main-actor-safe context", () => {
     const onboardingTest = readText(
       "apps/ios/App/Tests/AutofillOnboardingViewTests.swift",
