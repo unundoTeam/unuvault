@@ -930,7 +930,7 @@ describe("VaultPage", () => {
     ).toBeInTheDocument();
   });
 
-  it("reveals only the targeted item's password placeholder", async () => {
+  it("reveals only the targeted item's saved password value", async () => {
     mocks.getSession.mockResolvedValue({
       data: {
         session: {
@@ -949,7 +949,7 @@ describe("VaultPage", () => {
           encrypted_payload: {
             schema_version: 1,
             username: "alice@example.com",
-            password_ciphertext: "ciphertext-1",
+            password_ciphertext: "hunter2",
             notes: "",
           },
           favorite: false,
@@ -965,7 +965,7 @@ describe("VaultPage", () => {
           encrypted_payload: {
             schema_version: 1,
             username: "bob@example.com",
-            password_ciphertext: "ciphertext-2",
+            password_ciphertext: "linear-secret",
             notes: "",
           },
           favorite: false,
@@ -985,7 +985,8 @@ describe("VaultPage", () => {
       await screen.findByRole("button", { name: "Show password GitHub" }),
     );
 
-    expect(await screen.findByText("Encrypted password placeholder")).toBeInTheDocument();
+    expect(await screen.findByText("hunter2")).toBeInTheDocument();
+    expect(screen.queryByText("linear-secret")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Hide password GitHub" })).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Show password Linear" }),
