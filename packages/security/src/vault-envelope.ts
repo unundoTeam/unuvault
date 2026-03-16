@@ -42,3 +42,27 @@ export function openVaultPassword(ciphertext: string): string {
     return "";
   }
 }
+
+export function openStoredVaultPassword(ciphertext: string): string {
+  if (!ciphertext) {
+    return "";
+  }
+
+  const openedEnvelope = openVaultPassword(ciphertext);
+
+  if (openedEnvelope) {
+    return openedEnvelope;
+  }
+
+  const trimmed = ciphertext.trimStart();
+
+  if (
+    trimmed.startsWith("{") ||
+    trimmed.startsWith("[") ||
+    trimmed.startsWith("\"")
+  ) {
+    return "";
+  }
+
+  return ciphertext;
+}
