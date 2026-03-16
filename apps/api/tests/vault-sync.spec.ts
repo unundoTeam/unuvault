@@ -6,6 +6,7 @@ import {
   VaultSyncProfileNotFoundError,
   VaultSyncUnauthorizedError,
 } from "../src/services/vault-service";
+import { loginPayload } from "./login-payload-fixture";
 
 describe("POST /vault/sync", () => {
   const syncVaultFromToken = vi.fn().mockResolvedValue({
@@ -15,9 +16,7 @@ describe("POST /vault/sync", () => {
         id: "item-1",
         item_type: "login",
         title: "GitHub",
-        encrypted_payload: {
-          ciphertext: "abc",
-        },
+        encrypted_payload: loginPayload(),
         favorite: true,
         source: "manual",
         last_used_at: null,
@@ -168,9 +167,7 @@ describe("POST /vault/sync", () => {
           id: "item-1",
           item_type: "login",
           title: "GitHub",
-          encrypted_payload: {
-            ciphertext: "abc",
-          },
+          encrypted_payload: loginPayload(),
           favorite: true,
           source: "manual",
           last_used_at: null,
@@ -187,9 +184,7 @@ describe("POST /vault/sync", () => {
         id: "item-1",
         item_type: "login",
         title: "GitHub",
-        encrypted_payload: {
-          ciphertext: "abc",
-        },
+        encrypted_payload: loginPayload(),
         favorite: true,
         source: "manual",
         last_used_at: null,
@@ -220,9 +215,7 @@ describe("POST /vault/sync", () => {
           id: "item-1",
           item_type: "login",
           title: "GitHub",
-          encrypted_payload: {
-            ciphertext: "abc",
-          },
+          encrypted_payload: loginPayload(),
           favorite: true,
           source: "manual",
           last_used_at: null,
@@ -258,9 +251,7 @@ describe("POST /vault/sync", () => {
           id: "item-1",
           item_type: "login",
           title: "GitHub",
-          encrypted_payload: {
-            ciphertext: "abc",
-          },
+          encrypted_payload: loginPayload(),
           favorite: true,
           source: "manual",
           last_used_at: null,

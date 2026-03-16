@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { createSupabaseAuthBootstrapDependencies } from "../src/lib/supabase";
+import { loginPayload } from "./login-payload-fixture";
 
 describe("createSupabaseAuthBootstrapDependencies", () => {
   it("maps auth.getUser into the service dependency contract", async () => {
@@ -133,9 +134,7 @@ describe("createSupabaseAuthBootstrapDependencies", () => {
           user_profile_id: "profile-1",
           item_type: "login",
           title: "GitHub",
-          encrypted_payload: {
-            ciphertext: "abc",
-          },
+          encrypted_payload: loginPayload(),
           favorite: false,
           source: "manual",
           last_used_at: null,
@@ -168,9 +167,7 @@ describe("createSupabaseAuthBootstrapDependencies", () => {
         user_profile_id: "profile-1",
         item_type: "login",
         title: "GitHub",
-        encrypted_payload: {
-          ciphertext: "abc",
-        },
+        encrypted_payload: loginPayload(),
         favorite: false,
         source: "manual",
         last_used_at: null,
@@ -220,9 +217,7 @@ describe("createSupabaseAuthBootstrapDependencies", () => {
         id: "item-1",
         item_type: "login",
         title: "GitHub",
-        encrypted_payload: {
-          ciphertext: "abc",
-        },
+        encrypted_payload: loginPayload(),
         favorite: true,
         source: "manual",
         last_used_at: null,
@@ -239,9 +234,7 @@ describe("createSupabaseAuthBootstrapDependencies", () => {
           user_profile_id: "profile-1",
           item_type: "login",
           title: "GitHub",
-          encrypted_payload: {
-            ciphertext: "abc",
-          },
+          encrypted_payload: loginPayload(),
           favorite: true,
           source: "manual",
           last_used_at: null,
@@ -263,9 +256,7 @@ describe("createSupabaseAuthBootstrapDependencies", () => {
           user_profile_id: "profile-foreign",
           item_type: "login",
           title: "GitHub",
-          encrypted_payload: {
-            ciphertext: "abc",
-          },
+          encrypted_payload: loginPayload(),
           favorite: true,
           source: "manual",
           last_used_at: null,
@@ -296,9 +287,7 @@ describe("createSupabaseAuthBootstrapDependencies", () => {
         user_profile_id: "profile-foreign",
         item_type: "login",
         title: "GitHub",
-        encrypted_payload: {
-          ciphertext: "abc",
-        },
+        encrypted_payload: loginPayload(),
         favorite: true,
         source: "manual",
         last_used_at: null,

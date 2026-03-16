@@ -1,4 +1,5 @@
 import type {
+  VaultLoginPayload,
   VaultSyncRequest,
   VaultSyncItem,
   VaultSyncResponse,
@@ -21,7 +22,7 @@ type VaultItemRow = {
   user_profile_id: string;
   item_type: string;
   title: string;
-  encrypted_payload: Record<string, unknown>;
+  encrypted_payload: unknown;
   favorite: boolean;
   source: string;
   last_used_at: string | null;
@@ -45,12 +46,29 @@ export class VaultSyncProfileNotFoundError extends Error {}
 
 export class VaultSyncItemConflictError extends Error {}
 
+function normalizeVaultLoginPayload(payload: unknown): VaultLoginPayload {
+  const value =
+    payload !== null && typeof payload === "object"
+      ? (payload as Partial<VaultLoginPayload>)
+      : {};
+
+  return {
+    schema_version: 1,
+    username: typeof value.username === "string" ? value.username : "",
+    password_ciphertext:
+      typeof value.password_ciphertext === "string"
+        ? value.password_ciphertext
+        : "",
+    notes: typeof value.notes === "string" ? value.notes : "",
+  };
+}
+
 function mapVaultItemRowToSyncItem(row: VaultItemRow): VaultSyncItem {
   return {
     id: row.id,
     item_type: row.item_type,
     title: row.title,
-    encrypted_payload: row.encrypted_payload,
+    encrypted_payload: normalizeVaultLoginPayload(row.encrypted_payload),
     favorite: row.favorite,
     source: row.source,
     last_used_at: row.last_used_at,

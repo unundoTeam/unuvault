@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createVaultSyncService } from "../src/services/vault-service";
+import { loginPayload } from "./login-payload-fixture";
 
 describe("createVaultSyncService", () => {
   beforeEach(() => {
@@ -68,9 +69,7 @@ describe("createVaultSyncService", () => {
           id: "item-1",
           item_type: "login",
           title: "GitHub",
-          encrypted_payload: {
-            ciphertext: "abc",
-          },
+          encrypted_payload: loginPayload(),
           favorite: true,
           source: "manual",
           last_used_at: null,
@@ -89,9 +88,7 @@ describe("createVaultSyncService", () => {
         id: "item-1",
         item_type: "login",
         title: "GitHub",
-        encrypted_payload: {
-          ciphertext: "abc",
-        },
+        encrypted_payload: loginPayload(),
         favorite: true,
         source: "manual",
         last_used_at: null,
@@ -108,9 +105,7 @@ describe("createVaultSyncService", () => {
         user_profile_id: "profile-1",
         item_type: "login",
         title: "GitHub",
-        encrypted_payload: {
-          ciphertext: "abc",
-        },
+        encrypted_payload: loginPayload(),
         favorite: true,
         source: "manual",
         last_used_at: null,
@@ -157,9 +152,7 @@ describe("createVaultSyncService", () => {
         user_profile_id: "profile-foreign",
         item_type: "login",
         title: "GitHub",
-        encrypted_payload: {
-          ciphertext: "abc",
-        },
+        encrypted_payload: loginPayload(),
         favorite: true,
         source: "manual",
         last_used_at: null,
@@ -197,9 +190,7 @@ describe("createVaultSyncService", () => {
             id: "item-1",
             item_type: "login",
             title: "GitHub",
-            encrypted_payload: {
-              ciphertext: "abc",
-            },
+            encrypted_payload: loginPayload(),
             favorite: true,
             source: "manual",
             last_used_at: null,
@@ -261,9 +252,7 @@ describe("createVaultSyncService", () => {
         user_profile_id: "profile-1",
         item_type: "login",
         title: "GitHub",
-        encrypted_payload: {
-          ciphertext: "abc",
-        },
+        encrypted_payload: loginPayload(),
         favorite: true,
         source: "manual",
         last_used_at: null,
@@ -313,9 +302,7 @@ describe("createVaultSyncService", () => {
         id: "item-1",
         item_type: "login",
         title: "GitHub",
-        encrypted_payload: {
-          ciphertext: "abc",
-        },
+        encrypted_payload: loginPayload(),
         favorite: true,
         source: "manual",
         last_used_at: null,
@@ -326,9 +313,7 @@ describe("createVaultSyncService", () => {
         id: "item-2",
         item_type: "login",
         title: "Linear",
-        encrypted_payload: {
-          ciphertext: "def",
-        },
+        encrypted_payload: loginPayload(),
         favorite: false,
         source: "manual",
         last_used_at: null,
@@ -342,9 +327,7 @@ describe("createVaultSyncService", () => {
         user_profile_id: "profile-1",
         item_type: "login",
         title: "GitHub",
-        encrypted_payload: {
-          ciphertext: "abc",
-        },
+        encrypted_payload: loginPayload(),
         favorite: true,
         source: "manual",
         last_used_at: null,
@@ -356,9 +339,7 @@ describe("createVaultSyncService", () => {
         user_profile_id: "profile-1",
         item_type: "login",
         title: "Linear",
-        encrypted_payload: {
-          ciphertext: "def",
-        },
+        encrypted_payload: loginPayload(),
         favorite: false,
         source: "manual",
         last_used_at: null,
@@ -374,9 +355,7 @@ describe("createVaultSyncService", () => {
         user_profile_id: "profile-1",
         item_type: "login",
         title: "GitHub",
-        encrypted_payload: {
-          ciphertext: "abc",
-        },
+        encrypted_payload: loginPayload(),
         favorite: true,
         source: "manual",
         last_used_at: null,
@@ -429,9 +408,7 @@ describe("createVaultSyncService", () => {
         user_profile_id: "profile-foreign",
         item_type: "login",
         title: "GitHub",
-        encrypted_payload: {
-          ciphertext: "abc",
-        },
+        encrypted_payload: loginPayload(),
         favorite: true,
         source: "manual",
         last_used_at: null,
