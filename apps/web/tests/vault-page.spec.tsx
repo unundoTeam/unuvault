@@ -94,12 +94,12 @@ describe("VaultPage", () => {
       error: null,
     });
 
-    let resolveSync: ((value: {
+    let resolveSync!: (value: {
       server_time: string;
       updated_items: never[];
       deleted_item_ids: never[];
       conflicts: never[];
-    }) => void) | null = null;
+    }) => void;
 
     mocks.syncVault.mockReturnValue(
       new Promise((resolve) => {
@@ -111,7 +111,7 @@ describe("VaultPage", () => {
 
     expect(await screen.findByText("Syncing vault...")).toBeInTheDocument();
 
-    resolveSync?.({
+    resolveSync({
       server_time: "2026-03-16T00:00:00.000Z",
       updated_items: [],
       deleted_item_ids: [],
@@ -379,7 +379,7 @@ describe("VaultPage", () => {
       error: null,
     });
 
-    let resolveMutation: ((value: {
+    let resolveMutation!: (value: {
       server_time: string;
       updated_items: {
         id: string;
@@ -397,7 +397,7 @@ describe("VaultPage", () => {
       }[];
       deleted_item_ids: never[];
       conflicts: never[];
-    }) => void) | null = null;
+    }) => void;
 
     mocks.syncVault
       .mockResolvedValueOnce({
@@ -439,7 +439,7 @@ describe("VaultPage", () => {
     expect(screen.getByText("GitHub")).toBeInTheDocument();
     expect(screen.getByText("Saving item...")).toBeInTheDocument();
 
-    resolveMutation?.({
+    resolveMutation({
       server_time: "2026-03-16T00:01:00.000Z",
       updated_items: [
         {
