@@ -9,6 +9,7 @@ import {
   readDraftPassword,
 } from "./login-payload";
 import { useVaultSync } from "./use-vault-sync";
+import { useVaultUnlock } from "./use-vault-unlock";
 
 function formatUtcSyncTime(timestamp: string): string {
   const value = new Date(timestamp);
@@ -31,6 +32,13 @@ export function VaultPanel() {
     lastSyncedAt,
     updateItem,
   } = useVaultSync();
+  const {
+    draftPassphrase,
+    isUnlocked,
+    setDraftPassphrase,
+    submitLabel,
+    unlockError,
+  } = useVaultUnlock(items);
   const [draftTitle, setDraftTitle] = useState("");
   const [draftUsername, setDraftUsername] = useState("");
   const [draftPassword, setDraftPassword] = useState("");
@@ -199,6 +207,22 @@ export function VaultPanel() {
         <p>Sign in from the register flow first.</p>
       ) : null}
       {errorMessage ? <p>{errorMessage}</p> : null}
+      {!isBootstrapping && isAuthenticated ? (
+        <form>
+          <label>
+            <span>Unlock passphrase</span>
+            <input
+              name="unlock-passphrase"
+              type="password"
+              value={draftPassphrase}
+              onChange={(event) => setDraftPassphrase(event.target.value)}
+            />
+          </label>
+          <button type="button">{submitLabel}</button>
+          {isUnlocked ? <p>Vault unlocked</p> : null}
+          {unlockError ? <p>{unlockError}</p> : null}
+        </form>
+      ) : null}
 
       {!isBootstrapping && isAuthenticated ? (
         <>

@@ -126,6 +126,67 @@ describe("VaultPage", () => {
     expect(await screen.findByText("Last synced at 00:00 UTC")).toBeInTheDocument();
   });
 
+  it("starts locked when the vault contains a saved password", async () => {
+    mocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: "jwt-token",
+        },
+      },
+      error: null,
+    });
+    mocks.syncVault.mockResolvedValue({
+      server_time: "2026-03-16T00:00:00.000Z",
+      updated_items: [
+        {
+          id: "item-1",
+          item_type: "login",
+          title: "GitHub",
+          encrypted_payload: {
+            schema_version: 1,
+            username: "alice@example.com",
+            password_ciphertext: storedPassword("hunter2"),
+            notes: "",
+          },
+          favorite: false,
+          source: "manual",
+          last_used_at: null,
+          created_at: "2026-03-16T00:00:00.000Z",
+          updated_at: "2026-03-16T00:00:00.000Z",
+        },
+      ],
+      deleted_item_ids: [],
+      conflicts: [],
+    });
+
+    render(<VaultPage />);
+
+    expect(await screen.findByText("GitHub")).toBeInTheDocument();
+    expect(screen.getByText("Unlock vault")).toBeInTheDocument();
+  });
+
+  it("prompts to set an unlock passphrase when no saved passwords exist yet", async () => {
+    mocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: "jwt-token",
+        },
+      },
+      error: null,
+    });
+    mocks.syncVault.mockResolvedValue({
+      server_time: "2026-03-16T00:00:00.000Z",
+      updated_items: [],
+      deleted_item_ids: [],
+      conflicts: [],
+    });
+
+    render(<VaultPage />);
+
+    expect(await screen.findByText("No vault items yet.")).toBeInTheDocument();
+    expect(screen.getByText("Set unlock passphrase")).toBeInTheDocument();
+  });
+
   it("creates a vault item from the title form", async () => {
     mocks.getSession.mockResolvedValue({
       data: {
