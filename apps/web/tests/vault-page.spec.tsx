@@ -735,6 +735,88 @@ describe("VaultPage", () => {
     expect(await screen.findByText("Notes added")).toBeInTheDocument();
   });
 
+  it("shows no password saved when password_ciphertext is empty", async () => {
+    mocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: "jwt-token",
+        },
+      },
+      error: null,
+    });
+    mocks.syncVault.mockResolvedValue({
+      server_time: "2026-03-16T00:00:00.000Z",
+      updated_items: [
+        {
+          id: "item-1",
+          item_type: "login",
+          title: "GitHub",
+          encrypted_payload: {
+            schema_version: 1,
+            username: "alice@example.com",
+            password_ciphertext: "",
+            notes: "",
+          },
+          favorite: false,
+          source: "manual",
+          last_used_at: null,
+          created_at: "2026-03-16T00:00:00.000Z",
+          updated_at: "2026-03-16T00:00:00.000Z",
+        },
+      ],
+      deleted_item_ids: [],
+      conflicts: [],
+    });
+
+    render(<VaultPage />);
+
+    expect(await screen.findByText("No password saved")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Show password GitHub" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows a masked password placeholder and reveal action when password exists", async () => {
+    mocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: "jwt-token",
+        },
+      },
+      error: null,
+    });
+    mocks.syncVault.mockResolvedValue({
+      server_time: "2026-03-16T00:00:00.000Z",
+      updated_items: [
+        {
+          id: "item-1",
+          item_type: "login",
+          title: "GitHub",
+          encrypted_payload: {
+            schema_version: 1,
+            username: "alice@example.com",
+            password_ciphertext: "ciphertext-placeholder",
+            notes: "",
+          },
+          favorite: false,
+          source: "manual",
+          last_used_at: null,
+          created_at: "2026-03-16T00:00:00.000Z",
+          updated_at: "2026-03-16T00:00:00.000Z",
+        },
+      ],
+      deleted_item_ids: [],
+      conflicts: [],
+    });
+
+    render(<VaultPage />);
+
+    expect(await screen.findByText("••••••••")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Show password GitHub" }),
+    ).toBeInTheDocument();
+  });
+
   it("enters inline edit mode for one vault item", async () => {
     mocks.getSession.mockResolvedValue({
       data: {

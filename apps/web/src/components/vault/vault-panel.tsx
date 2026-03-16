@@ -2,7 +2,11 @@
 
 import type { FormEvent } from "react";
 import { useState } from "react";
-import { normalizeVaultLoginPayload } from "./login-payload";
+import {
+  getHiddenPasswordPlaceholder,
+  hasSavedPassword,
+  normalizeVaultLoginPayload,
+} from "./login-payload";
 import { useVaultSync } from "./use-vault-sync";
 
 function formatUtcSyncTime(timestamp: string): string {
@@ -229,6 +233,12 @@ export function VaultPanel() {
                         <span>{item.title}</span>
                         {payload.username ? <span>{payload.username}</span> : null}
                         {payload.notes.trim() ? <span>Notes added</span> : null}
+                        <span>{getHiddenPasswordPlaceholder(item.encrypted_payload)}</span>
+                        {hasSavedPassword(item.encrypted_payload) ? (
+                          <button type="button" disabled={isSyncing}>
+                            Show password {item.title}
+                          </button>
+                        ) : null}
                         <button
                           type="button"
                           onClick={() => startEditing(item)}
