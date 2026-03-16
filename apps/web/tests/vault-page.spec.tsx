@@ -4,6 +4,7 @@ import "@testing-library/jest-dom/vitest";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import VaultPage from "../src/app/vault/page";
+import { sealVaultPassword } from "../../../packages/security/src/vault-envelope";
 
 afterEach(() => {
   cleanup();
@@ -16,6 +17,8 @@ const mocks = vi.hoisted(() => ({
   getSession: vi.fn(),
   syncVault: vi.fn(),
 }));
+
+const storedPassword = (password: string): string => sealVaultPassword(password);
 
 vi.mock("../src/lib/supabase-browser", () => ({
   createBrowserSupabaseClient: () => ({
@@ -187,6 +190,7 @@ describe("VaultPage", () => {
         deleted_item_ids: [],
       },
     );
+
   });
 
   it("shows create success feedback after saving a new item", async () => {
@@ -314,6 +318,7 @@ describe("VaultPage", () => {
         deleted_item_ids: [],
       },
     );
+
   });
 
   it("resets the create form after saving a login item", async () => {
@@ -404,7 +409,7 @@ describe("VaultPage", () => {
             encrypted_payload: {
               schema_version: 1,
               username: "alice@example.com",
-              password_ciphertext: "hunter2",
+              password_ciphertext: storedPassword("hunter2"),
               notes: "Personal account",
             },
             favorite: false,
@@ -447,7 +452,6 @@ describe("VaultPage", () => {
             encrypted_payload: expect.objectContaining({
               schema_version: 1,
               username: "alice@example.com",
-              password_ciphertext: "hunter2",
               notes: "Personal account",
             }),
           }),
@@ -455,6 +459,17 @@ describe("VaultPage", () => {
         deleted_item_ids: [],
       },
     );
+
+    const createPayload = mocks.syncVault.mock.calls[1]?.[2].changed_items[0]
+      .encrypted_payload;
+
+    expect(createPayload.password_ciphertext).not.toBe("hunter2");
+    expect(JSON.parse(createPayload.password_ciphertext)).toMatchObject({
+      version: 1,
+      cipher: "xchacha20-poly1305",
+      keyDerivation: "argon2id",
+      encryptedPayload: "hunter2",
+    });
   });
 
   it("resets the create password field and hides it after save", async () => {
@@ -483,7 +498,7 @@ describe("VaultPage", () => {
             encrypted_payload: {
               schema_version: 1,
               username: "",
-              password_ciphertext: "hunter2",
+              password_ciphertext: storedPassword("hunter2"),
               notes: "",
             },
             favorite: false,
@@ -935,7 +950,7 @@ describe("VaultPage", () => {
           encrypted_payload: {
             schema_version: 1,
             username: "alice@example.com",
-            password_ciphertext: "ciphertext-placeholder",
+            password_ciphertext: storedPassword("hunter2"),
             notes: "",
           },
           favorite: false,
@@ -1089,7 +1104,7 @@ describe("VaultPage", () => {
           encrypted_payload: {
             schema_version: 1,
             username: "alice@example.com",
-            password_ciphertext: "hunter2",
+            password_ciphertext: storedPassword("hunter2"),
             notes: "",
           },
           favorite: false,
@@ -1157,7 +1172,7 @@ describe("VaultPage", () => {
           encrypted_payload: {
             schema_version: 1,
             username: "alice@example.com",
-            password_ciphertext: "hunter2",
+            password_ciphertext: storedPassword("hunter2"),
             notes: "",
           },
           favorite: false,
@@ -1210,7 +1225,7 @@ describe("VaultPage", () => {
           encrypted_payload: {
             schema_version: 1,
             username: "alice@example.com",
-            password_ciphertext: "hunter2",
+            password_ciphertext: storedPassword("hunter2"),
             notes: "",
           },
           favorite: false,
@@ -1226,7 +1241,7 @@ describe("VaultPage", () => {
           encrypted_payload: {
             schema_version: 1,
             username: "bob@example.com",
-            password_ciphertext: "linear-secret",
+            password_ciphertext: storedPassword("linear-secret"),
             notes: "",
           },
           favorite: false,
@@ -1286,7 +1301,7 @@ describe("VaultPage", () => {
           encrypted_payload: {
             schema_version: 1,
             username: "alice@example.com",
-            password_ciphertext: "hunter2",
+            password_ciphertext: storedPassword("hunter2"),
             notes: "",
           },
           favorite: false,
@@ -1345,7 +1360,7 @@ describe("VaultPage", () => {
           encrypted_payload: {
             schema_version: 1,
             username: "alice@example.com",
-            password_ciphertext: "hunter2",
+            password_ciphertext: storedPassword("hunter2"),
             notes: "",
           },
           favorite: false,
@@ -1361,7 +1376,7 @@ describe("VaultPage", () => {
           encrypted_payload: {
             schema_version: 1,
             username: "bob@example.com",
-            password_ciphertext: "linear-secret",
+            password_ciphertext: storedPassword("linear-secret"),
             notes: "",
           },
           favorite: false,
@@ -1408,7 +1423,7 @@ describe("VaultPage", () => {
           encrypted_payload: {
             schema_version: 1,
             username: "alice@example.com",
-            password_ciphertext: "ciphertext-1",
+            password_ciphertext: storedPassword("hunter2"),
             notes: "",
           },
           favorite: false,
@@ -1540,7 +1555,7 @@ describe("VaultPage", () => {
           encrypted_payload: {
             schema_version: 1,
             username: "alice@example.com",
-            password_ciphertext: "hunter2",
+            password_ciphertext: storedPassword("hunter2"),
             notes: "Personal account",
           },
           favorite: false,
@@ -1646,6 +1661,7 @@ describe("VaultPage", () => {
         deleted_item_ids: [],
       },
     );
+
   });
 
   it("shows update success feedback after editing an item", async () => {
@@ -1829,7 +1845,7 @@ describe("VaultPage", () => {
             encrypted_payload: {
               schema_version: 1,
               username: "alice@example.com",
-              password_ciphertext: "hunter2",
+              password_ciphertext: storedPassword("hunter2"),
               notes: "Personal account",
             },
             favorite: false,
@@ -1852,7 +1868,7 @@ describe("VaultPage", () => {
             encrypted_payload: {
               schema_version: 1,
               username: "alice@example.com",
-              password_ciphertext: "work-secret",
+              password_ciphertext: storedPassword("work-secret"),
               notes: "Personal account",
             },
             favorite: false,
@@ -1886,7 +1902,6 @@ describe("VaultPage", () => {
             id: "item-1",
             encrypted_payload: expect.objectContaining({
               username: "alice@example.com",
-              password_ciphertext: "work-secret",
               notes: "Personal account",
             }),
           }),
@@ -1894,6 +1909,17 @@ describe("VaultPage", () => {
         deleted_item_ids: [],
       },
     );
+
+    const updatePayload = mocks.syncVault.mock.calls[1]?.[2].changed_items[0]
+      .encrypted_payload;
+
+    expect(updatePayload.password_ciphertext).not.toBe("work-secret");
+    expect(JSON.parse(updatePayload.password_ciphertext)).toMatchObject({
+      version: 1,
+      cipher: "xchacha20-poly1305",
+      keyDerivation: "argon2id",
+      encryptedPayload: "work-secret",
+    });
   });
 
   it("cancels inline edit mode without sending sync", async () => {
