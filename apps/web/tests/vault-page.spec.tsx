@@ -276,4 +276,217 @@ describe("VaultPage", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("GitHub")).toBeInTheDocument();
   });
+
+  it("enters inline edit mode for one vault item", async () => {
+    mocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: "jwt-token",
+        },
+      },
+      error: null,
+    });
+    mocks.syncVault.mockResolvedValue({
+      server_time: "2026-03-16T00:00:00.000Z",
+      updated_items: [
+        {
+          id: "item-1",
+          item_type: "login",
+          title: "GitHub",
+          encrypted_payload: {
+            schema_version: 1,
+            username: "",
+          },
+          favorite: false,
+          source: "manual",
+          last_used_at: null,
+          created_at: "2026-03-16T00:00:00.000Z",
+          updated_at: "2026-03-16T00:00:00.000Z",
+        },
+      ],
+      deleted_item_ids: [],
+      conflicts: [],
+    });
+
+    render(<VaultPage />);
+
+    expect(await screen.findByText("GitHub")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit GitHub" }));
+
+    expect(screen.getByDisplayValue("GitHub")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
+  });
+
+  it("saves an edited title through changed_items", async () => {
+    mocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: "jwt-token",
+        },
+      },
+      error: null,
+    });
+    mocks.syncVault
+      .mockResolvedValueOnce({
+        server_time: "2026-03-16T00:00:00.000Z",
+        updated_items: [
+          {
+            id: "item-1",
+            item_type: "login",
+            title: "GitHub",
+            encrypted_payload: {
+              schema_version: 1,
+              username: "",
+            },
+            favorite: false,
+            source: "manual",
+            last_used_at: null,
+            created_at: "2026-03-16T00:00:00.000Z",
+            updated_at: "2026-03-16T00:00:00.000Z",
+          },
+        ],
+        deleted_item_ids: [],
+        conflicts: [],
+      })
+      .mockResolvedValueOnce({
+        server_time: "2026-03-16T00:00:01.000Z",
+        updated_items: [
+          {
+            id: "item-1",
+            item_type: "login",
+            title: "GitHub Personal",
+            encrypted_payload: {
+              schema_version: 1,
+              username: "",
+            },
+            favorite: false,
+            source: "manual",
+            last_used_at: null,
+            created_at: "2026-03-16T00:00:00.000Z",
+            updated_at: "2026-03-16T00:00:01.000Z",
+          },
+        ],
+        deleted_item_ids: [],
+        conflicts: [],
+      });
+
+    render(<VaultPage />);
+
+    expect(await screen.findByText("GitHub")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit GitHub" }));
+    fireEvent.change(screen.getByDisplayValue("GitHub"), {
+      target: { value: "GitHub Personal" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(await screen.findByText("GitHub Personal")).toBeInTheDocument();
+    expect(mocks.syncVault).toHaveBeenNthCalledWith(
+      2,
+      expect.any(Function),
+      "jwt-token",
+      {
+        changed_items: [
+          expect.objectContaining({
+            id: "item-1",
+            title: "GitHub Personal",
+          }),
+        ],
+        deleted_item_ids: [],
+      },
+    );
+  });
+
+  it("cancels inline edit mode without sending sync", async () => {
+    mocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: "jwt-token",
+        },
+      },
+      error: null,
+    });
+    mocks.syncVault.mockResolvedValue({
+      server_time: "2026-03-16T00:00:00.000Z",
+      updated_items: [
+        {
+          id: "item-1",
+          item_type: "login",
+          title: "GitHub",
+          encrypted_payload: {
+            schema_version: 1,
+            username: "",
+          },
+          favorite: false,
+          source: "manual",
+          last_used_at: null,
+          created_at: "2026-03-16T00:00:00.000Z",
+          updated_at: "2026-03-16T00:00:00.000Z",
+        },
+      ],
+      deleted_item_ids: [],
+      conflicts: [],
+    });
+
+    render(<VaultPage />);
+
+    expect(await screen.findByText("GitHub")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit GitHub" }));
+    fireEvent.change(screen.getByDisplayValue("GitHub"), {
+      target: { value: "GitHub Personal" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(screen.getByText("GitHub")).toBeInTheDocument();
+    expect(screen.queryByDisplayValue("GitHub Personal")).not.toBeInTheDocument();
+    expect(mocks.syncVault).toHaveBeenCalledTimes(1);
+  });
+
+  it("blocks empty edited titles before sending sync", async () => {
+    mocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: "jwt-token",
+        },
+      },
+      error: null,
+    });
+    mocks.syncVault.mockResolvedValue({
+      server_time: "2026-03-16T00:00:00.000Z",
+      updated_items: [
+        {
+          id: "item-1",
+          item_type: "login",
+          title: "GitHub",
+          encrypted_payload: {
+            schema_version: 1,
+            username: "",
+          },
+          favorite: false,
+          source: "manual",
+          last_used_at: null,
+          created_at: "2026-03-16T00:00:00.000Z",
+          updated_at: "2026-03-16T00:00:00.000Z",
+        },
+      ],
+      deleted_item_ids: [],
+      conflicts: [],
+    });
+
+    render(<VaultPage />);
+
+    expect(await screen.findByText("GitHub")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit GitHub" }));
+    fireEvent.change(screen.getByDisplayValue("GitHub"), {
+      target: { value: "   " },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(await screen.findByText("Edited title is required.")).toBeInTheDocument();
+    expect(mocks.syncVault).toHaveBeenCalledTimes(1);
+  });
 });

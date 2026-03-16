@@ -15,6 +15,7 @@ type VaultSyncState = {
   isAuthenticated: boolean;
   isLoading: boolean;
   items: VaultSyncItem[];
+  updateItemTitle(itemId: string, title: string): Promise<boolean>;
 };
 
 function createApiFetch() {
@@ -95,6 +96,31 @@ export function useVaultSync(): VaultSyncState {
     });
   }
 
+  async function updateItemTitle(itemId: string, title: string): Promise<boolean> {
+    if (!accessToken) {
+      setErrorMessage("Sign in from the register flow first.");
+      return false;
+    }
+
+    const currentItem = items.find((item) => item.id === itemId);
+
+    if (!currentItem) {
+      setErrorMessage("We couldn't find that vault item.");
+      return false;
+    }
+
+    return runSync(accessToken, {
+      changed_items: [
+        {
+          ...currentItem,
+          title,
+          updated_at: new Date().toISOString(),
+        },
+      ],
+      deleted_item_ids: [],
+    });
+  }
+
   useEffect(() => {
     let isCancelled = false;
 
@@ -154,5 +180,6 @@ export function useVaultSync(): VaultSyncState {
     isAuthenticated,
     isLoading,
     items,
+    updateItemTitle,
   };
 }

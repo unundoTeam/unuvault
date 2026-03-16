@@ -5,10 +5,22 @@ import { useState } from "react";
 import { useVaultSync } from "./use-vault-sync";
 
 export function VaultPanel() {
-  const { createItem, deleteItem, errorMessage, isAuthenticated, isLoading, items } =
-    useVaultSync();
+  const {
+    createItem,
+    deleteItem,
+    errorMessage,
+    isAuthenticated,
+    isLoading,
+    items,
+    updateItemTitle,
+  } = useVaultSync();
   const [draftTitle, setDraftTitle] = useState("");
   const [validationMessage, setValidationMessage] = useState<string | null>(null);
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState("");
+  const [editingValidationMessage, setEditingValidationMessage] = useState<string | null>(
+    null,
+  );
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -26,6 +38,39 @@ export function VaultPanel() {
 
     if (didCreate) {
       setDraftTitle("");
+    }
+  }
+
+  function startEditing(itemId: string, title: string) {
+    setEditingItemId(itemId);
+    setEditingTitle(title);
+    setEditingValidationMessage(null);
+  }
+
+  function cancelEditing() {
+    setEditingItemId(null);
+    setEditingTitle("");
+    setEditingValidationMessage(null);
+  }
+
+  async function saveEditing() {
+    if (!editingItemId) {
+      return;
+    }
+
+    const nextTitle = editingTitle.trim();
+
+    if (!nextTitle) {
+      setEditingValidationMessage("Edited title is required.");
+      return;
+    }
+
+    setEditingValidationMessage(null);
+
+    const didSave = await updateItemTitle(editingItemId, nextTitle);
+
+    if (didSave) {
+      cancelEditing();
     }
   }
 
@@ -63,14 +108,51 @@ export function VaultPanel() {
             <ul>
               {items.map((item) => (
                 <li key={item.id}>
-                  <span>{item.title}</span>
-                  <button
-                    type="button"
-                    onClick={() => void deleteItem(item.id)}
-                    disabled={isLoading}
-                  >
-                    Delete {item.title}
-                  </button>
+                  {editingItemId === item.id ? (
+                    <>
+                      <label>
+                        <span>Edit title</span>
+                        <input
+                          name={`edit-title-${item.id}`}
+                          type="text"
+                          value={editingTitle}
+                          onChange={(event) => {
+                            setEditingTitle(event.target.value);
+                            setEditingValidationMessage(null);
+                          }}
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => void saveEditing()}
+                        disabled={isLoading}
+                      >
+                        Save
+                      </button>
+                      <button type="button" onClick={cancelEditing} disabled={isLoading}>
+                        Cancel
+                      </button>
+                      {editingValidationMessage ? <p>{editingValidationMessage}</p> : null}
+                    </>
+                  ) : (
+                    <>
+                      <span>{item.title}</span>
+                      <button
+                        type="button"
+                        onClick={() => startEditing(item.id, item.title)}
+                        disabled={isLoading}
+                      >
+                        Edit {item.title}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void deleteItem(item.id)}
+                        disabled={isLoading}
+                      >
+                        Delete {item.title}
+                      </button>
+                    </>
+                  )}
                 </li>
               ))}
             </ul>
