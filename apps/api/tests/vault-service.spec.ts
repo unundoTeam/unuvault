@@ -33,18 +33,21 @@ describe("createVaultSyncService", () => {
       },
     ]);
     const listDeletedVaultItemIdsByProfileId = vi.fn().mockResolvedValue([]);
+    const getUserProfileByAccountId = vi.fn().mockResolvedValue({
+      id: "profile-1",
+      account_id: "account-1",
+      auth_user_id: "auth-user-1",
+      email: "user@example.com",
+      locale: "zh-CN",
+    });
 
     const service = createVaultSyncService({
       getUserByToken: async () => ({
         id: "auth-user-1",
+        account_id: "account-1",
         email: "user@example.com",
       }),
-      getUserProfileByAuthUserId: async () => ({
-        id: "profile-1",
-        auth_user_id: "auth-user-1",
-        email: "user@example.com",
-        locale: "zh-CN",
-      }),
+      getUserProfileByAccountId,
       listVaultItemsByIds,
       upsertVaultItems,
       softDeleteVaultItems,
@@ -60,6 +63,7 @@ describe("createVaultSyncService", () => {
     expect(listVaultItemsByIds).not.toHaveBeenCalled();
     expect(upsertVaultItems).not.toHaveBeenCalled();
     expect(softDeleteVaultItems).not.toHaveBeenCalled();
+    expect(getUserProfileByAccountId).toHaveBeenCalledWith("account-1");
     expect(listVaultItemsByProfileId).toHaveBeenCalledWith("profile-1");
     expect(listDeletedVaultItemIdsByProfileId).toHaveBeenCalledWith("profile-1");
     expect(payload).toEqual({
@@ -118,10 +122,12 @@ describe("createVaultSyncService", () => {
     const service = createVaultSyncService({
       getUserByToken: async () => ({
         id: "auth-user-1",
+        account_id: "account-1",
         email: "user@example.com",
       }),
-      getUserProfileByAuthUserId: async () => ({
+      getUserProfileByAccountId: async () => ({
         id: "profile-1",
+        account_id: "account-1",
         auth_user_id: "auth-user-1",
         email: "user@example.com",
         locale: "zh-CN",
@@ -168,10 +174,12 @@ describe("createVaultSyncService", () => {
     const service = createVaultSyncService({
       getUserByToken: async () => ({
         id: "auth-user-1",
+        account_id: "account-1",
         email: "user@example.com",
       }),
-      getUserProfileByAuthUserId: async () => ({
+      getUserProfileByAccountId: async () => ({
         id: "profile-1",
+        account_id: "account-1",
         auth_user_id: "auth-user-1",
         email: "user@example.com",
         locale: "zh-CN",
@@ -217,10 +225,12 @@ describe("createVaultSyncService", () => {
     const service = createVaultSyncService({
       getUserByToken: async () => ({
         id: "auth-user-1",
+        account_id: "account-1",
         email: "user@example.com",
       }),
-      getUserProfileByAuthUserId: async () => ({
+      getUserProfileByAccountId: async () => ({
         id: "profile-1",
+        account_id: "account-1",
         auth_user_id: "auth-user-1",
         email: "user@example.com",
         locale: "zh-CN",
@@ -270,10 +280,12 @@ describe("createVaultSyncService", () => {
     const service = createVaultSyncService({
       getUserByToken: async () => ({
         id: "auth-user-1",
+        account_id: "account-1",
         email: "user@example.com",
       }),
-      getUserProfileByAuthUserId: async () => ({
+      getUserProfileByAccountId: async () => ({
         id: "profile-1",
+        account_id: "account-1",
         auth_user_id: "auth-user-1",
         email: "user@example.com",
         locale: "zh-CN",
@@ -370,10 +382,12 @@ describe("createVaultSyncService", () => {
     const service = createVaultSyncService({
       getUserByToken: async () => ({
         id: "auth-user-1",
+        account_id: "account-1",
         email: "user@example.com",
       }),
-      getUserProfileByAuthUserId: async () => ({
+      getUserProfileByAccountId: async () => ({
         id: "profile-1",
+        account_id: "account-1",
         auth_user_id: "auth-user-1",
         email: "user@example.com",
         locale: "zh-CN",
@@ -424,10 +438,12 @@ describe("createVaultSyncService", () => {
     const service = createVaultSyncService({
       getUserByToken: async () => ({
         id: "auth-user-1",
+        account_id: "account-1",
         email: "user@example.com",
       }),
-      getUserProfileByAuthUserId: async () => ({
+      getUserProfileByAccountId: async () => ({
         id: "profile-1",
+        account_id: "account-1",
         auth_user_id: "auth-user-1",
         email: "user@example.com",
         locale: "zh-CN",

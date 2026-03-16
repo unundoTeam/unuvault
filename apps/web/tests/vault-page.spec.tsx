@@ -20,8 +20,8 @@ const mocks = vi.hoisted(() => ({
 
 const storedPassword = (password: string): string => sealVaultPassword(password);
 
-vi.mock("../src/lib/supabase-browser", () => ({
-  createBrowserSupabaseClient: () => ({
+vi.mock("../src/lib/identity/browser", () => ({
+  createIdentityBrowserClient: () => ({
     auth: {
       getSession: mocks.getSession,
     },

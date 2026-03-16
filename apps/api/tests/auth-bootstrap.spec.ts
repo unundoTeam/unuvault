@@ -1,5 +1,5 @@
 import Fastify from "fastify";
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it, vi } from "vitest";
 import {
   AuthBootstrapUnauthorizedError,
   createAuthBootstrapService,
@@ -14,6 +14,7 @@ describe("POST /auth/bootstrap", () => {
       bootstrapProfileFromToken: async (token) => ({
         profile: {
           id: `profile:${token}`,
+          account_id: "account-1",
           email: "user@example.com",
           locale: "zh-CN",
         },
@@ -41,6 +42,7 @@ describe("POST /auth/bootstrap", () => {
     expect(response.json()).toEqual({
       profile: {
         id: "profile:test-token",
+        account_id: "account-1",
         email: "user@example.com",
         locale: "zh-CN",
       },
@@ -130,10 +132,12 @@ describe("createAuthBootstrapService", () => {
     const service = createAuthBootstrapService({
       getUserByToken: async () => ({
         id: "auth-user-1",
+        account_id: "account-1",
         email: "user@example.com",
       }),
       upsertUserProfile: async (profile) => ({
         id: "profile-1",
+        account_id: profile.account_id,
         email: profile.email,
         locale: profile.locale,
       }),
@@ -144,9 +148,36 @@ describe("createAuthBootstrapService", () => {
     expect(result).toEqual({
       profile: {
         id: "profile-1",
+        account_id: "account-1",
         email: "user@example.com",
         locale: "zh-CN",
       },
+    });
+  });
+
+  it("upserts the profile by account_id while preserving auth_user_id", async () => {
+    const upsertUserProfile = vi.fn(async (profile) => ({
+      id: "profile-1",
+      account_id: profile.account_id,
+      email: profile.email,
+      locale: profile.locale,
+    }));
+    const service = createAuthBootstrapService({
+      getUserByToken: async () => ({
+        id: "auth-user-1",
+        account_id: "account-1",
+        email: "user@example.com",
+      }),
+      upsertUserProfile,
+    });
+
+    await service.bootstrapProfileFromToken("jwt-token");
+
+    expect(upsertUserProfile).toHaveBeenCalledWith({
+      auth_user_id: "auth-user-1",
+      account_id: "account-1",
+      email: "user@example.com",
+      locale: "zh-CN",
     });
   });
 

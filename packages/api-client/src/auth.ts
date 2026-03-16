@@ -1,6 +1,7 @@
 export type BootstrapProfileResponse = {
   profile: {
     id: string;
+    account_id: string;
     email: string;
     locale: string;
   };

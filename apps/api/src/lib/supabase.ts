@@ -4,28 +4,38 @@ import type { VaultSyncItem } from "../../../../packages/api-client/src/vault";
 
 type AuthUser = {
   id: string;
+  account_id: string;
   email: string | null;
 };
 
 type ProviderAuthUser = {
   id: string;
   email?: string | null;
+  app_metadata?: {
+    account_id?: string | null;
+  };
+  user_metadata?: {
+    account_id?: string | null;
+  };
 };
 
 type UserProfileRecord = {
   auth_user_id: string;
+  account_id: string;
   email: string;
   locale: string;
 };
 
 type AuthBootstrapProfile = {
   id: string;
+  account_id: string;
   email: string;
   locale: string;
 };
 
 type UserProfile = {
   id: string;
+  account_id: string;
   auth_user_id: string;
   email: string;
   locale: string;
@@ -52,10 +62,13 @@ type SupabaseResult<T> = PromiseLike<{
   error: unknown | null;
 }>;
 
-type SupabaseClientLike = {
+type IdentitySupabaseClientLike = {
   auth: {
     getUser(token: string): SupabaseResult<{ user: ProviderAuthUser | null }>;
   };
+};
+
+type ProductDataSupabaseClientLike = {
   from(table: string): {
     select(columns: string): {
       eq(column: string, value: string): unknown;
@@ -78,12 +91,23 @@ function readRequiredEnv(name: string): string {
   return value;
 }
 
+function extractAccountId(user: ProviderAuthUser): string {
+  return (
+    user.app_metadata?.account_id ??
+    user.user_metadata?.account_id ??
+    user.id
+  );
+}
+
 export function createSupabaseAuthBootstrapDependencies(
-  client: SupabaseClientLike,
+  clients: {
+    identityClient: IdentitySupabaseClientLike;
+    dataClient: ProductDataSupabaseClientLike;
+  },
 ) {
   return {
     async getUserByToken(token: string): Promise<AuthUser | null> {
-      const result = await client.auth.getUser(token);
+      const result = await clients.identityClient.auth.getUser(token);
       const user = result.data?.user ?? null;
 
       if (result.error) {
@@ -96,6 +120,7 @@ export function createSupabaseAuthBootstrapDependencies(
 
       return {
         id: user.id,
+        account_id: extractAccountId(user),
         email: user.email ?? null,
       };
     },
@@ -104,15 +129,15 @@ export function createSupabaseAuthBootstrapDependencies(
       profile: UserProfileRecord,
     ): Promise<AuthBootstrapProfile> {
       const result = await (
-        client
+        clients.dataClient
           .from("users_profile")
-          .upsert(profile, { onConflict: "auth_user_id" }) as {
+          .upsert(profile, { onConflict: "account_id" }) as {
           select(columns: string): {
             single(): SupabaseResult<AuthBootstrapProfile>;
           };
         }
       )
-        .select("id, email, locale")
+        .select("id, account_id, email, locale")
         .single();
 
       if (result.error || !result.data) {
@@ -122,14 +147,14 @@ export function createSupabaseAuthBootstrapDependencies(
       return result.data;
     },
 
-    async getUserProfileByAuthUserId(
-      authUserId: string,
+    async getUserProfileByAccountId(
+      accountId: string,
     ): Promise<UserProfile | null> {
       const result = await (
-        client
+        clients.dataClient
           .from("users_profile")
-          .select("id, auth_user_id, email, locale")
-          .eq("auth_user_id", authUserId) as {
+          .select("id, account_id, auth_user_id, email, locale")
+          .eq("account_id", accountId) as {
           single(): SupabaseResult<UserProfile>;
         }
       ).single();
@@ -143,7 +168,7 @@ export function createSupabaseAuthBootstrapDependencies(
 
     async listVaultItemsByProfileId(profileId: string): Promise<VaultItemRow[]> {
       const result = await (
-        client
+        clients.dataClient
           .from("vault_items")
           .select(
             "id, user_profile_id, item_type, title, encrypted_payload, favorite, source, last_used_at, created_at, updated_at",
@@ -164,7 +189,7 @@ export function createSupabaseAuthBootstrapDependencies(
       profileId: string,
     ): Promise<string[]> {
       const result = await (
-        client
+        clients.dataClient
           .from("vault_items")
           .select("id")
           .eq("user_profile_id", profileId) as {
@@ -189,7 +214,7 @@ export function createSupabaseAuthBootstrapDependencies(
       }
 
       const result = await (
-        client
+        clients.dataClient
           .from("vault_items")
           .select(
             "id, user_profile_id, item_type, title, encrypted_payload, favorite, source, last_used_at, created_at, updated_at",
@@ -218,7 +243,7 @@ export function createSupabaseAuthBootstrapDependencies(
       }));
 
       const result = await (
-        client
+        clients.dataClient
           .from("vault_items")
           .upsert(records, { onConflict: "id" }) as SupabaseResult<null>
       );
@@ -237,7 +262,7 @@ export function createSupabaseAuthBootstrapDependencies(
       }
 
       const result = await (
-        client
+        clients.dataClient
           .from("vault_items")
           .update({
             deleted_at: new Date().toISOString(),
@@ -257,17 +282,31 @@ export function createSupabaseAuthBootstrapDependencies(
   };
 }
 
-async function createServerSupabaseClient(): Promise<SupabaseClientLike> {
+async function createSupabaseClient(
+  urlEnv: string,
+  keyEnv: string,
+): Promise<IdentitySupabaseClientLike & ProductDataSupabaseClientLike> {
   const { createClient: importedCreateClient } = await import("@supabase/supabase-js");
   const createClient = importedCreateClient as unknown as (
     url: string,
     key: string,
-  ) => SupabaseClientLike;
+  ) => IdentitySupabaseClientLike & ProductDataSupabaseClientLike;
 
   return createClient(
-    readRequiredEnv("SUPABASE_URL"),
-    readRequiredEnv("SUPABASE_SERVICE_ROLE_KEY"),
+    readRequiredEnv(urlEnv),
+    readRequiredEnv(keyEnv),
   );
+}
+
+async function createIdentitySupabaseClient(): Promise<IdentitySupabaseClientLike> {
+  return createSupabaseClient(
+    "IDENTITY_SUPABASE_URL",
+    "IDENTITY_SUPABASE_SERVICE_ROLE_KEY",
+  );
+}
+
+async function createProductDataSupabaseClient(): Promise<ProductDataSupabaseClientLike> {
+  return createSupabaseClient("SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY");
 }
 
 let configuredService:
@@ -281,9 +320,15 @@ export function createConfiguredAuthBootstrapService() {
   return {
     async bootstrapProfileFromToken(token: string) {
       if (!configuredService) {
-        const client = await createServerSupabaseClient();
+        const [identityClient, dataClient] = await Promise.all([
+          createIdentitySupabaseClient(),
+          createProductDataSupabaseClient(),
+        ]);
         configuredService = createAuthBootstrapService(
-          createSupabaseAuthBootstrapDependencies(client),
+          createSupabaseAuthBootstrapDependencies({
+            identityClient,
+            dataClient,
+          }),
         );
       }
 
@@ -301,9 +346,15 @@ export function createConfiguredVaultSyncService() {
       >[1],
     ) {
       if (!configuredVaultSyncService) {
-        const client = await createServerSupabaseClient();
+        const [identityClient, dataClient] = await Promise.all([
+          createIdentitySupabaseClient(),
+          createProductDataSupabaseClient(),
+        ]);
         configuredVaultSyncService = createVaultSyncService(
-          createSupabaseAuthBootstrapDependencies(client),
+          createSupabaseAuthBootstrapDependencies({
+            identityClient,
+            dataClient,
+          }),
         );
       }
 

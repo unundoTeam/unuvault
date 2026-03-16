@@ -6,6 +6,7 @@ vi.mock("../src/lib/supabase", () => ({
     bootstrapProfileFromToken: async () => ({
       profile: {
         id: "profile-1",
+        account_id: "account-1",
         email: "user@example.com",
         locale: "zh-CN",
       },
@@ -39,6 +40,7 @@ describe("authRoutes default wiring", () => {
     expect(response.json()).toEqual({
       profile: {
         id: "profile-1",
+        account_id: "account-1",
         email: "user@example.com",
         locale: "zh-CN",
       },

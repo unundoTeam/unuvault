@@ -7,6 +7,7 @@ describe("bootstrapProfile", () => {
       json: async () => ({
         profile: {
           id: "profile-1",
+          account_id: "account-1",
           email: "user@example.com",
           locale: "zh-CN",
         },
@@ -24,5 +25,6 @@ describe("bootstrapProfile", () => {
       body: JSON.stringify({}),
     });
     expect(response.profile.email).toBe("user@example.com");
+    expect(response.profile.account_id).toBe("account-1");
   });
 });

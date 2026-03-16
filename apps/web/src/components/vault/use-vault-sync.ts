@@ -6,7 +6,7 @@ import type {
   VaultSyncRequest,
 } from "../../../../../packages/api-client/src/vault";
 import { syncVault } from "../../../../../packages/api-client/src/vault";
-import { createBrowserSupabaseClient } from "../../lib/supabase-browser";
+import { createIdentityBrowserClient } from "../../lib/identity/browser";
 import {
   normalizeVaultLoginPayload,
   readDraftPassword,
@@ -181,8 +181,8 @@ export function useVaultSync(): VaultSyncState {
       setErrorMessage(null);
 
       try {
-        const supabase = createBrowserSupabaseClient();
-        const result = await supabase.auth.getSession();
+        const identity = createIdentityBrowserClient();
+        const result = await identity.auth.getSession();
 
         if (result.error) {
           throw result.error;

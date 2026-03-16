@@ -1,16 +1,19 @@
 type AuthUser = {
   id: string;
+  account_id: string;
   email: string | null;
 };
 
 type UserProfileRecord = {
   auth_user_id: string;
+  account_id: string;
   email: string;
   locale: string;
 };
 
 type AuthBootstrapProfile = {
   id: string;
+  account_id: string;
   email: string;
   locale: string;
 };
@@ -37,6 +40,7 @@ export function createAuthBootstrapService(
 
       const profile = await deps.upsertUserProfile({
         auth_user_id: user.id,
+        account_id: user.account_id,
         email: user.email,
         locale: "zh-CN",
       });
