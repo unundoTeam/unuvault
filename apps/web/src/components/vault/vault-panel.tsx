@@ -34,6 +34,7 @@ export function VaultPanel() {
   const [draftUsername, setDraftUsername] = useState("");
   const [draftNotes, setDraftNotes] = useState("");
   const [validationMessage, setValidationMessage] = useState<string | null>(null);
+  const [copiedUsernameItemId, setCopiedUsernameItemId] = useState<string | null>(null);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
   const [editingUsername, setEditingUsername] = useState("");
@@ -83,6 +84,23 @@ export function VaultPanel() {
     setEditingUsername("");
     setEditingNotes("");
     setEditingValidationMessage(null);
+  }
+
+  async function copyUsername(itemId: string, username: string) {
+    if (
+      typeof navigator === "undefined" ||
+      !navigator.clipboard ||
+      typeof navigator.clipboard.writeText !== "function"
+    ) {
+      return;
+    }
+
+    await navigator.clipboard.writeText(username);
+    setCopiedUsernameItemId(itemId);
+
+    window.setTimeout(() => {
+      setCopiedUsernameItemId((current) => (current === itemId ? null : current));
+    }, 1500);
   }
 
   async function saveEditing() {
@@ -234,6 +252,17 @@ export function VaultPanel() {
                         {payload.username ? <span>{payload.username}</span> : null}
                         {payload.notes.trim() ? <span>Notes added</span> : null}
                         <span>{getHiddenPasswordPlaceholder(item.encrypted_payload)}</span>
+                        {payload.username.trim() ? (
+                          <button
+                            type="button"
+                            onClick={() => void copyUsername(item.id, payload.username)}
+                            disabled={isSyncing}
+                          >
+                            {copiedUsernameItemId === item.id
+                              ? `Copied ${item.title}`
+                              : `Copy username ${item.title}`}
+                          </button>
+                        ) : null}
                         {hasSavedPassword(item.encrypted_payload) ? (
                           <button type="button" disabled={isSyncing}>
                             Show password {item.title}
