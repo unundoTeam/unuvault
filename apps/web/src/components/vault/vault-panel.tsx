@@ -4,14 +4,25 @@ import type { FormEvent } from "react";
 import { useState } from "react";
 import { useVaultSync } from "./use-vault-sync";
 
+function formatUtcSyncTime(timestamp: string): string {
+  const value = new Date(timestamp);
+  const hours = value.getUTCHours().toString().padStart(2, "0");
+  const minutes = value.getUTCMinutes().toString().padStart(2, "0");
+
+  return `${hours}:${minutes} UTC`;
+}
+
 export function VaultPanel() {
   const {
     createItem,
     deleteItem,
     errorMessage,
     isAuthenticated,
-    isLoading,
+    isBootstrapping,
+    isSyncing,
     items,
+    lastAction,
+    lastSyncedAt,
     updateItemTitle,
   } = useVaultSync();
   const [draftTitle, setDraftTitle] = useState("");
@@ -74,18 +85,39 @@ export function VaultPanel() {
     }
   }
 
+  const statusMessage = errorMessage
+    ? null
+    : isBootstrapping
+      ? "Syncing vault..."
+      : isSyncing && lastAction === "create"
+        ? "Saving item..."
+        : isSyncing && lastAction === "update"
+          ? "Updating item..."
+          : isSyncing && lastAction === "delete"
+            ? "Deleting item..."
+            : lastAction === "load"
+              ? "Vault synced"
+              : lastAction === "create"
+                ? "Item saved"
+                : lastAction === "update"
+                  ? "Item updated"
+                  : lastAction === "delete"
+                    ? "Item deleted"
+                    : null;
+
   return (
     <section>
       <h1>Vault</h1>
       <p>Keep your current unuvault items in sync across every trusted surface.</p>
 
-      {isLoading ? <p>Loading vault...</p> : null}
-      {!isLoading && !isAuthenticated ? (
+      {statusMessage ? <p>{statusMessage}</p> : null}
+      {lastSyncedAt ? <p>Last synced at {formatUtcSyncTime(lastSyncedAt)}</p> : null}
+      {!isBootstrapping && !isAuthenticated ? (
         <p>Sign in from the register flow first.</p>
       ) : null}
       {errorMessage ? <p>{errorMessage}</p> : null}
 
-      {!isLoading && isAuthenticated ? (
+      {!isBootstrapping && isAuthenticated ? (
         <>
           <form onSubmit={handleSubmit}>
             <label>
@@ -97,7 +129,7 @@ export function VaultPanel() {
                 onChange={(event) => setDraftTitle(event.target.value)}
               />
             </label>
-            <button type="submit" disabled={isLoading}>
+            <button type="submit" disabled={isSyncing}>
               Save item
             </button>
           </form>
@@ -125,11 +157,11 @@ export function VaultPanel() {
                       <button
                         type="button"
                         onClick={() => void saveEditing()}
-                        disabled={isLoading}
+                        disabled={isSyncing}
                       >
                         Save
                       </button>
-                      <button type="button" onClick={cancelEditing} disabled={isLoading}>
+                      <button type="button" onClick={cancelEditing} disabled={isSyncing}>
                         Cancel
                       </button>
                       {editingValidationMessage ? <p>{editingValidationMessage}</p> : null}
@@ -140,14 +172,14 @@ export function VaultPanel() {
                       <button
                         type="button"
                         onClick={() => startEditing(item.id, item.title)}
-                        disabled={isLoading}
+                        disabled={isSyncing}
                       >
                         Edit {item.title}
                       </button>
                       <button
                         type="button"
                         onClick={() => void deleteItem(item.id)}
-                        disabled={isLoading}
+                        disabled={isSyncing}
                       >
                         Delete {item.title}
                       </button>
