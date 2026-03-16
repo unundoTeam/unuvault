@@ -239,6 +239,144 @@ describe("VaultPage", () => {
     expect(await screen.findByText("Last synced at 00:01 UTC")).toBeInTheDocument();
   });
 
+  it("creates a login item with username and notes", async () => {
+    mocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: "jwt-token",
+        },
+      },
+      error: null,
+    });
+    mocks.syncVault
+      .mockResolvedValueOnce({
+        server_time: "2026-03-16T00:00:00.000Z",
+        updated_items: [],
+        deleted_item_ids: [],
+        conflicts: [],
+      })
+      .mockResolvedValueOnce({
+        server_time: "2026-03-16T00:01:00.000Z",
+        updated_items: [
+          {
+            id: "item-1",
+            item_type: "login",
+            title: "GitHub",
+            encrypted_payload: {
+              schema_version: 1,
+              username: "alice@example.com",
+              password_ciphertext: "",
+              notes: "Personal account",
+            },
+            favorite: false,
+            source: "manual",
+            last_used_at: null,
+            created_at: "2026-03-16T00:01:00.000Z",
+            updated_at: "2026-03-16T00:01:00.000Z",
+          },
+        ],
+        deleted_item_ids: [],
+        conflicts: [],
+      });
+
+    render(<VaultPage />);
+
+    expect(await screen.findByText("No vault items yet.")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "GitHub" },
+    });
+    fireEvent.change(screen.getByLabelText("Username"), {
+      target: { value: "alice@example.com" },
+    });
+    fireEvent.change(screen.getByLabelText("Notes"), {
+      target: { value: "Personal account" },
+    });
+    fireEvent.submit(screen.getByRole("button", { name: "Save item" }).closest("form")!);
+
+    expect(mocks.syncVault).toHaveBeenNthCalledWith(
+      2,
+      expect.any(Function),
+      "jwt-token",
+      {
+        changed_items: [
+          expect.objectContaining({
+            title: "GitHub",
+            encrypted_payload: expect.objectContaining({
+              schema_version: 1,
+              username: "alice@example.com",
+              password_ciphertext: "",
+              notes: "Personal account",
+            }),
+          }),
+        ],
+        deleted_item_ids: [],
+      },
+    );
+  });
+
+  it("resets the create form after saving a login item", async () => {
+    mocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: "jwt-token",
+        },
+      },
+      error: null,
+    });
+    mocks.syncVault
+      .mockResolvedValueOnce({
+        server_time: "2026-03-16T00:00:00.000Z",
+        updated_items: [],
+        deleted_item_ids: [],
+        conflicts: [],
+      })
+      .mockResolvedValueOnce({
+        server_time: "2026-03-16T00:01:00.000Z",
+        updated_items: [
+          {
+            id: "item-1",
+            item_type: "login",
+            title: "GitHub",
+            encrypted_payload: {
+              schema_version: 1,
+              username: "alice@example.com",
+              password_ciphertext: "",
+              notes: "Personal account",
+            },
+            favorite: false,
+            source: "manual",
+            last_used_at: null,
+            created_at: "2026-03-16T00:01:00.000Z",
+            updated_at: "2026-03-16T00:01:00.000Z",
+          },
+        ],
+        deleted_item_ids: [],
+        conflicts: [],
+      });
+
+    render(<VaultPage />);
+
+    expect(await screen.findByText("No vault items yet.")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "GitHub" },
+    });
+    fireEvent.change(screen.getByLabelText("Username"), {
+      target: { value: "alice@example.com" },
+    });
+    fireEvent.change(screen.getByLabelText("Notes"), {
+      target: { value: "Personal account" },
+    });
+    fireEvent.submit(screen.getByRole("button", { name: "Save item" }).closest("form")!);
+
+    await screen.findByText("GitHub");
+
+    expect(screen.getByLabelText("Title")).toHaveValue("");
+    expect(screen.getByLabelText("Username")).toHaveValue("");
+    expect(screen.getByLabelText("Notes")).toHaveValue("");
+  });
+
   it("blocks blank titles before sending sync", async () => {
     mocks.getSession.mockResolvedValue({
       data: {

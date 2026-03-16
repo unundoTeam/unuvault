@@ -26,6 +26,8 @@ export function VaultPanel() {
     updateItemTitle,
   } = useVaultSync();
   const [draftTitle, setDraftTitle] = useState("");
+  const [draftUsername, setDraftUsername] = useState("");
+  const [draftNotes, setDraftNotes] = useState("");
   const [validationMessage, setValidationMessage] = useState<string | null>(null);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
@@ -45,10 +47,16 @@ export function VaultPanel() {
 
     setValidationMessage(null);
 
-    const didCreate = await createItem(nextTitle);
+    const didCreate = await createItem({
+      title: nextTitle,
+      username: draftUsername,
+      notes: draftNotes,
+    });
 
     if (didCreate) {
       setDraftTitle("");
+      setDraftUsername("");
+      setDraftNotes("");
     }
   }
 
@@ -127,6 +135,23 @@ export function VaultPanel() {
                 type="text"
                 value={draftTitle}
                 onChange={(event) => setDraftTitle(event.target.value)}
+              />
+            </label>
+            <label>
+              <span>Username</span>
+              <input
+                name="username"
+                type="text"
+                value={draftUsername}
+                onChange={(event) => setDraftUsername(event.target.value)}
+              />
+            </label>
+            <label>
+              <span>Notes</span>
+              <textarea
+                name="notes"
+                value={draftNotes}
+                onChange={(event) => setDraftNotes(event.target.value)}
               />
             </label>
             <button type="submit" disabled={isSyncing}>

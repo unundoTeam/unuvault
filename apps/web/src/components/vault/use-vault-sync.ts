@@ -9,9 +9,14 @@ import { syncVault } from "../../../../../packages/api-client/src/vault";
 import { createBrowserSupabaseClient } from "../../lib/supabase-browser";
 
 type VaultSyncAction = "load" | "create" | "update" | "delete";
+type VaultLoginFields = {
+  title: string;
+  username: string;
+  notes: string;
+};
 
 type VaultSyncState = {
-  createItem(title: string): Promise<boolean>;
+  createItem(input: VaultLoginFields): Promise<boolean>;
   deleteItem(itemId: string): Promise<boolean>;
   errorMessage: string | null;
   isAuthenticated: boolean;
@@ -68,7 +73,7 @@ export function useVaultSync(): VaultSyncState {
     }
   }
 
-  async function createItem(title: string): Promise<boolean> {
+  async function createItem(input: VaultLoginFields): Promise<boolean> {
     if (!accessToken) {
       setErrorMessage("Sign in from the register flow first.");
       return false;
@@ -81,12 +86,12 @@ export function useVaultSync(): VaultSyncState {
           ? crypto.randomUUID()
           : `vault-${Date.now()}-${Math.random().toString(16).slice(2)}`,
       item_type: "login",
-      title,
+      title: input.title,
       encrypted_payload: {
         schema_version: 1,
-        username: "",
+        username: input.username,
         password_ciphertext: "",
-        notes: "",
+        notes: input.notes,
       },
       favorite: false,
       source: "manual",
