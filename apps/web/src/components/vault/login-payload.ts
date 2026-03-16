@@ -20,34 +20,49 @@ export function normalizeVaultLoginPayload(payload: unknown): VaultLoginPayload 
 }
 
 export function hasSavedPassword(payload: unknown): boolean {
-  return readDraftPassword(payload).trim().length > 0;
+  return normalizeVaultLoginPayload(payload).password_ciphertext.trim().length > 0;
 }
 
 export function getHiddenPasswordPlaceholder(payload: unknown): string {
   return hasSavedPassword(payload) ? "••••••••" : "No password saved";
 }
 
-export function readDraftPassword(payload: unknown): string {
-  return openStoredVaultPassword(normalizeVaultLoginPayload(payload).password_ciphertext);
+export function readDraftPassword(payload: unknown, passphrase?: string): string {
+  if (!passphrase) {
+    return "";
+  }
+
+  return openStoredVaultPassword(
+    normalizeVaultLoginPayload(payload).password_ciphertext,
+    passphrase,
+  );
 }
 
 export function writeDraftPassword(
   payload: unknown,
   password: string,
+  passphrase?: string,
 ): VaultLoginPayload {
   return {
     ...normalizeVaultLoginPayload(payload),
-    password_ciphertext: password ? sealVaultPassword(password) : "",
+    password_ciphertext: password ? sealVaultPassword(password, passphrase) : "",
   };
 }
 
 export function getPasswordPlaceholderLabel(
   payload: unknown,
   isRevealed: boolean,
+  passphrase?: string,
 ): string {
   if (!hasSavedPassword(payload)) {
     return "No password saved";
   }
 
-  return isRevealed ? readDraftPassword(payload) : "••••••••";
+  if (!isRevealed || !passphrase) {
+    return "••••••••";
+  }
+
+  const openedPassword = readDraftPassword(payload, passphrase);
+
+  return openedPassword || "No password saved";
 }

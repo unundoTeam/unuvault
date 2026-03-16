@@ -9,7 +9,6 @@ import { syncVault } from "../../../../../packages/api-client/src/vault";
 import { createBrowserSupabaseClient } from "../../lib/supabase-browser";
 import {
   normalizeVaultLoginPayload,
-  readDraftPassword,
   writeDraftPassword,
 } from "./login-payload";
 
@@ -19,6 +18,7 @@ type VaultLoginFields = {
   username: string;
   password?: string;
   notes: string;
+  unlockPassphrase?: string;
 };
 
 type VaultSyncState = {
@@ -95,12 +95,13 @@ export function useVaultSync(): VaultSyncState {
       title: input.title,
       encrypted_payload: writeDraftPassword(
         {
-        schema_version: 1,
-        username: input.username,
-        password_ciphertext: "",
-        notes: input.notes,
+          schema_version: 1,
+          username: input.username,
+          password_ciphertext: "",
+          notes: input.notes,
         },
         input.password ?? "",
+        input.unlockPassphrase,
       ),
       favorite: false,
       source: "manual",
@@ -148,6 +149,24 @@ export function useVaultSync(): VaultSyncState {
       return false;
     }
 
+    const currentPayload = normalizeVaultLoginPayload(currentItem.encrypted_payload);
+    const nextPayload =
+      input.password === undefined
+        ? {
+            ...currentPayload,
+            username: input.username,
+            notes: input.notes,
+          }
+        : writeDraftPassword(
+            {
+              ...currentPayload,
+              username: input.username,
+              notes: input.notes,
+            },
+            input.password,
+            input.unlockPassphrase,
+          );
+
     return runSync(
       accessToken,
       {
@@ -155,14 +174,7 @@ export function useVaultSync(): VaultSyncState {
           {
             ...currentItem,
             title: input.title,
-            encrypted_payload: writeDraftPassword(
-              {
-              ...normalizeVaultLoginPayload(currentItem.encrypted_payload),
-              username: input.username,
-              notes: input.notes,
-              },
-              input.password ?? readDraftPassword(currentItem.encrypted_payload),
-            ),
+            encrypted_payload: nextPayload,
             updated_at: new Date().toISOString(),
           },
         ],
