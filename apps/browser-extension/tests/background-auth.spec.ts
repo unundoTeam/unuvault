@@ -4,6 +4,7 @@ import {
   readStoredAuthState,
   writeStoredAuthState,
 } from "../src/background/auth-storage";
+import { createExtensionAuthRuntime } from "../src/background/auth";
 
 const AUTH_STORAGE_KEY = "unuvault.extension.auth-state";
 
@@ -92,5 +93,135 @@ describe("background auth storage", () => {
     await clearStoredAuthState();
 
     await expect(readStoredAuthState()).resolves.toBeNull();
+  });
+});
+
+describe("background auth runtime", () => {
+  beforeEach(() => {
+    vi.unstubAllGlobals();
+    installChromeStorageMock();
+  });
+
+  it("reads signed-out state when auth storage is missing", async () => {
+    const runtime = createExtensionAuthRuntime({
+      bootstrapProfile: vi.fn(),
+      createApiFetch: () => vi.fn(),
+      createSupabaseClient: vi.fn(),
+      now: () => "2026-03-17T00:00:00.000Z",
+      readStoredAuthState,
+      clearStoredAuthState,
+      writeStoredAuthState,
+    });
+
+    await expect(runtime.readExtensionAuthState()).resolves.toEqual({
+      status: "signed_out",
+    });
+  });
+
+  it("reads signed-in state from persisted auth storage", async () => {
+    await writeStoredAuthState({
+      accessToken: "jwt-token",
+      email: "user@example.com",
+      profileId: "profile-1",
+      signedInAt: "2026-03-17T00:00:00.000Z",
+    });
+
+    const runtime = createExtensionAuthRuntime({
+      bootstrapProfile: vi.fn(),
+      createApiFetch: () => vi.fn(),
+      createSupabaseClient: vi.fn(),
+      now: () => "2026-03-17T00:00:00.000Z",
+      readStoredAuthState,
+      clearStoredAuthState,
+      writeStoredAuthState,
+    });
+
+    await expect(runtime.readExtensionAuthState()).resolves.toEqual({
+      status: "signed_in",
+      accessToken: "jwt-token",
+      email: "user@example.com",
+      profileId: "profile-1",
+      signedInAt: "2026-03-17T00:00:00.000Z",
+    });
+  });
+
+  it("signs in with password, bootstraps the profile, and persists signed-in state", async () => {
+    const signInWithPassword = vi.fn().mockResolvedValue({
+      data: {
+        session: {
+          access_token: "jwt-token",
+        },
+        user: {
+          email: "user@example.com",
+        },
+      },
+      error: null,
+    });
+    const bootstrapProfile = vi.fn().mockResolvedValue({
+      profile: {
+        id: "profile-1",
+        email: "user@example.com",
+        locale: "zh-CN",
+      },
+    });
+
+    const runtime = createExtensionAuthRuntime({
+      bootstrapProfile,
+      createApiFetch: () => vi.fn(),
+      createSupabaseClient: () => ({
+        auth: {
+          signInWithPassword,
+        },
+      }),
+      now: () => "2026-03-17T00:00:00.000Z",
+      readStoredAuthState,
+      clearStoredAuthState,
+      writeStoredAuthState,
+    });
+
+    await expect(
+      runtime.signInWithPassword({
+        email: "user@example.com",
+        password: "correct horse",
+      }),
+    ).resolves.toEqual({
+      status: "signed_in",
+      accessToken: "jwt-token",
+      email: "user@example.com",
+      profileId: "profile-1",
+      signedInAt: "2026-03-17T00:00:00.000Z",
+    });
+    expect(bootstrapProfile).toHaveBeenCalledWith(expect.any(Function), "jwt-token");
+    await expect(readStoredAuthState()).resolves.toEqual({
+      accessToken: "jwt-token",
+      email: "user@example.com",
+      profileId: "profile-1",
+      signedInAt: "2026-03-17T00:00:00.000Z",
+    });
+  });
+
+  it("clears persisted state on signOut", async () => {
+    await writeStoredAuthState({
+      accessToken: "jwt-token",
+      email: "user@example.com",
+      profileId: "profile-1",
+      signedInAt: "2026-03-17T00:00:00.000Z",
+    });
+
+    const runtime = createExtensionAuthRuntime({
+      bootstrapProfile: vi.fn(),
+      createApiFetch: () => vi.fn(),
+      createSupabaseClient: vi.fn(),
+      now: () => "2026-03-17T00:00:00.000Z",
+      readStoredAuthState,
+      clearStoredAuthState,
+      writeStoredAuthState,
+    });
+
+    await runtime.signOut();
+
+    await expect(runtime.readExtensionAuthState()).resolves.toEqual({
+      status: "signed_out",
+    });
   });
 });
