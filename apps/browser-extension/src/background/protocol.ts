@@ -15,6 +15,37 @@ export type AutofillStatus =
       status: "ready";
     };
 
+export type AutofillCandidate = {
+  hasPassword: boolean;
+  id: string;
+  title: string;
+  username: string;
+  websiteOrigin: string;
+  websiteUrl: string;
+};
+
+export type AutofillCandidates =
+  | {
+      status: "signed_out";
+      matches: [];
+    }
+  | {
+      status: "locked";
+      matches: [];
+    }
+  | {
+      status: "no_page_url";
+      matches: [];
+    }
+  | {
+      status: "no_match";
+      matches: [];
+    }
+  | {
+      status: "ready";
+      matches: AutofillCandidate[];
+    };
+
 export type BackgroundRequest =
   | {
       type: "read_extension_auth_state";
@@ -38,6 +69,10 @@ export type BackgroundRequest =
       type: "read_autofill_status";
     }
   | {
+      type: "read_autofill_candidates";
+      pageUrl: string;
+    }
+  | {
       type: "hydrate_popup_vault_cache";
     }
   | {
@@ -56,6 +91,10 @@ export type BackgroundResponse =
   | {
       ok: true;
       autofillStatus: AutofillStatus;
+    }
+  | {
+      ok: true;
+      autofillCandidates: AutofillCandidates;
     }
   | {
       ok: true;

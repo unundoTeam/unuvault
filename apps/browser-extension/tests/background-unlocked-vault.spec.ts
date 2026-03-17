@@ -155,6 +155,9 @@ describe("background autofill status", () => {
       password: string;
       title: string;
       username: string;
+      websiteHostname?: string;
+      websiteOrigin?: string;
+      websiteUrl?: string;
     }>;
     unlockMode: "needs_setup" | "locked" | "unlocked";
   }) {
@@ -283,6 +286,132 @@ describe("background autofill status", () => {
       ok: true,
       autofillStatus: {
         status: "ready",
+      },
+    });
+  });
+
+  it("returns ready autofill candidates when page origin exactly matches websiteOrigin", async () => {
+    const response = await handleBackgroundRequest(
+      {
+        type: "read_autofill_candidates",
+        pageUrl: "https://github.com/login",
+      } as never,
+      createDeps({
+        authState: {
+          status: "signed_in",
+          accessToken: "jwt-token",
+          email: "user@example.com",
+          profileId: "profile-1",
+          signedInAt: "2026-03-17T00:00:00.000Z",
+        },
+        items: [
+          {
+            hasPassword: true,
+            id: "item-1",
+            password: "hunter2",
+            title: "GitHub",
+            username: "alice@example.com",
+            websiteHostname: "github.com",
+            websiteOrigin: "https://github.com",
+            websiteUrl: "https://github.com/login",
+          },
+        ],
+        unlockMode: "unlocked",
+      }),
+    );
+
+    expect(response).toEqual({
+      ok: true,
+      autofillCandidates: {
+        status: "ready",
+        matches: [
+          {
+            hasPassword: true,
+            id: "item-1",
+            title: "GitHub",
+            username: "alice@example.com",
+            websiteOrigin: "https://github.com",
+            websiteUrl: "https://github.com/login",
+          },
+        ],
+      },
+    });
+  });
+
+  it("returns no_match when page origin differs from the item subdomain", async () => {
+    const response = await handleBackgroundRequest(
+      {
+        type: "read_autofill_candidates",
+        pageUrl: "https://app.github.com/login",
+      } as never,
+      createDeps({
+        authState: {
+          status: "signed_in",
+          accessToken: "jwt-token",
+          email: "user@example.com",
+          profileId: "profile-1",
+          signedInAt: "2026-03-17T00:00:00.000Z",
+        },
+        items: [
+          {
+            hasPassword: true,
+            id: "item-1",
+            password: "hunter2",
+            title: "GitHub",
+            username: "alice@example.com",
+            websiteHostname: "github.com",
+            websiteOrigin: "https://github.com",
+            websiteUrl: "https://github.com/login",
+          },
+        ],
+        unlockMode: "unlocked",
+      }),
+    );
+
+    expect(response).toEqual({
+      ok: true,
+      autofillCandidates: {
+        status: "no_match",
+        matches: [],
+      },
+    });
+  });
+
+  it("returns no_page_url when pageUrl is invalid", async () => {
+    const response = await handleBackgroundRequest(
+      {
+        type: "read_autofill_candidates",
+        pageUrl: "not a url",
+      } as never,
+      createDeps({
+        authState: {
+          status: "signed_in",
+          accessToken: "jwt-token",
+          email: "user@example.com",
+          profileId: "profile-1",
+          signedInAt: "2026-03-17T00:00:00.000Z",
+        },
+        items: [
+          {
+            hasPassword: true,
+            id: "item-1",
+            password: "hunter2",
+            title: "GitHub",
+            username: "alice@example.com",
+            websiteHostname: "github.com",
+            websiteOrigin: "https://github.com",
+            websiteUrl: "https://github.com/login",
+          },
+        ],
+        unlockMode: "unlocked",
+      }),
+    );
+
+    expect(response).toEqual({
+      ok: true,
+      autofillCandidates: {
+        status: "no_page_url",
+        matches: [],
       },
     });
   });
