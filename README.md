@@ -38,6 +38,8 @@ This repository now includes the phase-1 schema boundary, client-side security m
 - `NEXT_PUBLIC_IDENTITY_SUPABASE_ANON_KEY` is safe for the browser; both service role keys must stay in server-only env files and never ship to the client
 - the local auth loop is now `unuidentity signup/login -> /auth/callback -> /auth/finalize -> POST /auth/bootstrap`
 - `unuidentity` needs a redirect URL for `http://127.0.0.1:3001/auth/callback` during local development
+- this bridge is a clean cutover for pre-launch test users; old local `users_profile` rows should be recreated through the new `unuidentity` flow instead of being rebound automatically
+- if you already created local test users before the `unuidentity` cutover, clear or recreate that local product data before validating the new bootstrap path
 - `POST /vault/sync` now also expects that authenticated session to map to an existing `users_profile`; if bootstrap has not completed yet, sync should return `profile_not_found`
 - start the API in one terminal with `pnpm dev:api`
 - start the web app in a second terminal with `pnpm dev:web`

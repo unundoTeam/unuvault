@@ -15,7 +15,7 @@ type VaultSyncProfile = {
 
 type AuthUser = {
   id: string;
-  account_id: string;
+  account_id: string | null;
   email: string | null;
 };
 

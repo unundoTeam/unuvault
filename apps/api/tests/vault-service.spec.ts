@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createVaultSyncService } from "../src/services/vault-service";
+import {
+  createVaultSyncService,
+  VaultSyncUnauthorizedError,
+} from "../src/services/vault-service";
 import { loginPayload } from "./login-payload-fixture";
 
 describe("createVaultSyncService", () => {
@@ -253,6 +256,31 @@ describe("createVaultSyncService", () => {
       deleted_item_ids: [],
       conflicts: [],
     });
+  });
+
+  it("rejects tokens that do not resolve to an account-bearing user", async () => {
+    const getUserProfileByAccountId = vi.fn();
+    const service = createVaultSyncService({
+      getUserByToken: async () => ({
+        id: "auth-user-1",
+        account_id: null as never,
+        email: "user@example.com",
+      }),
+      getUserProfileByAccountId,
+      listVaultItemsByIds: vi.fn(),
+      upsertVaultItems: vi.fn(),
+      softDeleteVaultItems: vi.fn(),
+      listVaultItemsByProfileId: vi.fn(),
+      listDeletedVaultItemIdsByProfileId: vi.fn(),
+    });
+
+    await expect(
+      service.syncVaultFromToken("jwt-token", {
+        changed_items: [],
+        deleted_item_ids: [],
+      }),
+    ).rejects.toBeInstanceOf(VaultSyncUnauthorizedError);
+    expect(getUserProfileByAccountId).not.toHaveBeenCalled();
   });
 
   it("soft deletes requested ids and returns deleted_item_ids", async () => {

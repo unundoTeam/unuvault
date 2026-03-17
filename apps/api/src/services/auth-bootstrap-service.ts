@@ -1,6 +1,6 @@
 type AuthUser = {
   id: string;
-  account_id: string;
+  account_id: string | null;
   email: string | null;
 };
 
@@ -32,7 +32,7 @@ export function createAuthBootstrapService(
     async bootstrapProfileFromToken(token: string) {
       const user = await deps.getUserByToken(token);
 
-      if (!user?.email) {
+      if (!user?.email || !user.account_id) {
         throw new AuthBootstrapUnauthorizedError(
           "token did not resolve to an authenticated user",
         );

@@ -193,4 +193,24 @@ describe("createAuthBootstrapService", () => {
       AuthBootstrapUnauthorizedError,
     );
   });
+
+  it("rejects tokens that do not resolve to an account-bearing user", async () => {
+    const upsertUserProfile = vi.fn();
+    const service = createAuthBootstrapService({
+      getUserByToken: async () => ({
+        id: "auth-user-1",
+        account_id: null as never,
+        email: "user@example.com",
+      }),
+      upsertUserProfile: async (profile) => {
+        upsertUserProfile(profile);
+        throw new Error("should not be reached");
+      },
+    });
+
+    await expect(service.bootstrapProfileFromToken("jwt-token")).rejects.toBeInstanceOf(
+      AuthBootstrapUnauthorizedError,
+    );
+    expect(upsertUserProfile).not.toHaveBeenCalled();
+  });
 });

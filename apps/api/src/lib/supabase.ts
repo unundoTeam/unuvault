@@ -4,7 +4,7 @@ import type { VaultSyncItem } from "../../../../packages/api-client/src/vault";
 
 type AuthUser = {
   id: string;
-  account_id: string;
+  account_id: string | null;
   email: string | null;
 };
 
@@ -91,12 +91,8 @@ function readRequiredEnv(name: string): string {
   return value;
 }
 
-function extractAccountId(user: ProviderAuthUser): string {
-  return (
-    user.app_metadata?.account_id ??
-    user.user_metadata?.account_id ??
-    user.id
-  );
+function extractAccountId(user: ProviderAuthUser): string | null {
+  return user.app_metadata?.account_id ?? user.user_metadata?.account_id ?? null;
 }
 
 export function createSupabaseAuthBootstrapDependencies(

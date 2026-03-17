@@ -64,8 +64,37 @@ describe("createSupabaseAuthBootstrapDependencies", () => {
     expect(from).not.toHaveBeenCalled();
     expect(user).toEqual({
       id: "auth-user-2",
-      account_id: "auth-user-2",
+      account_id: null,
       email: null,
+    });
+  });
+
+  it("preserves a missing account_id instead of falling back to auth_user_id", async () => {
+    const getUser = vi.fn().mockResolvedValue({
+      data: {
+        user: {
+          id: "auth-user-3",
+          email: "user@example.com",
+        },
+      },
+      error: null,
+    });
+
+    const deps = createSupabaseAuthBootstrapDependencies({
+      identityClient: {
+        auth: { getUser },
+      },
+      dataClient: {
+        from: vi.fn(),
+      },
+    } as never);
+
+    const user = await deps.getUserByToken("jwt-token");
+
+    expect(user).toEqual({
+      id: "auth-user-3",
+      account_id: null,
+      email: "user@example.com",
     });
   });
 
