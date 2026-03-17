@@ -1,0 +1,284 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { VaultSyncItem } from "../../../packages/api-client/src/vault";
+import { sealVaultPassword } from "../../../packages/security/src/vault-envelope";
+import { handleBackgroundRequest } from "../src/background/runtime";
+import { writePopupVaultItems } from "../src/popup/popup-vault-storage";
+import { createUnlockedVaultReader } from "../src/background/unlocked-vault";
+
+type ChromeStorageArea = {
+  get(keys: string | string[] | Record<string, unknown>): Promise<Record<string, unknown>>;
+  set(items: Record<string, unknown>): Promise<void>;
+  remove(keys: string | string[]): Promise<void>;
+};
+
+function installChromeStorageMock() {
+  const store = new Map<string, unknown>();
+
+  const storageArea: ChromeStorageArea = {
+    async get(keys) {
+      const key =
+        typeof keys === "string"
+          ? keys
+          : Array.isArray(keys)
+            ? keys[0]
+            : Object.keys(keys)[0];
+
+      return key ? { [key]: store.get(key) } : {};
+    },
+    async set(items) {
+      Object.entries(items).forEach(([key, value]) => {
+        store.set(key, value);
+      });
+    },
+    async remove(keys) {
+      const keyList = Array.isArray(keys) ? keys : [keys];
+
+      keyList.forEach((key) => {
+        store.delete(key);
+      });
+    },
+  };
+
+  vi.stubGlobal("chrome", {
+    storage: {
+      local: storageArea,
+    },
+  });
+}
+
+function createVaultItem(overrides?: Partial<VaultSyncItem>): VaultSyncItem {
+  return {
+    id: "item-1",
+    item_type: "login",
+    title: "GitHub",
+    encrypted_payload: {
+      schema_version: 1,
+      username: "alice@example.com",
+      password_ciphertext: "",
+      notes: "",
+    },
+    favorite: false,
+    source: "manual",
+    last_used_at: null,
+    created_at: "2026-03-17T00:00:00.000Z",
+    updated_at: "2026-03-17T00:00:00.000Z",
+    ...overrides,
+  };
+}
+
+function createEncryptedVaultItem(): VaultSyncItem {
+  return createVaultItem({
+    encrypted_payload: {
+      schema_version: 1,
+      username: "alice@example.com",
+      password_ciphertext: sealVaultPassword("hunter2", "correct horse"),
+      notes: "",
+    },
+  });
+}
+
+describe("background unlocked vault reader", () => {
+  beforeEach(() => {
+    vi.unstubAllGlobals();
+    installChromeStorageMock();
+  });
+
+  it("returns no readable items when signed out", async () => {
+    const reader = createUnlockedVaultReader({
+      readExtensionAuthState: async () => ({
+        status: "signed_out" as const,
+      }),
+      readUnlockPassphrase: async () => "correct horse",
+    });
+
+    await expect(reader.readUnlockedLoginItems()).resolves.toEqual([]);
+  });
+
+  it("returns no readable items when signed in but locked", async () => {
+    await writePopupVaultItems([createEncryptedVaultItem()]);
+    const reader = createUnlockedVaultReader({
+      readExtensionAuthState: async () => ({
+        status: "signed_in" as const,
+        accessToken: "jwt-token",
+        email: "user@example.com",
+        profileId: "profile-1",
+        signedInAt: "2026-03-17T00:00:00.000Z",
+      }),
+      readUnlockPassphrase: async () => null,
+    });
+
+    await expect(reader.readUnlockedLoginItems()).resolves.toEqual([]);
+  });
+
+  it("returns decrypted login items when signed in and unlocked", async () => {
+    await writePopupVaultItems([createEncryptedVaultItem()]);
+    const reader = createUnlockedVaultReader({
+      readExtensionAuthState: async () => ({
+        status: "signed_in" as const,
+        accessToken: "jwt-token",
+        email: "user@example.com",
+        profileId: "profile-1",
+        signedInAt: "2026-03-17T00:00:00.000Z",
+      }),
+      readUnlockPassphrase: async () => "correct horse",
+    });
+
+    await expect(reader.readUnlockedLoginItems()).resolves.toEqual([
+      {
+        hasPassword: true,
+        id: "item-1",
+        password: "hunter2",
+        title: "GitHub",
+        username: "alice@example.com",
+      },
+    ]);
+  });
+});
+
+describe("background autofill status", () => {
+  function createDeps(options: {
+    authState: { status: "signed_out" } | {
+      status: "signed_in";
+      accessToken: string;
+      email: string;
+      profileId: string;
+      signedInAt: string;
+    };
+    items: Array<{
+      hasPassword: boolean;
+      id: string;
+      password: string;
+      title: string;
+      username: string;
+    }>;
+    unlockMode: "needs_setup" | "locked" | "unlocked";
+  }) {
+    return {
+      authRuntime: {
+        readExtensionAuthState: vi.fn().mockResolvedValue(options.authState),
+        signInWithPassword: vi.fn(),
+        signOut: vi.fn(),
+      },
+      hydratePopupVaultCache: vi.fn(),
+      unlockRuntime: {
+        lock: vi.fn(),
+        readUnlockPassphrase: vi.fn(),
+        readUnlockState: vi.fn().mockResolvedValue({
+          mode: options.unlockMode,
+        }),
+        unlockWithPassphrase: vi.fn(),
+      },
+      unlockedVaultReader: {
+        readUnlockedLoginItems: vi.fn().mockResolvedValue(options.items),
+      },
+    };
+  }
+
+  it("returns signed_out autofill status when auth is missing", async () => {
+    const response = await handleBackgroundRequest(
+      {
+        type: "read_autofill_status",
+      },
+      createDeps({
+        authState: {
+          status: "signed_out",
+        },
+        items: [],
+        unlockMode: "locked",
+      }),
+    );
+
+    expect(response).toEqual({
+      ok: true,
+      autofillStatus: {
+        status: "signed_out",
+      },
+    });
+  });
+
+  it("returns locked autofill status when auth exists but unlock is locked", async () => {
+    const response = await handleBackgroundRequest(
+      {
+        type: "read_autofill_status",
+      },
+      createDeps({
+        authState: {
+          status: "signed_in",
+          accessToken: "jwt-token",
+          email: "user@example.com",
+          profileId: "profile-1",
+          signedInAt: "2026-03-17T00:00:00.000Z",
+        },
+        items: [],
+        unlockMode: "locked",
+      }),
+    );
+
+    expect(response).toEqual({
+      ok: true,
+      autofillStatus: {
+        status: "locked",
+      },
+    });
+  });
+
+  it("returns empty autofill status when no readable login items exist", async () => {
+    const response = await handleBackgroundRequest(
+      {
+        type: "read_autofill_status",
+      },
+      createDeps({
+        authState: {
+          status: "signed_in",
+          accessToken: "jwt-token",
+          email: "user@example.com",
+          profileId: "profile-1",
+          signedInAt: "2026-03-17T00:00:00.000Z",
+        },
+        items: [],
+        unlockMode: "unlocked",
+      }),
+    );
+
+    expect(response).toEqual({
+      ok: true,
+      autofillStatus: {
+        status: "empty",
+      },
+    });
+  });
+
+  it("returns ready autofill status when at least one readable login item exists", async () => {
+    const response = await handleBackgroundRequest(
+      {
+        type: "read_autofill_status",
+      },
+      createDeps({
+        authState: {
+          status: "signed_in",
+          accessToken: "jwt-token",
+          email: "user@example.com",
+          profileId: "profile-1",
+          signedInAt: "2026-03-17T00:00:00.000Z",
+        },
+        items: [
+          {
+            hasPassword: true,
+            id: "item-1",
+            password: "hunter2",
+            title: "GitHub",
+            username: "alice@example.com",
+          },
+        ],
+        unlockMode: "unlocked",
+      }),
+    );
+
+    expect(response).toEqual({
+      ok: true,
+      autofillStatus: {
+        status: "ready",
+      },
+    });
+  });
+});

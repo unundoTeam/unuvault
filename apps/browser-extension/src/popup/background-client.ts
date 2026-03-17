@@ -1,5 +1,6 @@
 import type { ExtensionAuthState } from "../background/auth";
 import type { BackgroundRequest, BackgroundResponse } from "../background/protocol";
+import type { ExtensionUnlockState } from "../background/unlock-session";
 import { handleBackgroundRequest } from "../background/runtime";
 
 type ExtensionRuntime = {
@@ -53,6 +54,45 @@ export async function signInWithPasswordInBackground(input: {
   }
 
   return response.authState;
+}
+
+export async function readExtensionUnlockStateFromBackground(): Promise<ExtensionUnlockState> {
+  const response = await callBackground({
+    type: "read_extension_unlock_state",
+  });
+
+  if (!response.ok || !("unlockState" in response)) {
+    throw new Error(response.ok ? "Missing unlock state" : response.error);
+  }
+
+  return response.unlockState;
+}
+
+export async function unlockExtensionVaultInBackground(
+  passphrase: string,
+): Promise<ExtensionUnlockState> {
+  const response = await callBackground({
+    type: "unlock_extension_vault",
+    passphrase,
+  });
+
+  if (!response.ok || !("unlockState" in response)) {
+    throw new Error(response.ok ? "Missing unlock state" : response.error);
+  }
+
+  return response.unlockState;
+}
+
+export async function lockExtensionVaultInBackground(): Promise<ExtensionUnlockState> {
+  const response = await callBackground({
+    type: "lock_extension_vault",
+  });
+
+  if (!response.ok || !("unlockState" in response)) {
+    throw new Error(response.ok ? "Missing unlock state" : response.error);
+  }
+
+  return response.unlockState;
 }
 
 export async function hydratePopupVaultCacheInBackground(): Promise<{ ok: boolean }> {
