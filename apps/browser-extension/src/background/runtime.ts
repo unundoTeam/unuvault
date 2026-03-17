@@ -1,21 +1,19 @@
 import { createExtensionAuthRuntime } from "./auth";
 import type { BackgroundRequest, BackgroundResponse } from "./protocol";
-import { createExtensionUnlockRuntime } from "./unlock-session";
+import { extensionUnlockRuntime } from "./unlock-session";
 import { hydratePopupVaultCache } from "./vault-cache";
-
-const defaultUnlockRuntime = createExtensionUnlockRuntime();
 
 type BackgroundRuntimeDeps = {
   authRuntime: ReturnType<typeof createExtensionAuthRuntime>;
   hydratePopupVaultCache(): Promise<{ ok: boolean }>;
-  unlockRuntime: ReturnType<typeof createExtensionUnlockRuntime>;
+  unlockRuntime: typeof extensionUnlockRuntime;
 };
 
 function createDefaultDeps(): BackgroundRuntimeDeps {
   return {
     authRuntime: createExtensionAuthRuntime(),
     hydratePopupVaultCache,
-    unlockRuntime: defaultUnlockRuntime,
+    unlockRuntime: extensionUnlockRuntime,
   };
 }
 

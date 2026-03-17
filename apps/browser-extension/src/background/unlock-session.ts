@@ -123,3 +123,9 @@ export function createExtensionUnlockRuntime(
     },
   };
 }
+
+export const extensionUnlockRuntime = createExtensionUnlockRuntime();
+
+export async function readExtensionUnlockPassphrase(): Promise<string | null> {
+  return extensionUnlockRuntime.readUnlockPassphrase();
+}
