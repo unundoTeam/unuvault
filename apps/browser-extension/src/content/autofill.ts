@@ -1,5 +1,6 @@
 import type {
   AutofillCandidates,
+  AutofillFillData,
   AutofillStatus,
   BackgroundRequest,
   BackgroundResponse,
@@ -18,12 +19,14 @@ type ContentAutofillCandidates =
       status: "unavailable";
     };
 
-type ContentAutofillAttemptResult =
-  | ContentAutofillCandidates
+type ContentAutofillFillData =
+  | AutofillFillData
   | {
-      status: "multiple_matches";
-      count: number;
-    }
+      status: "unavailable";
+    };
+
+type ContentAutofillAttemptResult =
+  | ContentAutofillFillData
   | {
       status: "no_fillable_fields";
     }
@@ -37,6 +40,11 @@ type ExtensionRuntime = {
   sendMessage?(request: BackgroundRequest): Promise<BackgroundResponse>;
 };
 
+type BackgroundCallerContext = {
+  source: "content" | "popup" | "internal";
+  trustedPageUrl?: string | null;
+};
+
 function getExtensionRuntime(): ExtensionRuntime | null {
   return (
     (globalThis as {
@@ -47,14 +55,17 @@ function getExtensionRuntime(): ExtensionRuntime | null {
   );
 }
 
-async function callBackground(request: BackgroundRequest): Promise<BackgroundResponse> {
+async function callBackground(
+  request: BackgroundRequest,
+  callerContext?: BackgroundCallerContext,
+): Promise<BackgroundResponse> {
   const runtime = getExtensionRuntime();
 
   if (runtime?.sendMessage) {
     return runtime.sendMessage(request);
   }
 
-  return handleBackgroundRequest(request);
+  return handleBackgroundRequest(request, undefined, callerContext);
 }
 
 export function shouldOfferAutofill(input: { hasPasswordField: boolean }) {
@@ -97,6 +108,31 @@ export async function readAutofillCandidates(
     }
 
     return response.autofillCandidates;
+  } catch {
+    return {
+      status: "unavailable",
+    };
+  }
+}
+
+export async function readAutofillFillData(
+  pageUrl: string,
+): Promise<ContentAutofillFillData> {
+  try {
+    const response = await callBackground({
+      type: "read_autofill_fill_data",
+    }, {
+      source: "content",
+      trustedPageUrl: pageUrl,
+    });
+
+    if (!response.ok || !("autofillFillData" in response)) {
+      return {
+        status: "unavailable",
+      };
+    }
+
+    return response.autofillFillData;
   } catch {
     return {
       status: "unavailable",
@@ -155,6 +191,12 @@ function findUsernameField(document: Document) {
   );
 }
 
+function findPasswordField(document: Document) {
+  const inputs = Array.from(document.querySelectorAll("input"));
+
+  return findFirstFillableInput(inputs, (input) => input.type === "password");
+}
+
 function dispatchAutofillEvents(input: HTMLInputElement) {
   input.dispatchEvent(new Event("input", { bubbles: true }));
   input.dispatchEvent(new Event("change", { bubbles: true }));
@@ -167,13 +209,31 @@ export async function attemptAutofillForCurrentPage(input: {
   const candidates = await readAutofillCandidates(input.pageUrl);
 
   if (candidates.status !== "ready") {
-    return candidates;
+    switch (candidates.status) {
+      case "signed_out":
+        return {
+          status: "signed_out",
+        };
+      case "locked":
+        return {
+          status: "locked",
+        };
+      case "no_page_url":
+        return {
+          status: "no_page_url",
+        };
+      case "no_match":
+        return {
+          status: "no_match",
+        };
+      case "unavailable":
+        return candidates;
+    }
   }
 
   if (candidates.matches.length === 0) {
     return {
       status: "no_match",
-      matches: [],
     };
   }
 
@@ -185,27 +245,64 @@ export async function attemptAutofillForCurrentPage(input: {
   }
 
   const [candidate] = candidates.matches;
-
-  if (!candidate.username) {
-    return {
-      status: "no_fillable_fields",
-    };
-  }
-
   const usernameField = findUsernameField(input.document);
+  const passwordField = findPasswordField(input.document);
+  let filledUsername = false;
+  let filledPassword = false;
 
-  if (!usernameField) {
+  if (candidate.hasPassword && passwordField) {
+    const fillData = await readAutofillFillData(input.pageUrl);
+
+    if (fillData.status !== "ready") {
+      return fillData;
+    }
+
+    if (usernameField && candidate.username) {
+      usernameField.value = candidate.username;
+      dispatchAutofillEvents(usernameField);
+      filledUsername = true;
+    }
+
+    if (fillData.fillData.password) {
+      passwordField.value = fillData.fillData.password;
+      dispatchAutofillEvents(passwordField);
+      filledPassword = true;
+    }
+
+    if (!filledUsername && !filledPassword) {
+      return {
+        status: "no_fillable_fields",
+      };
+    }
+
+    return {
+      status: "filled",
+      filledUsername,
+      filledPassword,
+    };
+  }
+
+  if (usernameField && candidate.username) {
+    usernameField.value = candidate.username;
+    dispatchAutofillEvents(usernameField);
+    filledUsername = true;
+  }
+
+  if (!filledUsername && !filledPassword) {
+    if (passwordField && !candidate.hasPassword) {
+      return {
+        status: "no_password",
+      };
+    }
+
     return {
       status: "no_fillable_fields",
     };
   }
-
-  usernameField.value = candidate.username;
-  dispatchAutofillEvents(usernameField);
 
   return {
     status: "filled",
-    filledUsername: true,
-    filledPassword: false,
+    filledUsername,
+    filledPassword,
   };
 }
