@@ -2,16 +2,21 @@
 
 import type { FormEvent } from "react";
 import { useState } from "react";
-import { bootstrapProfile } from "../../../../../packages/api-client/src/auth";
-import { createBrowserSupabaseClient } from "../../lib/supabase-browser";
+import { createIdentityBrowserClient } from "../../lib/identity/browser";
 
 export function RegisterForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [status, setStatus] = useState<"idle" | "submitting" | "ready" | "error">(
-    "idle",
-  );
+  const [status, setStatus] = useState<
+    "idle" | "submitting" | "pending_confirmation" | "error"
+  >("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  function buildEmailRedirectUrl() {
+    const redirect = new URL("/auth/callback", window.location.origin);
+    redirect.searchParams.set("next", "/auth/finalize");
+    return redirect.toString();
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -26,28 +31,20 @@ export function RegisterForm() {
     setErrorMessage(null);
 
     try {
-      const supabase = createBrowserSupabaseClient();
-      const result = await supabase.auth.signUp({
+      const identity = createIdentityBrowserClient();
+      const result = await identity.auth.signUp({
         email,
         password,
+        options: {
+          emailRedirectTo: buildEmailRedirectUrl(),
+        },
       });
 
       if (result.error) {
         throw result.error;
       }
 
-      const accessToken = result.data.session?.access_token;
-
-      if (!accessToken) {
-        throw new Error("missing access token");
-      }
-
-      await bootstrapProfile(async (input, init) => {
-        const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
-        return fetch(`${baseUrl}${input}`, init);
-      }, accessToken);
-
-      setStatus("ready");
+      setStatus("pending_confirmation");
     } catch {
       setStatus("error");
       setErrorMessage("We couldn't create your account. Please try again.");
@@ -80,7 +77,9 @@ export function RegisterForm() {
         {status === "submitting" ? "Creating account..." : "Create account"}
       </button>
 
-      {status === "ready" ? <p>Account ready</p> : null}
+      {status === "pending_confirmation" ? (
+        <p>Check your email to finish setting up unuvault.</p>
+      ) : null}
       {errorMessage ? <p>{errorMessage}</p> : null}
     </form>
   );

@@ -64,8 +64,8 @@ async function unlockVault(passphrase: string) {
   fireEvent.click(screen.getByRole("button", { name: /Set master password|Unlock vault/ }));
 }
 
-vi.mock("../src/lib/supabase-browser", () => ({
-  createBrowserSupabaseClient: () => ({
+vi.mock("../src/lib/identity/browser", () => ({
+  createIdentityBrowserClient: () => ({
     auth: {
       getSession: mocks.getSession,
     },

@@ -3,7 +3,7 @@ import { createSupabaseAuthBootstrapDependencies } from "../src/lib/supabase";
 import { loginPayload } from "./login-payload-fixture";
 
 describe("createSupabaseAuthBootstrapDependencies", () => {
-  it("maps auth.getUser into the service dependency contract", async () => {
+  it("maps auth.getUser into the service dependency contract by resolving account_identities", async () => {
     const getUser = vi.fn().mockResolvedValue({
       data: {
         user: {
@@ -13,17 +13,35 @@ describe("createSupabaseAuthBootstrapDependencies", () => {
       },
       error: null,
     });
+    const single = vi.fn().mockResolvedValue({
+      data: {
+        account_id: "account-1",
+      },
+      error: null,
+    });
+    const eq = vi.fn().mockReturnValue({ single });
+    const select = vi.fn().mockReturnValue({ eq });
+    const from = vi.fn().mockReturnValue({ select });
 
     const deps = createSupabaseAuthBootstrapDependencies({
-      auth: { getUser },
-      from: vi.fn(),
+      identityClient: {
+        auth: { getUser },
+        from,
+      },
+      dataClient: {
+        from: vi.fn(),
+      },
     } as never);
 
     const user = await deps.getUserByToken("jwt-token");
 
     expect(getUser).toHaveBeenCalledWith("jwt-token");
+    expect(from).toHaveBeenCalledWith("account_identities");
+    expect(select).toHaveBeenCalledWith("account_id");
+    expect(eq).toHaveBeenCalledWith("auth_user_id", "auth-user-1");
     expect(user).toEqual({
       id: "auth-user-1",
+      account_id: "account-1",
       email: "user@example.com",
     });
   });
@@ -38,24 +56,76 @@ describe("createSupabaseAuthBootstrapDependencies", () => {
       },
       error: null,
     });
+    const single = vi.fn().mockResolvedValue({
+      data: null,
+      error: new Error("no rows"),
+    });
+    const eq = vi.fn().mockReturnValue({ single });
+    const select = vi.fn().mockReturnValue({ eq });
+    const from = vi.fn().mockReturnValue({ select });
 
     const deps = createSupabaseAuthBootstrapDependencies({
-      auth: { getUser },
-      from: vi.fn(),
+      identityClient: {
+        auth: { getUser },
+        from,
+      },
+      dataClient: {
+        from: vi.fn(),
+      },
+    } as never);
+
+    const user = await deps.getUserByToken("jwt-token");
+
+    expect(from).toHaveBeenCalledWith("account_identities");
+    expect(user).toEqual({
+      id: "auth-user-2",
+      account_id: null,
+      email: null,
+    });
+  });
+
+  it("preserves a missing account_id instead of falling back to auth_user_id", async () => {
+    const getUser = vi.fn().mockResolvedValue({
+      data: {
+        user: {
+          id: "auth-user-3",
+          email: "user@example.com",
+        },
+      },
+      error: null,
+    });
+    const single = vi.fn().mockResolvedValue({
+      data: null,
+      error: new Error("no rows"),
+    });
+    const eq = vi.fn().mockReturnValue({ single });
+    const select = vi.fn().mockReturnValue({ eq });
+    const from = vi.fn().mockReturnValue({ select });
+
+    const deps = createSupabaseAuthBootstrapDependencies({
+      identityClient: {
+        auth: { getUser },
+        from,
+      },
+      dataClient: {
+        from: vi.fn(),
+      },
     } as never);
 
     const user = await deps.getUserByToken("jwt-token");
 
     expect(user).toEqual({
-      id: "auth-user-2",
-      email: null,
+      id: "auth-user-3",
+      account_id: null,
+      email: "user@example.com",
     });
   });
 
-  it("upserts users_profile on auth_user_id and returns the profile shape", async () => {
+  it("upserts users_profile on account_id and returns the profile shape", async () => {
     const single = vi.fn().mockResolvedValue({
       data: {
         id: "profile-1",
+        account_id: "account-1",
         email: "user@example.com",
         locale: "zh-CN",
       },
@@ -64,40 +134,50 @@ describe("createSupabaseAuthBootstrapDependencies", () => {
     const select = vi.fn().mockReturnValue({ single });
     const upsert = vi.fn().mockReturnValue({ select });
     const from = vi.fn().mockReturnValue({ upsert });
+    const getUser = vi.fn();
 
     const deps = createSupabaseAuthBootstrapDependencies({
-      auth: { getUser: vi.fn() },
-      from,
+      identityClient: {
+        auth: { getUser },
+      },
+      dataClient: {
+        from,
+      },
     } as never);
 
     const profile = await deps.upsertUserProfile({
       auth_user_id: "auth-user-1",
+      account_id: "account-1",
       email: "user@example.com",
       locale: "zh-CN",
     });
 
     expect(from).toHaveBeenCalledWith("users_profile");
+    expect(getUser).not.toHaveBeenCalled();
     expect(upsert).toHaveBeenCalledWith(
       {
         auth_user_id: "auth-user-1",
+        account_id: "account-1",
         email: "user@example.com",
         locale: "zh-CN",
       },
       {
-        onConflict: "auth_user_id",
+        onConflict: "account_id",
       },
     );
     expect(profile).toEqual({
       id: "profile-1",
+      account_id: "account-1",
       email: "user@example.com",
       locale: "zh-CN",
     });
   });
 
-  it("finds users_profile by authenticated auth_user_id", async () => {
+  it("finds users_profile by authenticated account_id", async () => {
     const single = vi.fn().mockResolvedValue({
       data: {
         id: "profile-1",
+        account_id: "account-1",
         auth_user_id: "auth-user-1",
         email: "user@example.com",
         locale: "zh-CN",
@@ -107,19 +187,26 @@ describe("createSupabaseAuthBootstrapDependencies", () => {
     const eq = vi.fn().mockReturnValue({ single });
     const select = vi.fn().mockReturnValue({ eq });
     const from = vi.fn().mockReturnValue({ select });
+    const getUser = vi.fn();
 
     const deps = createSupabaseAuthBootstrapDependencies({
-      auth: { getUser: vi.fn() },
-      from,
+      identityClient: {
+        auth: { getUser },
+      },
+      dataClient: {
+        from,
+      },
     } as never);
 
-    const profile = await deps.getUserProfileByAuthUserId("auth-user-1");
+    const profile = await deps.getUserProfileByAccountId("account-1");
 
     expect(from).toHaveBeenCalledWith("users_profile");
-    expect(select).toHaveBeenCalledWith("id, auth_user_id, email, locale");
-    expect(eq).toHaveBeenCalledWith("auth_user_id", "auth-user-1");
+    expect(getUser).not.toHaveBeenCalled();
+    expect(select).toHaveBeenCalledWith("id, account_id, auth_user_id, email, locale");
+    expect(eq).toHaveBeenCalledWith("account_id", "account-1");
     expect(profile).toEqual({
       id: "profile-1",
+      account_id: "account-1",
       auth_user_id: "auth-user-1",
       email: "user@example.com",
       locale: "zh-CN",
@@ -149,8 +236,12 @@ describe("createSupabaseAuthBootstrapDependencies", () => {
     const from = vi.fn().mockReturnValue({ select });
 
     const deps = createSupabaseAuthBootstrapDependencies({
-      auth: { getUser: vi.fn() },
-      from,
+      identityClient: {
+        auth: { getUser: vi.fn() },
+      },
+      dataClient: {
+        from,
+      },
     } as never);
 
     const items = await deps.listVaultItemsByProfileId("profile-1");
@@ -187,8 +278,12 @@ describe("createSupabaseAuthBootstrapDependencies", () => {
     const from = vi.fn().mockReturnValue({ select });
 
     const deps = createSupabaseAuthBootstrapDependencies({
-      auth: { getUser: vi.fn() },
-      from,
+      identityClient: {
+        auth: { getUser: vi.fn() },
+      },
+      dataClient: {
+        from,
+      },
     } as never);
 
     const ids = await deps.listDeletedVaultItemIdsByProfileId("profile-1");
@@ -208,8 +303,12 @@ describe("createSupabaseAuthBootstrapDependencies", () => {
     const from = vi.fn().mockReturnValue({ upsert });
 
     const deps = createSupabaseAuthBootstrapDependencies({
-      auth: { getUser: vi.fn() },
-      from,
+      identityClient: {
+        auth: { getUser: vi.fn() },
+      },
+      dataClient: {
+        from,
+      },
     } as never);
 
     await deps.upsertVaultItems("profile-1", [
@@ -270,8 +369,12 @@ describe("createSupabaseAuthBootstrapDependencies", () => {
     const from = vi.fn().mockReturnValue({ select });
 
     const deps = createSupabaseAuthBootstrapDependencies({
-      auth: { getUser: vi.fn() },
-      from,
+      identityClient: {
+        auth: { getUser: vi.fn() },
+      },
+      dataClient: {
+        from,
+      },
     } as never);
 
     const items = await deps.listVaultItemsByIds(["item-1"]);
@@ -307,8 +410,12 @@ describe("createSupabaseAuthBootstrapDependencies", () => {
     const from = vi.fn().mockReturnValue({ update });
 
     const deps = createSupabaseAuthBootstrapDependencies({
-      auth: { getUser: vi.fn() },
-      from,
+      identityClient: {
+        auth: { getUser: vi.fn() },
+      },
+      dataClient: {
+        from,
+      },
     } as never);
 
     await deps.softDeleteVaultItems("profile-1", ["item-2"]);

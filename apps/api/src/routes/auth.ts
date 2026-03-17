@@ -5,6 +5,7 @@ import { AuthBootstrapUnauthorizedError } from "../services/auth-bootstrap-servi
 type BootstrapProfileResult = {
   profile: {
     id: string;
+    account_id: string;
     email: string;
     locale: string;
   };

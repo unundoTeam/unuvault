@@ -1,9 +1,15 @@
 export type BootstrapProfileResponse = {
   profile: {
     id: string;
+    account_id: string;
     email: string;
     locale: string;
   };
+};
+
+type BootstrapErrorResponse = {
+  error?: string;
+  ok?: boolean;
 };
 
 type Fetcher = (
@@ -14,8 +20,26 @@ type Fetcher = (
     body?: string;
   },
 ) => Promise<{
-  json(): Promise<BootstrapProfileResponse>;
+  ok?: boolean;
+  status?: number;
+  json(): Promise<BootstrapProfileResponse | BootstrapErrorResponse>;
 }>;
+
+function readBootstrapErrorMessage(
+  payload: BootstrapProfileResponse | BootstrapErrorResponse,
+): string | null {
+  if (
+    typeof payload === "object" &&
+    payload !== null &&
+    "error" in payload &&
+    typeof payload.error === "string" &&
+    payload.error
+  ) {
+    return payload.error;
+  }
+
+  return null;
+}
 
 export async function bootstrapProfile(
   fetcher: Fetcher,
@@ -30,5 +54,14 @@ export async function bootstrapProfile(
     body: JSON.stringify({}),
   });
 
-  return response.json();
+  const payload = (await response.json()) as BootstrapProfileResponse | BootstrapErrorResponse;
+
+  if (response.ok === false) {
+    const message =
+      readBootstrapErrorMessage(payload) ??
+      `bootstrap_failed:${response.status ?? "unknown"}`;
+    throw new Error(message);
+  }
+
+  return payload as BootstrapProfileResponse;
 }

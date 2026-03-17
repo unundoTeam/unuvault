@@ -7,38 +7,24 @@ import RegisterPage from "../src/app/register/page";
 
 afterEach(() => {
   cleanup();
-  mocks.signUp.mockClear();
-  mocks.bootstrapProfile.mockClear();
+  mocks.identitySignUp.mockClear();
 });
 
 const mocks = vi.hoisted(() => ({
-  signUp: vi.fn().mockResolvedValue({
+  identitySignUp: vi.fn().mockResolvedValue({
     data: {
-      session: {
-        access_token: "jwt-token",
-      },
+      session: null,
     },
     error: null,
   }),
-  bootstrapProfile: vi.fn().mockResolvedValue({
-    profile: {
-      id: "profile-1",
-      email: "user@example.com",
-      locale: "zh-CN",
-    },
-  }),
 }));
 
-vi.mock("../src/lib/supabase-browser", () => ({
-  createBrowserSupabaseClient: () => ({
+vi.mock("../src/lib/identity/browser", () => ({
+  createIdentityBrowserClient: () => ({
     auth: {
-      signUp: mocks.signUp,
+      signUp: mocks.identitySignUp,
     },
   }),
-}));
-
-vi.mock("../../../packages/api-client/src/auth", () => ({
-  bootstrapProfile: mocks.bootstrapProfile,
 }));
 
 describe("RegisterPage", () => {
@@ -63,16 +49,24 @@ describe("RegisterPage", () => {
     });
     fireEvent.submit(screen.getByRole("button", { name: "Create account" }).closest("form")!);
 
-    expect(await screen.findByText("Account ready")).toBeInTheDocument();
+    expect(mocks.identitySignUp).toHaveBeenCalledWith({
+      email: "user@example.com",
+      password: "correct-horse-battery",
+      options: {
+        emailRedirectTo: expect.stringContaining("/auth/callback?next=%2Fauth%2Ffinalize"),
+      },
+    });
+    expect(
+      await screen.findByText("Check your email to finish setting up unuvault."),
+    ).toBeInTheDocument();
   });
 
-  it("blocks empty submissions before hitting Supabase", async () => {
+  it("blocks empty submissions before hitting unuidentity", async () => {
     render(<RegisterPage />);
 
     fireEvent.submit(screen.getByRole("button", { name: "Create account" }).closest("form")!);
 
     expect(await screen.findByText("Email and password are required.")).toBeInTheDocument();
-    expect(mocks.signUp).not.toHaveBeenCalled();
-    expect(mocks.bootstrapProfile).not.toHaveBeenCalled();
+    expect(mocks.identitySignUp).not.toHaveBeenCalled();
   });
 });

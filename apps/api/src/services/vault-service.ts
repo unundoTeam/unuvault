@@ -7,6 +7,7 @@ import type {
 
 type VaultSyncProfile = {
   id: string;
+  account_id: string;
   auth_user_id: string;
   email: string;
   locale: string;
@@ -14,6 +15,7 @@ type VaultSyncProfile = {
 
 type AuthUser = {
   id: string;
+  account_id: string | null;
   email: string | null;
 };
 
@@ -32,7 +34,7 @@ type VaultItemRow = {
 
 type VaultSyncServiceDependencies = {
   getUserByToken(token: string): Promise<AuthUser | null>;
-  getUserProfileByAuthUserId(authUserId: string): Promise<VaultSyncProfile | null>;
+  getUserProfileByAccountId(accountId: string): Promise<VaultSyncProfile | null>;
   listVaultItemsByIds(itemIds: string[]): Promise<VaultItemRow[]>;
   upsertVaultItems(profileId: string, items: VaultSyncItem[]): Promise<void>;
   softDeleteVaultItems(profileId: string, itemIds: string[]): Promise<void>;
@@ -99,13 +101,13 @@ export function createVaultSyncService(deps: VaultSyncServiceDependencies) {
     async syncVaultFromToken(token: string, payload: VaultSyncRequest) {
       const user = await deps.getUserByToken(token);
 
-      if (!user?.id) {
+      if (!user?.account_id) {
         throw new VaultSyncUnauthorizedError(
           "token did not resolve to an authenticated user",
         );
       }
 
-      const profile = await deps.getUserProfileByAuthUserId(user.id);
+      const profile = await deps.getUserProfileByAccountId(user.account_id);
 
       if (!profile) {
         throw new VaultSyncProfileNotFoundError(

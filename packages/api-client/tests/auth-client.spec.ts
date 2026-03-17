@@ -4,9 +4,11 @@ import { bootstrapProfile } from "../src/auth";
 describe("bootstrapProfile", () => {
   it("posts to /auth/bootstrap with bearer auth", async () => {
     const fetcher = vi.fn().mockResolvedValue({
+      ok: true,
       json: async () => ({
         profile: {
           id: "profile-1",
+          account_id: "account-1",
           email: "user@example.com",
           locale: "zh-CN",
         },
@@ -24,5 +26,20 @@ describe("bootstrapProfile", () => {
       body: JSON.stringify({}),
     });
     expect(response.profile.email).toBe("user@example.com");
+    expect(response.profile.account_id).toBe("account-1");
+  });
+
+  it("throws when bootstrap returns a non-ok response", async () => {
+    const fetcher = vi.fn().mockResolvedValue({
+      ok: false,
+      json: async () => ({
+        ok: false,
+        error: "bootstrap_failed",
+      }),
+    });
+
+    await expect(bootstrapProfile(fetcher, "jwt-token")).rejects.toThrow(
+      "bootstrap_failed",
+    );
   });
 });

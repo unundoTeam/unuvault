@@ -33,15 +33,18 @@ This repository now includes the phase-1 schema boundary, client-side security m
 
 - copy `apps/web/.env.example` to `apps/web/.env.local`
 - copy `apps/api/.env.example` to `apps/api/.env.local`
-- `apps/web/.env.local` needs the browser-facing values for signup: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and `NEXT_PUBLIC_API_BASE_URL`
-- `apps/api/.env.local` needs the server-only values for auth bootstrap: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `PORT`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY` is safe for the browser; `SUPABASE_SERVICE_ROLE_KEY` must stay in server-only env files and never ship to the client
-- for the current MVP `signup -> bootstrap` loop, disable email confirmation in the Supabase project first; otherwise `signUp` creates a user but does not return a session, so the local register page cannot continue into `POST /auth/bootstrap`
+- `apps/web/.env.local` needs the browser-facing `unuidentity` values: `NEXT_PUBLIC_IDENTITY_SUPABASE_URL`, `NEXT_PUBLIC_IDENTITY_SUPABASE_ANON_KEY`, and `NEXT_PUBLIC_API_BASE_URL`
+- `apps/api/.env.local` needs both the shared identity and product-data values: `IDENTITY_SUPABASE_URL`, `IDENTITY_SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `PORT`
+- `NEXT_PUBLIC_IDENTITY_SUPABASE_ANON_KEY` is safe for the browser; both service role keys must stay in server-only env files and never ship to the client
+- the local auth loop is now `unuidentity signup/login -> /auth/callback -> /auth/finalize -> POST /auth/bootstrap`
+- `unuidentity` needs a redirect URL for `http://127.0.0.1:3001/auth/callback` during local development
+- this bridge is a clean cutover for pre-launch test users; old local `users_profile` rows should be recreated through the new `unuidentity` flow instead of being rebound automatically
+- if you already created local test users before the `unuidentity` cutover, clear or recreate that local product data before validating the new bootstrap path
 - `POST /vault/sync` now also expects that authenticated session to map to an existing `users_profile`; if bootstrap has not completed yet, sync should return `profile_not_found`
 - start the API in one terminal with `pnpm dev:api`
 - start the web app in a second terminal with `pnpm dev:web`
 - open `http://127.0.0.1:3001/register`
-- the local verification order is: create the Supabase-backed signup in web, let the web app call `POST /auth/bootstrap`, then confirm the API can upsert `users_profile`
+- the local verification order is: create the `unuidentity` signup in web, complete callback/finalize, let the web app call `POST /auth/bootstrap`, then confirm the API can upsert `users_profile` and `POST /vault/sync` succeeds
 
 ## Automation Surface
 
