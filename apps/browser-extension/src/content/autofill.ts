@@ -1,5 +1,6 @@
 import type {
   AutofillCandidates,
+  AutofillFillData,
   AutofillStatus,
   BackgroundRequest,
   BackgroundResponse,
@@ -18,12 +19,14 @@ type ContentAutofillCandidates =
       status: "unavailable";
     };
 
-type ContentAutofillAttemptResult =
-  | ContentAutofillCandidates
+type ContentAutofillFillData =
+  | AutofillFillData
   | {
-      status: "multiple_matches";
-      count: number;
-    }
+      status: "unavailable";
+    };
+
+type ContentAutofillAttemptResult =
+  | ContentAutofillFillData
   | {
       status: "no_fillable_fields";
     }
@@ -104,6 +107,29 @@ export async function readAutofillCandidates(
   }
 }
 
+export async function readAutofillFillData(
+  pageUrl: string,
+): Promise<ContentAutofillFillData> {
+  try {
+    const response = await callBackground({
+      type: "read_autofill_fill_data",
+      pageUrl,
+    });
+
+    if (!response.ok || !("autofillFillData" in response)) {
+      return {
+        status: "unavailable",
+      };
+    }
+
+    return response.autofillFillData;
+  } catch {
+    return {
+      status: "unavailable",
+    };
+  }
+}
+
 function isVisibleInput(input: HTMLInputElement) {
   return input.getClientRects().length > 0;
 }
@@ -155,6 +181,12 @@ function findUsernameField(document: Document) {
   );
 }
 
+function findPasswordField(document: Document) {
+  const inputs = Array.from(document.querySelectorAll("input"));
+
+  return findFirstFillableInput(inputs, (input) => input.type === "password");
+}
+
 function dispatchAutofillEvents(input: HTMLInputElement) {
   input.dispatchEvent(new Event("input", { bubbles: true }));
   input.dispatchEvent(new Event("change", { bubbles: true }));
@@ -164,48 +196,38 @@ export async function attemptAutofillForCurrentPage(input: {
   document: Document;
   pageUrl: string;
 }): Promise<ContentAutofillAttemptResult> {
-  const candidates = await readAutofillCandidates(input.pageUrl);
+  const fillData = await readAutofillFillData(input.pageUrl);
 
-  if (candidates.status !== "ready") {
-    return candidates;
-  }
-
-  if (candidates.matches.length === 0) {
-    return {
-      status: "no_match",
-      matches: [],
-    };
-  }
-
-  if (candidates.matches.length > 1) {
-    return {
-      status: "multiple_matches",
-      count: candidates.matches.length,
-    };
-  }
-
-  const [candidate] = candidates.matches;
-
-  if (!candidate.username) {
-    return {
-      status: "no_fillable_fields",
-    };
+  if (fillData.status !== "ready") {
+    return fillData;
   }
 
   const usernameField = findUsernameField(input.document);
+  const passwordField = findPasswordField(input.document);
+  let filledUsername = false;
+  let filledPassword = false;
 
-  if (!usernameField) {
+  if (usernameField && fillData.fillData.username) {
+    usernameField.value = fillData.fillData.username;
+    dispatchAutofillEvents(usernameField);
+    filledUsername = true;
+  }
+
+  if (passwordField && fillData.fillData.password) {
+    passwordField.value = fillData.fillData.password;
+    dispatchAutofillEvents(passwordField);
+    filledPassword = true;
+  }
+
+  if (!filledUsername && !filledPassword) {
     return {
       status: "no_fillable_fields",
     };
   }
 
-  usernameField.value = candidate.username;
-  dispatchAutofillEvents(usernameField);
-
   return {
     status: "filled",
-    filledUsername: true,
-    filledPassword: false,
+    filledUsername,
+    filledPassword,
   };
 }
