@@ -5,6 +5,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { VaultSyncItem } from "../../../packages/api-client/src/vault";
 import { createMasterPasswordVerifier } from "../../../packages/security/src/master-password-verifier";
+import { sealVaultPassword } from "../../../packages/security/src/vault-envelope";
 import { App } from "../src/popup/App";
 
 const MASTER_PASSWORD_VERIFIER_STORAGE_KEY =
@@ -223,6 +224,15 @@ function installChromeExtensionMock(options?: {
   });
 }
 
+function seedVaultCache(items: VaultSyncItem[]) {
+  installChromeStorageMock({
+    [POPUP_VAULT_STORAGE_KEY]: JSON.stringify(items),
+  });
+}
+
+function storedPassword(password: string, passphrase?: string) {
+  return sealVaultPassword(password, passphrase);
+}
 async function setMasterPassword(password: string, confirmation: string = password) {
   fireEvent.change(await screen.findByLabelText("Master password"), {
     target: { value: password },
@@ -592,5 +602,103 @@ describe("App", () => {
 
     expect(screen.getByText("No vault items match your search.")).toBeInTheDocument();
     expect(screen.queryByText("GitHub")).not.toBeInTheDocument();
+  });
+
+  it("copies a cached username", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+
+    Object.defineProperty(window.navigator, "clipboard", {
+      configurable: true,
+      value: {
+        writeText,
+      },
+    });
+
+    seedVaultCache([createVaultItem()]);
+
+    render(<App />);
+
+    await setMasterPassword("correct horse");
+    fireEvent.click(await screen.findByRole("button", { name: "Copy username GitHub" }));
+
+    expect(writeText).toHaveBeenCalledWith("alice@example.com");
+    expect(await screen.findByRole("button", { name: "Copied GitHub" })).toBeInTheDocument();
+  });
+
+  it("shows a masked password placeholder and reveal action for cached passwords", async () => {
+    seedVaultCache([
+      createVaultItem({
+        encrypted_payload: {
+          schema_version: 1,
+          username: "alice@example.com",
+          password_ciphertext: storedPassword("hunter2", "correct horse"),
+          notes: "",
+        },
+      }),
+    ]);
+
+    render(<App />);
+
+    await setMasterPassword("correct horse");
+
+    expect(await screen.findByText("••••••••")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Show password GitHub" })).toBeInTheDocument();
+  });
+
+  it("copies a cached password after unlock without requiring reveal first", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+
+    Object.defineProperty(window.navigator, "clipboard", {
+      configurable: true,
+      value: {
+        writeText,
+      },
+    });
+
+    seedVaultCache([
+      createVaultItem({
+        encrypted_payload: {
+          schema_version: 1,
+          username: "alice@example.com",
+          password_ciphertext: storedPassword("hunter2", "correct horse"),
+          notes: "",
+        },
+      }),
+    ]);
+
+    render(<App />);
+
+    await setMasterPassword("correct horse");
+    fireEvent.click(await screen.findByRole("button", { name: "Copy password GitHub" }));
+
+    expect(writeText).toHaveBeenCalledWith("hunter2");
+    expect(screen.getByText("••••••••")).toBeInTheDocument();
+    expect(screen.queryByText("hunter2")).not.toBeInTheDocument();
+  });
+
+  it("clears a revealed password after locking and unlocking again", async () => {
+    seedVaultCache([
+      createVaultItem({
+        encrypted_payload: {
+          schema_version: 1,
+          username: "alice@example.com",
+          password_ciphertext: storedPassword("hunter2", "correct horse"),
+          notes: "",
+        },
+      }),
+    ]);
+
+    render(<App />);
+
+    await setMasterPassword("correct horse");
+    fireEvent.click(await screen.findByRole("button", { name: "Show password GitHub" }));
+
+    expect(screen.getByText("hunter2")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Lock vault" }));
+    await unlockVault("correct horse");
+
+    expect(await screen.findByText("••••••••")).toBeInTheDocument();
+    expect(screen.queryByText("hunter2")).not.toBeInTheDocument();
   });
 });

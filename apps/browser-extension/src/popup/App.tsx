@@ -1,5 +1,9 @@
 import type { FormEvent } from "react";
-import { normalizeVaultLoginPayload } from "./login-payload";
+import {
+  getPasswordPlaceholderLabel,
+  hasSavedPassword,
+  normalizeVaultLoginPayload,
+} from "./login-payload";
 import { usePopupAuth } from "./use-popup-auth";
 import { usePopupUnlock } from "./use-popup-unlock";
 import { usePopupVaultSearch } from "./use-popup-vault-search";
@@ -27,14 +31,24 @@ export function App() {
     setDraftPassphrase,
     submitLabel,
     submitUnlock,
+    unlockPassphrase,
   } = usePopupUnlock();
   const {
+    copiedPasswordItemId,
+    copiedUsernameItemId,
+    copyPassword,
+    copyUsername,
     filteredItems,
     hasLoaded,
     hasStoredItems,
+    isPasswordRevealed,
     searchQuery,
     setSearchQuery,
-  } = usePopupVaultSearch();
+    togglePasswordVisibility,
+  } = usePopupVaultSearch({
+    isUnlocked,
+    unlockPassphrase,
+  });
 
   return (
     <section>
@@ -94,12 +108,51 @@ export function App() {
             <ul>
               {filteredItems.map((item) => {
                 const payload = normalizeVaultLoginPayload(item.encrypted_payload);
+                const hasPassword = hasSavedPassword(item.encrypted_payload);
+                const passwordRevealed = isPasswordRevealed(item.id);
 
                 return (
                   <li key={item.id}>
                     <span>{item.title}</span>
                     {payload.username ? <span>{payload.username}</span> : null}
                     {payload.notes.trim() ? <span>Notes added</span> : null}
+                    <span>
+                      {getPasswordPlaceholderLabel(
+                        item.encrypted_payload,
+                        passwordRevealed,
+                        unlockPassphrase ?? undefined,
+                      )}
+                    </span>
+                    {payload.username ? (
+                      <button
+                        type="button"
+                        onClick={() => void copyUsername(item.id, payload.username)}
+                      >
+                        {copiedUsernameItemId === item.id
+                          ? `Copied ${item.title}`
+                          : `Copy username ${item.title}`}
+                      </button>
+                    ) : null}
+                    {hasPassword ? (
+                      <button
+                        type="button"
+                        onClick={() => void copyPassword(item.id, item.encrypted_payload)}
+                      >
+                        {copiedPasswordItemId === item.id
+                          ? `Copied password ${item.title}`
+                          : `Copy password ${item.title}`}
+                      </button>
+                    ) : null}
+                    {hasPassword ? (
+                      <button
+                        type="button"
+                        onClick={() => togglePasswordVisibility(item.id)}
+                      >
+                        {passwordRevealed
+                          ? `Hide password ${item.title}`
+                          : `Show password ${item.title}`}
+                      </button>
+                    ) : null}
                   </li>
                 );
               })}
