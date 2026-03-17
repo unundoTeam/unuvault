@@ -2,26 +2,24 @@
 
 ## Summary
 
-The browser extension now has a real background protocol layer, popup/background clients, and content autofill helpers, but it still lacks a real extension runtime entrypoint. Today, `handleBackgroundRequest()` is exercised through tests and local fallback calls, not through an actual service worker receiving `chrome.runtime` messages.
+The browser extension now has a real background protocol layer, popup/background clients, and content autofill helpers, but it still lacks a packaged extension runtime. Today, `handleBackgroundRequest()` is exercised through tests and local fallback calls, not through a Chrome-loaded service worker receiving `chrome.runtime` messages.
 
 That gap matters because the password autofill authorization model now depends on background-owned caller context. The current code can model `trustedPageUrl` in tests and fallback paths, but there is still no real `runtime.onMessage` bridge that derives trusted caller state from `sender.tab.url`.
 
-This slice adds the minimum viable browser-extension runtime skeleton:
+This slice narrows to the minimum viable runtime bridge logic:
 
-- a manifest
-- a background service worker entrypoint
+- a background service worker entry module
 - a real `runtime.onMessage` bridge
 - sender-derived caller context
-- existing popup/content clients routed through the real background bridge
+- focused tests for runtime sender mapping
 
-The goal is not to finish packaging the entire extension. The goal is to make the existing auth, unlock, popup, and autofill protocol run through a real background runtime, especially for password reads.
+The goal is not to finish packaging the entire extension. The goal is to make the existing auth, unlock, popup, and autofill authorization model concrete in code and tests, while explicitly deferring manifest/build wiring until the repo has a real extension packaging pipeline.
 
 ## Scope
 
 ### In scope
 
-- add a minimal MV3 manifest for the current extension surfaces
-- add a background service worker entrypoint
+- add a background service worker entry module
 - register `chrome.runtime.onMessage` and route requests into `handleBackgroundRequest()`
 - derive `BackgroundCallerContext` from `sender`
 - map content callers to `trustedPageUrl = sender.tab?.url`
@@ -34,11 +32,11 @@ The goal is not to finish packaging the entire extension. The goal is to make th
 
 - changing auth, unlock, or vault sync product behavior
 - new popup UI
-- automatic content-script registration changes beyond the minimum required manifest support
+- automatic content-script registration changes
 - frame traversal, tab tracking, or per-tab session state
 - changing candidate matching rules
 - reworking save-prompt or content injection strategy
-- production bundling/publishing workflow beyond the minimum runtime entry shape
+- manifest wiring and production bundling/publishing workflow
 
 ## Chosen Approach
 
@@ -57,25 +55,6 @@ That means:
 This is preferred over moving Chrome-specific logic into `runtime.ts` because the current runtime is already well structured for direct testing. It is preferred over a more ambitious runtime refactor because the immediate requirement is to make the existing security boundary real, not to redesign the extension architecture.
 
 ## Architecture
-
-### Manifest
-
-Add a minimum MV3 manifest for the current surfaces:
-
-- `manifest_version: 3`
-- `name`, `version`
-- `background.service_worker`
-- `action.default_popup`
-- minimal `permissions`
-- minimal `host_permissions` needed by current content behavior
-
-The manifest should support:
-
-- popup access
-- background message handling
-- content-side message sending for autofill
-
-This slice should not add permissions that are not required by the current code.
 
 ### Background service worker entry
 
@@ -125,7 +104,7 @@ This keeps password release decisions on trusted extension runtime metadata rath
 - caller-context-aware authorization
 - current auth/unlock/autofill logic
 
-The only change needed for this slice is to make sure the real background bridge is the primary production path, while tests can still call the runtime directly.
+The only change needed for this slice is to make sure the bridge logic is ready for a future packaged runtime, while tests can still call the runtime directly today.
 
 ### Client adapters
 
@@ -154,14 +133,14 @@ The key security invariant is:
 
 Popup callers should never satisfy this condition. Internal callers should also fail closed unless explicitly given a trusted content-page context in tests.
 
-This makes the current password autofill boundary meaningful in real runtime execution instead of only in fallback/test execution.
+This makes the current password autofill boundary explicit in the runtime bridge code instead of leaving it implicit in content-side request parameters.
 
 ## Data Flow
 
 ### Popup request
 
 1. popup calls `chrome.runtime.sendMessage`
-2. background entry receives request and sender
+2. the bridge listener receives request and sender
 3. sender is mapped to `source: "popup"`
 4. request is forwarded to `handleBackgroundRequest`
 5. popup-safe actions succeed, content-only secret actions fail closed
@@ -169,7 +148,7 @@ This makes the current password autofill boundary meaningful in real runtime exe
 ### Content autofill request
 
 1. content calls `chrome.runtime.sendMessage`
-2. background entry receives request and sender
+2. the bridge listener receives request and sender
 3. sender is mapped to `source: "content"` with `trustedPageUrl = sender.tab.url`
 4. request is forwarded to `handleBackgroundRequest`
 5. password fill-data is returned only if current auth, unlock, and exact-origin rules succeed
@@ -206,7 +185,7 @@ Run:
 
 ### No existing packaging structure
 
-The repo currently has no manifest or service worker entry. That means this slice must introduce the minimal extension runtime skeleton without overreaching into a broader packaging project.
+The repo still has no build/publish pipeline for extension assets. That means this slice should stop at bridge logic and tests, and leave manifest/runtime asset wiring to a dedicated packaging follow-up.
 
 ### Sender shape differences
 
@@ -218,9 +197,8 @@ Many current tests rely on direct runtime fallback. This slice should preserve t
 
 ## Acceptance Criteria
 
-- a minimal manifest exists for the extension
-- a background service worker entry exists and registers `runtime.onMessage`
+- a background service worker entry module exists and registers `runtime.onMessage`
 - sender metadata is mapped into `BackgroundCallerContext`
-- password fill-data authorization uses sender-derived context in real runtime execution
+- password fill-data authorization uses sender-derived context in bridge execution/tests
 - popup and content clients continue to function through the current request API
 - focused extension tests and full repo verification pass

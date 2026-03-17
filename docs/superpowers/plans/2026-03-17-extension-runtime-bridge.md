@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add a real browser-extension runtime bridge so popup/content requests flow through a background service worker that derives trusted caller context from Chrome sender metadata.
+**Goal:** Add the background runtime bridge logic so popup/content request handling can derive trusted caller context from Chrome sender metadata, while deferring manifest/build wiring to a later packaging slice.
 
-**Architecture:** Keep `apps/browser-extension/src/background/runtime.ts` as the pure background domain layer. Add a thin MV3 manifest and background entrypoint that register `chrome.runtime.onMessage`, derive `BackgroundCallerContext` from `sender`, and route requests into the existing runtime. Preserve fallback behavior for isolated unit tests while making the real service worker path primary for runtime execution.
+**Architecture:** Keep `apps/browser-extension/src/background/runtime.ts` as the pure background domain layer. Add a background entrypoint that registers `chrome.runtime.onMessage`, derives `BackgroundCallerContext` from `sender`, and routes requests into the existing runtime. Preserve fallback behavior for isolated unit tests. Do not land manifest/popup runtime files until the repo has a real extension packaging pipeline.
 
 **Tech Stack:** TypeScript, Vitest, Chrome extension MV3 messaging, JSDOM, existing background protocol/runtime
 
@@ -14,8 +14,6 @@
 
 - Create: `apps/browser-extension/src/background/index.ts`
   Register the real `runtime.onMessage` bridge and map sender metadata into caller context.
-- Create: `apps/browser-extension/manifest.json`
-  Declare the minimal MV3 extension runtime shape.
 - Modify: `apps/browser-extension/src/background/runtime.ts`
   Export caller-context types/helpers as needed and keep runtime request handling Chrome-agnostic.
 - Modify: `apps/browser-extension/src/content/autofill.ts`
@@ -116,37 +114,27 @@ git add apps/browser-extension/src/background/index.ts apps/browser-extension/sr
 git commit -m "feat: add extension background message bridge"
 ```
 
-## Chunk 3: Add the minimum manifest
+## Chunk 3: Keep packaging explicitly out of scope
 
-### Task 3: Declare the real extension runtime
+### Task 3: Leave manifest/build wiring for a later slice
 
 **Files:**
-- Create: `apps/browser-extension/manifest.json`
+- Modify: `docs/superpowers/specs/2026-03-17-extension-runtime-bridge-design.md`
+- Modify: `docs/superpowers/plans/2026-03-17-extension-runtime-bridge.md`
 
-- [ ] **Step 1: Write the minimum MV3 manifest**
+- [ ] **Step 1: Document the packaging gap explicitly**
 
-Include:
-- `manifest_version`
-- extension `name`
-- extension `version`
-- `background.service_worker`
-- `action.default_popup`
-- minimum `permissions`
-- minimum `host_permissions`
+Record that:
+- the repo still lacks a real extension build/publish pipeline
+- manifest entries must point at built JavaScript assets, not source `.ts` / `.tsx`
+- this slice therefore stops at the bridge module and tests
 
-- [ ] **Step 2: Verify the manifest matches the current source layout**
+- [ ] **Step 2: Verify the codebase no longer contains placeholder runtime assets for this slice**
 
 Check:
-- background entry path is correct
-- popup entry path is correct for the current extension structure
-- no unused permissions are added
-
-- [ ] **Step 3: Commit the manifest slice**
-
-```bash
-git add apps/browser-extension/manifest.json
-git commit -m "feat: add extension runtime manifest"
-```
+- no new manifest is added in this branch
+- no popup HTML entry points at source TSX
+- the runtime bridge remains testable without pretending the extension is fully loadable
 
 ## Chunk 4: Reconcile clients with the real bridge
 
@@ -228,7 +216,7 @@ git commit -m "test: finalize extension runtime bridge"
 - [ ] **Step 6: Summarize results for review**
 
 Capture:
-- the new background service worker entry
+- the new background service worker entry module
 - the sender-to-caller-context mapping
-- the manifest shape
-- explicit note that password reads now depend on real sender-derived context in runtime execution
+- explicit note that manifest/build wiring is deferred until extension packaging exists
+- explicit note that password reads now depend on sender-derived context in bridge execution/tests
