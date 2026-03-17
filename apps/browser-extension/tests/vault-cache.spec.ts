@@ -19,6 +19,7 @@ function createVaultItem(overrides?: Partial<VaultSyncItem>): VaultSyncItem {
       username: "alice@example.com",
       password_ciphertext: "",
       notes: "",
+      website_url: "",
     },
     favorite: false,
     source: "manual",
