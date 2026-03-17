@@ -1,12 +1,18 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { createIdentityServerClient, bootstrapUnuvaultProfile, redirect } =
+const {
+  createIdentityServerClient,
+  bootstrapUnuvaultProfile,
+  redirect,
+  fetchMock,
+} =
   vi.hoisted(() => ({
     createIdentityServerClient: vi.fn(),
     bootstrapUnuvaultProfile: vi.fn(),
     redirect: vi.fn((path: string) => {
       throw new Error(`redirect:${path}`);
     }),
+    fetchMock: vi.fn(),
   }));
 
 vi.mock("../src/lib/identity/server", () => ({
@@ -26,6 +32,11 @@ import FinalizePage from "../src/app/auth/finalize/page";
 describe("FinalizePage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.stubGlobal("fetch", fetchMock);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it("redirects to the vault after successful bootstrap", async () => {
@@ -61,6 +72,42 @@ describe("FinalizePage", () => {
 
     await expect(FinalizePage()).rejects.toThrow(
       "redirect:/register?authError=bootstrap_failed",
+    );
+  });
+
+  it("redirects back to register when the bootstrap endpoint returns non-ok", async () => {
+    createIdentityServerClient.mockResolvedValue({
+      auth: {
+        getSession: vi.fn(),
+      },
+    });
+    fetchMock.mockResolvedValue({
+      ok: false,
+      json: async () => ({
+        ok: false,
+        error: "bootstrap_failed",
+      }),
+    });
+    bootstrapUnuvaultProfile.mockImplementation(
+      async ({
+        bootstrapProfile,
+      }: {
+        bootstrapProfile(token: string): Promise<unknown>;
+      }) => bootstrapProfile("jwt-token"),
+    );
+
+    await expect(FinalizePage()).rejects.toThrow(
+      "redirect:/register?authError=bootstrap_failed",
+    );
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/auth/bootstrap",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          authorization: "Bearer jwt-token",
+        }),
+      }),
     );
   });
 });

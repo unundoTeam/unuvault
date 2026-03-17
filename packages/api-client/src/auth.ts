@@ -7,6 +7,11 @@ export type BootstrapProfileResponse = {
   };
 };
 
+type BootstrapErrorResponse = {
+  error?: string;
+  ok?: boolean;
+};
+
 type Fetcher = (
   input: string,
   init?: {
@@ -15,7 +20,9 @@ type Fetcher = (
     body?: string;
   },
 ) => Promise<{
-  json(): Promise<BootstrapProfileResponse>;
+  ok?: boolean;
+  status?: number;
+  json(): Promise<BootstrapProfileResponse | BootstrapErrorResponse>;
 }>;
 
 export async function bootstrapProfile(
@@ -31,5 +38,18 @@ export async function bootstrapProfile(
     body: JSON.stringify({}),
   });
 
-  return response.json();
+  const payload = (await response.json()) as BootstrapProfileResponse | BootstrapErrorResponse;
+
+  if (response.ok === false) {
+    const message =
+      typeof payload === "object" &&
+      payload !== null &&
+      typeof payload.error === "string" &&
+      payload.error
+        ? payload.error
+        : `bootstrap_failed:${response.status ?? "unknown"}`;
+    throw new Error(message);
+  }
+
+  return payload as BootstrapProfileResponse;
 }
