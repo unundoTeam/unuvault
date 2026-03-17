@@ -644,6 +644,9 @@ describe("VaultPage", () => {
     fireEvent.change(screen.getByLabelText("Username"), {
       target: { value: "alice@example.com" },
     });
+    fireEvent.change(screen.getByLabelText("Website"), {
+      target: { value: "github.com" },
+    });
     fireEvent.change(screen.getByLabelText("Password"), {
       target: { value: "hunter2" },
     });
@@ -664,6 +667,7 @@ describe("VaultPage", () => {
               schema_version: 1,
               username: "alice@example.com",
               notes: "Personal account",
+              website_url: "https://github.com/",
             }),
           }),
         ],
@@ -772,6 +776,38 @@ describe("VaultPage", () => {
     fireEvent.submit(screen.getByRole("button", { name: "Save item" }).closest("form")!);
 
     expect(await screen.findByText("Title is required.")).toBeInTheDocument();
+    expect(mocks.syncVault).toHaveBeenCalledTimes(1);
+  });
+
+  it("blocks save when the website URL is invalid", async () => {
+    mocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: "jwt-token",
+        },
+      },
+      error: null,
+    });
+    mocks.syncVault.mockResolvedValue({
+      server_time: "2026-03-16T00:00:00.000Z",
+      updated_items: [],
+      deleted_item_ids: [],
+      conflicts: [],
+    });
+
+    render(<VaultPage />);
+
+    expect(await screen.findByText("No vault items yet.")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "GitHub" },
+    });
+    fireEvent.change(screen.getByLabelText("Website"), {
+      target: { value: "not a url" },
+    });
+    fireEvent.submit(screen.getByRole("button", { name: "Save item" }).closest("form")!);
+
+    expect(await screen.findByText("Enter a valid website URL.")).toBeInTheDocument();
     expect(mocks.syncVault).toHaveBeenCalledTimes(1);
   });
 
@@ -2018,7 +2054,7 @@ describe("VaultPage", () => {
     expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
   });
 
-  it("prefills title, username, and notes in edit mode", async () => {
+  it("prefills title, username, notes, and website in edit mode", async () => {
     mocks.getSession.mockResolvedValue({
       data: {
         session: {
@@ -2039,6 +2075,7 @@ describe("VaultPage", () => {
             username: "alice@example.com",
             password_ciphertext: "",
             notes: "Personal account",
+            website_url: "https://github.com/login",
           },
           favorite: false,
           source: "manual",
@@ -2060,6 +2097,7 @@ describe("VaultPage", () => {
     expect(screen.getByDisplayValue("GitHub")).toBeInTheDocument();
     expect(screen.getByDisplayValue("alice@example.com")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Personal account")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("https://github.com/login")).toBeInTheDocument();
   });
 
   it("prefills password in edit mode and keeps it hidden by default", async () => {
@@ -2258,7 +2296,7 @@ describe("VaultPage", () => {
     expect(await screen.findByText("Last synced at 00:03 UTC")).toBeInTheDocument();
   });
 
-  it("saves edited username and notes through changed_items", async () => {
+  it("saves edited username, notes, and website through changed_items", async () => {
     mocks.getSession.mockResolvedValue({
       data: {
         session: {
@@ -2280,6 +2318,7 @@ describe("VaultPage", () => {
               username: "alice@example.com",
               password_ciphertext: "",
               notes: "Personal account",
+              website_url: "https://github.com/login",
             },
             favorite: false,
             source: "manual",
@@ -2303,6 +2342,7 @@ describe("VaultPage", () => {
               username: "alice@work.com",
               password_ciphertext: "",
               notes: "Work account",
+              website_url: "https://app.github.com/",
             },
             favorite: false,
             source: "manual",
@@ -2326,6 +2366,9 @@ describe("VaultPage", () => {
     fireEvent.change(screen.getByDisplayValue("alice@example.com"), {
       target: { value: "alice@work.com" },
     });
+    fireEvent.change(screen.getByDisplayValue("https://github.com/login"), {
+      target: { value: "app.github.com" },
+    });
     fireEvent.change(screen.getByDisplayValue("Personal account"), {
       target: { value: "Work account" },
     });
@@ -2344,6 +2387,7 @@ describe("VaultPage", () => {
               username: "alice@work.com",
               notes: "Work account",
               password_ciphertext: "",
+              website_url: "https://app.github.com/",
             }),
           }),
         ],
