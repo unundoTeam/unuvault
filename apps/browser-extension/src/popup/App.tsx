@@ -1,9 +1,21 @@
 import type { FormEvent } from "react";
 import { normalizeVaultLoginPayload } from "./login-payload";
+import { usePopupAuth } from "./use-popup-auth";
 import { usePopupUnlock } from "./use-popup-unlock";
 import { usePopupVaultSearch } from "./use-popup-vault-search";
 
 export function App() {
+  const {
+    authErrorMessage,
+    draftEmail,
+    draftPassword,
+    isSignedIn,
+    setDraftEmail,
+    setDraftPassword,
+    signIn,
+    status: authStatus,
+    vaultErrorMessage,
+  } = usePopupAuth();
   const {
     draftConfirmPassphrase,
     draftPassphrase,
@@ -27,7 +39,36 @@ export function App() {
   return (
     <section>
       <h1>unuvault</h1>
-      {isUnlocked ? (
+      {!isSignedIn ? (
+        <form
+          onSubmit={(event: FormEvent<HTMLFormElement>) => {
+            event.preventDefault();
+            void signIn();
+          }}
+        >
+          <label>
+            <span>Email</span>
+            <input
+              name="email"
+              type="email"
+              value={draftEmail}
+              onChange={(event) => setDraftEmail(event.target.value)}
+            />
+          </label>
+          <label>
+            <span>Password</span>
+            <input
+              name="password"
+              type="password"
+              value={draftPassword}
+              onChange={(event) => setDraftPassword(event.target.value)}
+            />
+          </label>
+          <button type="submit" disabled={authStatus === "signing_in"}>
+            {authStatus === "signing_in" ? "Signing in..." : "Sign in"}
+          </button>
+        </form>
+      ) : isUnlocked ? (
         <>
           <button type="button" onClick={lock}>
             Lock vault
@@ -96,6 +137,8 @@ export function App() {
         </form>
       )}
       {errorMessage ? <p>{errorMessage}</p> : null}
+      {authErrorMessage ? <p>{authErrorMessage}</p> : null}
+      {vaultErrorMessage ? <p>{vaultErrorMessage}</p> : null}
     </section>
   );
 }
