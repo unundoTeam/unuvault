@@ -1,6 +1,7 @@
 import type { FormEvent } from "react";
-import { useState } from "react";
+import { normalizeVaultLoginPayload } from "./login-payload";
 import { usePopupUnlock } from "./use-popup-unlock";
+import { usePopupVaultSearch } from "./use-popup-vault-search";
 
 export function App() {
   const {
@@ -15,7 +16,13 @@ export function App() {
     submitLabel,
     submitUnlock,
   } = usePopupUnlock();
-  const [searchQuery, setSearchQuery] = useState("");
+  const {
+    filteredItems,
+    hasLoaded,
+    hasStoredItems,
+    searchQuery,
+    setSearchQuery,
+  } = usePopupVaultSearch();
 
   return (
     <section>
@@ -35,7 +42,28 @@ export function App() {
               onChange={(event) => setSearchQuery(event.target.value)}
             />
           </label>
-          <p>Vault search will connect in the next slice</p>
+          {!hasLoaded ? <p>Loading vault...</p> : null}
+          {hasLoaded && filteredItems.length === 0 && !hasStoredItems ? (
+            <p>No vault items yet.</p>
+          ) : null}
+          {hasLoaded && filteredItems.length === 0 && hasStoredItems ? (
+            <p>No vault items match your search.</p>
+          ) : null}
+          {filteredItems.length > 0 ? (
+            <ul>
+              {filteredItems.map((item) => {
+                const payload = normalizeVaultLoginPayload(item.encrypted_payload);
+
+                return (
+                  <li key={item.id}>
+                    <span>{item.title}</span>
+                    {payload.username ? <span>{payload.username}</span> : null}
+                    {payload.notes.trim() ? <span>Notes added</span> : null}
+                  </li>
+                );
+              })}
+            </ul>
+          ) : null}
         </>
       ) : (
         <form
