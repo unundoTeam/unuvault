@@ -8,6 +8,7 @@ export function loginPayload(
     username: "",
     password_ciphertext: "",
     notes: "",
+    website_url: "",
     ...overrides,
   };
 }

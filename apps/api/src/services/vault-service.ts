@@ -4,6 +4,7 @@ import type {
   VaultSyncItem,
   VaultSyncResponse,
 } from "../../../../packages/api-client/src/vault";
+import { normalizeVaultLoginPayload } from "../../../../packages/api-client/src/login-payload";
 
 type VaultSyncProfile = {
   id: string;
@@ -47,23 +48,6 @@ export class VaultSyncUnauthorizedError extends Error {}
 export class VaultSyncProfileNotFoundError extends Error {}
 
 export class VaultSyncItemConflictError extends Error {}
-
-function normalizeVaultLoginPayload(payload: unknown): VaultLoginPayload {
-  const value =
-    payload !== null && typeof payload === "object"
-      ? (payload as Partial<VaultLoginPayload>)
-      : {};
-
-  return {
-    schema_version: 1,
-    username: typeof value.username === "string" ? value.username : "",
-    password_ciphertext:
-      typeof value.password_ciphertext === "string"
-        ? value.password_ciphertext
-        : "",
-    notes: typeof value.notes === "string" ? value.notes : "",
-  };
-}
 
 function mapVaultItemRowToSyncItem(row: VaultItemRow): VaultSyncItem {
   return {
