@@ -25,6 +25,22 @@ type Fetcher = (
   json(): Promise<BootstrapProfileResponse | BootstrapErrorResponse>;
 }>;
 
+function readBootstrapErrorMessage(
+  payload: BootstrapProfileResponse | BootstrapErrorResponse,
+): string | null {
+  if (
+    typeof payload === "object" &&
+    payload !== null &&
+    "error" in payload &&
+    typeof payload.error === "string" &&
+    payload.error
+  ) {
+    return payload.error;
+  }
+
+  return null;
+}
+
 export async function bootstrapProfile(
   fetcher: Fetcher,
   token: string,
@@ -42,12 +58,8 @@ export async function bootstrapProfile(
 
   if (response.ok === false) {
     const message =
-      typeof payload === "object" &&
-      payload !== null &&
-      typeof payload.error === "string" &&
-      payload.error
-        ? payload.error
-        : `bootstrap_failed:${response.status ?? "unknown"}`;
+      readBootstrapErrorMessage(payload) ??
+      `bootstrap_failed:${response.status ?? "unknown"}`;
     throw new Error(message);
   }
 

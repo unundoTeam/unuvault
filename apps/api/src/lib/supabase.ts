@@ -62,9 +62,20 @@ type SupabaseResult<T> = PromiseLike<{
   error: unknown | null;
 }>;
 
+type IdentityAccountRow = {
+  account_id: string;
+};
+
 type IdentitySupabaseClientLike = {
   auth: {
     getUser(token: string): SupabaseResult<{ user: ProviderAuthUser | null }>;
+  };
+  from(table: string): {
+    select(columns: string): {
+      eq(column: string, value: string): {
+        single(): SupabaseResult<IdentityAccountRow>;
+      };
+    };
   };
 };
 
@@ -91,8 +102,24 @@ function readRequiredEnv(name: string): string {
   return value;
 }
 
-function extractAccountId(user: ProviderAuthUser): string | null {
-  return user.app_metadata?.account_id ?? user.user_metadata?.account_id ?? null;
+async function resolveAccountIdForAuthUser(
+  client: IdentitySupabaseClientLike,
+  authUserId: string,
+): Promise<string | null> {
+  const result = await (
+    client
+      .from("account_identities")
+      .select("account_id")
+      .eq("auth_user_id", authUserId) as {
+      single(): SupabaseResult<IdentityAccountRow>;
+    }
+  ).single();
+
+  if (result.error || !result.data?.account_id) {
+    return null;
+  }
+
+  return result.data.account_id;
 }
 
 export function createSupabaseAuthBootstrapDependencies(
@@ -114,9 +141,14 @@ export function createSupabaseAuthBootstrapDependencies(
         return null;
       }
 
+      const accountId = await resolveAccountIdForAuthUser(
+        clients.identityClient,
+        user.id,
+      );
+
       return {
         id: user.id,
-        account_id: extractAccountId(user),
+        account_id: accountId,
         email: user.email ?? null,
       };
     },
