@@ -1,13 +1,9 @@
 import { useEffect, useState } from "react";
 import {
-  createMasterPasswordVerifier,
-  type MasterPasswordVerifier,
-  verifyMasterPassword,
-} from "../../../../packages/security/src/master-password-verifier";
-import {
-  readMasterPasswordVerifier,
-  writeMasterPasswordVerifier,
-} from "./master-password-storage";
+  lockExtensionVaultInBackground,
+  readExtensionUnlockStateFromBackground,
+  unlockExtensionVaultInBackground,
+} from "./background-client";
 
 export type PopupUnlockMode = "needs_setup" | "locked" | "unlocked";
 
@@ -16,7 +12,7 @@ type PopupUnlockState = {
   draftPassphrase: string;
   errorMessage: string | null;
   isUnlocked: boolean;
-  lock(): void;
+  lock(): Promise<void>;
   mode: PopupUnlockMode;
   setDraftConfirmPassphrase(value: string): void;
   setDraftPassphrase(value: string): void;
@@ -26,24 +22,30 @@ type PopupUnlockState = {
 };
 
 export function usePopupUnlock(): PopupUnlockState {
-  const [storedVerifier, setStoredVerifier] = useState<MasterPasswordVerifier | null>(null);
   const [mode, setMode] = useState<PopupUnlockMode>("needs_setup");
   const [draftPassphrase, setDraftPassphrase] = useState("");
   const [draftConfirmPassphrase, setDraftConfirmPassphrase] = useState("");
-  const [unlockPassphrase, setUnlockPassphrase] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     let isActive = true;
 
-    void readMasterPasswordVerifier().then((verifier) => {
-      if (!isActive) {
-        return;
-      }
+    void readExtensionUnlockStateFromBackground()
+      .then((unlockState) => {
+        if (!isActive) {
+          return;
+        }
 
-      setStoredVerifier(verifier);
-      setMode(verifier ? "locked" : "needs_setup");
-    });
+        setMode(unlockState.mode);
+      })
+      .catch(() => {
+        if (!isActive) {
+          return;
+        }
+
+        setMode("needs_setup");
+        setErrorMessage("We couldn't unlock your vault. Please try again.");
+      });
 
     return () => {
       isActive = false;
@@ -62,60 +64,56 @@ export function usePopupUnlock(): PopupUnlockState {
 
   async function submitUnlock(): Promise<boolean> {
     if (!draftPassphrase) {
-      setUnlockPassphrase(null);
       setErrorMessage("Master password is required");
       return false;
     }
 
-    if (mode === "needs_setup") {
-      if (draftPassphrase !== draftConfirmPassphrase) {
-        setUnlockPassphrase(null);
-        setErrorMessage("Passwords do not match");
-        return false;
-      }
-
-      const verifier = createMasterPasswordVerifier(draftPassphrase);
-
-      await writeMasterPasswordVerifier(verifier);
-      setStoredVerifier(verifier);
-      setUnlockPassphrase(draftPassphrase);
-      setDraftConfirmPassphrase("");
-      setErrorMessage(null);
-      setMode("unlocked");
-      return true;
-    }
-
-    if (!storedVerifier || !verifyMasterPassword(storedVerifier, draftPassphrase)) {
-      setUnlockPassphrase(null);
-      setErrorMessage("Wrong master password");
+    if (mode === "needs_setup" && draftPassphrase !== draftConfirmPassphrase) {
+      setErrorMessage("Passwords do not match");
       return false;
     }
 
-    setUnlockPassphrase(draftPassphrase);
-    setErrorMessage(null);
-    setMode("unlocked");
-    return true;
+    try {
+      const unlockState = await unlockExtensionVaultInBackground(draftPassphrase);
+
+      setMode(unlockState.mode);
+      setDraftPassphrase("");
+      setDraftConfirmPassphrase("");
+      setErrorMessage(null);
+
+      return unlockState.mode === "unlocked";
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "We couldn't unlock your vault. Please try again.",
+      );
+      return false;
+    }
   }
 
-  function lock() {
-    setUnlockPassphrase(null);
-    setDraftPassphrase("");
-    setDraftConfirmPassphrase("");
-    setErrorMessage(null);
-    setMode(storedVerifier ? "locked" : "needs_setup");
+  async function lock() {
+    try {
+      const unlockState = await lockExtensionVaultInBackground();
+
+      setMode(unlockState.mode);
+      setDraftPassphrase("");
+      setDraftConfirmPassphrase("");
+      setErrorMessage(null);
+    } catch {
+      setErrorMessage("We couldn't lock your vault. Please try again.");
+    }
   }
 
   return {
     draftConfirmPassphrase,
     draftPassphrase,
     errorMessage,
-    isUnlocked: unlockPassphrase !== null,
+    isUnlocked: mode === "unlocked",
     lock,
     mode,
     setDraftConfirmPassphrase: updateDraftConfirmPassphrase,
     setDraftPassphrase: updateDraftPassphrase,
     submitLabel: mode === "needs_setup" ? "Set master password" : "Unlock vault",
     submitUnlock,
-    unlockPassphrase,
+    unlockPassphrase: null,
   };
 }

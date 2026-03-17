@@ -322,7 +322,7 @@ describe("App", () => {
 
     render(<App />);
 
-    expect(await screen.findByRole("button", { name: "Set master password" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Unlock vault" })).toBeInTheDocument();
     expect(sendMessage).toHaveBeenCalledWith({
       type: "read_extension_unlock_state",
     });
@@ -401,6 +401,9 @@ describe("App", () => {
       },
       sendMessage: createBackgroundMessageHandler({
         initialAuthState: createSignedInAuthState(),
+        initialUnlockState: {
+          mode: "locked",
+        },
       }),
     });
 
@@ -420,6 +423,10 @@ describe("App", () => {
       },
       sendMessage: createBackgroundMessageHandler({
         initialAuthState: createSignedInAuthState(),
+        initialUnlockState: {
+          mode: "locked",
+        },
+        unlockError: "Wrong master password",
       }),
     });
 
@@ -431,11 +438,12 @@ describe("App", () => {
     expect(screen.queryByText("Vault unlocked")).not.toBeInTheDocument();
   });
 
-  it("returns to locked mode after remount", async () => {
+  it("restores unlocked UI after remount when the background session still exists", async () => {
+    const sendMessage = createBackgroundMessageHandler({
+      initialAuthState: createSignedInAuthState(),
+    });
     installChromeExtensionMock({
-      sendMessage: createBackgroundMessageHandler({
-        initialAuthState: createSignedInAuthState(),
-      }),
+      sendMessage,
     });
     const firstRender = render(<App />);
 
@@ -444,19 +452,34 @@ describe("App", () => {
 
     firstRender.unmount();
     installChromeExtensionMock({
-      initialValues: {
-        [MASTER_PASSWORD_VERIFIER_STORAGE_KEY]: JSON.stringify(
-          createMasterPasswordVerifier("correct horse"),
-        ),
-      },
-      sendMessage: createBackgroundMessageHandler({
-        initialAuthState: createSignedInAuthState(),
-      }),
+      sendMessage,
     });
     render(<App />);
 
+    expect(await screen.findByText("Vault unlocked")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Unlock vault" })).not.toBeInTheDocument();
+  });
+
+  it("locks through background and returns to locked UI", async () => {
+    const sendMessage = createBackgroundMessageHandler({
+      initialAuthState: createSignedInAuthState(),
+    });
+    installChromeExtensionMock({
+      sendMessage,
+    });
+
+    render(<App />);
+
+    await setMasterPassword("correct horse");
+    expect(await screen.findByText("Vault unlocked")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Lock vault" }));
+
     expect(await screen.findByRole("button", { name: "Unlock vault" })).toBeInTheDocument();
     expect(screen.queryByText("Vault unlocked")).not.toBeInTheDocument();
+    expect(sendMessage).toHaveBeenCalledWith({
+      type: "lock_extension_vault",
+    });
   });
 
   it("shows cached vault items after unlock", async () => {
