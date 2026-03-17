@@ -1,8 +1,19 @@
-import type { AutofillStatus, BackgroundRequest, BackgroundResponse } from "../background/protocol";
+import type {
+  AutofillCandidates,
+  AutofillStatus,
+  BackgroundRequest,
+  BackgroundResponse,
+} from "../background/protocol";
 import { handleBackgroundRequest } from "../background/runtime";
 
 type ContentAutofillStatus =
   | AutofillStatus
+  | {
+      status: "unavailable";
+    };
+
+type ContentAutofillCandidates =
+  | AutofillCandidates
   | {
       status: "unavailable";
     };
@@ -48,6 +59,29 @@ export async function readAutofillStatus(): Promise<ContentAutofillStatus> {
     }
 
     return response.autofillStatus;
+  } catch {
+    return {
+      status: "unavailable",
+    };
+  }
+}
+
+export async function readAutofillCandidates(
+  pageUrl: string,
+): Promise<ContentAutofillCandidates> {
+  try {
+    const response = await callBackground({
+      type: "read_autofill_candidates",
+      pageUrl,
+    });
+
+    if (!response.ok || !("autofillCandidates" in response)) {
+      return {
+        status: "unavailable",
+      };
+    }
+
+    return response.autofillCandidates;
   } catch {
     return {
       status: "unavailable",
