@@ -18,6 +18,21 @@ type ContentAutofillCandidates =
       status: "unavailable";
     };
 
+type ContentAutofillAttemptResult =
+  | ContentAutofillCandidates
+  | {
+      status: "multiple_matches";
+      count: number;
+    }
+  | {
+      status: "no_fillable_fields";
+    }
+  | {
+      status: "filled";
+      filledUsername: boolean;
+      filledPassword: boolean;
+    };
+
 type ExtensionRuntime = {
   sendMessage?(request: BackgroundRequest): Promise<BackgroundResponse>;
 };
@@ -87,4 +102,110 @@ export async function readAutofillCandidates(
       status: "unavailable",
     };
   }
+}
+
+function isVisibleInput(input: HTMLInputElement) {
+  return input.getClientRects().length > 0;
+}
+
+function isFillableInput(input: HTMLInputElement) {
+  if (input.disabled || input.readOnly) {
+    return false;
+  }
+
+  if (input.type === "hidden") {
+    return false;
+  }
+
+  return isVisibleInput(input);
+}
+
+function findFirstFillableInput(
+  inputs: HTMLInputElement[],
+  predicate: (input: HTMLInputElement) => boolean,
+) {
+  return inputs.find((input) => isFillableInput(input) && predicate(input)) ?? null;
+}
+
+function hasFieldHint(input: HTMLInputElement) {
+  const identifier = `${input.name} ${input.id}`.toLowerCase();
+
+  return (
+    identifier.includes("user") ||
+    identifier.includes("email") ||
+    identifier.includes("login")
+  );
+}
+
+function findUsernameField(document: Document) {
+  const inputs = Array.from(document.querySelectorAll("input"));
+
+  return (
+    findFirstFillableInput(
+      inputs,
+      (input) => input.autocomplete.toLowerCase() === "username",
+    ) ??
+    findFirstFillableInput(
+      inputs,
+      (input) => input.autocomplete.toLowerCase() === "email",
+    ) ??
+    findFirstFillableInput(inputs, (input) => input.type === "email") ??
+    findFirstFillableInput(inputs, hasFieldHint) ??
+    findFirstFillableInput(inputs, (input) => input.type === "text")
+  );
+}
+
+function dispatchAutofillEvents(input: HTMLInputElement) {
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+  input.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+export async function attemptAutofillForCurrentPage(input: {
+  document: Document;
+  pageUrl: string;
+}): Promise<ContentAutofillAttemptResult> {
+  const candidates = await readAutofillCandidates(input.pageUrl);
+
+  if (candidates.status !== "ready") {
+    return candidates;
+  }
+
+  if (candidates.matches.length === 0) {
+    return {
+      status: "no_match",
+      matches: [],
+    };
+  }
+
+  if (candidates.matches.length > 1) {
+    return {
+      status: "multiple_matches",
+      count: candidates.matches.length,
+    };
+  }
+
+  const [candidate] = candidates.matches;
+
+  if (!candidate.username) {
+    return {
+      status: "no_fillable_fields",
+    };
+  }
+
+  const usernameField = findUsernameField(input.document);
+
+  if (!usernameField) {
+    return {
+      status: "no_fillable_fields",
+    };
+  }
+
+  usernameField.value = candidate.username;
+  dispatchAutofillEvents(usernameField);
+
+  return {
+    status: "filled",
+    filledUsername: true,
+    filledPassword: false,
+  };
 }
