@@ -22,6 +22,56 @@ function createDefaultDeps(): BackgroundRuntimeDeps {
   };
 }
 
+function buildAutofillCandidatesResponse(
+  pageUrl: string,
+  unlockedItems: Awaited<
+    ReturnType<typeof defaultUnlockedVaultReader.readUnlockedLoginItems>
+  >,
+): BackgroundResponse {
+  let pageOrigin = "";
+
+  try {
+    pageOrigin = new URL(pageUrl).origin;
+  } catch {
+    return {
+      ok: true,
+      autofillCandidates: {
+        status: "no_page_url",
+        matches: [],
+      },
+    };
+  }
+
+  const matches = unlockedItems
+    .filter((item) => item.websiteOrigin === pageOrigin)
+    .map((item) => ({
+      hasPassword: item.hasPassword,
+      id: item.id,
+      title: item.title,
+      username: item.username,
+      websiteOrigin: item.websiteOrigin,
+      websiteUrl: item.websiteUrl,
+    }));
+
+  if (matches.length === 0) {
+    return {
+      ok: true,
+      autofillCandidates: {
+        status: "no_match",
+        matches: [],
+      },
+    };
+  }
+
+  return {
+    ok: true,
+    autofillCandidates: {
+      status: "ready",
+      matches,
+    },
+  };
+}
+
 export async function handleBackgroundRequest(
   request: BackgroundRequest,
   deps: BackgroundRuntimeDeps = createDefaultDeps(),
@@ -103,6 +153,36 @@ export async function handleBackgroundRequest(
           status: unlockedItems.length > 0 ? "ready" : "empty",
         },
       };
+    }
+    case "read_autofill_candidates": {
+      const authState = await deps.authRuntime.readExtensionAuthState();
+
+      if (authState.status !== "signed_in") {
+        return {
+          ok: true,
+          autofillCandidates: {
+            status: "signed_out",
+            matches: [],
+          },
+        };
+      }
+
+      const unlockState = await deps.unlockRuntime.readUnlockState();
+
+      if (unlockState.mode !== "unlocked") {
+        return {
+          ok: true,
+          autofillCandidates: {
+            status: "locked",
+            matches: [],
+          },
+        };
+      }
+
+      return buildAutofillCandidatesResponse(
+        request.pageUrl,
+        await deps.unlockedVaultReader.readUnlockedLoginItems(),
+      );
     }
     case "hydrate_popup_vault_cache":
       try {
