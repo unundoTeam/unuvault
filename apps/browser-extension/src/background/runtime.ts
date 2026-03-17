@@ -6,14 +6,14 @@ import { hydratePopupVaultCache } from "./vault-cache";
 
 const defaultUnlockedVaultReader = createUnlockedVaultReader();
 
-type BackgroundRuntimeDeps = {
+export type BackgroundRuntimeDeps = {
   authRuntime: ReturnType<typeof createExtensionAuthRuntime>;
   hydratePopupVaultCache(): Promise<{ ok: boolean }>;
   unlockRuntime: typeof extensionUnlockRuntime;
   unlockedVaultReader: typeof defaultUnlockedVaultReader;
 };
 
-type BackgroundCallerContext = {
+export type BackgroundCallerContext = {
   source: "content" | "popup" | "internal";
   trustedPageUrl?: string | null;
 };
