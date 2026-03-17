@@ -107,8 +107,12 @@ describe("background unlock protocol", () => {
         hydratePopupVaultCache: vi.fn(),
         unlockRuntime: {
           lock: vi.fn(),
+          readUnlockPassphrase: vi.fn(),
           readUnlockState,
           unlockWithPassphrase: vi.fn(),
+        },
+        unlockedVaultReader: {
+          readUnlockedLoginItems: vi.fn(),
         },
       },
     );
@@ -141,8 +145,12 @@ describe("background unlock protocol", () => {
       hydratePopupVaultCache: vi.fn(),
       unlockRuntime: {
         lock,
+        readUnlockPassphrase: vi.fn(),
         readUnlockState: vi.fn(),
         unlockWithPassphrase,
+      },
+      unlockedVaultReader: {
+        readUnlockedLoginItems: vi.fn(),
       },
     };
 
