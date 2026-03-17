@@ -1,7 +1,10 @@
 import { openStoredVaultPassword } from "../../../../packages/security/src/vault-envelope";
 import { readExtensionAuthState } from "./auth";
 import { readExtensionUnlockPassphrase } from "./unlock-session";
-import { normalizeVaultLoginPayload } from "../popup/login-payload";
+import {
+  normalizeVaultLoginPayload,
+  parseVaultWebsiteMetadata,
+} from "../popup/login-payload";
 import { readPopupVaultItems } from "../popup/popup-vault-storage";
 
 export type UnlockedVaultLoginItem = {
@@ -10,6 +13,9 @@ export type UnlockedVaultLoginItem = {
   password: string;
   title: string;
   username: string;
+  websiteHostname: string;
+  websiteOrigin: string;
+  websiteUrl: string;
 };
 
 type UnlockedVaultReaderDeps = {
@@ -58,6 +64,7 @@ export function createUnlockedVaultReader(
             payload.password_ciphertext,
             passphrase,
           );
+          const websiteMetadata = parseVaultWebsiteMetadata(payload.website_url);
 
           return {
             hasPassword: Boolean(password),
@@ -65,6 +72,9 @@ export function createUnlockedVaultReader(
             password,
             title: item.title,
             username: payload.username,
+            websiteHostname: websiteMetadata.websiteHostname,
+            websiteOrigin: websiteMetadata.websiteOrigin,
+            websiteUrl: websiteMetadata.websiteUrl,
           };
         });
     },

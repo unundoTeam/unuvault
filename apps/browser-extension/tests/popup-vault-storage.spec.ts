@@ -19,6 +19,7 @@ function createVaultItem(overrides?: Partial<VaultSyncItem>): VaultSyncItem {
       username: "alice@example.com",
       password_ciphertext: "",
       notes: "",
+      website_url: "",
     },
     favorite: false,
     source: "manual",
@@ -69,6 +70,24 @@ describe("popup vault storage", () => {
 
   it("reads a cached vault list from extension storage", async () => {
     installChromeStorageMock(JSON.stringify([createVaultItem()]));
+
+    await expect(readPopupVaultItems()).resolves.toEqual([createVaultItem()]);
+  });
+
+  it("normalizes old cached items that omit website_url", async () => {
+    installChromeStorageMock(
+      JSON.stringify([
+        {
+          ...createVaultItem(),
+          encrypted_payload: {
+            schema_version: 1,
+            username: "alice@example.com",
+            password_ciphertext: "",
+            notes: "",
+          },
+        },
+      ]),
+    );
 
     await expect(readPopupVaultItems()).resolves.toEqual([createVaultItem()]);
   });

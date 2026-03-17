@@ -2,6 +2,7 @@ import type {
   VaultLoginPayload,
   VaultSyncItem,
 } from "../../../../packages/api-client/src/vault";
+import { normalizeVaultLoginPayload } from "./login-payload";
 
 const POPUP_VAULT_STORAGE_KEY = "unuvault.extension.popup-vault-items";
 
@@ -54,7 +55,12 @@ function isVaultSyncItem(value: unknown): value is VaultSyncItem {
 function parseStoredVaultItems(value: unknown): VaultSyncItem[] {
   const parsed = typeof value === "string" ? (JSON.parse(value) as unknown) : value;
 
-  return Array.isArray(parsed) && parsed.every(isVaultSyncItem) ? parsed : [];
+  return Array.isArray(parsed) && parsed.every(isVaultSyncItem)
+    ? parsed.map((item) => ({
+        ...item,
+        encrypted_payload: normalizeVaultLoginPayload(item.encrypted_payload),
+      }))
+    : [];
 }
 
 export async function readPopupVaultItems(): Promise<VaultSyncItem[]> {
