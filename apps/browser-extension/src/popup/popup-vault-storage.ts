@@ -7,6 +7,8 @@ const POPUP_VAULT_STORAGE_KEY = "unuvault.extension.popup-vault-items";
 
 type ExtensionStorageArea = {
   get(keys: string | string[] | Record<string, unknown>): Promise<Record<string, unknown>>;
+  remove(keys: string | string[]): Promise<void>;
+  set(items: Record<string, unknown>): Promise<void>;
 };
 
 function getExtensionStorageArea(): ExtensionStorageArea | null {
@@ -69,4 +71,26 @@ export async function readPopupVaultItems(): Promise<VaultSyncItem[]> {
   } catch {
     return [];
   }
+}
+
+export async function writePopupVaultItems(items: VaultSyncItem[]): Promise<void> {
+  const storage = getExtensionStorageArea();
+
+  if (!storage) {
+    return;
+  }
+
+  await storage.set({
+    [POPUP_VAULT_STORAGE_KEY]: JSON.stringify(items),
+  });
+}
+
+export async function clearPopupVaultItems(): Promise<void> {
+  const storage = getExtensionStorageArea();
+
+  if (!storage) {
+    return;
+  }
+
+  await storage.remove(POPUP_VAULT_STORAGE_KEY);
 }
