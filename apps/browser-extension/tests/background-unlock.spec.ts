@@ -4,6 +4,7 @@ import {
   clearMasterPasswordVerifier,
   writeMasterPasswordVerifier,
 } from "../src/popup/master-password-storage";
+import { handleBackgroundRequest } from "../src/background/runtime";
 import { createExtensionUnlockRuntime } from "../src/background/unlock-session";
 
 type ChromeStorageArea = {
@@ -84,5 +85,95 @@ describe("background unlock runtime", () => {
     await expect(runtime.readUnlockState()).resolves.toEqual({
       mode: "locked",
     });
+  });
+});
+
+describe("background unlock protocol", () => {
+  it("routes read_extension_unlock_state through the background runtime", async () => {
+    const readUnlockState = vi.fn().mockResolvedValue({
+      mode: "locked",
+    });
+
+    const response = await handleBackgroundRequest(
+      {
+        type: "read_extension_unlock_state",
+      },
+      {
+        authRuntime: {
+          readExtensionAuthState: vi.fn(),
+          signInWithPassword: vi.fn(),
+          signOut: vi.fn(),
+        },
+        hydratePopupVaultCache: vi.fn(),
+        unlockRuntime: {
+          lock: vi.fn(),
+          readUnlockState,
+          unlockWithPassphrase: vi.fn(),
+        },
+      },
+    );
+
+    expect(response).toEqual({
+      ok: true,
+      unlockState: {
+        mode: "locked",
+      },
+    });
+    expect(readUnlockState).toHaveBeenCalledTimes(1);
+  });
+
+  it("routes unlock_extension_vault and lock_extension_vault through the background runtime", async () => {
+    const unlockWithPassphrase = vi.fn().mockResolvedValue({
+      ok: true,
+      unlockState: {
+        mode: "unlocked",
+      },
+    });
+    const lock = vi.fn().mockResolvedValue({
+      mode: "locked",
+    });
+    const deps = {
+      authRuntime: {
+        readExtensionAuthState: vi.fn(),
+        signInWithPassword: vi.fn(),
+        signOut: vi.fn(),
+      },
+      hydratePopupVaultCache: vi.fn(),
+      unlockRuntime: {
+        lock,
+        readUnlockState: vi.fn(),
+        unlockWithPassphrase,
+      },
+    };
+
+    await expect(
+      handleBackgroundRequest(
+        {
+          type: "unlock_extension_vault",
+          passphrase: "correct horse",
+        },
+        deps,
+      ),
+    ).resolves.toEqual({
+      ok: true,
+      unlockState: {
+        mode: "unlocked",
+      },
+    });
+    await expect(
+      handleBackgroundRequest(
+        {
+          type: "lock_extension_vault",
+        },
+        deps,
+      ),
+    ).resolves.toEqual({
+      ok: true,
+      unlockState: {
+        mode: "locked",
+      },
+    });
+    expect(unlockWithPassphrase).toHaveBeenCalledWith("correct horse");
+    expect(lock).toHaveBeenCalledTimes(1);
   });
 });
