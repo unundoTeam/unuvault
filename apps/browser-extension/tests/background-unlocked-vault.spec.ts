@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { VaultSyncItem } from "../../../packages/api-client/src/vault";
 import { sealVaultPassword } from "../../../packages/security/src/vault-envelope";
+import { handleBackgroundRequest } from "../src/background/runtime";
 import { writePopupVaultItems } from "../src/popup/popup-vault-storage";
 import { createUnlockedVaultReader } from "../src/background/unlocked-vault";
 
@@ -131,5 +132,153 @@ describe("background unlocked vault reader", () => {
         username: "alice@example.com",
       },
     ]);
+  });
+});
+
+describe("background autofill status", () => {
+  function createDeps(options: {
+    authState: { status: "signed_out" } | {
+      status: "signed_in";
+      accessToken: string;
+      email: string;
+      profileId: string;
+      signedInAt: string;
+    };
+    items: Array<{
+      hasPassword: boolean;
+      id: string;
+      password: string;
+      title: string;
+      username: string;
+    }>;
+    unlockMode: "needs_setup" | "locked" | "unlocked";
+  }) {
+    return {
+      authRuntime: {
+        readExtensionAuthState: vi.fn().mockResolvedValue(options.authState),
+        signInWithPassword: vi.fn(),
+        signOut: vi.fn(),
+      },
+      hydratePopupVaultCache: vi.fn(),
+      unlockRuntime: {
+        lock: vi.fn(),
+        readUnlockPassphrase: vi.fn(),
+        readUnlockState: vi.fn().mockResolvedValue({
+          mode: options.unlockMode,
+        }),
+        unlockWithPassphrase: vi.fn(),
+      },
+      unlockedVaultReader: {
+        readUnlockedLoginItems: vi.fn().mockResolvedValue(options.items),
+      },
+    };
+  }
+
+  it("returns signed_out autofill status when auth is missing", async () => {
+    const response = await handleBackgroundRequest(
+      {
+        type: "read_autofill_status",
+      },
+      createDeps({
+        authState: {
+          status: "signed_out",
+        },
+        items: [],
+        unlockMode: "locked",
+      }),
+    );
+
+    expect(response).toEqual({
+      ok: true,
+      autofillStatus: {
+        status: "signed_out",
+      },
+    });
+  });
+
+  it("returns locked autofill status when auth exists but unlock is locked", async () => {
+    const response = await handleBackgroundRequest(
+      {
+        type: "read_autofill_status",
+      },
+      createDeps({
+        authState: {
+          status: "signed_in",
+          accessToken: "jwt-token",
+          email: "user@example.com",
+          profileId: "profile-1",
+          signedInAt: "2026-03-17T00:00:00.000Z",
+        },
+        items: [],
+        unlockMode: "locked",
+      }),
+    );
+
+    expect(response).toEqual({
+      ok: true,
+      autofillStatus: {
+        status: "locked",
+      },
+    });
+  });
+
+  it("returns empty autofill status when no readable login items exist", async () => {
+    const response = await handleBackgroundRequest(
+      {
+        type: "read_autofill_status",
+      },
+      createDeps({
+        authState: {
+          status: "signed_in",
+          accessToken: "jwt-token",
+          email: "user@example.com",
+          profileId: "profile-1",
+          signedInAt: "2026-03-17T00:00:00.000Z",
+        },
+        items: [],
+        unlockMode: "unlocked",
+      }),
+    );
+
+    expect(response).toEqual({
+      ok: true,
+      autofillStatus: {
+        status: "empty",
+      },
+    });
+  });
+
+  it("returns ready autofill status when at least one readable login item exists", async () => {
+    const response = await handleBackgroundRequest(
+      {
+        type: "read_autofill_status",
+      },
+      createDeps({
+        authState: {
+          status: "signed_in",
+          accessToken: "jwt-token",
+          email: "user@example.com",
+          profileId: "profile-1",
+          signedInAt: "2026-03-17T00:00:00.000Z",
+        },
+        items: [
+          {
+            hasPassword: true,
+            id: "item-1",
+            password: "hunter2",
+            title: "GitHub",
+            username: "alice@example.com",
+          },
+        ],
+        unlockMode: "unlocked",
+      }),
+    );
+
+    expect(response).toEqual({
+      ok: true,
+      autofillStatus: {
+        status: "ready",
+      },
+    });
   });
 });
