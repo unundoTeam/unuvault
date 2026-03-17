@@ -22,17 +22,23 @@ function createDefaultDeps(): BackgroundRuntimeDeps {
   };
 }
 
+function readPageOrigin(pageUrl: string) {
+  try {
+    return new URL(pageUrl).origin;
+  } catch {
+    return null;
+  }
+}
+
 function buildAutofillCandidatesResponse(
   pageUrl: string,
   unlockedItems: Awaited<
     ReturnType<typeof defaultUnlockedVaultReader.readUnlockedLoginItems>
   >,
 ): BackgroundResponse {
-  let pageOrigin = "";
+  const pageOrigin = readPageOrigin(pageUrl);
 
-  try {
-    pageOrigin = new URL(pageUrl).origin;
-  } catch {
+  if (!pageOrigin) {
     return {
       ok: true,
       autofillCandidates: {
@@ -68,6 +74,67 @@ function buildAutofillCandidatesResponse(
     autofillCandidates: {
       status: "ready",
       matches,
+    },
+  };
+}
+
+function buildAutofillFillDataResponse(
+  pageUrl: string,
+  unlockedItems: Awaited<
+    ReturnType<typeof defaultUnlockedVaultReader.readUnlockedLoginItems>
+  >,
+): BackgroundResponse {
+  const pageOrigin = readPageOrigin(pageUrl);
+
+  if (!pageOrigin) {
+    return {
+      ok: true,
+      autofillFillData: {
+        status: "no_page_url",
+      },
+    };
+  }
+
+  const matches = unlockedItems.filter((item) => item.websiteOrigin === pageOrigin);
+
+  if (matches.length === 0) {
+    return {
+      ok: true,
+      autofillFillData: {
+        status: "no_match",
+      },
+    };
+  }
+
+  if (matches.length > 1) {
+    return {
+      ok: true,
+      autofillFillData: {
+        status: "multiple_matches",
+        count: matches.length,
+      },
+    };
+  }
+
+  const [match] = matches;
+
+  if (!match.password) {
+    return {
+      ok: true,
+      autofillFillData: {
+        status: "no_password",
+      },
+    };
+  }
+
+  return {
+    ok: true,
+    autofillFillData: {
+      status: "ready",
+      fillData: {
+        password: match.password,
+        username: match.username,
+      },
     },
   };
 }
@@ -180,6 +247,34 @@ export async function handleBackgroundRequest(
       }
 
       return buildAutofillCandidatesResponse(
+        request.pageUrl,
+        await deps.unlockedVaultReader.readUnlockedLoginItems(),
+      );
+    }
+    case "read_autofill_fill_data": {
+      const authState = await deps.authRuntime.readExtensionAuthState();
+
+      if (authState.status !== "signed_in") {
+        return {
+          ok: true,
+          autofillFillData: {
+            status: "signed_out",
+          },
+        };
+      }
+
+      const unlockState = await deps.unlockRuntime.readUnlockState();
+
+      if (unlockState.mode !== "unlocked") {
+        return {
+          ok: true,
+          autofillFillData: {
+            status: "locked",
+          },
+        };
+      }
+
+      return buildAutofillFillDataResponse(
         request.pageUrl,
         await deps.unlockedVaultReader.readUnlockedLoginItems(),
       );

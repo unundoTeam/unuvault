@@ -46,6 +46,34 @@ export type AutofillCandidates =
       matches: AutofillCandidate[];
     };
 
+export type AutofillFillData =
+  | {
+      status: "signed_out";
+    }
+  | {
+      status: "locked";
+    }
+  | {
+      status: "no_page_url";
+    }
+  | {
+      status: "no_match";
+    }
+  | {
+      status: "multiple_matches";
+      count: number;
+    }
+  | {
+      status: "no_password";
+    }
+  | {
+      status: "ready";
+      fillData: {
+        username: string;
+        password: string;
+      };
+    };
+
 export type BackgroundRequest =
   | {
       type: "read_extension_auth_state";
@@ -73,6 +101,10 @@ export type BackgroundRequest =
       pageUrl: string;
     }
   | {
+      type: "read_autofill_fill_data";
+      pageUrl: string;
+    }
+  | {
       type: "hydrate_popup_vault_cache";
     }
   | {
@@ -95,6 +127,10 @@ export type BackgroundResponse =
   | {
       ok: true;
       autofillCandidates: AutofillCandidates;
+    }
+  | {
+      ok: true;
+      autofillFillData: AutofillFillData;
     }
   | {
       ok: true;
