@@ -196,30 +196,95 @@ export async function attemptAutofillForCurrentPage(input: {
   document: Document;
   pageUrl: string;
 }): Promise<ContentAutofillAttemptResult> {
-  const fillData = await readAutofillFillData(input.pageUrl);
+  const candidates = await readAutofillCandidates(input.pageUrl);
 
-  if (fillData.status !== "ready") {
-    return fillData;
+  if (candidates.status !== "ready") {
+    switch (candidates.status) {
+      case "signed_out":
+        return {
+          status: "signed_out",
+        };
+      case "locked":
+        return {
+          status: "locked",
+        };
+      case "no_page_url":
+        return {
+          status: "no_page_url",
+        };
+      case "no_match":
+        return {
+          status: "no_match",
+        };
+      case "unavailable":
+        return candidates;
+    }
   }
 
+  if (candidates.matches.length === 0) {
+    return {
+      status: "no_match",
+    };
+  }
+
+  if (candidates.matches.length > 1) {
+    return {
+      status: "multiple_matches",
+      count: candidates.matches.length,
+    };
+  }
+
+  const [candidate] = candidates.matches;
   const usernameField = findUsernameField(input.document);
   const passwordField = findPasswordField(input.document);
   let filledUsername = false;
   let filledPassword = false;
 
-  if (usernameField && fillData.fillData.username) {
-    usernameField.value = fillData.fillData.username;
+  if (candidate.hasPassword && passwordField) {
+    const fillData = await readAutofillFillData(input.pageUrl);
+
+    if (fillData.status !== "ready") {
+      return fillData;
+    }
+
+    if (usernameField && candidate.username) {
+      usernameField.value = candidate.username;
+      dispatchAutofillEvents(usernameField);
+      filledUsername = true;
+    }
+
+    if (fillData.fillData.password) {
+      passwordField.value = fillData.fillData.password;
+      dispatchAutofillEvents(passwordField);
+      filledPassword = true;
+    }
+
+    if (!filledUsername && !filledPassword) {
+      return {
+        status: "no_fillable_fields",
+      };
+    }
+
+    return {
+      status: "filled",
+      filledUsername,
+      filledPassword,
+    };
+  }
+
+  if (usernameField && candidate.username) {
+    usernameField.value = candidate.username;
     dispatchAutofillEvents(usernameField);
     filledUsername = true;
   }
 
-  if (passwordField && fillData.fillData.password) {
-    passwordField.value = fillData.fillData.password;
-    dispatchAutofillEvents(passwordField);
-    filledPassword = true;
-  }
-
   if (!filledUsername && !filledPassword) {
+    if (passwordField && !candidate.hasPassword) {
+      return {
+        status: "no_password",
+      };
+    }
+
     return {
       status: "no_fillable_fields",
     };

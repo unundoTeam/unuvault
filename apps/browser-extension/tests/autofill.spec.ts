@@ -9,7 +9,21 @@ import {
   shouldOfferAutofill,
 } from "../src/content/autofill";
 
-type SendMessage = (request: unknown) => Promise<unknown>;
+type SendMessage = (request: { type?: string }) => Promise<unknown>;
+
+const defaultCandidate = {
+  hasPassword: true,
+  id: "item-1",
+  title: "GitHub",
+  username: "alice@example.com",
+  websiteOrigin: "https://github.com",
+  websiteUrl: "https://github.com/login",
+};
+
+const defaultFillData = {
+  username: "alice@example.com",
+  password: "hunter2",
+};
 
 function installChromeRuntimeMock(sendMessage?: SendMessage) {
   vi.stubGlobal("chrome", {
@@ -30,6 +44,40 @@ function markInputVisible(input: HTMLInputElement) {
   Object.defineProperty(input, "getClientRects", {
     configurable: true,
     value: () => [{ width: 120, height: 24 }],
+  });
+}
+
+function createAutofillMessageHandler(input?: {
+  autofillCandidates?: unknown;
+  autofillFillData?: unknown;
+}) {
+  return vi.fn(async (request: { type?: string }) => {
+    if (request.type === "read_autofill_candidates") {
+      return {
+        ok: true,
+        autofillCandidates: input?.autofillCandidates ?? {
+          status: "ready",
+          matches: [defaultCandidate],
+        },
+      };
+    }
+
+    if (request.type === "read_autofill_fill_data") {
+      return {
+        ok: true,
+        autofillFillData: input?.autofillFillData ?? {
+          status: "ready",
+          fillData: defaultFillData,
+        },
+      };
+    }
+
+    return {
+      ok: true,
+      autofillStatus: {
+        status: "ready",
+      },
+    };
   });
 }
 
@@ -169,18 +217,7 @@ describe("shouldOfferAutofill", () => {
 
     markInputVisible(input);
 
-    installChromeRuntimeMock(
-      vi.fn(async () => ({
-        ok: true,
-        autofillFillData: {
-          status: "ready",
-          fillData: {
-            username: "alice@example.com",
-            password: "hunter2",
-          },
-        },
-      })),
-    );
+    installChromeRuntimeMock(createAutofillMessageHandler());
 
     await expect(
       attemptAutofillForCurrentPage({
@@ -213,18 +250,7 @@ describe("shouldOfferAutofill", () => {
     form.addEventListener("input", inputListener);
     form.addEventListener("change", changeListener);
 
-    installChromeRuntimeMock(
-      vi.fn(async () => ({
-        ok: true,
-        autofillFillData: {
-          status: "ready",
-          fillData: {
-            username: "alice@example.com",
-            password: "hunter2",
-          },
-        },
-      })),
-    );
+    installChromeRuntimeMock(createAutofillMessageHandler());
 
     await attemptAutofillForCurrentPage({
       document,
@@ -246,13 +272,21 @@ describe("shouldOfferAutofill", () => {
     markInputVisible(input);
 
     installChromeRuntimeMock(
-      vi.fn(async () => ({
-        ok: true,
-        autofillFillData: {
-          status: "multiple_matches",
-          count: 2,
+      createAutofillMessageHandler({
+        autofillCandidates: {
+          status: "ready",
+          matches: [
+            defaultCandidate,
+            {
+              ...defaultCandidate,
+              id: "item-2",
+              title: "GitHub alt",
+              username: "bob@example.com",
+              websiteUrl: "https://github.com/session",
+            },
+          ],
         },
-      })),
+      }),
     );
 
     await expect(
@@ -283,18 +317,7 @@ describe("shouldOfferAutofill", () => {
     markInputVisible(inputs[0]);
     markInputVisible(inputs[1]);
 
-    installChromeRuntimeMock(
-      vi.fn(async () => ({
-        ok: true,
-        autofillFillData: {
-          status: "ready",
-          fillData: {
-            username: "alice@example.com",
-            password: "hunter2",
-          },
-        },
-      })),
-    );
+    installChromeRuntimeMock(createAutofillMessageHandler());
 
     await expect(
       attemptAutofillForCurrentPage({
@@ -321,18 +344,7 @@ describe("shouldOfferAutofill", () => {
 
     markInputVisible(input);
 
-    installChromeRuntimeMock(
-      vi.fn(async () => ({
-        ok: true,
-        autofillFillData: {
-          status: "ready",
-          fillData: {
-            username: "alice@example.com",
-            password: "hunter2",
-          },
-        },
-      })),
-    );
+    installChromeRuntimeMock(createAutofillMessageHandler());
 
     await expect(
       attemptAutofillForCurrentPage({
@@ -352,18 +364,7 @@ describe("shouldOfferAutofill", () => {
     document.body.innerHTML =
       '<form><input type="hidden" /><input type="password" readonly /></form>';
 
-    installChromeRuntimeMock(
-      vi.fn(async () => ({
-        ok: true,
-        autofillFillData: {
-          status: "ready",
-          fillData: {
-            username: "alice@example.com",
-            password: "hunter2",
-          },
-        },
-      })),
-    );
+    installChromeRuntimeMock(createAutofillMessageHandler());
 
     await expect(
       attemptAutofillForCurrentPage({
@@ -386,12 +387,12 @@ describe("shouldOfferAutofill", () => {
     markInputVisible(input);
 
     installChromeRuntimeMock(
-      vi.fn(async () => ({
-        ok: true,
-        autofillFillData: {
+      createAutofillMessageHandler({
+        autofillCandidates: {
           status: "locked",
+          matches: [],
         },
-      })),
+      }),
     );
 
     await expect(
@@ -440,13 +441,21 @@ describe("shouldOfferAutofill", () => {
     markInputVisible(inputs[1]);
 
     installChromeRuntimeMock(
-      vi.fn(async () => ({
-        ok: true,
-        autofillFillData: {
-          status: "multiple_matches",
-          count: 2,
+      createAutofillMessageHandler({
+        autofillCandidates: {
+          status: "ready",
+          matches: [
+            defaultCandidate,
+            {
+              ...defaultCandidate,
+              id: "item-2",
+              title: "GitHub alt",
+              username: "bob@example.com",
+              websiteUrl: "https://github.com/session",
+            },
+          ],
         },
-      })),
+      }),
     );
 
     await expect(
@@ -463,7 +472,50 @@ describe("shouldOfferAutofill", () => {
     expect(inputs[1].value).toBe("");
   });
 
-  it("does not mutate the DOM when fill data reports no_password", async () => {
+  it("fills the username for a passwordless exact-origin match", async () => {
+    document.body.innerHTML = '<form><input autocomplete="username" /></form>';
+    const input = document.querySelector("input");
+
+    if (!(input instanceof HTMLInputElement)) {
+      throw new Error("expected username input");
+    }
+
+    markInputVisible(input);
+
+    const sendMessage = createAutofillMessageHandler({
+      autofillCandidates: {
+        status: "ready",
+        matches: [
+          {
+            ...defaultCandidate,
+            hasPassword: false,
+          },
+        ],
+      },
+    });
+
+    installChromeRuntimeMock(sendMessage);
+
+    await expect(
+      attemptAutofillForCurrentPage({
+        document,
+        pageUrl: "https://github.com/login",
+      }),
+    ).resolves.toEqual({
+      status: "filled",
+      filledUsername: true,
+      filledPassword: false,
+    });
+
+    expect(input.value).toBe("alice@example.com");
+    expect(sendMessage).toHaveBeenCalledTimes(1);
+    expect(sendMessage).toHaveBeenCalledWith({
+      type: "read_autofill_candidates",
+      pageUrl: "https://github.com/login",
+    });
+  });
+
+  it("returns no_password when only a password field exists for a passwordless match", async () => {
     document.body.innerHTML = '<form><input type="password" /></form>';
     const input = document.querySelector("input");
 
@@ -474,12 +526,17 @@ describe("shouldOfferAutofill", () => {
     markInputVisible(input);
 
     installChromeRuntimeMock(
-      vi.fn(async () => ({
-        ok: true,
-        autofillFillData: {
-          status: "no_password",
+      createAutofillMessageHandler({
+        autofillCandidates: {
+          status: "ready",
+          matches: [
+            {
+              ...defaultCandidate,
+              hasPassword: false,
+            },
+          ],
         },
-      })),
+      }),
     );
 
     await expect(
