@@ -102,7 +102,6 @@ export type BackgroundRequest =
     }
   | {
       type: "read_autofill_fill_data";
-      pageUrl: string;
     }
   | {
       type: "hydrate_popup_vault_cache";

@@ -420,7 +420,6 @@ describe("background autofill status", () => {
     const response = await handleBackgroundRequest(
       {
         type: "read_autofill_fill_data",
-        pageUrl: "https://github.com/login",
       } as never,
       createDeps({
         authState: {
@@ -443,7 +442,6 @@ describe("background autofill status", () => {
     const response = await handleBackgroundRequest(
       {
         type: "read_autofill_fill_data",
-        pageUrl: "https://github.com/login",
       } as never,
       createDeps({
         authState: {
@@ -466,11 +464,10 @@ describe("background autofill status", () => {
     });
   });
 
-  it("returns no_page_url autofill fill data when pageUrl is invalid", async () => {
+  it("returns no_page_url autofill fill data when trusted caller page URL is missing", async () => {
     const response = await handleBackgroundRequest(
       {
         type: "read_autofill_fill_data",
-        pageUrl: "not a url",
       } as never,
       createDeps({
         authState: {
@@ -493,11 +490,10 @@ describe("background autofill status", () => {
     });
   });
 
-  it("returns no_match autofill fill data when no exact-origin match exists", async () => {
+  it("returns no_page_url autofill fill data for non-content callers", async () => {
     const response = await handleBackgroundRequest(
       {
         type: "read_autofill_fill_data",
-        pageUrl: "https://app.github.com/login",
       } as never,
       createDeps({
         authState: {
@@ -521,6 +517,51 @@ describe("background autofill status", () => {
         ],
         unlockMode: "unlocked",
       }),
+      {
+        source: "popup",
+        trustedPageUrl: "https://github.com/login",
+      },
+    );
+
+    expect(response).toEqual({
+      ok: true,
+      autofillFillData: {
+        status: "no_page_url",
+      },
+    });
+  });
+
+  it("returns no_match autofill fill data when trusted caller page URL does not exactly match", async () => {
+    const response = await handleBackgroundRequest(
+      {
+        type: "read_autofill_fill_data",
+      } as never,
+      createDeps({
+        authState: {
+          status: "signed_in",
+          accessToken: "jwt-token",
+          email: "user@example.com",
+          profileId: "profile-1",
+          signedInAt: "2026-03-17T00:00:00.000Z",
+        },
+        items: [
+          {
+            hasPassword: true,
+            id: "item-1",
+            password: "hunter2",
+            title: "GitHub",
+            username: "alice@example.com",
+            websiteHostname: "github.com",
+            websiteOrigin: "https://github.com",
+            websiteUrl: "https://github.com/login",
+          },
+        ],
+        unlockMode: "unlocked",
+      }),
+      {
+        source: "content",
+        trustedPageUrl: "https://app.github.com/login",
+      },
     );
 
     expect(response).toEqual({
@@ -535,7 +576,6 @@ describe("background autofill status", () => {
     const response = await handleBackgroundRequest(
       {
         type: "read_autofill_fill_data",
-        pageUrl: "https://github.com/login",
       } as never,
       createDeps({
         authState: {
@@ -569,6 +609,10 @@ describe("background autofill status", () => {
         ],
         unlockMode: "unlocked",
       }),
+      {
+        source: "content",
+        trustedPageUrl: "https://github.com/login",
+      },
     );
 
     expect(response).toEqual({
@@ -584,7 +628,6 @@ describe("background autofill status", () => {
     const response = await handleBackgroundRequest(
       {
         type: "read_autofill_fill_data",
-        pageUrl: "https://github.com/login",
       } as never,
       createDeps({
         authState: {
@@ -608,6 +651,10 @@ describe("background autofill status", () => {
         ],
         unlockMode: "unlocked",
       }),
+      {
+        source: "content",
+        trustedPageUrl: "https://github.com/login",
+      },
     );
 
     expect(response).toEqual({
@@ -622,7 +669,6 @@ describe("background autofill status", () => {
     const response = await handleBackgroundRequest(
       {
         type: "read_autofill_fill_data",
-        pageUrl: "https://github.com/login",
       } as never,
       createDeps({
         authState: {
@@ -646,6 +692,10 @@ describe("background autofill status", () => {
         ],
         unlockMode: "unlocked",
       }),
+      {
+        source: "content",
+        trustedPageUrl: "https://github.com/login",
+      },
     );
 
     expect(response).toEqual({

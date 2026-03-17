@@ -177,7 +177,7 @@ describe("shouldOfferAutofill", () => {
     });
   });
 
-  it("requests autofill fill data for a page URL", async () => {
+  it("requests autofill fill data without exposing pageUrl in the request body", async () => {
     const sendMessage = vi.fn(async () => ({
       ok: true,
       autofillFillData: {
@@ -191,9 +191,7 @@ describe("shouldOfferAutofill", () => {
 
     installChromeRuntimeMock(sendMessage);
 
-    await expect(
-      readAutofillFillData("https://github.com/login"),
-    ).resolves.toEqual({
+    await expect(readAutofillFillData("https://github.com/login")).resolves.toEqual({
       status: "ready",
       fillData: {
         username: "alice@example.com",
@@ -203,7 +201,6 @@ describe("shouldOfferAutofill", () => {
 
     expect(sendMessage).toHaveBeenCalledWith({
       type: "read_autofill_fill_data",
-      pageUrl: "https://github.com/login",
     });
   });
 

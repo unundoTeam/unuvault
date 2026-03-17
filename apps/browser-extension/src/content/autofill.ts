@@ -40,6 +40,11 @@ type ExtensionRuntime = {
   sendMessage?(request: BackgroundRequest): Promise<BackgroundResponse>;
 };
 
+type BackgroundCallerContext = {
+  source: "content" | "popup" | "internal";
+  trustedPageUrl?: string | null;
+};
+
 function getExtensionRuntime(): ExtensionRuntime | null {
   return (
     (globalThis as {
@@ -50,14 +55,17 @@ function getExtensionRuntime(): ExtensionRuntime | null {
   );
 }
 
-async function callBackground(request: BackgroundRequest): Promise<BackgroundResponse> {
+async function callBackground(
+  request: BackgroundRequest,
+  callerContext?: BackgroundCallerContext,
+): Promise<BackgroundResponse> {
   const runtime = getExtensionRuntime();
 
   if (runtime?.sendMessage) {
     return runtime.sendMessage(request);
   }
 
-  return handleBackgroundRequest(request);
+  return handleBackgroundRequest(request, undefined, callerContext);
 }
 
 export function shouldOfferAutofill(input: { hasPasswordField: boolean }) {
@@ -113,7 +121,9 @@ export async function readAutofillFillData(
   try {
     const response = await callBackground({
       type: "read_autofill_fill_data",
-      pageUrl,
+    }, {
+      source: "content",
+      trustedPageUrl: pageUrl,
     });
 
     if (!response.ok || !("autofillFillData" in response)) {

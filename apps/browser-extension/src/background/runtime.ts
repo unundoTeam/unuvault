@@ -13,6 +13,11 @@ type BackgroundRuntimeDeps = {
   unlockedVaultReader: typeof defaultUnlockedVaultReader;
 };
 
+type BackgroundCallerContext = {
+  source: "content" | "popup" | "internal";
+  trustedPageUrl?: string | null;
+};
+
 function createDefaultDeps(): BackgroundRuntimeDeps {
   return {
     authRuntime: createExtensionAuthRuntime(),
@@ -78,13 +83,23 @@ function buildAutofillCandidatesResponse(
   };
 }
 
+function readTrustedContentPageOrigin(callerContext: BackgroundCallerContext) {
+  if (callerContext.source !== "content") {
+    return null;
+  }
+
+  return callerContext.trustedPageUrl
+    ? readPageOrigin(callerContext.trustedPageUrl)
+    : null;
+}
+
 function buildAutofillFillDataResponse(
-  pageUrl: string,
+  callerContext: BackgroundCallerContext,
   unlockedItems: Awaited<
     ReturnType<typeof defaultUnlockedVaultReader.readUnlockedLoginItems>
   >,
 ): BackgroundResponse {
-  const pageOrigin = readPageOrigin(pageUrl);
+  const pageOrigin = readTrustedContentPageOrigin(callerContext);
 
   if (!pageOrigin) {
     return {
@@ -142,6 +157,9 @@ function buildAutofillFillDataResponse(
 export async function handleBackgroundRequest(
   request: BackgroundRequest,
   deps: BackgroundRuntimeDeps = createDefaultDeps(),
+  callerContext: BackgroundCallerContext = {
+    source: "internal",
+  },
 ): Promise<BackgroundResponse> {
   switch (request.type) {
     case "read_extension_auth_state":
@@ -275,7 +293,7 @@ export async function handleBackgroundRequest(
       }
 
       return buildAutofillFillDataResponse(
-        request.pageUrl,
+        callerContext,
         await deps.unlockedVaultReader.readUnlockedLoginItems(),
       );
     }
