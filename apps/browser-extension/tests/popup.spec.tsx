@@ -25,14 +25,28 @@ type SignedInAuthState = {
 
 type ExtensionAuthState = SignedOutAuthState | SignedInAuthState;
 
+type ExtensionUnlockState = {
+  mode: "needs_setup" | "locked" | "unlocked";
+};
+
 type BackgroundRequest =
   | {
       type: "read_extension_auth_state";
     }
   | {
+      type: "read_extension_unlock_state";
+    }
+  | {
       type: "sign_in_with_password";
       email: string;
       password: string;
+    }
+  | {
+      type: "unlock_extension_vault";
+      passphrase: string;
+    }
+  | {
+      type: "lock_extension_vault";
     }
   | {
       type: "hydrate_popup_vault_cache";
@@ -80,9 +94,13 @@ function createVaultItem(overrides?: Partial<VaultSyncItem>): VaultSyncItem {
 function createBackgroundMessageHandler(options?: {
   hydrateError?: string | null;
   initialAuthState?: ExtensionAuthState;
+  initialUnlockState?: ExtensionUnlockState;
   signInAuthState?: SignedInAuthState;
+  unlockError?: string | null;
 }) {
   let authState = options?.initialAuthState ?? ({ status: "signed_out" } as const);
+  let unlockState = options?.initialUnlockState ?? ({ mode: "needs_setup" } as const);
+  let hasVerifier = unlockState.mode !== "needs_setup";
   const signInAuthState = options?.signInAuthState ?? createSignedInAuthState();
 
   return vi.fn(async (request: BackgroundRequest) => {
@@ -92,11 +110,42 @@ function createBackgroundMessageHandler(options?: {
           ok: true,
           authState,
         };
+      case "read_extension_unlock_state":
+        return {
+          ok: true,
+          unlockState,
+        };
       case "sign_in_with_password":
         authState = signInAuthState;
         return {
           ok: true,
           authState,
+        };
+      case "unlock_extension_vault":
+        if (options?.unlockError) {
+          return {
+            ok: false,
+            error: options.unlockError,
+          };
+        }
+
+        hasVerifier = true;
+        unlockState = {
+          mode: "unlocked",
+        };
+
+        return {
+          ok: true,
+          unlockState,
+        };
+      case "lock_extension_vault":
+        unlockState = {
+          mode: hasVerifier ? "locked" : "needs_setup",
+        };
+
+        return {
+          ok: true,
+          unlockState,
         };
       case "hydrate_popup_vault_cache":
         if (options?.hydrateError) {
@@ -260,6 +309,25 @@ describe("App", () => {
     });
   });
 
+  it("reads background unlock state when the popup opens with an existing signed-in session", async () => {
+    const sendMessage = createBackgroundMessageHandler({
+      initialAuthState: createSignedInAuthState(),
+      initialUnlockState: {
+        mode: "locked",
+      },
+    });
+    installChromeExtensionMock({
+      sendMessage,
+    });
+
+    render(<App />);
+
+    expect(await screen.findByRole("button", { name: "Set master password" })).toBeInTheDocument();
+    expect(sendMessage).toHaveBeenCalledWith({
+      type: "read_extension_unlock_state",
+    });
+  });
+
   it("shows a vault hydration error without clearing signed-in state", async () => {
     installChromeExtensionMock({
       sendMessage: createBackgroundMessageHandler({
@@ -304,6 +372,24 @@ describe("App", () => {
     expect(screen.getByRole("button", { name: "Lock vault" })).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Search vault")).toBeInTheDocument();
     expect(screen.getByText("No vault items yet.")).toBeInTheDocument();
+  });
+
+  it("calls background unlock when submitting the master password", async () => {
+    const sendMessage = createBackgroundMessageHandler({
+      initialAuthState: createSignedInAuthState(),
+    });
+    installChromeExtensionMock({
+      sendMessage,
+    });
+
+    render(<App />);
+
+    await setMasterPassword("correct horse");
+
+    expect(sendMessage).toHaveBeenCalledWith({
+      type: "unlock_extension_vault",
+      passphrase: "correct horse",
+    });
   });
 
   it("shows locked mode when signed in and a verifier exists", async () => {
