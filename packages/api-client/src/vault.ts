@@ -3,6 +3,7 @@ export type VaultLoginPayload = {
   username: string;
   password_ciphertext: string;
   notes: string;
+  website_url: string;
 };
 
 export type VaultSyncRequest = {

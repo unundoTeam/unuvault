@@ -6,6 +6,7 @@ import {
   getPasswordPlaceholderLabel,
   hasSavedPassword,
   normalizeVaultLoginPayload,
+  normalizeVaultWebsiteUrl,
   readDraftPassword,
 } from "./login-payload";
 import { useVaultSync } from "./use-vault-sync";
@@ -47,6 +48,7 @@ export function VaultPanel() {
   } = useVaultUnlock(items);
   const [draftTitle, setDraftTitle] = useState("");
   const [draftUsername, setDraftUsername] = useState("");
+  const [draftWebsite, setDraftWebsite] = useState("");
   const [draftPassword, setDraftPassword] = useState("");
   const [draftNotes, setDraftNotes] = useState("");
   const [isCreatePasswordVisible, setIsCreatePasswordVisible] = useState(false);
@@ -57,6 +59,7 @@ export function VaultPanel() {
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
   const [editingUsername, setEditingUsername] = useState("");
+  const [editingWebsite, setEditingWebsite] = useState("");
   const [editingPassword, setEditingPassword] = useState("");
   const [editingNotes, setEditingNotes] = useState("");
   const [isEditingPasswordVisible, setIsEditingPasswordVisible] = useState(false);
@@ -68,9 +71,15 @@ export function VaultPanel() {
     event.preventDefault();
 
     const nextTitle = draftTitle.trim();
+    const nextWebsiteUrl = normalizeVaultWebsiteUrl(draftWebsite);
 
     if (!nextTitle) {
       setValidationMessage("Title is required.");
+      return;
+    }
+
+    if (draftWebsite.trim() && !nextWebsiteUrl) {
+      setValidationMessage("Enter a valid website URL.");
       return;
     }
 
@@ -86,12 +95,14 @@ export function VaultPanel() {
       username: draftUsername,
       password: draftPassword,
       notes: draftNotes,
+      websiteUrl: nextWebsiteUrl,
       unlockPassphrase: unlockPassphrase ?? undefined,
     });
 
     if (didCreate) {
       setDraftTitle("");
       setDraftUsername("");
+      setDraftWebsite("");
       setDraftPassword("");
       setDraftNotes("");
       setIsCreatePasswordVisible(false);
@@ -104,6 +115,7 @@ export function VaultPanel() {
     setEditingItemId(item.id);
     setEditingTitle(item.title);
     setEditingUsername(payload.username);
+    setEditingWebsite(payload.website_url);
     setEditingPassword(readDraftPassword(item.encrypted_payload, unlockPassphrase ?? undefined));
     setEditingNotes(payload.notes);
     setIsEditingPasswordVisible(false);
@@ -114,6 +126,7 @@ export function VaultPanel() {
     setEditingItemId(null);
     setEditingTitle("");
     setEditingUsername("");
+    setEditingWebsite("");
     setEditingPassword("");
     setEditingNotes("");
     setIsEditingPasswordVisible(false);
@@ -176,9 +189,15 @@ export function VaultPanel() {
     }
 
     const nextTitle = editingTitle.trim();
+    const nextWebsiteUrl = normalizeVaultWebsiteUrl(editingWebsite);
 
     if (!nextTitle) {
       setEditingValidationMessage("Edited title is required.");
+      return;
+    }
+
+    if (editingWebsite.trim() && !nextWebsiteUrl) {
+      setEditingValidationMessage("Enter a valid website URL.");
       return;
     }
 
@@ -194,6 +213,7 @@ export function VaultPanel() {
       username: editingUsername,
       password: isUnlocked ? editingPassword : undefined,
       notes: editingNotes,
+      websiteUrl: nextWebsiteUrl,
       unlockPassphrase: unlockPassphrase ?? undefined,
     });
 
@@ -290,7 +310,22 @@ export function VaultPanel() {
                 name="username"
                 type="text"
                 value={draftUsername}
-                onChange={(event) => setDraftUsername(event.target.value)}
+                onChange={(event) => {
+                  setDraftUsername(event.target.value);
+                  setValidationMessage(null);
+                }}
+              />
+            </label>
+            <label>
+              <span>Website</span>
+              <input
+                name="website"
+                type="text"
+                value={draftWebsite}
+                onChange={(event) => {
+                  setDraftWebsite(event.target.value);
+                  setValidationMessage(null);
+                }}
               />
             </label>
             <label>
@@ -299,7 +334,10 @@ export function VaultPanel() {
                 name="password"
                 type={isCreatePasswordVisible ? "text" : "password"}
                 value={draftPassword}
-                onChange={(event) => setDraftPassword(event.target.value)}
+                onChange={(event) => {
+                  setDraftPassword(event.target.value);
+                  setValidationMessage(null);
+                }}
                 disabled={!isUnlocked}
               />
             </label>
@@ -315,7 +353,10 @@ export function VaultPanel() {
               <textarea
                 name="notes"
                 value={draftNotes}
-                onChange={(event) => setDraftNotes(event.target.value)}
+                onChange={(event) => {
+                  setDraftNotes(event.target.value);
+                  setValidationMessage(null);
+                }}
               />
             </label>
             <button type="submit" disabled={isSyncing}>
@@ -354,7 +395,22 @@ export function VaultPanel() {
                             name={`edit-username-${item.id}`}
                             type="text"
                             value={editingUsername}
-                            onChange={(event) => setEditingUsername(event.target.value)}
+                            onChange={(event) => {
+                              setEditingUsername(event.target.value);
+                              setEditingValidationMessage(null);
+                            }}
+                          />
+                        </label>
+                        <label>
+                          <span>Edit website</span>
+                          <input
+                            name={`edit-website-${item.id}`}
+                            type="text"
+                            value={editingWebsite}
+                            onChange={(event) => {
+                              setEditingWebsite(event.target.value);
+                              setEditingValidationMessage(null);
+                            }}
                           />
                         </label>
                         <label>
@@ -383,7 +439,10 @@ export function VaultPanel() {
                           <textarea
                             name={`edit-notes-${item.id}`}
                             value={editingNotes}
-                            onChange={(event) => setEditingNotes(event.target.value)}
+                            onChange={(event) => {
+                              setEditingNotes(event.target.value);
+                              setEditingValidationMessage(null);
+                            }}
                           />
                         </label>
                         <button

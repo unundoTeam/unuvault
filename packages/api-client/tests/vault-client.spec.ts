@@ -1,4 +1,9 @@
 import { describe, expect, expectTypeOf, it, vi } from "vitest";
+import {
+  normalizeVaultLoginPayload,
+  normalizeVaultWebsiteUrl,
+  parseVaultWebsiteMetadata,
+} from "../src/login-payload";
 import type { VaultSyncResponse } from "../src/vault";
 import { syncVault } from "../src/vault";
 
@@ -9,12 +14,13 @@ describe("syncVault", () => {
         id: "item-1",
         item_type: "login",
         title: "GitHub",
-        encrypted_payload: {
-          schema_version: 1,
-          username: "alice",
-          password_ciphertext: "",
-          notes: "Primary account",
-        },
+          encrypted_payload: {
+            schema_version: 1,
+            username: "alice",
+            password_ciphertext: "",
+            notes: "Primary account",
+            website_url: "https://github.com/",
+          },
         favorite: true,
         source: "manual",
         last_used_at: null,
@@ -34,6 +40,7 @@ describe("syncVault", () => {
               username: "alice",
               password_ciphertext: "",
               notes: "Primary account",
+              website_url: "https://github.com/",
             },
             favorite: true,
             source: "manual",
@@ -71,6 +78,7 @@ describe("syncVault", () => {
       username: "alice",
       password_ciphertext: "",
       notes: "Primary account",
+      website_url: "https://github.com/",
     });
     expectTypeOf<Parameters<typeof syncVault>[2]>().toEqualTypeOf<{
       changed_items: Array<{
@@ -82,6 +90,7 @@ describe("syncVault", () => {
           username: string;
           password_ciphertext: string;
           notes: string;
+          website_url: string;
         };
         favorite: boolean;
         source: string;
@@ -101,6 +110,7 @@ describe("syncVault", () => {
           username: string;
           password_ciphertext: string;
           notes: string;
+          website_url: string;
         };
         favorite: boolean;
         source: string;
@@ -125,6 +135,7 @@ describe("syncVault", () => {
               username: "alice",
               password_ciphertext: "",
               notes: "MFA enabled",
+              website_url: "https://github.com/settings/security",
             },
             favorite: false,
             source: "manual",
@@ -151,6 +162,7 @@ describe("syncVault", () => {
             username: "alice",
             password_ciphertext: "",
             notes: "MFA enabled",
+            website_url: "https://github.com/settings/security",
           },
           favorite: false,
           source: "manual",
@@ -167,6 +179,7 @@ describe("syncVault", () => {
       username: "alice",
       password_ciphertext: "",
       notes: "MFA enabled",
+      website_url: "https://github.com/settings/security",
     });
     expectTypeOf<Parameters<typeof syncVault>[2]>().toEqualTypeOf<{
       changed_items: Array<{
@@ -178,6 +191,7 @@ describe("syncVault", () => {
           username: string;
           password_ciphertext: string;
           notes: string;
+          website_url: string;
         };
         favorite: boolean;
         source: string;
@@ -197,6 +211,7 @@ describe("syncVault", () => {
           username: string;
           password_ciphertext: string;
           notes: string;
+          website_url: string;
         };
         favorite: boolean;
         source: string;
@@ -205,5 +220,38 @@ describe("syncVault", () => {
         updated_at: string;
       }>
     >();
+  });
+});
+
+describe("login payload helpers", () => {
+  it("normalizes missing website_url to an empty string", () => {
+    expect(
+      normalizeVaultLoginPayload({
+        schema_version: 1,
+        username: "alice",
+        password_ciphertext: "",
+        notes: "Primary account",
+      }),
+    ).toEqual({
+      schema_version: 1,
+      username: "alice",
+      password_ciphertext: "",
+      notes: "Primary account",
+      website_url: "",
+    });
+  });
+
+  it("normalizes website input by defaulting missing schemes to https", () => {
+    expect(normalizeVaultWebsiteUrl("github.com")).toBe("https://github.com/");
+  });
+
+  it("derives origin and hostname from a normalized website URL", () => {
+    expect(
+      parseVaultWebsiteMetadata("https://github.com/login?utm_source=popup"),
+    ).toEqual({
+      websiteUrl: "https://github.com/login?utm_source=popup",
+      websiteOrigin: "https://github.com",
+      websiteHostname: "github.com",
+    });
   });
 });

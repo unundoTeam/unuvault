@@ -76,7 +76,9 @@ describe("createVaultSyncService", () => {
           id: "item-1",
           item_type: "login",
           title: "GitHub",
-          encrypted_payload: loginPayload(),
+          encrypted_payload: loginPayload({
+            website_url: "",
+          }),
           favorite: true,
           source: "manual",
           last_used_at: null,
@@ -87,6 +89,64 @@ describe("createVaultSyncService", () => {
       deleted_item_ids: [],
       conflicts: [],
     });
+  });
+
+  it("preserves website_url on synced items", async () => {
+    const changedItems = [
+      {
+        id: "item-1",
+        item_type: "login",
+        title: "GitHub",
+        encrypted_payload: loginPayload({
+          username: "alice",
+          notes: "Primary account",
+          website_url: "https://github.com/login",
+        }),
+        favorite: true,
+        source: "manual",
+        last_used_at: null,
+        created_at: "2026-03-14T00:00:00.000Z",
+        updated_at: "2026-03-15T00:00:00.000Z",
+      },
+    ];
+    const listVaultItemsByIds = vi.fn().mockResolvedValue([]);
+    const upsertVaultItems = vi.fn().mockResolvedValue(undefined);
+    const softDeleteVaultItems = vi.fn().mockResolvedValue(undefined);
+    const listVaultItemsByProfileId = vi.fn().mockResolvedValue(changedItems);
+    const listDeletedVaultItemIdsByProfileId = vi.fn().mockResolvedValue([]);
+
+    const service = createVaultSyncService({
+      getUserByToken: async () => ({
+        id: "auth-user-1",
+        account_id: "account-1",
+        email: "user@example.com",
+      }),
+      getUserProfileByAccountId: async () => ({
+        id: "profile-1",
+        account_id: "account-1",
+        auth_user_id: "auth-user-1",
+        email: "user@example.com",
+        locale: "zh-CN",
+      }),
+      listVaultItemsByIds,
+      upsertVaultItems,
+      softDeleteVaultItems,
+      listVaultItemsByProfileId,
+      listDeletedVaultItemIdsByProfileId,
+    });
+
+    const payload = await service.syncVaultFromToken("jwt-token", {
+      changed_items: changedItems,
+      deleted_item_ids: [],
+    });
+
+    expect(payload.updated_items[0]?.encrypted_payload).toEqual(
+      loginPayload({
+        username: "alice",
+        notes: "Primary account",
+        website_url: "https://github.com/login",
+      }),
+    );
   });
 
   it("saves changed_items before reading the current vault", async () => {

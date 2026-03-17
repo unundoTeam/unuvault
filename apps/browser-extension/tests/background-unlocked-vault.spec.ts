@@ -56,6 +56,7 @@ function createVaultItem(overrides?: Partial<VaultSyncItem>): VaultSyncItem {
       username: "alice@example.com",
       password_ciphertext: "",
       notes: "",
+      website_url: "",
     },
     favorite: false,
     source: "manual",
@@ -73,6 +74,7 @@ function createEncryptedVaultItem(): VaultSyncItem {
       username: "alice@example.com",
       password_ciphertext: sealVaultPassword("hunter2", "correct horse"),
       notes: "",
+      website_url: "https://github.com/login",
     },
   });
 }
@@ -130,6 +132,9 @@ describe("background unlocked vault reader", () => {
         password: "hunter2",
         title: "GitHub",
         username: "alice@example.com",
+        websiteHostname: "github.com",
+        websiteOrigin: "https://github.com",
+        websiteUrl: "https://github.com/login",
       },
     ]);
   });

@@ -9,6 +9,7 @@ import { syncVault } from "../../../../../packages/api-client/src/vault";
 import { createIdentityBrowserClient } from "../../lib/identity/browser";
 import {
   normalizeVaultLoginPayload,
+  normalizeVaultWebsiteUrl,
   writeDraftPassword,
 } from "./login-payload";
 
@@ -18,6 +19,7 @@ type VaultLoginFields = {
   username: string;
   password?: string;
   notes: string;
+  websiteUrl: string;
   unlockPassphrase?: string;
 };
 
@@ -99,6 +101,7 @@ export function useVaultSync(): VaultSyncState {
           username: input.username,
           password_ciphertext: "",
           notes: input.notes,
+          website_url: normalizeVaultWebsiteUrl(input.websiteUrl),
         },
         input.password ?? "",
         input.unlockPassphrase,
@@ -156,12 +159,14 @@ export function useVaultSync(): VaultSyncState {
             ...currentPayload,
             username: input.username,
             notes: input.notes,
+            website_url: normalizeVaultWebsiteUrl(input.websiteUrl),
           }
         : writeDraftPassword(
             {
               ...currentPayload,
               username: input.username,
               notes: input.notes,
+              website_url: normalizeVaultWebsiteUrl(input.websiteUrl),
             },
             input.password,
             input.unlockPassphrase,
