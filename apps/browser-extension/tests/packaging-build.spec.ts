@@ -47,5 +47,6 @@ it("build emits a loadable extension bundle", { timeout: 30_000 }, () => {
 
   expect(backgroundBundle).not.toMatch(/\bprocess\.env\[[^\]]+\]/);
   expect(backgroundBundle).not.toMatch(/\bprocess\.env\.NEXT_PUBLIC_[A-Z0-9_]+/);
+  expect(popupBundle).not.toMatch(/\bprocess\.env\[[^\]]+\]/);
   expect(popupBundle).not.toMatch(/\bprocess\.env\.NEXT_PUBLIC_[A-Z0-9_]+/);
 });
