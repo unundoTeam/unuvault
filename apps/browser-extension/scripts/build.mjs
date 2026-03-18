@@ -6,9 +6,21 @@ import { build } from "esbuild";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const packageRoot = join(__dirname, "..");
 const distRoot = join(packageRoot, "dist");
+const browserEnv = {
+  "process.env.NEXT_PUBLIC_API_BASE_URL": JSON.stringify(
+    process.env.NEXT_PUBLIC_API_BASE_URL ?? "",
+  ),
+  "process.env.NEXT_PUBLIC_SUPABASE_URL": JSON.stringify(
+    process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
+  ),
+  "process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY": JSON.stringify(
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "",
+  ),
+};
 
 const browserBundleOptions = {
   bundle: true,
+  define: browserEnv,
   format: "esm",
   platform: "browser",
   target: "chrome120",

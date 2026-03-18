@@ -15,6 +15,12 @@ afterEach(() => {
   clearDist();
 });
 
+function stripJsComments(source: string): string {
+  return source
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/(^|[^:])\/\/.*$/gm, "$1");
+}
+
 it("build emits a loadable extension bundle", { timeout: 30_000 }, () => {
   clearDist();
 
@@ -31,4 +37,15 @@ it("build emits a loadable extension bundle", { timeout: 30_000 }, () => {
   expect(existsSync(join(distRoot, "background.js"))).toBe(true);
   expect(existsSync(join(distRoot, "popup.js"))).toBe(true);
   expect(existsSync(join(distRoot, "popup.html"))).toBe(true);
+
+  const backgroundBundle = stripJsComments(
+    readFileSync(join(distRoot, "background.js"), "utf8"),
+  );
+  const popupBundle = stripJsComments(
+    readFileSync(join(distRoot, "popup.js"), "utf8"),
+  );
+
+  expect(backgroundBundle).not.toMatch(/\bprocess\.env\[[^\]]+\]/);
+  expect(backgroundBundle).not.toMatch(/\bprocess\.env\.NEXT_PUBLIC_[A-Z0-9_]+/);
+  expect(popupBundle).not.toMatch(/\bprocess\.env\.NEXT_PUBLIC_[A-Z0-9_]+/);
 });
