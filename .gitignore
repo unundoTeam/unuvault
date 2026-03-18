@@ -7,3 +7,4 @@ node_modules/
 apps/ios/App/.build/
 .worktrees/
 worktrees/
+AGENTS.md
