@@ -2,15 +2,22 @@ import { afterEach, expect, it } from "vitest";
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const packageRoot = join(process.cwd(), "apps/browser-extension");
+const packageRoot = fileURLToPath(new URL("..", import.meta.url));
 const distRoot = join(packageRoot, "dist");
 
-afterEach(() => {
+const clearDist = () => {
   rmSync(distRoot, { recursive: true, force: true });
+};
+
+afterEach(() => {
+  clearDist();
 });
 
-it("build emits a loadable extension bundle", () => {
+it("build emits a loadable extension bundle", { timeout: 30_000 }, () => {
+  clearDist();
+
   execFileSync("corepack", ["pnpm", "--filter", "@unuvault/browser-extension", "build"], {
     cwd: process.cwd(),
     stdio: "pipe",
