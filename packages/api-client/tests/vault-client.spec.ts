@@ -221,6 +221,24 @@ describe("syncVault", () => {
       }>
     >();
   });
+
+  it("throws the route error when vault sync returns a non-ok response", async () => {
+    const fetcher = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 404,
+      json: async () => ({
+        ok: false,
+        error: "profile_not_found",
+      }),
+    });
+
+    await expect(
+      syncVault(fetcher, "jwt-token", {
+        changed_items: [],
+        deleted_item_ids: [],
+      }),
+    ).rejects.toThrow("profile_not_found");
+  });
 });
 
 describe("login payload helpers", () => {
