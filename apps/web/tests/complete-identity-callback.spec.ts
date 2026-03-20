@@ -38,4 +38,17 @@ describe("completeIdentityCallback", () => {
 
     expect(redirectPath).toBe("/register?authError=callback_failed");
   });
+
+  it("redirects to register with an auth error when session exchange throws", async () => {
+    const exchangeCodeForSession = vi
+      .fn()
+      .mockRejectedValue(new Error("network down"));
+
+    const redirectPath = await completeIdentityCallback(
+      "http://localhost:3001/auth/callback?code=test-code",
+      { exchangeCodeForSession },
+    );
+
+    expect(redirectPath).toBe("/register?authError=callback_failed");
+  });
 });
