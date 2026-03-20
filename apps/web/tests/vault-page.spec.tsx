@@ -93,6 +93,27 @@ describe("VaultPage", () => {
     expect(mocks.syncVault).not.toHaveBeenCalled();
   });
 
+  it("keeps the vault in pre-bootstrap guidance when the local profile is missing", async () => {
+    mocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: "jwt-token",
+        },
+      },
+      error: null,
+    });
+    mocks.syncVault.mockRejectedValue(new Error("profile_not_found"));
+
+    render(<VaultPage />);
+
+    expect(
+      await screen.findByText("Sign in from the register flow first."),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("We couldn't sync your vault. Please try again."),
+    ).not.toBeInTheDocument();
+  });
+
   it("loads vault items on first render for an authenticated session", async () => {
     mocks.getSession.mockResolvedValue({
       data: {

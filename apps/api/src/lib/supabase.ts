@@ -66,6 +66,11 @@ type IdentityAccountRow = {
   account_id: string;
 };
 
+type SupabaseLikeError = {
+  code?: string;
+  message?: string;
+};
+
 type IdentitySupabaseClientLike = {
   auth: {
     getUser(token: string): SupabaseResult<{ user: ProviderAuthUser | null }>;
@@ -102,6 +107,19 @@ function readRequiredEnv(name: string): string {
   return value;
 }
 
+function isMissingRowError(error: unknown): boolean {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const candidate = error as SupabaseLikeError;
+
+  return (
+    candidate.code === "PGRST116" ||
+    candidate.message?.toLowerCase().includes("no rows") === true
+  );
+}
+
 async function resolveAccountIdForAuthUser(
   client: IdentitySupabaseClientLike,
   authUserId: string,
@@ -115,7 +133,15 @@ async function resolveAccountIdForAuthUser(
     }
   ).single();
 
-  if (result.error || !result.data?.account_id) {
+  if (result.error) {
+    if (isMissingRowError(result.error)) {
+      return null;
+    }
+
+    throw result.error;
+  }
+
+  if (!result.data?.account_id) {
     return null;
   }
 

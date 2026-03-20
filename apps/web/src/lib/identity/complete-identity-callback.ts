@@ -29,7 +29,14 @@ export async function completeIdentityCallback(
     return "/register";
   }
 
-  const { error } = await exchangeCodeForSession(code);
+  let error: { message?: string } | null;
+
+  try {
+    const result = await exchangeCodeForSession(code);
+    error = result.error;
+  } catch {
+    return "/register?authError=callback_failed";
+  }
 
   if (error) {
     return "/register?authError=callback_failed";

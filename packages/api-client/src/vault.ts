@@ -30,6 +30,11 @@ export type VaultSyncResponse = {
   conflicts: unknown[];
 };
 
+type VaultSyncErrorResponse = {
+  error?: string;
+  ok?: boolean;
+};
+
 type Fetcher = (
   input: string,
   init?: {
@@ -38,8 +43,26 @@ type Fetcher = (
     body?: string;
   },
 ) => Promise<{
-  json(): Promise<VaultSyncResponse>;
+  ok?: boolean;
+  status?: number;
+  json(): Promise<VaultSyncResponse | VaultSyncErrorResponse>;
 }>;
+
+function readVaultSyncErrorMessage(
+  payload: VaultSyncResponse | VaultSyncErrorResponse,
+): string | null {
+  if (
+    typeof payload === "object" &&
+    payload !== null &&
+    "error" in payload &&
+    typeof payload.error === "string" &&
+    payload.error
+  ) {
+    return payload.error;
+  }
+
+  return null;
+}
 
 export async function syncVault(
   fetcher: Fetcher,
@@ -55,5 +78,16 @@ export async function syncVault(
     body: JSON.stringify(payload),
   });
 
-  return response.json();
+  const result = (await response.json()) as
+    | VaultSyncResponse
+    | VaultSyncErrorResponse;
+
+  if (response.ok === false) {
+    const message =
+      readVaultSyncErrorMessage(result) ??
+      `sync_failed:${response.status ?? "unknown"}`;
+    throw new Error(message);
+  }
+
+  return result as VaultSyncResponse;
 }

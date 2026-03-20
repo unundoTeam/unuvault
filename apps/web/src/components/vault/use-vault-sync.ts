@@ -43,6 +43,10 @@ function createApiFetch() {
   return (input: string, init?: RequestInit) => fetch(`${baseUrl}${input}`, init);
 }
 
+function isProfileNotReadyError(error: unknown): boolean {
+  return error instanceof Error && error.message === "profile_not_found";
+}
+
 export function useVaultSync(): VaultSyncState {
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [items, setItems] = useState<VaultSyncItem[]>([]);
@@ -73,8 +77,11 @@ export function useVaultSync(): VaultSyncState {
       setIsLoading(false);
       setIsSyncing(false);
       return true;
-    } catch {
-      setErrorMessage("We couldn't sync your vault. Please try again.");
+    } catch (error) {
+      setErrorMessage(null);
+      if (!isProfileNotReadyError(error)) {
+        setErrorMessage("We couldn't sync your vault. Please try again.");
+      }
       setIsLoading(false);
       setIsSyncing(false);
       return false;
@@ -237,12 +244,15 @@ export function useVaultSync(): VaultSyncState {
             setIsBootstrapping(false);
           }
         }
-      } catch {
+      } catch (error) {
         if (!isCancelled) {
           setItems([]);
           setAccessToken(null);
           setIsAuthenticated(false);
-          setErrorMessage("We couldn't sync your vault. Please try again.");
+          setErrorMessage(null);
+          if (!isProfileNotReadyError(error)) {
+            setErrorMessage("We couldn't sync your vault. Please try again.");
+          }
           setIsBootstrapping(false);
           setIsLoading(false);
         }
