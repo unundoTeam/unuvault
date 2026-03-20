@@ -121,6 +121,40 @@ describe("createSupabaseAuthBootstrapDependencies", () => {
     });
   });
 
+  it("re-throws unexpected account lookup errors instead of masking them as invalid tokens", async () => {
+    const getUser = vi.fn().mockResolvedValue({
+      data: {
+        user: {
+          id: "auth-user-4",
+          email: "user@example.com",
+        },
+      },
+      error: null,
+    });
+    const lookupError = Object.assign(new Error("database offline"), {
+      code: "ECONNRESET",
+    });
+    const single = vi.fn().mockResolvedValue({
+      data: null,
+      error: lookupError,
+    });
+    const eq = vi.fn().mockReturnValue({ single });
+    const select = vi.fn().mockReturnValue({ eq });
+    const from = vi.fn().mockReturnValue({ select });
+
+    const deps = createSupabaseAuthBootstrapDependencies({
+      identityClient: {
+        auth: { getUser },
+        from,
+      },
+      dataClient: {
+        from: vi.fn(),
+      },
+    } as never);
+
+    await expect(deps.getUserByToken("jwt-token")).rejects.toBe(lookupError);
+  });
+
   it("upserts users_profile on account_id and returns the profile shape", async () => {
     const single = vi.fn().mockResolvedValue({
       data: {
