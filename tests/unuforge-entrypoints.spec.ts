@@ -82,6 +82,11 @@ describe("unuforge entrypoints", () => {
         resolve(repoRoot, "packages/unuvault-forge-host/src/unuvault_forge_host/host.py"),
       ),
     ).toBe(true);
+    expect(
+      existsSync(
+        resolve(repoRoot, "scripts/ci/tests/test_unuforge_package_consumer_smoke.py"),
+      ),
+    ).toBe(true);
     expect(existsSync(resolve(repoRoot, "unuforge/__init__.py"))).toBe(true);
     expect(existsSync(resolve(repoRoot, "unuvault_forge_host/__init__.py"))).toBe(true);
 
@@ -94,8 +99,10 @@ describe("unuforge entrypoints", () => {
     expect(unuforgeShim).toContain("UNUFORGE_SRC_ROOT");
     expect(unuforgeShim).toContain("UNUFORGE_REPO_ROOT");
     expect(hostShim).toContain("from .host import HOST");
-    expect(hostSource).toContain('"ios-test-runner"');
-    expect(hostSource).toContain('"run-ios.sh"');
+    expect(hostSource).toContain("def _load_preset");
+    expect(hostSource).toContain("def _repo_root_from_preset_path");
+    expect(hostSource).toContain('normalized.replace("-", "_")');
+    expect(hostSource).toContain("preset `entrypoints`");
   });
 
   it("keeps the existing root wrappers as the public lint and test entrypoints", () => {
