@@ -117,7 +117,7 @@ class UnuforgePackageConsumerSmokeTests(unittest.TestCase):
             )
             self.assertEqual(list_completed.returncode, 0, list_completed.stderr)
             list_payload = json.loads(list_completed.stdout)
-            profile_names = [item["name"] for item in list_payload["profiles"]]
+            profile_names = list_payload["profiles"]
             self.assertIn("lint-runner", profile_names)
             self.assertIn("test-runner", profile_names)
 
