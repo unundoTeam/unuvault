@@ -89,6 +89,18 @@ For local MVP auth setup:
 - `Release or heavy verification`:
   - `bash scripts/testing/run-ios.sh` when the iOS surface or native bridge is
     in scope
+  - `python3 scripts/ci/tests/test_unuforge_package_consumer_smoke.py` when
+    validating a published `unuforge` wheel against `unuvault`'s JS-safe
+    machine contract
+
+Installed-package smoke is opt-in in this phase. It covers:
+
+- `preset inspect`
+- `profiles list`
+- `lint-runner --dry-run`
+- `test-runner --dry-run`
+
+It does not yet include `ios-test-runner`.
 
 ## Review Model
 
