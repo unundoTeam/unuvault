@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -52,11 +53,22 @@ def _controlled_env() -> dict[str, str]:
     return env
 
 
+def _copy_host_package(temp_root: Path) -> Path:
+    copied_host_package = temp_root / "unuvault-forge-host"
+    shutil.copytree(
+        HOST_PACKAGE,
+        copied_host_package,
+        ignore=shutil.ignore_patterns("build", "*.egg-info", "__pycache__"),
+    )
+    return copied_host_package
+
+
 class UnuforgePackageConsumerSmokeTests(unittest.TestCase):
     def test_installed_package_dry_runs_use_unuvault_forge_host(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             temp_root = Path(tmp_dir)
             wheel_path = _resolve_unuforge_wheel(temp_root)
+            host_package_copy = _copy_host_package(temp_root)
             venv_dir = temp_root / "venv"
 
             venv.EnvBuilder(with_pip=True).create(venv_dir)
@@ -69,7 +81,7 @@ class UnuforgePackageConsumerSmokeTests(unittest.TestCase):
                     "pip",
                     "install",
                     str(wheel_path),
-                    str(HOST_PACKAGE),
+                    str(host_package_copy),
                 ],
                 cwd=temp_root,
                 capture_output=True,
