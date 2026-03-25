@@ -27,6 +27,8 @@ who want a more trustworthy home for credentials than browser-native storage.
   for the engineering roadmap
 - this README for contributor-facing local entrypoints and current contract
   posture
+- [the sibling `unuOS` repo's `docs/portfolio/README.md`](https://github.com/unundoTeam/unuos/blob/main/docs/portfolio/README.md)
+  for portfolio overview and cross-repo authority
 
 ## Workspace Layout
 
