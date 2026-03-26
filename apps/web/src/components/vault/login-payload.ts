@@ -38,9 +38,15 @@ export function writeDraftPassword(
   password: string,
   passphrase?: string,
 ): VaultLoginPayload {
+  if (password && !passphrase) {
+    throw new Error(
+      "writeDraftPassword requires an unlock passphrase before storing a password.",
+    );
+  }
+
   return {
     ...normalizeVaultLoginPayload(payload),
-    password_ciphertext: password ? sealVaultPassword(password, passphrase) : "",
+    password_ciphertext: password && passphrase ? sealVaultPassword(password, passphrase) : "",
   };
 }
 
