@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import importlib.util
 import json
 import os
 from pathlib import Path
@@ -68,42 +67,9 @@ def _copy_host_package(temp_root: Path) -> Path:
 def _host_package_install_commands(python_bin: Path, host_package_path: Path) -> list[list[str]]:
     python = str(python_bin)
     return [
+        [python, "-m", "pip", "install", "setuptools", "wheel"],
         [python, "-m", "pip", "install", "--no-build-isolation", str(host_package_path)],
     ]
-
-
-def _site_packages_for_module(module_name: str) -> Path | None:
-    spec = importlib.util.find_spec(module_name)
-    if spec is not None and spec.origin:
-        return Path(spec.origin).resolve().parents[1]
-
-    for search_root in (Path("/opt/homebrew"), Path("/usr/local")):
-        if not search_root.exists():
-            continue
-        candidate = next(
-            search_root.rglob(f"site-packages/{module_name}/__init__.py"),
-            None,
-        )
-        if candidate is not None:
-            return candidate.resolve().parents[1]
-
-    return None
-
-
-def _host_package_install_env() -> dict[str, str]:
-    env = _controlled_env()
-    site_packages: list[str] = []
-
-    for module_name in ("setuptools", "wheel"):
-        module_site_packages = _site_packages_for_module(module_name)
-        if module_site_packages is None:
-            raise AssertionError(
-                f"Unable to locate local {module_name} site-packages for offline host-package install."
-            )
-        site_packages.append(str(module_site_packages))
-
-    env["PYTHONPATH"] = os.pathsep.join(dict.fromkeys(site_packages))
-    return env
 
 
 class UnuforgePackageConsumerSmokeTests(unittest.TestCase):
@@ -123,7 +89,7 @@ class UnuforgePackageConsumerSmokeTests(unittest.TestCase):
         self.assertNotIn("UNUFORGE_SRC_ROOT", env)
         self.assertNotIn("UNUFORGE_REPO_ROOT", env)
 
-    def test_host_package_install_commands_prepare_build_backend_without_isolation(self) -> None:
+    def test_host_package_install_commands_bootstrap_build_backend_inside_venv(self) -> None:
         python_bin = Path("/tmp/fake-python")
         host_package_path = Path("/tmp/fake-host-package")
 
@@ -137,22 +103,18 @@ class UnuforgePackageConsumerSmokeTests(unittest.TestCase):
                     "-m",
                     "pip",
                     "install",
+                    "setuptools",
+                    "wheel",
+                ],
+                [
+                    "/tmp/fake-python",
+                    "-m",
+                    "pip",
+                    "install",
                     "--no-build-isolation",
                     "/tmp/fake-host-package",
                 ],
             ],
-        )
-
-    def test_host_package_install_env_uses_local_build_backend_paths(self) -> None:
-        with mock.patch(
-            __name__ + "._site_packages_for_module",
-            side_effect=[Path("/tmp/setuptools-site"), Path("/tmp/wheel-site")],
-        ):
-            env = _host_package_install_env()
-
-        self.assertEqual(
-            env["PYTHONPATH"],
-            "/tmp/setuptools-site" + os.pathsep + "/tmp/wheel-site",
         )
 
     def test_installed_package_dry_runs_use_unuvault_forge_host(self) -> None:
@@ -177,13 +139,11 @@ class UnuforgePackageConsumerSmokeTests(unittest.TestCase):
                 wheel_install_completed.stderr,
             )
 
-            host_package_install_env = _host_package_install_env()
-
             for command in _host_package_install_commands(python_bin, host_package_copy):
                 install_completed = subprocess.run(
                     command,
                     cwd=temp_root,
-                    env=host_package_install_env,
+                    env=_controlled_env(),
                     capture_output=True,
                     text=True,
                 )
