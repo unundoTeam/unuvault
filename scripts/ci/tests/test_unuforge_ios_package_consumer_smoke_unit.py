@@ -42,7 +42,7 @@ class UnuforgeIosPackageConsumerSmokeUnitTests(unittest.TestCase):
         self.assertNotIn("UNUFORGE_REPO_ROOT", env)
         self.assertEqual(env["PYTHONNOUSERSITE"], "1")
 
-    def test_host_package_install_commands_prepare_build_backend_without_isolation(self) -> None:
+    def test_host_package_install_commands_bootstrap_build_backend_inside_venv(self) -> None:
         python_bin = Path("/tmp/fake-python")
         host_package_path = Path("/tmp/fake-host-package")
 
@@ -51,6 +51,14 @@ class UnuforgeIosPackageConsumerSmokeUnitTests(unittest.TestCase):
         self.assertEqual(
             commands,
             [
+                [
+                    "/tmp/fake-python",
+                    "-m",
+                    "pip",
+                    "install",
+                    "setuptools",
+                    "wheel",
+                ],
                 [
                     "/tmp/fake-python",
                     "-m",
