@@ -5,6 +5,7 @@
   "scripts": {
     "dev:api": "pnpm --filter @unuvault/api dev",
     "dev:web": "pnpm --filter @unuvault/web dev",
+    "secrets:provider": "tsx scripts/secrets/provider.ts",
     "test": "bash scripts/testing/test-runner.sh",
     "lint": "bash scripts/testing/lint-runner.sh"
   },

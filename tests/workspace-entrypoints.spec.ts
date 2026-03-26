@@ -81,6 +81,17 @@ describe("workspace entrypoints", () => {
     expect(testRunner).toContain("--exclude='.worktrees/**'");
   });
 
+  it("adds a stable local dev-secrets provider wrapper", () => {
+    const rootPackage = readJson<PackageManifest>("package.json");
+    const providerWrapper = readText("scripts/secrets/provider.sh");
+
+    expect(rootPackage.scripts?.["secrets:provider"]).toBe(
+      "tsx scripts/secrets/provider.ts",
+    );
+    expect(providerWrapper).toContain('tsx_bin="$repo_root/node_modules/.bin/tsx"');
+    expect(providerWrapper).toContain('exec "$tsx_bin" "$repo_root/scripts/secrets/provider.ts" "$@"');
+  });
+
   it("keeps the iOS onboarding test in a main-actor-safe context", () => {
     const onboardingTest = readText(
       "apps/ios/App/Tests/AutofillOnboardingViewTests.swift",
