@@ -50,6 +50,8 @@ who want a more trustworthy home for credentials than browser-native storage.
   - `pnpm lint`
   - `pnpm test`
   - `bash scripts/testing/run-ios.sh`
+  - `python3 scripts/ci/tests/test_unuforge_package_consumer_smoke.py`
+  - `python3 scripts/ci/tests/test_unuforge_ios_package_consumer_smoke.py`
 
 For local MVP auth setup:
 
@@ -89,11 +91,19 @@ For local MVP auth setup:
 - `Release or heavy verification`:
   - `bash scripts/testing/run-ios.sh` when the iOS surface or native bridge is
     in scope
-  - `python3 scripts/ci/tests/test_unuforge_package_consumer_smoke.py` when
-    validating a published `unuforge` wheel against `unuvault`'s JS-safe
-    machine contract
+  - `python3 scripts/ci/tests/test_unuforge_ios_package_consumer_smoke.py` for
+    the repo-owned installed-package iOS path
 
-Installed-package smoke is opt-in in this phase. It covers:
+The installed-package smoke split is intentional:
+
+- `scripts/ci/tests/test_unuforge_package_consumer_smoke.py` covers the JS-safe
+  `lint-runner` and `test-runner` path when validating a published `unuforge`
+  wheel against `unuvault`'s JS-safe machine contract
+- `scripts/ci/tests/test_unuforge_ios_package_consumer_smoke.py` is the
+  dedicated iOS installed-package smoke for `ios-test-runner`
+- the iOS installed-package smoke is expected to skip on non-Darwin hosts
+
+The baseline installed-package smoke coverage is still JS-safe in this phase:
 
 - `preset inspect`
 - `profiles list`
