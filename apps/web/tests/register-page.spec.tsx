@@ -28,8 +28,8 @@ vi.mock("../src/lib/identity/browser", () => ({
 }));
 
 describe("RegisterPage", () => {
-  it("shows the MVP auth form fields", () => {
-    render(<RegisterPage />);
+  it("shows the MVP auth form fields", async () => {
+    render(await RegisterPage({}));
 
     expect(screen.getByLabelText("Email")).toBeInTheDocument();
     expect(screen.getByLabelText("Password")).toBeInTheDocument();
@@ -39,7 +39,13 @@ describe("RegisterPage", () => {
   });
 
   it("shows a ready state after a successful signup flow", async () => {
-    render(<RegisterPage />);
+    render(
+      await RegisterPage({
+        searchParams: Promise.resolve({
+          next: "/dev/secrets/handoff?callback=http%3A%2F%2F127.0.0.1%3A4318%2Fcallback",
+        }),
+      }),
+    );
 
     fireEvent.change(screen.getByLabelText("Email"), {
       target: { value: "user@example.com" },
@@ -53,7 +59,9 @@ describe("RegisterPage", () => {
       email: "user@example.com",
       password: "correct-horse-battery",
       options: {
-        emailRedirectTo: expect.stringContaining("/auth/callback?next=%2Fauth%2Ffinalize"),
+        emailRedirectTo: expect.stringContaining(
+          "/auth/callback?next=%2Fdev%2Fsecrets%2Fhandoff%3Fcallback%3Dhttp%253A%252F%252F127.0.0.1%253A4318%252Fcallback",
+        ),
       },
     });
     expect(
@@ -62,7 +70,11 @@ describe("RegisterPage", () => {
   });
 
   it("blocks empty submissions before hitting unuidentity", async () => {
-    render(<RegisterPage />);
+    render(
+      await RegisterPage({
+        searchParams: Promise.resolve({}),
+      }),
+    );
 
     fireEvent.submit(screen.getByRole("button", { name: "Create account" }).closest("form")!);
 

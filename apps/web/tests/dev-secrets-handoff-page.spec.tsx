@@ -37,14 +37,14 @@ describe("DevSecretsHandoffPage", () => {
     });
 
     render(
-      <DevSecretsHandoffPage
-        searchParams={{
+      await DevSecretsHandoffPage({
+        searchParams: Promise.resolve({
           callback: "http://127.0.0.1:4318/callback",
           state: "state-1",
           app: "unundo",
           env: "local",
-        }}
-      />,
+        }),
+      }),
     );
 
     expect(
@@ -75,14 +75,14 @@ describe("DevSecretsHandoffPage", () => {
     });
 
     render(
-      <DevSecretsHandoffPage
-        searchParams={{
+      await DevSecretsHandoffPage({
+        searchParams: Promise.resolve({
           callback: "http://127.0.0.1:4318/callback",
           state: "state-1",
           app: "unundo",
           env: "local",
-        }}
-      />,
+        }),
+      }),
     );
 
     const registerLink = await screen.findByRole("link", {
@@ -90,6 +90,37 @@ describe("DevSecretsHandoffPage", () => {
     });
 
     expect(registerLink).toHaveAttribute(
+      "href",
+      "/register?next=%2Fdev%2Fsecrets%2Fhandoff%3Fcallback%3Dhttp%253A%252F%252F127.0.0.1%253A4318%252Fcallback%26state%3Dstate-1%26app%3Dunundo%26env%3Dlocal",
+    );
+  });
+
+  it("accepts Promise-based searchParams from Next 16", async () => {
+    mocks.createIdentityBrowserClient.mockReturnValue({
+      auth: {
+        getSession: vi.fn(),
+      },
+    });
+    mocks.startBrowserHandoff.mockResolvedValue({
+      status: "requires_auth",
+    });
+
+    render(
+      await DevSecretsHandoffPage({
+        searchParams: Promise.resolve({
+          callback: "http://127.0.0.1:4318/callback",
+          state: "state-1",
+          app: "unundo",
+          env: "local",
+        }),
+      }),
+    );
+
+    expect(
+      await screen.findByRole("link", {
+        name: "Continue through register",
+      }),
+    ).toHaveAttribute(
       "href",
       "/register?next=%2Fdev%2Fsecrets%2Fhandoff%3Fcallback%3Dhttp%253A%252F%252F127.0.0.1%253A4318%252Fcallback%26state%3Dstate-1%26app%3Dunundo%26env%3Dlocal",
     );
