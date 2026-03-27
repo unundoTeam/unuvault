@@ -2,6 +2,8 @@
 
 unuvault is a Chinese-first public cloud password manager for technical users
 who want a more trustworthy home for credentials than browser-native storage.
+面向中文技术用户，首阶段聚焦浏览器扩展、Web vault 与 iPhone 的安全可信密码管理体验。
+
 
 ## What This Repo Owns
 
