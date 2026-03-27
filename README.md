@@ -70,6 +70,19 @@ For local MVP auth setup:
 - `unuidentity` needs a redirect URL for
   `http://127.0.0.1:3001/auth/callback` during local development
 
+For the local-only dev secrets bridge:
+
+- enable the API surface with `UNUVAULT_ENABLE_DEV_SECRETS=1`
+- the stable local shell entrypoint is:
+  `bash scripts/secrets/provider.sh read --app unundo --env local`
+- the matching import entrypoint is:
+  `bash scripts/secrets/provider.sh import --app unundo --env local --from /absolute/path/to/local.env`
+- the TypeScript command module is also exposed as:
+  `pnpm secrets:provider --help`
+- version 1 only accepts the private namespace `unundo/local/dotenv`
+- `read` prints plaintext only to `stdout` on success
+- `import` prints only a safe summary to `stderr` before confirmation and upload
+
 ## Machine Entrypoints
 
 - current machine execution example:

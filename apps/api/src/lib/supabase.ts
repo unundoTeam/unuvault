@@ -1,6 +1,9 @@
+import { createDevSecretSessionStore } from "./dev-secret-session-store";
 import { createAuthBootstrapService } from "../services/auth-bootstrap-service";
+import { createDevSecretsService } from "../services/dev-secrets-service";
 import { createVaultSyncService } from "../services/vault-service";
 import type { VaultSyncItem } from "../../../../packages/api-client/src/vault";
+import type { DevSecretTarget } from "./dev-secret-session-store";
 
 type AuthUser = {
   id: string;
@@ -56,6 +59,14 @@ type VaultItemRow = {
 };
 
 type VaultItemWriteRow = Omit<VaultItemRow, "deleted_at">;
+
+type DeveloperSecretRecordRow = {
+  owner_account_id: string;
+  app_code: string;
+  target_env: string;
+  secret_kind: string;
+  ciphertext: string;
+};
 
 type SupabaseResult<T> = PromiseLike<{
   data: T | null;
@@ -369,6 +380,96 @@ let configuredService:
 let configuredVaultSyncService:
   | ReturnType<typeof createVaultSyncService>
   | undefined;
+let configuredDevSecretsService:
+  | ReturnType<typeof createDevSecretsService>
+  | undefined;
+const configuredDevSecretSessionStore = createDevSecretSessionStore();
+
+async function ensureConfiguredDevSecretsService() {
+  if (!configuredDevSecretsService) {
+    const [identityClient, dataClient] = await Promise.all([
+      createIdentitySupabaseClient(),
+      createProductDataSupabaseClient(),
+    ]);
+    const authDependencies = createSupabaseAuthBootstrapDependencies({
+      identityClient,
+      dataClient,
+    });
+
+    configuredDevSecretsService = createDevSecretsService({
+      sessionStore: configuredDevSecretSessionStore,
+      async getBrowserAccountIdFromToken(browserToken: string) {
+        const user = await authDependencies.getUserByToken(browserToken);
+
+        return user?.account_id ?? null;
+      },
+      async getStoredRecord(ownerAccountId, recordTarget) {
+        const query = dataClient
+          .from("developer_secret_records")
+          .select("ciphertext") as {
+          eq(column: string, value: string): unknown;
+        };
+        const scopedQuery = (
+          (query
+            .eq("owner_account_id", ownerAccountId) as {
+            eq(column: string, value: string): unknown;
+          })
+            .eq("app_code", recordTarget.app_code) as {
+            eq(column: string, value: string): unknown;
+          }
+        )
+          .eq("target_env", recordTarget.target_env) as {
+          eq(column: string, value: string): {
+            single(): SupabaseResult<
+              Pick<DeveloperSecretRecordRow, "ciphertext">
+            >;
+          };
+        };
+        const result = await scopedQuery
+          .eq("secret_kind", recordTarget.secret_kind)
+          .single();
+
+        if (result.error) {
+          if (isMissingRowError(result.error)) {
+            return null;
+          }
+
+          throw result.error;
+        }
+
+        if (!result.data) {
+          return null;
+        }
+
+        return {
+          ciphertext: result.data.ciphertext,
+        };
+      },
+      async putStoredRecord(ownerAccountId, recordTarget, ciphertext) {
+        const result = await (
+          dataClient.from("developer_secret_records").upsert(
+            {
+              owner_account_id: ownerAccountId,
+              app_code: recordTarget.app_code,
+              target_env: recordTarget.target_env,
+              secret_kind: recordTarget.secret_kind,
+              ciphertext,
+            },
+            {
+              onConflict: "owner_account_id,app_code,target_env,secret_kind",
+            },
+          ) as SupabaseResult<null>
+        );
+
+        if (result.error) {
+          throw result.error;
+        }
+      },
+    });
+  }
+
+  return configuredDevSecretsService;
+}
 
 export function createConfiguredAuthBootstrapService() {
   return {
@@ -413,6 +514,38 @@ export function createConfiguredVaultSyncService() {
       }
 
       return configuredVaultSyncService.syncVaultFromToken(token, payload);
+    },
+  };
+}
+
+export function createConfiguredDevSecretsService() {
+  return {
+    async createBrowserHandoff(token: string, target: DevSecretTarget) {
+      const service = await ensureConfiguredDevSecretsService();
+
+      return service.createBrowserHandoff(token, target);
+    },
+
+    async exchangeBrowserHandoff(handoffCode: string) {
+      const service = await ensureConfiguredDevSecretsService();
+
+      return service.exchangeBrowserHandoff(handoffCode);
+    },
+
+    async getPrivateRecord(token: string, target: DevSecretTarget) {
+      const service = await ensureConfiguredDevSecretsService();
+
+      return service.getPrivateRecord(token, target);
+    },
+
+    async putPrivateRecord(
+      token: string,
+      target: DevSecretTarget,
+      ciphertext: string,
+    ) {
+      const service = await ensureConfiguredDevSecretsService();
+
+      return service.putPrivateRecord(token, target, ciphertext);
     },
   };
 }

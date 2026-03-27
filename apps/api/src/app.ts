@@ -2,6 +2,7 @@ import cors from "@fastify/cors";
 import Fastify from "fastify";
 import { activityRoutes } from "./routes/activity";
 import { authRoutes } from "./routes/auth";
+import { devSecretsRoutes } from "./routes/dev-secrets";
 import { deviceRoutes } from "./routes/devices";
 import { importRoutes } from "./routes/imports";
 import { vaultRoutes } from "./routes/vault";
@@ -19,3 +20,7 @@ app.register(vaultRoutes, { prefix: "/vault" });
 app.register(deviceRoutes, { prefix: "/devices" });
 app.register(importRoutes, { prefix: "/imports" });
 app.register(activityRoutes, { prefix: "/activity" });
+
+if (process.env.UNUVAULT_ENABLE_DEV_SECRETS === "1") {
+  app.register(devSecretsRoutes, { prefix: "/dev/secrets" });
+}

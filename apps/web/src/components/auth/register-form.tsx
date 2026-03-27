@@ -4,7 +4,7 @@ import type { FormEvent } from "react";
 import { useState } from "react";
 import { createIdentityBrowserClient } from "../../lib/identity/browser";
 
-export function RegisterForm() {
+export function RegisterForm({ nextPath }: { nextPath?: string }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [status, setStatus] = useState<
@@ -14,7 +14,7 @@ export function RegisterForm() {
 
   function buildEmailRedirectUrl() {
     const redirect = new URL("/auth/callback", window.location.origin);
-    redirect.searchParams.set("next", "/auth/finalize");
+    redirect.searchParams.set("next", nextPath ?? "/auth/finalize");
     return redirect.toString();
   }
 
