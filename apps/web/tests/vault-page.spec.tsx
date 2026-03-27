@@ -7,6 +7,7 @@ import VaultPage from "../src/app/vault/page";
 import { createMasterPasswordVerifier } from "../../../packages/security/src/master-password-verifier";
 import {
   openStoredVaultPassword,
+  sealLegacyVaultPassword,
   sealVaultPassword,
 } from "../../../packages/security/src/vault-envelope";
 
@@ -24,7 +25,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 const storedPassword = (password: string, passphrase?: string): string =>
-  sealVaultPassword(password, passphrase);
+  passphrase ? sealVaultPassword(password, passphrase) : sealLegacyVaultPassword(password);
 
 async function setMasterPassword(
   password: string,

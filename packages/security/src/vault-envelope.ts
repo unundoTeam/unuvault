@@ -1,3 +1,14 @@
+/**
+ * WARNING: these helpers provide local compatibility for current unuvault storage shapes,
+ * not production-grade encryption. Version 1 stores plaintext. Version 2 uses a custom
+ * XOR stream and non-cryptographic hashing. Do not treat either version as a real
+ * security boundary.
+ */
+
+/**
+ * @deprecated Version 1 stores the password as plaintext and only exists for explicit
+ * legacy fixtures and migration compatibility.
+ */
 type LegacyVaultEnvelope = {
   version: 1;
   cipher: "xchacha20-poly1305";
@@ -164,12 +175,27 @@ export function isPassphraseProtectedVaultPassword(ciphertext: string): boolean 
   return !!parsed && isPassphraseEnvelope(parsed);
 }
 
-export function sealVaultPassword(password: string, passphrase?: string): string {
-  const envelope = passphrase
-    ? createPassphraseEnvelope(password, passphrase)
-    : createLegacyEnvelope(password);
+/**
+ * @deprecated Version 1 vault envelopes are plaintext. Use only for explicit legacy
+ * fixtures or compatibility tests.
+ */
+export function sealLegacyVaultPassword(password: string): string {
+  return JSON.stringify(createLegacyEnvelope(password));
+}
 
-  return JSON.stringify(envelope);
+/**
+ * WARNING: requires a non-empty passphrase for all new writes. This still does not
+ * provide production-grade cryptography, but removing the implicit v1 fallback prevents
+ * accidental plaintext storage behind a misleading API.
+ */
+export function sealVaultPassword(password: string, passphrase: string): string {
+  if (!passphrase) {
+    throw new Error(
+      "sealVaultPassword requires a non-empty passphrase. Use sealLegacyVaultPassword only for explicit legacy compatibility.",
+    );
+  }
+
+  return JSON.stringify(createPassphraseEnvelope(password, passphrase));
 }
 
 export function openVaultPassword(ciphertext: string, passphrase?: string): string {

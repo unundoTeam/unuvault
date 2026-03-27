@@ -3,6 +3,7 @@ import {
   isPassphraseProtectedVaultPassword,
   openVaultPassword,
   openStoredVaultPassword,
+  sealLegacyVaultPassword,
   sealVaultPassword,
 } from "../src/vault-envelope";
 
@@ -21,6 +22,16 @@ describe("vault envelope helpers", () => {
     expect(openVaultPassword(sealed, "wrong battery")).toBe("");
   });
 
+  it("rejects sealing new passwords without a non-empty passphrase", () => {
+    const sealWithoutPassphrase = sealVaultPassword as unknown as (
+      password: string,
+      passphrase?: string,
+    ) => string;
+
+    expect(() => sealWithoutPassphrase("hunter2")).toThrow(/passphrase/i);
+    expect(() => sealVaultPassword("hunter2", "")).toThrow(/passphrase/i);
+  });
+
   it("flags passphrase-protected envelope values", () => {
     const sealed = sealVaultPassword("hunter2", "correct horse");
 
@@ -35,12 +46,7 @@ describe("vault envelope helpers", () => {
   it("opens legacy version 1 envelope values through the storage helper", () => {
     expect(
       openStoredVaultPassword(
-        JSON.stringify({
-          version: 1,
-          cipher: "xchacha20-poly1305",
-          encryptedPayload: "hunter2",
-          keyDerivation: "argon2id",
-        }),
+        sealLegacyVaultPassword("hunter2"),
         "correct horse",
       ),
     ).toBe("hunter2");
