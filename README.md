@@ -59,8 +59,13 @@ who want a more trustworthy home for credentials than browser-native storage.
 
 For local MVP auth setup:
 
+- the checked-in `apps/web/.env.example` and `apps/api/.env.example` files are
+  hosted onboarding examples for running the local web/API loop against real
+  Supabase projects, not local Supabase port-contract files
 - copy `apps/web/.env.example` to `apps/web/.env.local`
 - copy `apps/api/.env.example` to `apps/api/.env.local`
+- replace the placeholder project refs and keys with real hosted project values
+  while keeping the documented local runtime fields concrete
 - `apps/web/.env.local` needs the browser-facing `unuidentity` values:
   `NEXT_PUBLIC_IDENTITY_SUPABASE_URL`,
   `NEXT_PUBLIC_IDENTITY_SUPABASE_ANON_KEY`, and `NEXT_PUBLIC_API_BASE_URL`
