@@ -66,7 +66,8 @@ For local MVP auth setup:
 - copy `apps/api/.env.example` to `apps/api/.env.local`
 - replace the placeholder project refs and keys with real hosted project values
   while keeping the documented local runtime fields concrete
-- `apps/web/.env.local` needs the browser-facing `unuidentity` values:
+- `apps/web/.env.local` needs the browser-facing product and `unuidentity`
+  values: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
   `NEXT_PUBLIC_IDENTITY_SUPABASE_URL`,
   `NEXT_PUBLIC_IDENTITY_SUPABASE_ANON_KEY`, and `NEXT_PUBLIC_API_BASE_URL`
 - `apps/api/.env.local` needs both shared identity and product-data values:

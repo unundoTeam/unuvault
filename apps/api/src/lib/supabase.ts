@@ -108,6 +108,11 @@ type ProductDataSupabaseClientLike = {
   };
 };
 
+type ProductAdminSupabaseConfig = {
+  url: string;
+  serviceRoleKey: string;
+};
+
 function readRequiredEnv(name: string): string {
   const value = process.env[name];
 
@@ -116,6 +121,23 @@ function readRequiredEnv(name: string): string {
   }
 
   return value;
+}
+
+function getOptionalProductAdminSupabaseConfig(): ProductAdminSupabaseConfig | null {
+  const url = process.env.SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!url && !serviceRoleKey) {
+    return null;
+  }
+
+  if (!url || !serviceRoleKey) {
+    throw new Error(
+      "Product admin Supabase configuration requires SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.",
+    );
+  }
+
+  return { url, serviceRoleKey };
 }
 
 function isMissingRowError(error: unknown): boolean {
@@ -347,9 +369,9 @@ export function createSupabaseAuthBootstrapDependencies(
   };
 }
 
-async function createSupabaseClient(
-  urlEnv: string,
-  keyEnv: string,
+async function createSupabaseClientFromValues(
+  url: string,
+  key: string,
 ): Promise<IdentitySupabaseClientLike & ProductDataSupabaseClientLike> {
   const { createClient: importedCreateClient } = await import("@supabase/supabase-js");
   const createClient = importedCreateClient as unknown as (
@@ -357,7 +379,14 @@ async function createSupabaseClient(
     key: string,
   ) => IdentitySupabaseClientLike & ProductDataSupabaseClientLike;
 
-  return createClient(
+  return createClient(url, key);
+}
+
+async function createSupabaseClient(
+  urlEnv: string,
+  keyEnv: string,
+): Promise<IdentitySupabaseClientLike & ProductDataSupabaseClientLike> {
+  return createSupabaseClientFromValues(
     readRequiredEnv(urlEnv),
     readRequiredEnv(keyEnv),
   );
@@ -370,8 +399,26 @@ async function createIdentitySupabaseClient(): Promise<IdentitySupabaseClientLik
   );
 }
 
-async function createProductDataSupabaseClient(): Promise<ProductDataSupabaseClientLike> {
-  return createSupabaseClient("SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY");
+export async function createProductAdminClient(): Promise<ProductDataSupabaseClientLike | null> {
+  const config = getOptionalProductAdminSupabaseConfig();
+
+  if (!config) {
+    return null;
+  }
+
+  return createSupabaseClientFromValues(config.url, config.serviceRoleKey);
+}
+
+export async function createProductDataSupabaseClient(): Promise<ProductDataSupabaseClientLike> {
+  const client = await createProductAdminClient();
+
+  if (!client) {
+    throw new Error(
+      "Product admin Supabase configuration requires SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.",
+    );
+  }
+
+  return client;
 }
 
 let configuredService:
