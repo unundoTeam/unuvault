@@ -52,35 +52,114 @@ export function RegisterForm({ nextPath }: { nextPath?: string }) {
   }
 
   return (
-    <form onSubmit={handleSubmit}>
-      <label>
-        <span>Email</span>
-        <input
-          name="email"
-          type="email"
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-        />
-      </label>
+    <form
+      data-testid="register-form-shell"
+      onSubmit={handleSubmit}
+      style={{
+        display: "grid",
+        gap: "var(--space-card-padding)",
+      }}
+    >
+      <div style={{ display: "grid", gap: "var(--space-input-padding)" }}>
+        <label
+          style={{
+            display: "grid",
+            gap: "calc(var(--space-input-padding) / 2)",
+          }}
+        >
+          <span style={{ fontWeight: 600 }}>Email</span>
+          <input
+            name="email"
+            type="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            style={{
+              width: "100%",
+              padding: "var(--space-input-padding)",
+              borderRadius: "var(--radius-input)",
+              border: "1px solid rgba(148, 163, 184, 0.45)",
+              background: "rgba(248, 250, 252, 0.92)",
+              transitionProperty: "border-color, box-shadow, background-color",
+              transitionDuration: "var(--motion-duration-standard)",
+              transitionTimingFunction: "var(--motion-ease-standard)",
+            }}
+          />
+        </label>
 
-      <label>
-        <span>Password</span>
-        <input
-          name="password"
-          type="password"
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-        />
-      </label>
+        <label
+          style={{
+            display: "grid",
+            gap: "calc(var(--space-input-padding) / 2)",
+          }}
+        >
+          <span style={{ fontWeight: 600 }}>Password</span>
+          <input
+            name="password"
+            type="password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            style={{
+              width: "100%",
+              padding: "var(--space-input-padding)",
+              borderRadius: "var(--radius-input)",
+              border: "1px solid rgba(148, 163, 184, 0.45)",
+              background: "rgba(248, 250, 252, 0.92)",
+              transitionProperty: "border-color, box-shadow, background-color",
+              transitionDuration: "var(--motion-duration-standard)",
+              transitionTimingFunction: "var(--motion-ease-standard)",
+            }}
+          />
+        </label>
+      </div>
 
-      <button type="submit" disabled={status === "submitting"}>
+      <button
+        type="submit"
+        disabled={status === "submitting"}
+        style={{
+          borderRadius: "var(--radius-button)",
+          border: "none",
+          padding: "var(--space-input-padding)",
+          background: status === "submitting" ? "#334155" : "#0f172a",
+          color: "#fff",
+          fontWeight: 600,
+          cursor: status === "submitting" ? "progress" : "pointer",
+          opacity: status === "submitting" ? 0.82 : 1,
+          transitionProperty: "opacity, transform, background-color",
+          transitionDuration: "var(--motion-duration-standard)",
+          transitionTimingFunction: "var(--motion-ease-standard)",
+        }}
+      >
         {status === "submitting" ? "Creating account..." : "Create account"}
       </button>
 
       {status === "pending_confirmation" ? (
-        <p>Check your email to finish setting up unuvault.</p>
+        <p
+          style={{
+            margin: 0,
+            padding: "var(--space-input-padding)",
+            borderRadius: "var(--radius-card)",
+            background: "rgba(16, 185, 129, 0.12)",
+            color: "#065f46",
+            lineHeight: 1.6,
+          }}
+        >
+          Check your email to finish setting up unuvault.
+        </p>
       ) : null}
-      {errorMessage ? <p>{errorMessage}</p> : null}
+      {errorMessage ? (
+        <p
+          style={{
+            margin: 0,
+            padding: "var(--space-input-padding)",
+            borderRadius: "var(--radius-card)",
+            background: "rgba(239, 68, 68, 0.12)",
+            color: "#991b1b",
+            lineHeight: 1.6,
+          }}
+        >
+          {errorMessage}
+        </p>
+      ) : null}
     </form>
   );
 }
