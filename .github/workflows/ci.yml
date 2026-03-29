@@ -8,27 +8,10 @@ on:
 
 jobs:
   js:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v5
-
-      - name: Set up pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10.32.1
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: 22
-
-      - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
-
-      - name: Run lint
-        run: pnpm lint
-
-      - name: Run tests
-        run: pnpm test
+    uses: unundoTeam/.github/.github/workflows/node-verify.yml@main
+    with:
+      node_version: "22"
+      package_manager: pnpm
+      install_command: pnpm install --no-frozen-lockfile
+      lint_command: pnpm lint
+      test_command: pnpm test
