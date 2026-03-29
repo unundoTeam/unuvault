@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -25,6 +26,7 @@ type ReleasePreset = {
 };
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const unuforgeRepoRoot = "/Users/yuchen/.config/superpowers/worktrees/unuforge/codex-unuforge-command-host-base";
 
 function readJson<T>(pathFromRepoRoot: string): T {
   return JSON.parse(
@@ -99,10 +101,105 @@ describe("unuforge entrypoints", () => {
     expect(unuforgeShim).toContain("UNUFORGE_SRC_ROOT");
     expect(unuforgeShim).toContain("UNUFORGE_REPO_ROOT");
     expect(hostShim).toContain("from .host import HOST");
-    expect(hostSource).toContain("def _load_preset");
-    expect(hostSource).toContain("def _repo_root_from_preset_path");
-    expect(hostSource).toContain('normalized.replace("-", "_")');
-    expect(hostSource).toContain("preset `entrypoints`");
+    expect(hostSource).toContain("PresetDrivenCommandHost");
+    expect(hostSource).toContain("unsupported_action_message");
+  });
+
+  it("builds profile execution through the shared preset-driven host base", () => {
+    const completed = spawnSync(
+      "python3",
+      [
+        "-c",
+        `
+import json
+from unuvault_forge_host import HOST
+print(json.dumps(HOST.build_profile_execution(
+    "presets/unuvault/release-preset.json",
+    "lint-runner",
+)))
+`,
+      ],
+      {
+        cwd: repoRoot,
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          UNUFORGE_REPO_ROOT: unuforgeRepoRoot,
+        },
+      },
+    );
+
+    expect(completed.status).toBe(0);
+
+    const payload = JSON.parse(completed.stdout) as {
+      runner: string;
+      command: string[];
+      cwd: string;
+    };
+
+    expect(payload.runner).toBe("command");
+    expect(payload.command[0]).toBe("bash");
+    expect(payload.command[1]).toContain("scripts/testing/lint-runner.sh");
+    expect(payload.cwd).toBe(repoRoot);
+  });
+
+  it("propagates the subprocess return code through the shared host base", () => {
+    const completed = spawnSync(
+      "python3",
+      [
+        "-c",
+        `
+from types import SimpleNamespace
+from unittest.mock import patch
+from unuvault_forge_host import HOST
+
+with patch("unuforge.runtime.command_hosts.subprocess.run", return_value=SimpleNamespace(returncode=13)):
+    print(HOST.run_profile(
+        "presets/unuvault/release-preset.json",
+        "test-runner",
+    ))
+`,
+      ],
+      {
+        cwd: repoRoot,
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          UNUFORGE_REPO_ROOT: unuforgeRepoRoot,
+        },
+      },
+    );
+
+    expect(completed.status).toBe(0);
+    expect(completed.stdout.trim()).toBe("13");
+  });
+
+  it("rejects machine actions through the shared host base", () => {
+    const completed = spawnSync(
+      "python3",
+      [
+        "-c",
+        `
+from unuvault_forge_host import HOST
+
+HOST.build_action_execution(
+    "presets/unuvault/release-preset.json",
+    "deploy",
+)
+`,
+      ],
+      {
+        cwd: repoRoot,
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          UNUFORGE_REPO_ROOT: unuforgeRepoRoot,
+        },
+      },
+    );
+
+    expect(completed.status).not.toBe(0);
+    expect(completed.stderr).toContain("does not expose machine actions yet");
   });
 
   it("keeps the existing root wrappers as the public lint and test entrypoints", () => {
