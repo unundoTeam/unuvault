@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   isPassphraseProtectedVaultPassword,
   openVaultPassword,
@@ -8,6 +8,10 @@ import {
 } from "../src/vault-envelope";
 
 describe("vault envelope helpers", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it("round-trips a plaintext password through a passphrase-protected envelope", () => {
     const sealed = sealVaultPassword("hunter2", "correct horse");
 
@@ -30,6 +34,14 @@ describe("vault envelope helpers", () => {
 
     expect(() => sealWithoutPassphrase("hunter2")).toThrow(/passphrase/i);
     expect(() => sealVaultPassword("hunter2", "")).toThrow(/passphrase/i);
+  });
+
+  it("fails closed when secure random values are unavailable", () => {
+    vi.stubGlobal("crypto", {});
+
+    expect(() => sealVaultPassword("hunter2", "correct horse")).toThrow(
+      /secure random|crypto\.getRandomValues/i,
+    );
   });
 
   it("flags passphrase-protected envelope values", () => {
