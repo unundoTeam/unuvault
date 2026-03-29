@@ -26,7 +26,26 @@ type ReleasePreset = {
 };
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const unuforgeRepoRoot = "/Users/yuchen/.config/superpowers/worktrees/unuforge/codex-unuforge-command-host-base";
+
+function resolveUnuforgeRepoRoot(): string | null {
+  const explicit = process.env.UNUFORGE_REPO_ROOT;
+  if (
+    explicit &&
+    existsSync(resolve(explicit, "src/unuforge/runtime/command_hosts.py"))
+  ) {
+    return explicit;
+  }
+
+  const sibling = resolve(repoRoot, "../unuforge");
+  if (existsSync(resolve(sibling, "src/unuforge/runtime/command_hosts.py"))) {
+    return sibling;
+  }
+
+  return null;
+}
+
+const unuforgeRepoRoot = resolveUnuforgeRepoRoot();
+const itWithUnuforge = unuforgeRepoRoot ? it : it.skip;
 
 function readJson<T>(pathFromRepoRoot: string): T {
   return JSON.parse(
@@ -105,7 +124,7 @@ describe("unuforge entrypoints", () => {
     expect(hostSource).toContain("unsupported_action_message");
   });
 
-  it("builds profile execution through the shared preset-driven host base", () => {
+  itWithUnuforge("builds profile execution through the shared preset-driven host base", () => {
     const completed = spawnSync(
       "python3",
       [
@@ -124,7 +143,7 @@ print(json.dumps(HOST.build_profile_execution(
         encoding: "utf8",
         env: {
           ...process.env,
-          UNUFORGE_REPO_ROOT: unuforgeRepoRoot,
+          UNUFORGE_REPO_ROOT: unuforgeRepoRoot!,
         },
       },
     );
@@ -143,7 +162,7 @@ print(json.dumps(HOST.build_profile_execution(
     expect(payload.cwd).toBe(repoRoot);
   });
 
-  it("propagates the subprocess return code through the shared host base", () => {
+  itWithUnuforge("propagates the subprocess return code through the shared host base", () => {
     const completed = spawnSync(
       "python3",
       [
@@ -165,7 +184,7 @@ with patch("unuforge.runtime.command_hosts.subprocess.run", return_value=SimpleN
         encoding: "utf8",
         env: {
           ...process.env,
-          UNUFORGE_REPO_ROOT: unuforgeRepoRoot,
+          UNUFORGE_REPO_ROOT: unuforgeRepoRoot!,
         },
       },
     );
@@ -174,7 +193,7 @@ with patch("unuforge.runtime.command_hosts.subprocess.run", return_value=SimpleN
     expect(completed.stdout.trim()).toBe("13");
   });
 
-  it("rejects machine actions through the shared host base", () => {
+  itWithUnuforge("rejects machine actions through the shared host base", () => {
     const completed = spawnSync(
       "python3",
       [
@@ -193,7 +212,7 @@ HOST.build_action_execution(
         encoding: "utf8",
         env: {
           ...process.env,
-          UNUFORGE_REPO_ROOT: unuforgeRepoRoot,
+          UNUFORGE_REPO_ROOT: unuforgeRepoRoot!,
         },
       },
     );
