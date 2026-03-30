@@ -11,6 +11,10 @@ import {
   writeDevSecretRecord,
 } from "../../packages/api-client/src/dev-secrets";
 import {
+  isSupportedDevSecretProviderTarget,
+  listSupportedDevSecretNamespaces,
+} from "../../packages/api-client/src/dev-secrets-targets";
+import {
   openDeveloperSecretBlob,
   sealDeveloperSecretBlob,
 } from "../../packages/security/src/developer-secret-envelope";
@@ -64,7 +68,10 @@ const DEFAULT_WEB_BASE_URL = "http://127.0.0.1:3001";
 export const DEV_SECRETS_PROVIDER_USAGE = [
   "Usage:",
   "  bash scripts/secrets/provider.sh read --app unundo --env local",
+  "  bash scripts/secrets/provider.sh read --app unuidentity --env local",
   "  bash scripts/secrets/provider.sh import --app unundo --env local --from /absolute/path/to/local.env",
+  "  bash scripts/secrets/provider.sh import --app unuidentity --env local --from /absolute/path/to/phase1.env",
+  `Supported namespaces: ${listSupportedDevSecretNamespaces().join(", ")}`,
 ].join("\n");
 
 function createProviderError(code: string) {
@@ -72,7 +79,7 @@ function createProviderError(code: string) {
 }
 
 function validateTarget(target: ProviderTarget) {
-  if (target.app !== "unundo" || target.env !== "local") {
+  if (!isSupportedDevSecretProviderTarget(target)) {
     throw createProviderError("invalid_target");
   }
 }
