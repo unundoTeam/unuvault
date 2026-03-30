@@ -48,10 +48,10 @@ type SignInInput = {
   password: string;
 };
 
-function createApiFetch(): Fetcher {
-  const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 
-  return (input, init) => fetch(`${baseUrl}${input}`, init) as ReturnType<Fetcher>;
+function createApiFetch(): Fetcher {
+  return (input, init) => fetch(`${API_BASE_URL}${input}`, init) as ReturnType<Fetcher>;
 }
 
 function createDefaultDeps(): ExtensionAuthDeps {

@@ -1,8 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
 
-function readRequiredEnv(name: string): string {
-  const value = process.env[name];
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
+function readRequiredEnv(name: string, value: string | undefined): string {
   if (!value) {
     throw new Error(`Missing required env var: ${name}`);
   }
@@ -12,7 +13,7 @@ function readRequiredEnv(name: string): string {
 
 export function createExtensionSupabaseClient() {
   return createClient(
-    readRequiredEnv("NEXT_PUBLIC_SUPABASE_URL"),
-    readRequiredEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY"),
+    readRequiredEnv("NEXT_PUBLIC_SUPABASE_URL", SUPABASE_URL),
+    readRequiredEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", SUPABASE_ANON_KEY),
   );
 }

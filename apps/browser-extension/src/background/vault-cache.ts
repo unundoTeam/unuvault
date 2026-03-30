@@ -11,10 +11,10 @@ type VaultCacheHydratorDeps = {
   writePopupVaultItems: typeof writePopupVaultItems;
 };
 
-function createApiFetch(): SyncFetcher {
-  const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 
-  return (input, init) => fetch(`${baseUrl}${input}`, init) as ReturnType<SyncFetcher>;
+function createApiFetch(): SyncFetcher {
+  return (input, init) => fetch(`${API_BASE_URL}${input}`, init) as ReturnType<SyncFetcher>;
 }
 
 function createDefaultDeps(): VaultCacheHydratorDeps {
