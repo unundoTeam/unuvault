@@ -164,6 +164,9 @@ migration, and iOS bridge changes.
   - `env contract`: `adopted`
 - the shared identity cutover is in place, but automation and documentation
   rollout still need to keep converging across the broader portfolio
+- production-landing dry-run evidence now lives in
+  `docs/operations/identity-production-cutover-rehearsal.md`; it documents the
+  cutover and rollback rehearsal only, not a live hosted-identity switch
 - the local auth bridge is a clean cutover for pre-launch test users; old local
   `users_profile` rows should be recreated through the new `unuidentity` flow
   instead of being rebound automatically
