@@ -7,6 +7,7 @@ import type {
 } from "../../../../../packages/api-client/src/vault";
 import { syncVault } from "../../../../../packages/api-client/src/vault";
 import { createIdentityBrowserClient } from "../../lib/identity/browser";
+import { createBrowserApiFetch } from "../../lib/api/browser-fetch";
 import {
   normalizeVaultLoginPayload,
   normalizeVaultWebsiteUrl,
@@ -37,12 +38,6 @@ type VaultSyncState = {
   updateItem(itemId: string, input: VaultLoginFields): Promise<boolean>;
 };
 
-function createApiFetch() {
-  const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
-
-  return (input: string, init?: RequestInit) => fetch(`${baseUrl}${input}`, init);
-}
-
 function isProfileNotReadyError(error: unknown): boolean {
   return error instanceof Error && error.message === "profile_not_found";
 }
@@ -69,7 +64,7 @@ export function useVaultSync(): VaultSyncState {
     setErrorMessage(null);
 
     try {
-      const response = await syncVault(createApiFetch(), token, payload);
+      const response = await syncVault(createBrowserApiFetch(), token, payload);
       setItems(response.updated_items);
       setIsAuthenticated(true);
       setLastAction(action);

@@ -1,22 +1,21 @@
-import { RegisterForm } from "../../components/auth/register-form";
-import {
-  buildLoginHref,
-  getSingleSearchParam,
-} from "../../components/auth/auth-next";
+import { LoginForm } from "../../components/auth/login-form";
+import { getSingleSearchParam } from "../../components/auth/auth-next";
 
-export default async function RegisterPage({
+export default async function LoginPage({
   searchParams,
 }: {
   searchParams?: Promise<{
     next?: string | string[];
+    provider?: string | string[];
   }>;
 }) {
   const resolvedSearchParams = await searchParams;
   const nextPath = getSingleSearchParam(resolvedSearchParams?.next);
+  const provider = getSingleSearchParam(resolvedSearchParams?.provider);
 
   return (
     <main
-      data-testid="register-page-shell"
+      data-testid="login-page-shell"
       style={{
         minHeight: "100vh",
         padding: "var(--space-page-padding)",
@@ -28,7 +27,7 @@ export default async function RegisterPage({
       }}
     >
       <section
-        data-testid="register-page-card"
+        data-testid="login-page-card"
         style={{
           width: "min(100%, 520px)",
           display: "grid",
@@ -55,22 +54,22 @@ export default async function RegisterPage({
           >
             Local onboarding
           </div>
-          <div style={{ display: "grid", gap: "calc(var(--space-input-padding) / 2)" }}>
+          <div
+            style={{
+              display: "grid",
+              gap: "calc(var(--space-input-padding) / 2)",
+            }}
+          >
             <h1 style={{ margin: 0, fontSize: "clamp(2rem, 5vw, 2.8rem)" }}>
-              Create your unuvault account
+              Sign in to unuvault
             </h1>
             <p style={{ margin: 0, color: "#475569", lineHeight: 1.6 }}>
-              Start with a safer home for the passwords you already use every day.
+              Continue with your existing account so local handoff and vault access
+              can finish in this browser.
             </p>
           </div>
         </header>
-        <RegisterForm nextPath={nextPath} />
-        <p style={{ margin: 0, color: "#475569", lineHeight: 1.6 }}>
-          Already have an account?{" "}
-          <a href={buildLoginHref(nextPath)} style={{ color: "#1d4ed8" }}>
-            Sign in
-          </a>
-        </p>
+        <LoginForm nextPath={nextPath} autoProvider={provider} />
       </section>
     </main>
   );

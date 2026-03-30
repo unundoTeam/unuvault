@@ -81,4 +81,19 @@ describe("RegisterPage", () => {
     expect(await screen.findByText("Email and password are required.")).toBeInTheDocument();
     expect(mocks.identitySignUp).not.toHaveBeenCalled();
   });
+
+  it("links existing users to sign in without losing the caller next path", async () => {
+    render(
+      await RegisterPage({
+        searchParams: Promise.resolve({
+          next: "/dev/secrets/handoff?callback=http%3A%2F%2F127.0.0.1%3A4318%2Fcallback",
+        }),
+      }),
+    );
+
+    expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute(
+      "href",
+      "/login?next=%2Fdev%2Fsecrets%2Fhandoff%3Fcallback%3Dhttp%253A%252F%252F127.0.0.1%253A4318%252Fcallback",
+    );
+  });
 });

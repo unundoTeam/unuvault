@@ -64,7 +64,7 @@ describe("DevSecretsHandoffPage", () => {
     });
   });
 
-  it("sends the user through the existing auth flow when no browser session exists", async () => {
+  it("offers login and register paths when no browser session exists", async () => {
     mocks.createIdentityBrowserClient.mockReturnValue({
       auth: {
         getSession: vi.fn(),
@@ -85,10 +85,24 @@ describe("DevSecretsHandoffPage", () => {
       }),
     );
 
-    const registerLink = await screen.findByRole("link", {
-      name: "Continue through register",
+    const googleLink = await screen.findByRole("link", {
+      name: "Continue with Google",
+    });
+    const emailLink = screen.getByRole("link", {
+      name: "Continue with email",
+    });
+    const registerLink = screen.getByRole("link", {
+      name: "Create account",
     });
 
+    expect(googleLink).toHaveAttribute(
+      "href",
+      "/login?next=%2Fdev%2Fsecrets%2Fhandoff%3Fcallback%3Dhttp%253A%252F%252F127.0.0.1%253A4318%252Fcallback%26state%3Dstate-1%26app%3Dunundo%26env%3Dlocal&provider=google",
+    );
+    expect(emailLink).toHaveAttribute(
+      "href",
+      "/login?next=%2Fdev%2Fsecrets%2Fhandoff%3Fcallback%3Dhttp%253A%252F%252F127.0.0.1%253A4318%252Fcallback%26state%3Dstate-1%26app%3Dunundo%26env%3Dlocal",
+    );
     expect(registerLink).toHaveAttribute(
       "href",
       "/register?next=%2Fdev%2Fsecrets%2Fhandoff%3Fcallback%3Dhttp%253A%252F%252F127.0.0.1%253A4318%252Fcallback%26state%3Dstate-1%26app%3Dunundo%26env%3Dlocal",
@@ -118,7 +132,23 @@ describe("DevSecretsHandoffPage", () => {
 
     expect(
       await screen.findByRole("link", {
-        name: "Continue through register",
+        name: "Continue with Google",
+      }),
+    ).toHaveAttribute(
+      "href",
+      "/login?next=%2Fdev%2Fsecrets%2Fhandoff%3Fcallback%3Dhttp%253A%252F%252F127.0.0.1%253A4318%252Fcallback%26state%3Dstate-1%26app%3Dunundo%26env%3Dlocal&provider=google",
+    );
+    expect(
+      screen.getByRole("link", {
+        name: "Continue with email",
+      }),
+    ).toHaveAttribute(
+      "href",
+      "/login?next=%2Fdev%2Fsecrets%2Fhandoff%3Fcallback%3Dhttp%253A%252F%252F127.0.0.1%253A4318%252Fcallback%26state%3Dstate-1%26app%3Dunundo%26env%3Dlocal",
+    );
+    expect(
+      screen.getByRole("link", {
+        name: "Create account",
       }),
     ).toHaveAttribute(
       "href",
