@@ -1,6 +1,7 @@
 "use client";
 
 import { createDevSecretsHandoff } from "../../../../../packages/api-client/src/dev-secrets";
+import { createBrowserApiFetch } from "../api/browser-fetch";
 
 type IdentityClientLike = {
   auth: {
@@ -41,14 +42,10 @@ export async function startBrowserHandoff(
       return { status: "requires_auth" };
     }
 
-    const response = await createDevSecretsHandoff(
-      options.fetcher,
-      accessToken,
-      {
-        app: options.app,
-        env: options.env,
-      },
-    );
+    const response = await createDevSecretsHandoff(createBrowserApiFetch(options.fetcher), accessToken, {
+      app: options.app,
+      env: options.env,
+    });
     const redirectUrl = new URL(options.callbackUrl);
 
     redirectUrl.searchParams.set("code", response.handoff_code);
