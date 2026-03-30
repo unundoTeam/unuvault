@@ -59,6 +59,67 @@ describe("runDevSecretsProvider", () => {
     expect(readStderr()).toBe("");
   });
 
+  it("accepts unuidentity/local as a supported read target", async () => {
+    const { io, readStdout, readStderr } = createCapturedIo();
+    const ciphertext = sealDeveloperSecretBlob(
+      "IDENTITY_SUPABASE_URL=https://identity.example.supabase.co\n",
+      "correct horse",
+    );
+    const readRecord = vi.fn().mockResolvedValue({
+      ciphertext,
+    });
+
+    const exitCode = await runDevSecretsProvider(
+      ["read", "--app", "unuidentity", "--env", "local"],
+      {
+        io,
+        deps: {
+          getCliSessionToken: async () => "cli-session-token",
+          promptSecret: async () => "correct horse",
+          readRecord,
+          writeRecord: async () => ({ ok: true as const }),
+          readTextFile: async () => "",
+          confirm: async () => true,
+        },
+      },
+    );
+
+    expect(exitCode).toBe(0);
+    expect(readRecord).toHaveBeenCalledWith("cli-session-token", {
+      app: "unuidentity",
+      env: "local",
+    });
+    expect(readStdout()).toBe(
+      "IDENTITY_SUPABASE_URL=https://identity.example.supabase.co\n",
+    );
+    expect(readStderr()).toBe("");
+  });
+
+  it("keeps stdout empty for unsupported non-local targets", async () => {
+    const { io, readStdout, readStderr } = createCapturedIo();
+
+    const exitCode = await runDevSecretsProvider(
+      ["read", "--app", "unuidentity", "--env", "staging"],
+      {
+        io,
+        deps: {
+          getCliSessionToken: async () => "cli-session-token",
+          promptSecret: async () => "correct horse",
+          readRecord: async () => ({
+            ciphertext: "",
+          }),
+          writeRecord: async () => ({ ok: true as const }),
+          readTextFile: async () => "",
+          confirm: async () => true,
+        },
+      },
+    );
+
+    expect(exitCode).toBe(1);
+    expect(readStdout()).toBe("");
+    expect(readStderr()).toContain("invalid_target");
+  });
+
   it("keeps stdout empty and reports decrypt_failed when read cannot decrypt", async () => {
     const { io, readStdout, readStderr } = createCapturedIo();
     const ciphertext = sealDeveloperSecretBlob(

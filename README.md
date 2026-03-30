@@ -82,14 +82,18 @@ For the local-only dev secrets bridge:
 
 - enable the API surface with `UNUVAULT_ENABLE_DEV_SECRETS=1`
 - the stable local shell entrypoint is:
-  `bash scripts/secrets/provider.sh read --app unundo --env local`
+  `bash scripts/secrets/provider.sh read --app <app> --env local`
 - the matching import entrypoint is:
-  `bash scripts/secrets/provider.sh import --app unundo --env local --from /absolute/path/to/local.env`
+  `bash scripts/secrets/provider.sh import --app <app> --env local --from /absolute/path/to/local.env`
 - the TypeScript command module is also exposed as:
   `pnpm secrets:provider --help`
-- version 1 only accepts the private namespace `unundo/local/dotenv`
+- the currently supported private namespaces are:
+  - `unundo/local/dotenv`
+  - `unuidentity/local/dotenv`
 - `read` prints plaintext only to `stdout` on success
 - `import` prints only a safe summary to `stderr` before confirmation and upload
+- this remains a local-only, developer-scoped bridge rather than a general
+  non-local secrets platform
 
 ## Machine Entrypoints
 

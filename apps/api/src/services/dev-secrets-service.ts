@@ -2,6 +2,7 @@ import type {
   DevSecretSessionStore,
   DevSecretTarget,
 } from "../lib/dev-secret-session-store";
+import { isSupportedDevSecretRecordTarget } from "../../../../packages/api-client/src/dev-secrets-targets";
 
 export class DevSecretsUnauthorizedError extends Error {}
 
@@ -29,16 +30,8 @@ type DevSecretsServiceDependencies = {
   ): Promise<void>;
 };
 
-const ALLOWED_APP_CODE = "unundo";
-const ALLOWED_TARGET_ENV = "local";
-const ALLOWED_SECRET_KIND = "dotenv";
-
 function assertSupportedTarget(target: DevSecretTarget) {
-  if (
-    target.app_code !== ALLOWED_APP_CODE ||
-    target.target_env !== ALLOWED_TARGET_ENV ||
-    target.secret_kind !== ALLOWED_SECRET_KIND
-  ) {
+  if (!isSupportedDevSecretRecordTarget(target)) {
     throw new DevSecretValidationError("unsupported_target");
   }
 }
