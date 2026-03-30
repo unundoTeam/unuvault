@@ -1,10 +1,14 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   openDeveloperSecretBlob,
   sealDeveloperSecretBlob,
 } from "../src/developer-secret-envelope";
 
 describe("developer secret envelope helpers", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it("round-trips a dotenv blob with the master password", () => {
     const sealed = sealDeveloperSecretBlob(
       "SUPABASE_URL=https://example.supabase.co\nSUPABASE_ANON_KEY=anon-key\n",
@@ -38,5 +42,16 @@ describe("developer secret envelope helpers", () => {
         "correct horse",
       ),
     ).toBe("");
+  });
+
+  it("fails closed when secure random values are unavailable", () => {
+    vi.stubGlobal("crypto", {});
+
+    expect(() =>
+      sealDeveloperSecretBlob(
+        "SUPABASE_URL=https://example.supabase.co\n",
+        "correct horse",
+      ),
+    ).toThrow(/secure random|crypto\.getRandomValues/i);
   });
 });
