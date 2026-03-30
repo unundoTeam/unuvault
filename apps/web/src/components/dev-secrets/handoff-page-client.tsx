@@ -3,6 +3,10 @@
 import { useEffect, useState } from "react";
 import { createIdentityBrowserClient } from "../../lib/identity/browser";
 import { startBrowserHandoff } from "../../lib/dev-secrets/browser-handoff";
+import {
+  buildLoginHref,
+  buildRegisterHref,
+} from "../auth/auth-next";
 
 type DevSecretsHandoffPageClientProps = {
   callbackUrl: string;
@@ -11,7 +15,7 @@ type DevSecretsHandoffPageClientProps = {
   env: string;
 };
 
-function buildRegisterHref({
+function buildHandoffNextPath({
   callbackUrl,
   state,
   app,
@@ -35,9 +39,7 @@ function buildRegisterHref({
     nextPath.set("env", env);
   }
 
-  return `/register?next=${encodeURIComponent(
-    `/dev/secrets/handoff?${nextPath.toString()}`,
-  )}`;
+  return `/dev/secrets/handoff?${nextPath.toString()}`;
 }
 
 export function DevSecretsHandoffPageClient({
@@ -119,16 +121,45 @@ export function DevSecretsHandoffPageClient({
           <p aria-live="polite">
             Sign in first so this browser can mint a one-time handoff code.
           </p>
-          <a
-            href={buildRegisterHref({
-              callbackUrl,
-              state,
-              app,
-              env,
-            })}
-          >
-            Continue through register
-          </a>
+          <div style={{ display: "grid", gap: 12, width: "fit-content" }}>
+            <a
+              href={buildLoginHref(
+                buildHandoffNextPath({
+                  callbackUrl,
+                  state,
+                  app,
+                  env,
+                }),
+                "google",
+              )}
+            >
+              Continue with Google
+            </a>
+            <a
+              href={buildLoginHref(
+                buildHandoffNextPath({
+                  callbackUrl,
+                  state,
+                  app,
+                  env,
+                }),
+              )}
+            >
+              Continue with email
+            </a>
+            <a
+              href={buildRegisterHref(
+                buildHandoffNextPath({
+                  callbackUrl,
+                  state,
+                  app,
+                  env,
+                }),
+              )}
+            >
+              Create account
+            </a>
+          </div>
         </>
       ) : null}
 
