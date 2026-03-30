@@ -1,9 +1,12 @@
 import Fastify from "fastify";
 import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
+import { createDevSecretSessionStore } from "../src/lib/dev-secret-session-store";
 import { createDevSecretsRoutes } from "../src/routes/dev-secrets";
 import {
   DevSecretRecordNotFoundError,
+  DevSecretValidationError,
   DevSecretsUnauthorizedError,
+  createDevSecretsService,
 } from "../src/services/dev-secrets-service";
 
 describe("/dev/secrets", () => {
@@ -132,5 +135,45 @@ describe("/dev/secrets", () => {
     expect(exchangeResponse.json()).toEqual({
       cli_session_token: "cli-session-token",
     });
+  });
+});
+
+describe("createDevSecretsService", () => {
+  it("accepts unuidentity/local/dotenv as a supported target", async () => {
+    const service = createDevSecretsService({
+      sessionStore: createDevSecretSessionStore(),
+      getBrowserAccountIdFromToken: async () => "account-1",
+      getStoredRecord: async () => ({
+        ciphertext: "ciphertext",
+      }),
+      putStoredRecord: async () => undefined,
+    });
+
+    const result = await service.createBrowserHandoff("browser-jwt", {
+      app_code: "unuidentity",
+      target_env: "local",
+      secret_kind: "dotenv",
+    });
+
+    expect(result.handoff_code).toBeTruthy();
+  });
+
+  it("still rejects unsupported app/env combinations", async () => {
+    const service = createDevSecretsService({
+      sessionStore: createDevSecretSessionStore(),
+      getBrowserAccountIdFromToken: async () => "account-1",
+      getStoredRecord: async () => ({
+        ciphertext: "ciphertext",
+      }),
+      putStoredRecord: async () => undefined,
+    });
+
+    await expect(
+      service.createBrowserHandoff("browser-jwt", {
+        app_code: "unuidentity",
+        target_env: "staging",
+        secret_kind: "dotenv",
+      }),
+    ).rejects.toThrowError(new DevSecretValidationError("unsupported_target"));
   });
 });
