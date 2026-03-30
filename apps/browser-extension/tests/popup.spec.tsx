@@ -225,12 +225,17 @@ function installChromeExtensionMock(options?: {
 }
 
 function seedVaultCache(items: VaultSyncItem[]) {
-  installChromeStorageMock({
-    [POPUP_VAULT_STORAGE_KEY]: JSON.stringify(items),
+  installChromeExtensionMock({
+    initialValues: {
+      [POPUP_VAULT_STORAGE_KEY]: JSON.stringify(items),
+    },
+    sendMessage: createBackgroundMessageHandler({
+      initialAuthState: createSignedInAuthState(),
+    }),
   });
 }
 
-function storedPassword(password: string, passphrase?: string) {
+function storedPassword(password: string, passphrase: string = "correct horse") {
   return sealVaultPassword(password, passphrase);
 }
 async function setMasterPassword(password: string, confirmation: string = password) {
@@ -633,6 +638,7 @@ describe("App", () => {
           username: "alice@example.com",
           password_ciphertext: storedPassword("hunter2", "correct horse"),
           notes: "",
+          website_url: "",
         },
       }),
     ]);
@@ -662,6 +668,7 @@ describe("App", () => {
           username: "alice@example.com",
           password_ciphertext: storedPassword("hunter2", "correct horse"),
           notes: "",
+          website_url: "",
         },
       }),
     ]);
@@ -684,6 +691,7 @@ describe("App", () => {
           username: "alice@example.com",
           password_ciphertext: storedPassword("hunter2", "correct horse"),
           notes: "",
+          website_url: "",
         },
       }),
     ]);

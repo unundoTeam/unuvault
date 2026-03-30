@@ -4,6 +4,8 @@ import {
 } from "../../../../packages/api-client/src/login-payload";
 import { openStoredVaultPassword } from "../../../../packages/security/src/vault-envelope";
 
+export { normalizeVaultLoginPayload, parseVaultWebsiteMetadata };
+
 export function hasSavedPassword(payload: unknown): boolean {
   return normalizeVaultLoginPayload(payload).password_ciphertext.trim().length > 0;
 }
