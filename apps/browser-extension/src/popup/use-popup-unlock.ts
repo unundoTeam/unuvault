@@ -26,6 +26,7 @@ export function usePopupUnlock(): PopupUnlockState {
   const [draftPassphrase, setDraftPassphrase] = useState("");
   const [draftConfirmPassphrase, setDraftConfirmPassphrase] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [unlockPassphrase, setUnlockPassphrase] = useState<string | null>(null);
 
   useEffect(() => {
     let isActive = true;
@@ -37,6 +38,9 @@ export function usePopupUnlock(): PopupUnlockState {
         }
 
         setMode(unlockState.mode);
+        if (unlockState.mode !== "unlocked") {
+          setUnlockPassphrase(null);
+        }
       })
       .catch(() => {
         if (!isActive) {
@@ -44,6 +48,7 @@ export function usePopupUnlock(): PopupUnlockState {
         }
 
         setMode("needs_setup");
+        setUnlockPassphrase(null);
         setErrorMessage("We couldn't unlock your vault. Please try again.");
       });
 
@@ -77,12 +82,14 @@ export function usePopupUnlock(): PopupUnlockState {
       const unlockState = await unlockExtensionVaultInBackground(draftPassphrase);
 
       setMode(unlockState.mode);
+      setUnlockPassphrase(unlockState.mode === "unlocked" ? draftPassphrase : null);
       setDraftPassphrase("");
       setDraftConfirmPassphrase("");
       setErrorMessage(null);
 
       return unlockState.mode === "unlocked";
     } catch (error) {
+      setUnlockPassphrase(null);
       setErrorMessage(
         error instanceof Error ? error.message : "We couldn't unlock your vault. Please try again.",
       );
@@ -95,6 +102,7 @@ export function usePopupUnlock(): PopupUnlockState {
       const unlockState = await lockExtensionVaultInBackground();
 
       setMode(unlockState.mode);
+      setUnlockPassphrase(null);
       setDraftPassphrase("");
       setDraftConfirmPassphrase("");
       setErrorMessage(null);
@@ -114,6 +122,6 @@ export function usePopupUnlock(): PopupUnlockState {
     setDraftPassphrase: updateDraftPassphrase,
     submitLabel: mode === "needs_setup" ? "Set master password" : "Unlock vault",
     submitUnlock,
-    unlockPassphrase: null,
+    unlockPassphrase,
   };
 }
