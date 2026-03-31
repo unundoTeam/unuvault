@@ -1,6 +1,6 @@
 # Supabase 环境映射
 
-> 更新时间：2026-03-24
+> 更新时间：2026-03-31
 > 状态：Active
 
 > **说明**：本文记录 `unuvault` 当前已确认的 Supabase project、env 对照规则与账号归属。不要在文档中写入真实 key、密码或 token。
@@ -49,25 +49,26 @@
 
 | key / 变量 | 对应环境 | 真相源头 | 正式保存位置 | 典型消费位置 | 当前本地副本 |
 |---|---|---|---|---|---|
-| `NEXT_PUBLIC_IDENTITY_SUPABASE_URL` | dev / shared identity | Supabase `unu-identity-dev` project 控制台 | 密码管理器 / CI secrets / `apps/web/.env.local` | `apps/web` 浏览器侧 identity | `apps/web/.env.local` 当前为模板占位 |
-| `NEXT_PUBLIC_IDENTITY_SUPABASE_ANON_KEY` | dev / shared identity | Supabase `unu-identity-dev` project 控制台 | 密码管理器 / CI secrets / `apps/web/.env.local` | `apps/web` 浏览器侧 identity | `apps/web/.env.local` 当前为模板占位 |
-| `IDENTITY_SUPABASE_URL` | dev / shared identity | Supabase `unu-identity-dev` project 控制台 | 密码管理器 / CI secrets / `apps/api/.env.local` | `apps/api` 服务端 identity | `apps/api/.env.local` 当前为模板占位 |
-| `IDENTITY_SUPABASE_SERVICE_ROLE_KEY` | dev / shared identity | Supabase `unu-identity-dev` project 控制台 | 密码管理器 / CI secrets / `apps/api/.env.local` | `apps/api` 服务端 identity | `apps/api/.env.local` 当前为模板占位 |
+| `NEXT_PUBLIC_IDENTITY_SUPABASE_URL` | dev / shared identity | Supabase `unu-identity-dev` project 控制台 | 密码管理器 / `op` 一类 secrets manager | `apps/web` 浏览器侧 identity；部署环境注入 | `apps/web/.env.local` 当前为模板占位 |
+| `NEXT_PUBLIC_IDENTITY_SUPABASE_ANON_KEY` | dev / shared identity | Supabase `unu-identity-dev` project 控制台 | 密码管理器 / `op` 一类 secrets manager | `apps/web` 浏览器侧 identity；部署环境注入 | `apps/web/.env.local` 当前为模板占位 |
+| `IDENTITY_SUPABASE_URL` | dev / shared identity | Supabase `unu-identity-dev` project 控制台 | 密码管理器 / `op` 一类 secrets manager | `apps/api` 服务端 identity；部署环境注入 | `apps/api/.env.local` 当前为模板占位 |
+| `IDENTITY_SUPABASE_SERVICE_ROLE_KEY` | dev / shared identity | Supabase `unu-identity-dev` project 控制台 | 密码管理器 / `op` 一类 secrets manager | `apps/api` 服务端 identity；部署环境注入 | `apps/api/.env.local` 当前为模板占位 |
 
 ### 5.2 product-data 相关
 
 | key / 变量 | 对应环境 | 真相源头 | 正式保存位置 | 典型消费位置 | 当前本地副本 |
 |---|---|---|---|---|---|
-| `NEXT_PUBLIC_SUPABASE_URL` | dev / product-data | Supabase `unuvault-dev` project 控制台 | 密码管理器 / CI secrets / `apps/web/.env.local` | `apps/web` 浏览器侧 product-data | `apps/web/.env.local` 当前为模板占位 |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | dev / product-data | Supabase `unuvault-dev` project 控制台 | 密码管理器 / CI secrets / `apps/web/.env.local` | `apps/web` 浏览器侧 product-data | `apps/web/.env.local` 当前为模板占位 |
-| `SUPABASE_URL` | dev / product-data | Supabase `unuvault-dev` project 控制台 | 密码管理器 / CI secrets / `apps/api/.env.local` | `apps/api` 服务端 product-data | `apps/api/.env.local` 当前为模板占位 |
-| `SUPABASE_SERVICE_ROLE_KEY` | dev / product-data | Supabase `unuvault-dev` project 控制台 | 密码管理器 / CI secrets / `apps/api/.env.local` | `apps/api` 服务端 product-data | `apps/api/.env.local` 当前为模板占位 |
+| `NEXT_PUBLIC_SUPABASE_URL` | dev / product-data | Supabase `unuvault-dev` project 控制台 | 密码管理器 / `op` 一类 secrets manager | `apps/web` 浏览器侧 product-data；部署环境注入 | `apps/web/.env.local` 当前为模板占位 |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | dev / product-data | Supabase `unuvault-dev` project 控制台 | 密码管理器 / `op` 一类 secrets manager | `apps/web` 浏览器侧 product-data；部署环境注入 | `apps/web/.env.local` 当前为模板占位 |
+| `SUPABASE_URL` | dev / product-data | Supabase `unuvault-dev` project 控制台 | 密码管理器 / `op` 一类 secrets manager | `apps/api` 服务端 product-data；部署环境注入 | `apps/api/.env.local` 当前为模板占位 |
+| `SUPABASE_SERVICE_ROLE_KEY` | dev / product-data | Supabase `unuvault-dev` project 控制台 | 密码管理器 / `op` 一类 secrets manager | `apps/api` 服务端 product-data；部署环境注入 | `apps/api/.env.local` 当前为模板占位 |
 
 ## 6. 当前判断
 
 - `unuvault` 的 Supabase 配置边界已经比较清楚：`IDENTITY_*` 属于 shared identity，普通 `SUPABASE_*` 属于 `unuvault-dev` product-data。
-- 当前仓库里已确认的 `.env.local` 仍是模板占位，说明真实值没有被直接固化在已提交文件中，这比 `unundo` 当前状态更干净。
-- 后续如果要做 secrets 收口，优先把正式保存位置统一到密码管理器或 CI secrets，再把本地 `.env.local` 明确视为个人开发副本。
+- 当前这两套值的 non-local 正式保存方向，仍应优先写成密码管理器 / `op` 一类 secrets manager；部署环境变量和 CI secrets 属于消费层，不应反向当作 authority。
+- 当前仓库里已确认的 `.env.local` 仍是模板占位，说明真实值没有被直接固化在已提交文件中；这些本地文件应继续被视为个人开发副本。
+- `unuvault` 自己提供的 developer-local bridge 只负责 `local` namespace 便利性，不应被理解成 shared identity 或 product-data 的 non-local formal authority。
 
 ## 7. 安全注意事项
 

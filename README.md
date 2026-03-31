@@ -94,6 +94,9 @@ For the local-only dev secrets bridge:
 - `import` prints only a safe summary to `stderr` before confirmation and upload
 - this remains a local-only, developer-scoped bridge rather than a general
   non-local secrets platform
+- the non-local formal storage path for shared identity and product-data values
+  still belongs to password-manager / `op`-style storage plus deployment
+  consumer injection, not to this bridge
 
 ## Machine Entrypoints
 
