@@ -200,6 +200,81 @@ describe("background auth runtime", () => {
     });
   });
 
+  it("stays signed out when bootstrapProfile fails", async () => {
+    const signInWithPassword = vi.fn().mockResolvedValue({
+      data: {
+        session: {
+          access_token: "jwt-token",
+        },
+        user: {
+          email: "user@example.com",
+        },
+      },
+      error: null,
+    });
+    const bootstrapProfile = vi
+      .fn()
+      .mockRejectedValue(new Error("bootstrap failed"));
+
+    const runtime = createExtensionAuthRuntime({
+      bootstrapProfile,
+      createApiFetch: () => vi.fn(),
+      createSupabaseClient: () => ({
+        auth: {
+          signInWithPassword,
+        },
+      }),
+      now: () => "2026-03-17T00:00:00.000Z",
+      readStoredAuthState,
+      clearStoredAuthState,
+      writeStoredAuthState,
+    });
+
+    await expect(
+      runtime.signInWithPassword({
+        email: "user@example.com",
+        password: "correct horse",
+      }),
+    ).rejects.toThrow("bootstrap failed");
+    await expect(readStoredAuthState()).resolves.toBeNull();
+  });
+
+  it("stays signed out when sign-in returns no access token", async () => {
+    const signInWithPassword = vi.fn().mockResolvedValue({
+      data: {
+        session: {
+          access_token: null,
+        },
+        user: {
+          email: "user@example.com",
+        },
+      },
+      error: null,
+    });
+
+    const runtime = createExtensionAuthRuntime({
+      bootstrapProfile: vi.fn(),
+      createApiFetch: () => vi.fn(),
+      createSupabaseClient: () => ({
+        auth: {
+          signInWithPassword,
+        },
+      }),
+      now: () => "2026-03-17T00:00:00.000Z",
+      readStoredAuthState,
+      clearStoredAuthState,
+      writeStoredAuthState,
+    });
+
+    await expect(
+      runtime.signInWithPassword({
+        email: "user@example.com",
+        password: "correct horse",
+      }),
+    ).rejects.toThrow("missing access token");
+    await expect(readStoredAuthState()).resolves.toBeNull();
+  });
+
   it("clears persisted state on signOut", async () => {
     await writeStoredAuthState({
       accessToken: "jwt-token",

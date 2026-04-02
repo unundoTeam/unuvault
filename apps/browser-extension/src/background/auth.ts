@@ -79,6 +79,20 @@ function toSignedInState(state: StoredAuthState | null): ExtensionAuthState {
   };
 }
 
+function createBootstrappedAuthState(input: {
+  accessToken: string;
+  email: string;
+  profile: BootstrapProfileResponse["profile"];
+  signedInAt: string;
+}): StoredAuthState {
+  return {
+    accessToken: input.accessToken,
+    email: input.email,
+    profileId: input.profile.id,
+    signedInAt: input.signedInAt,
+  };
+}
+
 export function createExtensionAuthRuntime(
   deps: ExtensionAuthDeps = createDefaultDeps(),
 ) {
@@ -100,19 +114,16 @@ export function createExtensionAuthRuntime(
       }
 
       const profile = await deps.bootstrapProfile(deps.createApiFetch(), accessToken);
-      const nextState: StoredAuthState = {
+      const nextState = createBootstrappedAuthState({
         accessToken,
         email: result.data.user?.email ?? input.email,
-        profileId: profile.profile.id,
+        profile: profile.profile,
         signedInAt: deps.now(),
-      };
+      });
 
       await deps.writeStoredAuthState(nextState);
 
-      return {
-        status: "signed_in",
-        ...nextState,
-      };
+      return toSignedInState(nextState);
     },
     async signOut(): Promise<void> {
       await deps.clearStoredAuthState();
