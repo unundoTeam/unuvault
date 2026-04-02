@@ -19,6 +19,30 @@ who want a more trustworthy home for credentials than browser-native storage.
 - the shared machine automation core owned by `unuforge`
 - portfolio-wide governance and rollout policy owned by `unuOS`
 
+## Canonical Auth Boundary
+
+`unuvault` uses one shared auth contract across Web, API, and browser-extension
+surfaces:
+
+1. `unuidentity` plus Supabase Auth authenticate the person and issue the
+   identity session.
+2. `unuvault` API `POST /auth/bootstrap` is the product identity bridge that
+   turns a valid bearer token into a `users_profile`-backed product identity.
+3. Product runtime routes such as `/vault/sync` consume that bootstrapped
+   identity instead of replacing it with a second auth system.
+
+The surface-specific entry paths differ, but the bridge semantics stay the
+same:
+
+- Web:
+  `unuidentity signup/login -> /auth/callback -> /auth/finalize -> POST /auth/bootstrap`
+- browser-extension:
+  extension identity sign-in -> `POST /auth/bootstrap` -> background
+  `signed_in`
+- iPhone:
+  repo-owned, but still expected to follow the same bridge model once its auth
+  surface is fully live
+
 ## Source Of Truth
 
 - `docs/superpowers/specs/2026-03-14-chinese-password-manager-phase1-design.md`
@@ -75,6 +99,9 @@ For local MVP auth setup:
   `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `PORT`
 - the local auth loop is:
   `unuidentity signup/login -> /auth/callback -> /auth/finalize -> POST /auth/bootstrap`
+- `/auth/finalize` is not the final authority by itself; it is the Web surface
+  handoff that completes the repo-wide product bridge through
+  `POST /auth/bootstrap`
 - `unuidentity` needs a redirect URL for
   `http://127.0.0.1:3001/auth/callback` during local development
 
