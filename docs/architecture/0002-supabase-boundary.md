@@ -57,3 +57,10 @@ unuvault uses Supabase for authentication and managed Postgres in phase 1, while
   `POST /auth/bootstrap` before treating background auth state as `signed_in`.
 - Future iPhone auth work remains downstream of the same bridge; it should not
   invent a repo-local replacement for the product bootstrap contract.
+
+## Verification Note
+
+- `tests/auth-boundary-contract.spec.ts` is the repo-level machine guard for
+  this auth boundary.
+- It keeps the contributor-facing README, this boundary note, and the owning
+  Web/API/browser-extension auth tests aligned on the same contract.

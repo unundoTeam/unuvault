@@ -151,6 +151,10 @@ For the local-only dev secrets bridge:
   - `python3 scripts/ci/tests/test_unuforge_ios_package_consumer_smoke.py` for
     the repo-owned installed-package iOS path
 
+The repo-level auth machine verification guard lives in
+`tests/auth-boundary-contract.spec.ts`. It pins the canonical Web/API/browser-extension
+auth boundary against the root docs and the owning surface tests.
+
 The installed-package smoke split is intentional:
 
 - `scripts/ci/tests/test_unuforge_package_consumer_smoke.py` covers the JS-safe
