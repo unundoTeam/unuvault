@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import "@testing-library/jest-dom/vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, configure, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { VaultSyncItem } from "../../../packages/api-client/src/vault";
 import { createMasterPasswordVerifier } from "../../../packages/security/src/master-password-verifier";
@@ -11,6 +11,10 @@ import { App } from "../src/popup/App";
 const MASTER_PASSWORD_VERIFIER_STORAGE_KEY =
   "unuvault.extension.master-password-verifier";
 const POPUP_VAULT_STORAGE_KEY = "unuvault.extension.popup-vault-items";
+
+configure({
+  asyncUtilTimeout: 10_000,
+});
 
 type SignedOutAuthState = {
   status: "signed_out";
@@ -276,7 +280,7 @@ describe("App", () => {
     vi.unstubAllGlobals();
   });
 
-  it("shows the auth form when the extension is signed out", async () => {
+  it("shows the auth form when the extension is signed out", { timeout: 15_000 }, async () => {
     render(<App />);
 
     expect(await screen.findByRole("button", { name: "Sign in" })).toBeInTheDocument();

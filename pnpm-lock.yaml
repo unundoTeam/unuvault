@@ -74,7 +74,11 @@ importers:
 
   apps/api: {}
 
-  apps/browser-extension: {}
+  apps/browser-extension:
+    devDependencies:
+      esbuild:
+        specifier: ^0.27.4
+        version: 0.27.4
 
   apps/web: {}
 

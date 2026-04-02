@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const packageRoot = fileURLToPath(new URL("..", import.meta.url));
+const workspaceRoot = fileURLToPath(new URL("../../..", import.meta.url));
 const distRoot = join(packageRoot, "dist");
 
 const clearDist = () => {
@@ -25,7 +26,7 @@ it("build emits a loadable extension bundle", { timeout: 30_000 }, () => {
   clearDist();
 
   execFileSync("corepack", ["pnpm", "--filter", "@unuvault/browser-extension", "build"], {
-    cwd: process.cwd(),
+    cwd: workspaceRoot,
     stdio: "pipe",
   });
 
