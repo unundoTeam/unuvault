@@ -173,6 +173,18 @@ The baseline installed-package smoke coverage is still JS-safe in this phase:
 
 It does not yet include `ios-test-runner`.
 
+## Runtime Authority
+
+`unuvault` keeps runtime authority routing separate from the core auth and
+verification shell. Start with
+[docs/operations/runtime-authority.md](docs/operations/runtime-authority.md)
+for the current first-layer entrypoint.
+
+- `incident`: shared-identity cutover and rollback routing, plus env and
+  secret-truth guidance
+- `observability`: current status is limited and routed through deeper docs
+- `production-readiness`: launch checklist and cutover rehearsal routing
+
 ## Review Model
 
 `unuvault` follows the portfolio review baseline:
