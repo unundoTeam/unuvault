@@ -59,7 +59,7 @@ describe("runDevSecretsProvider", () => {
     expect(readStderr()).toBe("");
   });
 
-  it("accepts unuidentity/local as a supported read target", async () => {
+  it("accepts unuidentity/production as a supported read target", async () => {
     const { io, readStdout, readStderr } = createCapturedIo();
     const ciphertext = await sealDeveloperSecretBlob(
       "IDENTITY_SUPABASE_URL=https://identity.example.supabase.co\n",
@@ -70,7 +70,7 @@ describe("runDevSecretsProvider", () => {
     });
 
     const exitCode = await runDevSecretsProvider(
-      ["read", "--app", "unuidentity", "--env", "local"],
+      ["read", "--app", "unuidentity", "--env", "production"],
       {
         io,
         deps: {
@@ -87,7 +87,7 @@ describe("runDevSecretsProvider", () => {
     expect(exitCode).toBe(0);
     expect(readRecord).toHaveBeenCalledWith("cli-session-token", {
       app: "unuidentity",
-      env: "local",
+      env: "production",
     });
     expect(readStdout()).toBe(
       "IDENTITY_SUPABASE_URL=https://identity.example.supabase.co\n",
@@ -95,11 +95,11 @@ describe("runDevSecretsProvider", () => {
     expect(readStderr()).toBe("");
   });
 
-  it("keeps stdout empty for unsupported non-local targets", async () => {
+  it("keeps stdout empty for unsupported namespaces", async () => {
     const { io, readStdout, readStderr } = createCapturedIo();
 
     const exitCode = await runDevSecretsProvider(
-      ["read", "--app", "unuidentity", "--env", "staging"],
+      ["read", "--app", "unknown-app", "--env", "staging"],
       {
         io,
         deps: {

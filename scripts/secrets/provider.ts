@@ -68,8 +68,10 @@ const DEFAULT_WEB_BASE_URL = "http://127.0.0.1:3001";
 export const DEV_SECRETS_PROVIDER_USAGE = [
   "Usage:",
   "  bash scripts/secrets/provider.sh read --app unundo --env local",
-  "  bash scripts/secrets/provider.sh read --app unuidentity --env local",
+  "  bash scripts/secrets/provider.sh read --app unundo --env staging",
+  "  bash scripts/secrets/provider.sh read --app unuidentity --env production",
   "  bash scripts/secrets/provider.sh import --app unundo --env local --from /absolute/path/to/local.env",
+  "  bash scripts/secrets/provider.sh import --app unundo --env production --from /absolute/path/to/production.env",
   "  bash scripts/secrets/provider.sh import --app unuidentity --env local --from /absolute/path/to/phase1.env",
   `Supported namespaces: ${listSupportedDevSecretNamespaces().join(", ")}`,
 ].join("\n");

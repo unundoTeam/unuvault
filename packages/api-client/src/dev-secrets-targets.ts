@@ -11,8 +11,28 @@ const SUPPORTED_DEV_SECRET_TARGETS: readonly SupportedDevSecretTarget[] = [
     secretKind: "dotenv",
   },
   {
+    app: "unundo",
+    env: "staging",
+    secretKind: "dotenv",
+  },
+  {
+    app: "unundo",
+    env: "production",
+    secretKind: "dotenv",
+  },
+  {
     app: "unuidentity",
     env: "local",
+    secretKind: "dotenv",
+  },
+  {
+    app: "unuidentity",
+    env: "staging",
+    secretKind: "dotenv",
+  },
+  {
+    app: "unuidentity",
+    env: "production",
     secretKind: "dotenv",
   },
 ] as const;
