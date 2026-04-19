@@ -38,6 +38,13 @@ type VaultSyncState = {
   updateItem(itemId: string, input: VaultLoginFields): Promise<boolean>;
 };
 
+let fallbackVaultIdCounter = 0;
+
+function createFallbackVaultId() {
+  fallbackVaultIdCounter += 1;
+  return `vault-${Date.now()}-${fallbackVaultIdCounter}`;
+}
+
 function isProfileNotReadyError(error: unknown): boolean {
   return error instanceof Error && error.message === "profile_not_found";
 }
@@ -94,10 +101,10 @@ export function useVaultSync(): VaultSyncState {
       id:
         typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
           ? crypto.randomUUID()
-          : `vault-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+          : createFallbackVaultId(),
       item_type: "login",
       title: input.title,
-      encrypted_payload: writeDraftPassword(
+      encrypted_payload: await writeDraftPassword(
         {
           schema_version: 1,
           username: input.username,
@@ -163,7 +170,7 @@ export function useVaultSync(): VaultSyncState {
             notes: input.notes,
             website_url: normalizeVaultWebsiteUrl(input.websiteUrl),
           }
-        : writeDraftPassword(
+        : await writeDraftPassword(
             {
               ...currentPayload,
               username: input.username,

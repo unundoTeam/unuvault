@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 import type { VaultSyncItem } from "../../../../packages/api-client/src/vault";
-import { normalizeVaultLoginPayload, readStoredPassword } from "./login-payload";
+import {
+  hasSavedPassword,
+  normalizeVaultLoginPayload,
+  readStoredPassword,
+} from "./login-payload";
 import { readPopupVaultItems } from "./popup-vault-storage";
 
 type PopupVaultSearchOptions = {
@@ -11,6 +15,7 @@ type PopupVaultSearchOptions = {
 type PopupVaultSearchState = {
   copiedPasswordItemId: string | null;
   copiedUsernameItemId: string | null;
+  getPasswordLabel(itemId: string, encryptedPayload: unknown): string;
   copyPassword(itemId: string, encryptedPayload: unknown): Promise<void>;
   copyUsername(itemId: string, username: string): Promise<void>;
   filteredItems: VaultSyncItem[];
@@ -53,6 +58,7 @@ export function usePopupVaultSearch({
   const [copiedUsernameItemId, setCopiedUsernameItemId] = useState<string | null>(null);
   const [copiedPasswordItemId, setCopiedPasswordItemId] = useState<string | null>(null);
   const [revealedPasswordItemIds, setRevealedPasswordItemIds] = useState<string[]>([]);
+  const [revealedPasswordsById, setRevealedPasswordsById] = useState<Record<string, string>>({});
 
   useEffect(() => {
     let isActive = true;
@@ -79,7 +85,55 @@ export function usePopupVaultSearch({
     setCopiedUsernameItemId(null);
     setCopiedPasswordItemId(null);
     setRevealedPasswordItemIds([]);
+    setRevealedPasswordsById({});
   }, [isUnlocked]);
+
+  useEffect(() => {
+    if (!isUnlocked || !unlockPassphrase) {
+      return;
+    }
+
+    let isActive = true;
+
+    const revealPassword = async (itemId: string) => {
+      if (revealedPasswordsById[itemId] !== undefined) {
+        return;
+      }
+
+      const item = items.find((currentItem) => currentItem.id === itemId);
+
+      if (!item) {
+        return;
+      }
+
+      const password = await readStoredPassword(
+        item.encrypted_payload,
+        unlockPassphrase,
+      );
+
+      if (!isActive) {
+        return;
+      }
+
+      setRevealedPasswordsById((current) =>
+        current[itemId] !== undefined ? current : { ...current, [itemId]: password },
+      );
+    };
+
+    void Promise.all(
+      revealedPasswordItemIds.map((itemId) => revealPassword(itemId)),
+    );
+
+    return () => {
+      isActive = false;
+    };
+  }, [
+    isUnlocked,
+    items,
+    revealedPasswordItemIds,
+    revealedPasswordsById,
+    unlockPassphrase,
+  ]);
 
   async function copyUsername(itemId: string, username: string) {
     if (
@@ -95,11 +149,11 @@ export function usePopupVaultSearch({
   }
 
   async function copyPassword(itemId: string, encryptedPayload: unknown) {
-    if (!isUnlocked) {
+    if (!isUnlocked || !unlockPassphrase) {
       return;
     }
 
-    const password = readStoredPassword(encryptedPayload, unlockPassphrase ?? undefined);
+    const password = await readStoredPassword(encryptedPayload, unlockPassphrase);
 
     if (
       !password ||
@@ -129,6 +183,27 @@ export function usePopupVaultSearch({
   return {
     copiedPasswordItemId,
     copiedUsernameItemId,
+    getPasswordLabel(itemId: string, encryptedPayload: unknown) {
+      if (!hasSavedPassword(encryptedPayload)) {
+        return "No password saved";
+      }
+
+      if (!isUnlocked || !unlockPassphrase) {
+        return "••••••••";
+      }
+
+      if (!revealedPasswordItemIds.includes(itemId)) {
+        return "••••••••";
+      }
+
+      const revealedPassword = revealedPasswordsById[itemId];
+
+      if (revealedPassword === undefined) {
+        return "••••••••";
+      }
+
+      return revealedPassword || "No password saved";
+    },
     copyPassword,
     copyUsername,
     filteredItems: items.filter((item) => matchesSearch(item, searchQuery)),

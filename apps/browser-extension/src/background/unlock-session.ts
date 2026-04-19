@@ -82,9 +82,10 @@ export function createExtensionUnlockRuntime(
       const verifier = await resolvedDeps.readMasterPasswordVerifier();
 
       if (!verifier) {
-        await resolvedDeps.writeMasterPasswordVerifier(
-          resolvedDeps.createMasterPasswordVerifier(passphrase),
+        const nextVerifier = await resolvedDeps.createMasterPasswordVerifier(
+          passphrase,
         );
+        await resolvedDeps.writeMasterPasswordVerifier(nextVerifier);
         unlockPassphrase = passphrase;
 
         return {
@@ -95,7 +96,12 @@ export function createExtensionUnlockRuntime(
         };
       }
 
-      if (!resolvedDeps.verifyMasterPassword(verifier, passphrase)) {
+      const verification = await resolvedDeps.verifyMasterPassword(
+        verifier,
+        passphrase,
+      );
+
+      if (!verification.success) {
         unlockPassphrase = null;
 
         return {
@@ -105,6 +111,12 @@ export function createExtensionUnlockRuntime(
             mode: "locked",
           },
         };
+      }
+
+      if (verification.upgradedVerifier) {
+        await resolvedDeps.writeMasterPasswordVerifier(
+          verification.upgradedVerifier,
+        );
       }
 
       unlockPassphrase = passphrase;

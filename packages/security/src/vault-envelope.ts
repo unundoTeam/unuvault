@@ -1,9 +1,14 @@
 /**
- * WARNING: these helpers provide local compatibility for current unuvault storage shapes,
- * not production-grade encryption. Version 1 stores plaintext. Version 2 uses a custom
- * XOR stream and non-cryptographic hashing. Do not treat either version as a real
- * security boundary.
+ * WARNING: these helpers provide local compatibility for current unuvault storage shapes.
+ * Version 1 stores plaintext. Version 2 uses a custom XOR stream and non-cryptographic
+ * hashing. Version 3 is the current libsodium-backed format for new writes.
  */
+
+import {
+  openWithPassword,
+  sealWithPassword,
+  type PasswordDerivedCiphertext,
+} from "./sodium";
 
 /**
  * @deprecated Version 1 stores the password as plaintext and only exists for explicit
@@ -25,23 +30,20 @@ type PassphraseVaultEnvelope = {
   unlockTag: string;
 };
 
-export type VaultEnvelope = LegacyVaultEnvelope | PassphraseVaultEnvelope;
+type SecureVaultEnvelope = PasswordDerivedCiphertext & {
+  version: 3;
+};
+
+export type VaultEnvelope =
+  | LegacyVaultEnvelope
+  | PassphraseVaultEnvelope
+  | SecureVaultEnvelope;
 
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
 
 export function isSupportedVaultEnvelopeVersion(version: number) {
-  return version === 1 || version === 2;
-}
-
-function toBase64(bytes: Uint8Array): string {
-  let binary = "";
-
-  bytes.forEach((value) => {
-    binary += String.fromCharCode(value);
-  });
-
-  return btoa(binary);
+  return version === 1 || version === 2 || version === 3;
 }
 
 function fromBase64(value: string): Uint8Array {
@@ -53,31 +55,6 @@ function fromBase64(value: string): Uint8Array {
   }
 
   return bytes;
-}
-
-function createLegacyEnvelope(password: string): LegacyVaultEnvelope {
-  return {
-    version: 1,
-    cipher: "xchacha20-poly1305",
-    encryptedPayload: password,
-    keyDerivation: "argon2id",
-  };
-}
-
-function createRandomSalt(): string {
-  if (
-    typeof crypto === "undefined" ||
-    typeof crypto.getRandomValues !== "function"
-  ) {
-    throw new Error(
-      "Secure random values are unavailable. Refusing to seal vault passwords without crypto.getRandomValues.",
-    );
-  }
-
-  const bytes = new Uint8Array(12);
-  crypto.getRandomValues(bytes);
-
-  return toBase64(bytes);
 }
 
 function hashToHex(input: string): string {
@@ -118,25 +95,6 @@ function xorWithKeystream(
   return output;
 }
 
-function createPassphraseEnvelope(
-  password: string,
-  passphrase: string,
-): PassphraseVaultEnvelope {
-  const unlockSalt = createRandomSalt();
-  const encryptedPayload = toBase64(
-    xorWithKeystream(textEncoder.encode(password), passphrase, unlockSalt),
-  );
-
-  return {
-    version: 2,
-    cipher: "xor-stream-v1",
-    encryptedPayload,
-    keyDerivation: "unlock-passphrase-v1",
-    unlockSalt,
-    unlockTag: hashToHex(`${password}:${passphrase}:${unlockSalt}`),
-  };
-}
-
 function isLegacyEnvelope(value: Partial<VaultEnvelope>): value is LegacyVaultEnvelope {
   return (
     value.version === 1 &&
@@ -159,6 +117,22 @@ function isPassphraseEnvelope(
   );
 }
 
+function isSecureEnvelope(
+  value: Partial<VaultEnvelope>,
+): value is SecureVaultEnvelope {
+  return (
+    value.version === 3 &&
+    value.cipher === "xchacha20poly1305-ietf" &&
+    value.keyDerivation === "argon2id13" &&
+    value.purpose === "vault-password" &&
+    typeof value.encryptedPayload === "string" &&
+    typeof value.nonce === "string" &&
+    typeof value.salt === "string" &&
+    typeof value.opsLimit === "number" &&
+    typeof value.memLimit === "number"
+  );
+}
+
 function parseVaultEnvelope(ciphertext: string): Partial<VaultEnvelope> | null {
   try {
     return JSON.parse(ciphertext) as Partial<VaultEnvelope>;
@@ -174,33 +148,28 @@ export function isPassphraseProtectedVaultPassword(ciphertext: string): boolean 
 
   const parsed = parseVaultEnvelope(ciphertext);
 
-  return !!parsed && isPassphraseEnvelope(parsed);
+  return !!parsed && (isPassphraseEnvelope(parsed) || isSecureEnvelope(parsed));
 }
 
-/**
- * @deprecated Version 1 vault envelopes are plaintext. Use only for explicit legacy
- * fixtures or compatibility tests.
- */
-export function sealLegacyVaultPassword(password: string): string {
-  return JSON.stringify(createLegacyEnvelope(password));
-}
-
-/**
- * WARNING: requires a non-empty passphrase for all new writes. This still does not
- * provide production-grade cryptography, but removing the implicit v1 fallback prevents
- * accidental plaintext storage behind a misleading API.
- */
-export function sealVaultPassword(password: string, passphrase: string): string {
+export async function sealVaultPassword(password: string, passphrase: string): Promise<string> {
   if (!passphrase) {
     throw new Error(
-      "sealVaultPassword requires a non-empty passphrase. Use sealLegacyVaultPassword only for explicit legacy compatibility.",
+      "sealVaultPassword requires a non-empty passphrase.",
     );
   }
 
-  return JSON.stringify(createPassphraseEnvelope(password, passphrase));
+  const sealed = await sealWithPassword(password, passphrase, "vault-password");
+
+  return JSON.stringify({
+    version: 3,
+    ...sealed,
+  } satisfies SecureVaultEnvelope);
 }
 
-export function openVaultPassword(ciphertext: string, passphrase?: string): string {
+export async function openVaultPassword(
+  ciphertext: string,
+  passphrase?: string,
+): Promise<string> {
   if (!ciphertext) {
     return "";
   }
@@ -213,6 +182,10 @@ export function openVaultPassword(ciphertext: string, passphrase?: string): stri
 
   if (isLegacyEnvelope(parsed)) {
     return parsed.encryptedPayload;
+  }
+
+  if (isSecureEnvelope(parsed)) {
+    return passphrase ? openWithPassword(parsed, passphrase) : "";
   }
 
   if (!isPassphraseEnvelope(parsed) || !passphrase) {
@@ -233,12 +206,15 @@ export function openVaultPassword(ciphertext: string, passphrase?: string): stri
   }
 }
 
-export function openStoredVaultPassword(ciphertext: string, passphrase?: string): string {
+export async function openStoredVaultPassword(
+  ciphertext: string,
+  passphrase?: string,
+): Promise<string> {
   if (!ciphertext) {
     return "";
   }
 
-  const openedEnvelope = openVaultPassword(ciphertext, passphrase);
+  const openedEnvelope = await openVaultPassword(ciphertext, passphrase);
 
   if (openedEnvelope) {
     return openedEnvelope;

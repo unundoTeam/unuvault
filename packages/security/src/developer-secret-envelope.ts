@@ -1,4 +1,10 @@
-type DeveloperSecretEnvelope = {
+import {
+  openWithPassword,
+  sealWithPassword,
+  type PasswordDerivedCiphertext,
+} from "./sodium";
+
+type LegacyDeveloperSecretEnvelope = {
   version: 1;
   cipher: "xor-stream-v1";
   encryptedPayload: string;
@@ -7,18 +13,16 @@ type DeveloperSecretEnvelope = {
   tag: string;
 };
 
+type SecureDeveloperSecretEnvelope = PasswordDerivedCiphertext & {
+  version: 2;
+};
+
+export type DeveloperSecretEnvelope =
+  | LegacyDeveloperSecretEnvelope
+  | SecureDeveloperSecretEnvelope;
+
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
-
-function toBase64(bytes: Uint8Array): string {
-  let binary = "";
-
-  bytes.forEach((value) => {
-    binary += String.fromCharCode(value);
-  });
-
-  return btoa(binary);
-}
 
 function fromBase64(value: string): Uint8Array {
   const binary = atob(value);
@@ -29,22 +33,6 @@ function fromBase64(value: string): Uint8Array {
   }
 
   return bytes;
-}
-
-function createRandomSalt(): string {
-  if (
-    typeof crypto === "undefined" ||
-    typeof crypto.getRandomValues !== "function"
-  ) {
-    throw new Error(
-      "Secure random values are unavailable. Refusing to seal developer secrets without crypto.getRandomValues.",
-    );
-  }
-
-  const bytes = new Uint8Array(12);
-  crypto.getRandomValues(bytes);
-
-  return toBase64(bytes);
 }
 
 function hashToHex(input: string): string {
@@ -85,43 +73,61 @@ function xorWithKeystream(
   return output;
 }
 
-function isDeveloperSecretEnvelope(value: unknown): value is DeveloperSecretEnvelope {
+function isLegacyDeveloperSecretEnvelope(
+  value: unknown,
+): value is LegacyDeveloperSecretEnvelope {
   return (
     !!value &&
     typeof value === "object" &&
-    (value as Partial<DeveloperSecretEnvelope>).version === 1 &&
-    (value as Partial<DeveloperSecretEnvelope>).cipher === "xor-stream-v1" &&
-    (value as Partial<DeveloperSecretEnvelope>).keyDerivation ===
+    (value as Partial<LegacyDeveloperSecretEnvelope>).version === 1 &&
+    (value as Partial<LegacyDeveloperSecretEnvelope>).cipher === "xor-stream-v1" &&
+    (value as Partial<LegacyDeveloperSecretEnvelope>).keyDerivation ===
       "master-password-v1" &&
-    typeof (value as Partial<DeveloperSecretEnvelope>).encryptedPayload === "string" &&
-    typeof (value as Partial<DeveloperSecretEnvelope>).salt === "string" &&
-    typeof (value as Partial<DeveloperSecretEnvelope>).tag === "string"
+    typeof (value as Partial<LegacyDeveloperSecretEnvelope>).encryptedPayload === "string" &&
+    typeof (value as Partial<LegacyDeveloperSecretEnvelope>).salt === "string" &&
+    typeof (value as Partial<LegacyDeveloperSecretEnvelope>).tag === "string"
   );
 }
 
-export function sealDeveloperSecretBlob(
+function isSecureDeveloperSecretEnvelope(
+  value: unknown,
+): value is SecureDeveloperSecretEnvelope {
+  return (
+    !!value &&
+    typeof value === "object" &&
+    (value as Partial<SecureDeveloperSecretEnvelope>).version === 2 &&
+    (value as Partial<SecureDeveloperSecretEnvelope>).cipher ===
+      "xchacha20poly1305-ietf" &&
+    (value as Partial<SecureDeveloperSecretEnvelope>).keyDerivation === "argon2id13" &&
+    typeof (value as Partial<SecureDeveloperSecretEnvelope>).purpose === "string" &&
+    typeof (value as Partial<SecureDeveloperSecretEnvelope>).encryptedPayload === "string" &&
+    typeof (value as Partial<SecureDeveloperSecretEnvelope>).nonce === "string" &&
+    typeof (value as Partial<SecureDeveloperSecretEnvelope>).salt === "string" &&
+    typeof (value as Partial<SecureDeveloperSecretEnvelope>).opsLimit === "number" &&
+    typeof (value as Partial<SecureDeveloperSecretEnvelope>).memLimit === "number"
+  );
+}
+
+export async function sealDeveloperSecretBlob(
   plaintext: string,
   masterPassword: string,
-): string {
-  const salt = createRandomSalt();
-  const encryptedPayload = toBase64(
-    xorWithKeystream(textEncoder.encode(plaintext), masterPassword, salt),
+): Promise<string> {
+  const sealed = await sealWithPassword(
+    plaintext,
+    masterPassword,
+    "developer-secret-blob",
   );
 
   return JSON.stringify({
-    version: 1,
-    cipher: "xor-stream-v1",
-    encryptedPayload,
-    keyDerivation: "master-password-v1",
-    salt,
-    tag: hashToHex(`${plaintext}:${masterPassword}:${salt}`),
-  } satisfies DeveloperSecretEnvelope);
+    version: 2,
+    ...sealed,
+  } satisfies SecureDeveloperSecretEnvelope);
 }
 
-export function openDeveloperSecretBlob(
+export async function openDeveloperSecretBlob(
   ciphertext: string,
   masterPassword: string,
-): string {
+): Promise<string> {
   if (!ciphertext || !masterPassword) {
     return "";
   }
@@ -134,7 +140,11 @@ export function openDeveloperSecretBlob(
     return "";
   }
 
-  if (!isDeveloperSecretEnvelope(parsed)) {
+  if (isSecureDeveloperSecretEnvelope(parsed)) {
+    return openWithPassword(parsed, masterPassword);
+  }
+
+  if (!isLegacyDeveloperSecretEnvelope(parsed)) {
     return "";
   }
 

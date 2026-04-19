@@ -67,12 +67,12 @@ function createVaultItem(overrides?: Partial<VaultSyncItem>): VaultSyncItem {
   };
 }
 
-function createEncryptedVaultItem(): VaultSyncItem {
+async function createEncryptedVaultItem(): Promise<VaultSyncItem> {
   return createVaultItem({
     encrypted_payload: {
       schema_version: 1,
       username: "alice@example.com",
-      password_ciphertext: sealVaultPassword("hunter2", "correct horse"),
+      password_ciphertext: await sealVaultPassword("hunter2", "correct horse"),
       notes: "",
       website_url: "https://github.com/login",
     },
@@ -97,7 +97,7 @@ describe("background unlocked vault reader", () => {
   });
 
   it("returns no readable items when signed in but locked", async () => {
-    await writePopupVaultItems([createEncryptedVaultItem()]);
+    await writePopupVaultItems([await createEncryptedVaultItem()]);
     const reader = createUnlockedVaultReader({
       readExtensionAuthState: async () => ({
         status: "signed_in" as const,
@@ -113,7 +113,7 @@ describe("background unlocked vault reader", () => {
   });
 
   it("returns decrypted login items when signed in and unlocked", async () => {
-    await writePopupVaultItems([createEncryptedVaultItem()]);
+    await writePopupVaultItems([await createEncryptedVaultItem()]);
     const reader = createUnlockedVaultReader({
       readExtensionAuthState: async () => ({
         status: "signed_in" as const,

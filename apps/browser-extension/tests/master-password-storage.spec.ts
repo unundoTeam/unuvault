@@ -58,7 +58,7 @@ describe("extension master password storage", () => {
   });
 
   it("round-trips a stored verifier", async () => {
-    const verifier = createMasterPasswordVerifier("correct horse");
+    const verifier = await createMasterPasswordVerifier("correct horse");
 
     await writeMasterPasswordVerifier(verifier);
 
@@ -76,7 +76,7 @@ describe("extension master password storage", () => {
   });
 
   it("clears the stored verifier", async () => {
-    await writeMasterPasswordVerifier(createMasterPasswordVerifier("correct horse"));
+    await writeMasterPasswordVerifier(await createMasterPasswordVerifier("correct horse"));
 
     await clearMasterPasswordVerifier();
 

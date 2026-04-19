@@ -1,7 +1,13 @@
 // @vitest-environment jsdom
 
 import "@testing-library/jest-dom/vitest";
-import { cleanup, configure, fireEvent, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  configure,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { VaultSyncItem } from "../../../packages/api-client/src/vault";
 import { createMasterPasswordVerifier } from "../../../packages/security/src/master-password-verifier";
@@ -228,18 +234,23 @@ function installChromeExtensionMock(options?: {
   });
 }
 
-function seedVaultCache(items: VaultSyncItem[]) {
+async function seedVaultCache(
+  items: VaultSyncItem[],
+  sendMessage?: ReturnType<typeof vi.fn>,
+) {
   installChromeExtensionMock({
     initialValues: {
       [POPUP_VAULT_STORAGE_KEY]: JSON.stringify(items),
     },
-    sendMessage: createBackgroundMessageHandler({
-      initialAuthState: createSignedInAuthState(),
-    }),
+    sendMessage:
+      sendMessage ??
+      createBackgroundMessageHandler({
+        initialAuthState: createSignedInAuthState(),
+      }),
   });
 }
 
-function storedPassword(password: string, passphrase: string = "correct horse") {
+async function storedPassword(password: string, passphrase: string = "correct horse") {
   return sealVaultPassword(password, passphrase);
 }
 async function setMasterPassword(password: string, confirmation: string = password) {
@@ -413,11 +424,11 @@ describe("App", () => {
   });
 
   it("shows locked mode when signed in and a verifier exists", async () => {
+    const verifier = await createMasterPasswordVerifier("correct horse");
+
     installChromeExtensionMock({
       initialValues: {
-        [MASTER_PASSWORD_VERIFIER_STORAGE_KEY]: JSON.stringify(
-          createMasterPasswordVerifier("correct horse"),
-        ),
+        [MASTER_PASSWORD_VERIFIER_STORAGE_KEY]: JSON.stringify(verifier),
       },
       sendMessage: createBackgroundMessageHandler({
         initialAuthState: createSignedInAuthState(),
@@ -435,11 +446,11 @@ describe("App", () => {
   });
 
   it("shows an error for a wrong master password", async () => {
+    const verifier = await createMasterPasswordVerifier("correct horse");
+
     installChromeExtensionMock({
       initialValues: {
-        [MASTER_PASSWORD_VERIFIER_STORAGE_KEY]: JSON.stringify(
-          createMasterPasswordVerifier("correct horse"),
-        ),
+        [MASTER_PASSWORD_VERIFIER_STORAGE_KEY]: JSON.stringify(verifier),
       },
       sendMessage: createBackgroundMessageHandler({
         initialAuthState: createSignedInAuthState(),
@@ -503,28 +514,23 @@ describe("App", () => {
   });
 
   it("shows cached vault items after unlock", async () => {
-    installChromeExtensionMock({
-      initialValues: {
-        [POPUP_VAULT_STORAGE_KEY]: JSON.stringify([
-          createVaultItem(),
-          createVaultItem({
-            id: "item-2",
-            title: "Linear",
-            encrypted_payload: {
-              schema_version: 1,
-              username: "bob@example.com",
-              password_ciphertext: "",
-              notes: "",
-              website_url: "",
-            },
-            updated_at: "2026-03-17T01:00:00.000Z",
-          }),
-        ]),
-      },
-      sendMessage: createBackgroundMessageHandler({
-        initialAuthState: createSignedInAuthState(),
+    await seedVaultCache([
+      createVaultItem(),
+      createVaultItem({
+        id: "item-2",
+        title: "Linear",
+        encrypted_payload: {
+          schema_version: 1,
+          username: "bob@example.com",
+          password_ciphertext: "",
+          notes: "",
+          website_url: "",
+        },
+        updated_at: "2026-03-17T01:00:00.000Z",
       }),
-    });
+    ], createBackgroundMessageHandler({
+      initialAuthState: createSignedInAuthState(),
+    }));
 
     render(<App />);
 
@@ -537,38 +543,33 @@ describe("App", () => {
   });
 
   it("filters cached items by title, username, and notes", async () => {
-    installChromeExtensionMock({
-      initialValues: {
-        [POPUP_VAULT_STORAGE_KEY]: JSON.stringify([
-          createVaultItem(),
-          createVaultItem({
-            id: "item-2",
-            title: "Linear",
-            encrypted_payload: {
-              schema_version: 1,
-              username: "bob@example.com",
-              password_ciphertext: "",
-              notes: "",
-              website_url: "",
-            },
-          }),
-          createVaultItem({
-            id: "item-3",
-            title: "Notion",
-            encrypted_payload: {
-              schema_version: 1,
-              username: "workspace@example.com",
-              password_ciphertext: "",
-              notes: "Shared workspace access",
-              website_url: "",
-            },
-          }),
-        ]),
-      },
-      sendMessage: createBackgroundMessageHandler({
-        initialAuthState: createSignedInAuthState(),
+    await seedVaultCache([
+      createVaultItem(),
+      createVaultItem({
+        id: "item-2",
+        title: "Linear",
+        encrypted_payload: {
+          schema_version: 1,
+          username: "bob@example.com",
+          password_ciphertext: "",
+          notes: "",
+          website_url: "",
+        },
       }),
-    });
+      createVaultItem({
+        id: "item-3",
+        title: "Notion",
+        encrypted_payload: {
+          schema_version: 1,
+          username: "workspace@example.com",
+          password_ciphertext: "",
+          notes: "Shared workspace access",
+          website_url: "",
+        },
+      }),
+    ], createBackgroundMessageHandler({
+      initialAuthState: createSignedInAuthState(),
+    }));
 
     render(<App />);
 
@@ -593,14 +594,9 @@ describe("App", () => {
   });
 
   it("shows a no-match state when search returns no items", async () => {
-    installChromeExtensionMock({
-      initialValues: {
-        [POPUP_VAULT_STORAGE_KEY]: JSON.stringify([createVaultItem()]),
-      },
-      sendMessage: createBackgroundMessageHandler({
-        initialAuthState: createSignedInAuthState(),
-      }),
-    });
+    await seedVaultCache([createVaultItem()], createBackgroundMessageHandler({
+      initialAuthState: createSignedInAuthState(),
+    }));
 
     render(<App />);
 
@@ -623,7 +619,9 @@ describe("App", () => {
       },
     });
 
-    seedVaultCache([createVaultItem()]);
+    await seedVaultCache([createVaultItem()], createBackgroundMessageHandler({
+      initialAuthState: createSignedInAuthState(),
+    }));
 
     render(<App />);
 
@@ -635,24 +633,27 @@ describe("App", () => {
   });
 
   it("shows a masked password placeholder and reveal action for cached passwords", async () => {
-    seedVaultCache([
+    await seedVaultCache([
       createVaultItem({
         encrypted_payload: {
           schema_version: 1,
           username: "alice@example.com",
-          password_ciphertext: storedPassword("hunter2", "correct horse"),
+          password_ciphertext: await storedPassword("hunter2", "correct horse"),
           notes: "",
           website_url: "",
         },
       }),
-    ]);
+    ], createBackgroundMessageHandler({
+      initialAuthState: createSignedInAuthState(),
+    }));
 
     render(<App />);
 
     await setMasterPassword("correct horse");
 
     expect(await screen.findByText("••••••••")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Show password GitHub" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Show password GitHub" }));
+    expect(await screen.findByText("hunter2")).toBeInTheDocument();
   });
 
   it("copies a cached password after unlock without requiring reveal first", async () => {
@@ -665,47 +666,52 @@ describe("App", () => {
       },
     });
 
-    seedVaultCache([
+    await seedVaultCache([
       createVaultItem({
         encrypted_payload: {
           schema_version: 1,
           username: "alice@example.com",
-          password_ciphertext: storedPassword("hunter2", "correct horse"),
+          password_ciphertext: await storedPassword("hunter2", "correct horse"),
           notes: "",
           website_url: "",
         },
       }),
-    ]);
+    ], createBackgroundMessageHandler({
+      initialAuthState: createSignedInAuthState(),
+    }));
 
     render(<App />);
 
     await setMasterPassword("correct horse");
     fireEvent.click(await screen.findByRole("button", { name: "Copy password GitHub" }));
 
+    expect(await screen.findByRole("button", { name: "Copied password GitHub" })).toBeInTheDocument();
     expect(writeText).toHaveBeenCalledWith("hunter2");
     expect(screen.getByText("••••••••")).toBeInTheDocument();
     expect(screen.queryByText("hunter2")).not.toBeInTheDocument();
   });
 
   it("clears a revealed password after locking and unlocking again", async () => {
-    seedVaultCache([
+    await seedVaultCache([
       createVaultItem({
         encrypted_payload: {
           schema_version: 1,
           username: "alice@example.com",
-          password_ciphertext: storedPassword("hunter2", "correct horse"),
+          password_ciphertext: await storedPassword("hunter2", "correct horse"),
           notes: "",
           website_url: "",
         },
       }),
-    ]);
+    ], createBackgroundMessageHandler({
+      initialAuthState: createSignedInAuthState(),
+    }));
 
     render(<App />);
 
     await setMasterPassword("correct horse");
     fireEvent.click(await screen.findByRole("button", { name: "Show password GitHub" }));
 
-    expect(screen.getByText("hunter2")).toBeInTheDocument();
+    expect(await screen.findByText("hunter2")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Lock vault" }));
     await unlockVault("correct horse");

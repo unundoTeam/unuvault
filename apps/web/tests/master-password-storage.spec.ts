@@ -13,8 +13,8 @@ describe("master password storage helper", () => {
     window.localStorage.clear();
   });
 
-  it("round-trips a stored master password verifier", () => {
-    const verifier = createMasterPasswordVerifier("correct horse");
+  it("round-trips a stored master password verifier", async () => {
+    const verifier = await createMasterPasswordVerifier("correct horse");
 
     writeMasterPasswordVerifier(verifier);
 
@@ -31,8 +31,10 @@ describe("master password storage helper", () => {
     expect(readMasterPasswordVerifier()).toBeNull();
   });
 
-  it("clears the stored verifier", () => {
-    writeMasterPasswordVerifier(createMasterPasswordVerifier("correct horse"));
+  it("clears the stored verifier", async () => {
+    writeMasterPasswordVerifier(
+      await createMasterPasswordVerifier("correct horse"),
+    );
 
     clearMasterPasswordVerifier();
 

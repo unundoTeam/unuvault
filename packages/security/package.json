@@ -5,5 +5,8 @@
   "scripts": {
     "test": "vitest --run tests",
     "lint": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "libsodium-wrappers-sumo": "^0.8.3"
   }
 }

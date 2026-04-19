@@ -1,17 +1,42 @@
-import type { MasterPasswordVerifier } from "../../../../../packages/security/src/master-password-verifier";
+import {
+  type LegacyMasterPasswordVerifier,
+  type MasterPasswordVerifier,
+  type SecureMasterPasswordVerifier,
+} from "../../../../../packages/security/src/master-password-verifier";
 
 const MASTER_PASSWORD_VERIFIER_STORAGE_KEY =
   "unuvault.web.master-password-verifier";
+
+function isLegacyMasterPasswordVerifier(
+  value: unknown,
+): value is LegacyMasterPasswordVerifier {
+  return (
+    !!value &&
+    typeof value === "object" &&
+    (value as Partial<LegacyMasterPasswordVerifier>).version === 1 &&
+    typeof (value as Partial<LegacyMasterPasswordVerifier>).salt === "string" &&
+    typeof (value as Partial<LegacyMasterPasswordVerifier>).check === "string"
+  );
+}
+
+function isSecureMasterPasswordVerifier(
+  value: unknown,
+): value is SecureMasterPasswordVerifier {
+  return (
+    !!value &&
+    typeof value === "object" &&
+    (value as Partial<SecureMasterPasswordVerifier>).version === 2 &&
+    (value as Partial<SecureMasterPasswordVerifier>).algorithm === "argon2id13" &&
+    typeof (value as Partial<SecureMasterPasswordVerifier>).passwordHash === "string"
+  );
+}
 
 function isMasterPasswordVerifier(
   value: unknown,
 ): value is MasterPasswordVerifier {
   return (
-    !!value &&
-    typeof value === "object" &&
-    (value as Partial<MasterPasswordVerifier>).version === 1 &&
-    typeof (value as Partial<MasterPasswordVerifier>).salt === "string" &&
-    typeof (value as Partial<MasterPasswordVerifier>).check === "string"
+    isLegacyMasterPasswordVerifier(value) ||
+    isSecureMasterPasswordVerifier(value)
   );
 }
 

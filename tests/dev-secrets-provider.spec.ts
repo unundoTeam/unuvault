@@ -27,7 +27,7 @@ function createCapturedIo() {
 describe("runDevSecretsProvider", () => {
   it("prints only dotenv to stdout on successful read", async () => {
     const { io, readStdout, readStderr } = createCapturedIo();
-    const ciphertext = sealDeveloperSecretBlob(
+    const ciphertext = await sealDeveloperSecretBlob(
       "SUPABASE_URL=https://example.supabase.co\n",
       "correct horse",
     );
@@ -61,7 +61,7 @@ describe("runDevSecretsProvider", () => {
 
   it("accepts unuidentity/local as a supported read target", async () => {
     const { io, readStdout, readStderr } = createCapturedIo();
-    const ciphertext = sealDeveloperSecretBlob(
+    const ciphertext = await sealDeveloperSecretBlob(
       "IDENTITY_SUPABASE_URL=https://identity.example.supabase.co\n",
       "correct horse",
     );
@@ -122,7 +122,7 @@ describe("runDevSecretsProvider", () => {
 
   it("keeps stdout empty and reports decrypt_failed when read cannot decrypt", async () => {
     const { io, readStdout, readStderr } = createCapturedIo();
-    const ciphertext = sealDeveloperSecretBlob(
+    const ciphertext = await sealDeveloperSecretBlob(
       "SUPABASE_URL=https://example.supabase.co\n",
       "correct horse",
     );
@@ -148,6 +148,31 @@ describe("runDevSecretsProvider", () => {
     expect(readStdout()).toBe("");
     expect(readStderr()).toContain("decrypt_failed");
     expect(readStderr()).not.toContain("SUPABASE_URL=");
+  });
+
+  it("keeps stdout empty and reports decrypt_failed for malformed ciphertext", async () => {
+    const { io, readStdout, readStderr } = createCapturedIo();
+
+    const exitCode = await runDevSecretsProvider(
+      ["read", "--app", "unundo", "--env", "local"],
+      {
+        io,
+        deps: {
+          getCliSessionToken: async () => "cli-session-token",
+          promptSecret: async () => "correct horse",
+          readRecord: async () => ({
+            ciphertext: "not-json",
+          }),
+          writeRecord: async () => ({ ok: true as const }),
+          readTextFile: async () => "",
+          confirm: async () => true,
+        },
+      },
+    );
+
+    expect(exitCode).toBe(1);
+    expect(readStdout()).toBe("");
+    expect(readStderr()).toContain("decrypt_failed");
   });
 
   it("prints a safe import summary before uploading ciphertext", async () => {

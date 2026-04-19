@@ -1,7 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createMasterPasswordVerifier } from "../../../packages/security/src/master-password-verifier";
+import {
+  createMasterPasswordVerifier,
+  verifyMasterPassword,
+} from "../../../packages/security/src/master-password-verifier";
+import { LEGACY_FIXTURE_MASTER_PASSWORD_VERIFIER_V1 } from "../../../tests/fixtures/crypto-legacy-fixtures";
 import {
   clearMasterPasswordVerifier,
+  readMasterPasswordVerifier,
   writeMasterPasswordVerifier,
 } from "../src/popup/master-password-storage";
 import { handleBackgroundRequest } from "../src/background/runtime";
@@ -49,7 +54,7 @@ function installChromeStorageMock() {
 }
 
 async function seedVerifier(password: string) {
-  await writeMasterPasswordVerifier(createMasterPasswordVerifier(password));
+  await writeMasterPasswordVerifier(await createMasterPasswordVerifier(password));
 }
 
 describe("background unlock runtime", () => {
@@ -85,6 +90,38 @@ describe("background unlock runtime", () => {
     await expect(runtime.readUnlockState()).resolves.toEqual({
       mode: "locked",
     });
+  });
+
+  it("upgrades a legacy verifier to v2 after a successful unlock", async () => {
+    await writeMasterPasswordVerifier(
+      LEGACY_FIXTURE_MASTER_PASSWORD_VERIFIER_V1,
+    );
+
+    const runtime = createExtensionUnlockRuntime();
+
+    await expect(runtime.unlockWithPassphrase("correct horse")).resolves.toEqual({
+      ok: true,
+      unlockState: {
+        mode: "unlocked",
+      },
+    });
+
+    const verifier = await readMasterPasswordVerifier();
+
+    if (!verifier) {
+      throw new Error("expected upgraded verifier");
+    }
+
+    expect(verifier).toMatchObject({
+      version: 2,
+      algorithm: "argon2id13",
+    });
+
+    await expect(verifyMasterPassword(verifier, "correct horse")).resolves.toEqual(
+      expect.objectContaining({
+        success: true,
+      }),
+    );
   });
 });
 

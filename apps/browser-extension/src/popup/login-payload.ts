@@ -10,7 +10,10 @@ export function hasSavedPassword(payload: unknown): boolean {
   return normalizeVaultLoginPayload(payload).password_ciphertext.trim().length > 0;
 }
 
-export function readStoredPassword(payload: unknown, passphrase?: string): string {
+export async function readStoredPassword(
+  payload: unknown,
+  passphrase?: string,
+): Promise<string> {
   if (!passphrase) {
     return "";
   }
@@ -21,11 +24,11 @@ export function readStoredPassword(payload: unknown, passphrase?: string): strin
   );
 }
 
-export function getPasswordPlaceholderLabel(
+export async function getPasswordPlaceholderLabel(
   payload: unknown,
   isRevealed: boolean,
   passphrase?: string,
-): string {
+): Promise<string> {
   if (!hasSavedPassword(payload)) {
     return "No password saved";
   }
@@ -34,7 +37,7 @@ export function getPasswordPlaceholderLabel(
     return "••••••••";
   }
 
-  const openedPassword = readStoredPassword(payload, passphrase);
+  const openedPassword = await readStoredPassword(payload, passphrase);
 
   return openedPassword || "No password saved";
 }

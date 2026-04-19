@@ -377,7 +377,16 @@ async function runReadCommand(
   const cliSessionToken = await deps.getCliSessionToken(command.target);
   const record = await deps.readRecord(cliSessionToken, command.target);
   const masterPassword = await deps.promptSecret("Master password: ");
-  const plaintext = openDeveloperSecretBlob(record.ciphertext, masterPassword);
+  let plaintext = "";
+
+  try {
+    plaintext = await openDeveloperSecretBlob(
+      record.ciphertext,
+      masterPassword,
+    );
+  } catch {
+    throw createProviderError("decrypt_failed");
+  }
 
   if (!plaintext) {
     throw createProviderError("decrypt_failed");
@@ -409,7 +418,13 @@ async function runImportCommand(
 
   const cliSessionToken = await deps.getCliSessionToken(command.target);
   const masterPassword = await deps.promptSecret("Master password: ");
-  const ciphertext = sealDeveloperSecretBlob(plaintext, masterPassword);
+  let ciphertext = "";
+
+  try {
+    ciphertext = await sealDeveloperSecretBlob(plaintext, masterPassword);
+  } catch {
+    throw createProviderError("provider_failed");
+  }
 
   await deps.writeRecord(cliSessionToken, command.target, ciphertext);
 }
