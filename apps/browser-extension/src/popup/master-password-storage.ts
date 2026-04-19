@@ -24,12 +24,17 @@ function getExtensionStorageArea(): ExtensionStorageArea | null {
 function isMasterPasswordVerifier(
   value: unknown,
 ): value is MasterPasswordVerifier {
+  const partial = value as Partial<MasterPasswordVerifier> | null;
+
   return (
-    !!value &&
-    typeof value === "object" &&
-    (value as Partial<MasterPasswordVerifier>).version === 1 &&
-    typeof (value as Partial<MasterPasswordVerifier>).salt === "string" &&
-    typeof (value as Partial<MasterPasswordVerifier>).check === "string"
+    !!partial &&
+    typeof partial === "object" &&
+    (partial.version === 1
+      ? typeof partial.salt === "string" && typeof partial.check === "string"
+      : partial.version === 2
+        ? partial.algorithm === "argon2id13" &&
+          typeof partial.passwordHash === "string"
+        : false)
   );
 }
 

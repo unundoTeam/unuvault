@@ -30,6 +30,9 @@ const manifest = {
   manifest_version: 3,
   name: "UnuVault",
   version: "0.0.1",
+  content_security_policy: {
+    extension_pages: "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';",
+  },
   background: {
     service_worker: "background.js",
     type: "module",

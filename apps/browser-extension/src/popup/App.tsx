@@ -1,6 +1,5 @@
 import type { FormEvent } from "react";
 import {
-  getPasswordPlaceholderLabel,
   hasSavedPassword,
   normalizeVaultLoginPayload,
 } from "./login-payload";
@@ -38,6 +37,7 @@ export function App() {
     copiedUsernameItemId,
     copyPassword,
     copyUsername,
+    getPasswordLabel,
     filteredItems,
     hasLoaded,
     hasStoredItems,
@@ -117,11 +117,7 @@ export function App() {
                     {payload.username ? <span>{payload.username}</span> : null}
                     {payload.notes.trim() ? <span>Notes added</span> : null}
                     <span>
-                      {getPasswordPlaceholderLabel(
-                        item.encrypted_payload,
-                        passwordRevealed,
-                        unlockPassphrase ?? undefined,
-                      )}
+                      {getPasswordLabel(item.id, item.encrypted_payload)}
                     </span>
                     {payload.username ? (
                       <button

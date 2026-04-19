@@ -1,34 +1,34 @@
-export type MasterPasswordVerifier = {
+import {
+  createPasswordHash,
+  verifyPasswordHash,
+} from "./sodium";
+
+export type LegacyMasterPasswordVerifier = {
   version: 1;
   salt: string;
   check: string;
 };
 
-const textEncoder = new TextEncoder();
+export type SecureMasterPasswordVerifier = {
+  version: 2;
+  algorithm: "argon2id13";
+  passwordHash: string;
+};
 
-function toBase64(bytes: Uint8Array): string {
-  let binary = "";
+export type MasterPasswordVerifier =
+  | LegacyMasterPasswordVerifier
+  | SecureMasterPasswordVerifier;
 
-  bytes.forEach((value) => {
-    binary += String.fromCharCode(value);
-  });
-
-  return btoa(binary);
-}
-
-function createRandomSalt(): string {
-  const bytes = new Uint8Array(12);
-
-  if (typeof crypto !== "undefined" && typeof crypto.getRandomValues === "function") {
-    crypto.getRandomValues(bytes);
-  } else {
-    for (let index = 0; index < bytes.length; index += 1) {
-      bytes[index] = Math.floor(Math.random() * 256);
+export type VerifyMasterPasswordResult =
+  | {
+      success: false;
     }
-  }
+  | {
+      success: true;
+      upgradedVerifier?: SecureMasterPasswordVerifier;
+    };
 
-  return toBase64(bytes);
-}
+const textEncoder = new TextEncoder();
 
 function hashToHex(input: string): string {
   let hash = 0x811c9dc5;
@@ -42,37 +42,64 @@ function hashToHex(input: string): string {
   return (hash >>> 0).toString(16).padStart(8, "0");
 }
 
-function isMasterPasswordVerifier(
+function isLegacyMasterPasswordVerifier(
   value: unknown,
-): value is MasterPasswordVerifier {
+): value is LegacyMasterPasswordVerifier {
   return (
     !!value &&
     typeof value === "object" &&
-    (value as Partial<MasterPasswordVerifier>).version === 1 &&
-    typeof (value as Partial<MasterPasswordVerifier>).salt === "string" &&
-    typeof (value as Partial<MasterPasswordVerifier>).check === "string"
+    (value as Partial<LegacyMasterPasswordVerifier>).version === 1 &&
+    typeof (value as Partial<LegacyMasterPasswordVerifier>).salt === "string" &&
+    typeof (value as Partial<LegacyMasterPasswordVerifier>).check === "string"
   );
 }
 
-export function createMasterPasswordVerifier(
-  masterPassword: string,
-): MasterPasswordVerifier {
-  const salt = createRandomSalt();
+function isSecureMasterPasswordVerifier(
+  value: unknown,
+): value is SecureMasterPasswordVerifier {
+  return (
+    !!value &&
+    typeof value === "object" &&
+    (value as Partial<SecureMasterPasswordVerifier>).version === 2 &&
+    (value as Partial<SecureMasterPasswordVerifier>).algorithm === "argon2id13" &&
+    typeof (value as Partial<SecureMasterPasswordVerifier>).passwordHash === "string"
+  );
+}
 
+export async function createMasterPasswordVerifier(
+  masterPassword: string,
+): Promise<SecureMasterPasswordVerifier> {
   return {
-    version: 1,
-    salt,
-    check: hashToHex(`${masterPassword}:${salt}`),
+    version: 2,
+    algorithm: "argon2id13",
+    passwordHash: await createPasswordHash(masterPassword),
   };
 }
 
-export function verifyMasterPassword(
+export async function verifyMasterPassword(
   verifier: unknown,
   masterPassword: string,
-): boolean {
-  if (!isMasterPasswordVerifier(verifier) || !masterPassword) {
-    return false;
+): Promise<VerifyMasterPasswordResult> {
+  if (!masterPassword) {
+    return { success: false };
   }
 
-  return hashToHex(`${masterPassword}:${verifier.salt}`) === verifier.check;
+  if (isSecureMasterPasswordVerifier(verifier)) {
+    return (await verifyPasswordHash(verifier.passwordHash, masterPassword))
+      ? { success: true }
+      : { success: false };
+  }
+
+  if (!isLegacyMasterPasswordVerifier(verifier)) {
+    return { success: false };
+  }
+
+  if (hashToHex(`${masterPassword}:${verifier.salt}`) !== verifier.check) {
+    return { success: false };
+  }
+
+  return {
+    success: true,
+    upgradedVerifier: await createMasterPasswordVerifier(masterPassword),
+  };
 }

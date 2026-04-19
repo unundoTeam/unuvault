@@ -27,7 +27,7 @@ type VaultUnlockState = {
   lock(): void;
   mode: VaultUnlockMode;
   submitLabel: string;
-  submitUnlock(): boolean;
+  submitUnlock(): Promise<boolean>;
   setDraftConfirmPassphrase(value: string): void;
   setDraftPassphrase(value: string): void;
   unlockError: string | null;
@@ -59,10 +59,14 @@ export function useVaultUnlock(items: VaultSyncItem[]): VaultUnlockState {
     [items],
   );
 
-  function canUnlockProtectedCiphertexts(passphrase: string): boolean {
-    return protectedCiphertexts.every(
-      (ciphertext) => openStoredVaultPassword(ciphertext, passphrase).length > 0,
+  async function canUnlockProtectedCiphertexts(passphrase: string): Promise<boolean> {
+    const openedPasswords = await Promise.all(
+      protectedCiphertexts.map((ciphertext) =>
+        openStoredVaultPassword(ciphertext, passphrase),
+      ),
     );
+
+    return openedPasswords.every((password) => password.length > 0);
   }
 
   function updateDraftPassphrase(value: string) {
@@ -75,7 +79,7 @@ export function useVaultUnlock(items: VaultSyncItem[]): VaultUnlockState {
     setUnlockError(null);
   }
 
-  function submitUnlock(): boolean {
+  async function submitUnlock(): Promise<boolean> {
     if (!draftPassphrase) {
       setUnlockPassphrase(null);
       setUnlockError("Master password is required");
@@ -91,14 +95,14 @@ export function useVaultUnlock(items: VaultSyncItem[]): VaultUnlockState {
 
       if (
         protectedCiphertexts.length > 0 &&
-        !canUnlockProtectedCiphertexts(draftPassphrase)
+        !(await canUnlockProtectedCiphertexts(draftPassphrase))
       ) {
         setUnlockPassphrase(null);
         setUnlockError("Master password must unlock existing saved passwords");
         return false;
       }
 
-      const verifier = createMasterPasswordVerifier(draftPassphrase);
+      const verifier = await createMasterPasswordVerifier(draftPassphrase);
 
       writeMasterPasswordVerifier(verifier);
       setStoredVerifier(verifier);
@@ -109,7 +113,11 @@ export function useVaultUnlock(items: VaultSyncItem[]): VaultUnlockState {
       return true;
     }
 
-    if (!storedVerifier || !verifyMasterPassword(storedVerifier, draftPassphrase)) {
+    const verificationResult = storedVerifier
+      ? await verifyMasterPassword(storedVerifier, draftPassphrase)
+      : { success: false as const };
+
+    if (!verificationResult.success) {
       setUnlockPassphrase(null);
       setUnlockError("Wrong master password");
       return false;
@@ -117,11 +125,16 @@ export function useVaultUnlock(items: VaultSyncItem[]): VaultUnlockState {
 
     if (
       protectedCiphertexts.length > 0 &&
-      !canUnlockProtectedCiphertexts(draftPassphrase)
+      !(await canUnlockProtectedCiphertexts(draftPassphrase))
     ) {
       setUnlockPassphrase(null);
       setUnlockError("Wrong master password");
       return false;
+    }
+
+    if (verificationResult.upgradedVerifier) {
+      writeMasterPasswordVerifier(verificationResult.upgradedVerifier);
+      setStoredVerifier(verificationResult.upgradedVerifier);
     }
 
     setUnlockPassphrase(draftPassphrase);

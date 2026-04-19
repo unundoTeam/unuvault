@@ -1,9 +1,9 @@
 "use client";
 
 import type { FormEvent } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
-  getPasswordPlaceholderLabel,
+  getHiddenPasswordPlaceholder,
   hasSavedPassword,
   normalizeVaultLoginPayload,
   normalizeVaultWebsiteUrl,
@@ -56,6 +56,7 @@ export function VaultPanel() {
   const [copiedUsernameItemId, setCopiedUsernameItemId] = useState<string | null>(null);
   const [copiedPasswordItemId, setCopiedPasswordItemId] = useState<string | null>(null);
   const [revealedPasswordItemIds, setRevealedPasswordItemIds] = useState<string[]>([]);
+  const [revealedPasswords, setRevealedPasswords] = useState<Record<string, string>>({});
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
   const [editingUsername, setEditingUsername] = useState("");
@@ -109,14 +110,17 @@ export function VaultPanel() {
     }
   }
 
-  function startEditing(item: (typeof items)[number]) {
+  async function startEditing(item: (typeof items)[number]) {
     const payload = normalizeVaultLoginPayload(item.encrypted_payload);
+    const openedPassword = unlockPassphrase
+      ? await readDraftPassword(item.encrypted_payload, unlockPassphrase)
+      : "";
 
     setEditingItemId(item.id);
     setEditingTitle(item.title);
     setEditingUsername(payload.username);
     setEditingWebsite(payload.website_url);
-    setEditingPassword(readDraftPassword(item.encrypted_payload, unlockPassphrase ?? undefined));
+    setEditingPassword(openedPassword);
     setEditingNotes(payload.notes);
     setIsEditingPasswordVisible(false);
     setEditingValidationMessage(null);
@@ -150,8 +154,14 @@ export function VaultPanel() {
     }, 1500);
   }
 
-  async function copyPassword(itemId: string, password: string) {
-    if (!isUnlocked || !password) {
+  async function copyPassword(itemId: string, payload: unknown) {
+    if (!isUnlocked || !unlockPassphrase) {
+      return;
+    }
+
+    const password = await readDraftPassword(payload, unlockPassphrase);
+
+    if (!password) {
       return;
     }
 
@@ -171,16 +181,31 @@ export function VaultPanel() {
     }, 1500);
   }
 
-  function togglePasswordVisibility(itemId: string) {
-    if (!isUnlocked) {
+  async function togglePasswordVisibility(itemId: string, payload: unknown) {
+    if (!isUnlocked || !unlockPassphrase) {
       return;
     }
 
-    setRevealedPasswordItemIds((current) =>
-      current.includes(itemId)
-        ? current.filter((currentItemId) => currentItemId !== itemId)
-        : [...current, itemId],
-    );
+    if (revealedPasswordItemIds.includes(itemId)) {
+      setRevealedPasswordItemIds((current) =>
+        current.filter((currentItemId) => currentItemId !== itemId),
+      );
+      setRevealedPasswords((current) => {
+        const next = { ...current };
+        delete next[itemId];
+        return next;
+      });
+      return;
+    }
+
+    const password = await readDraftPassword(payload, unlockPassphrase);
+
+    if (!password) {
+      return;
+    }
+
+    setRevealedPasswords((current) => ({ ...current, [itemId]: password }));
+    setRevealedPasswordItemIds((current) => [...current, itemId]);
   }
 
   async function saveEditing() {
@@ -222,6 +247,13 @@ export function VaultPanel() {
     }
   }
 
+  useEffect(() => {
+    if (!isUnlocked) {
+      setRevealedPasswordItemIds([]);
+      setRevealedPasswords({});
+    }
+  }, [isUnlocked]);
+
   const statusMessage = errorMessage
     ? null
     : isBootstrapping
@@ -257,7 +289,7 @@ export function VaultPanel() {
         <form
           onSubmit={(event) => {
             event.preventDefault();
-            submitUnlock();
+            void submitUnlock();
           }}
         >
           <label>
@@ -463,11 +495,9 @@ export function VaultPanel() {
                         {payload.username ? <span>{payload.username}</span> : null}
                         {payload.notes.trim() ? <span>Notes added</span> : null}
                         <span>
-                          {getPasswordPlaceholderLabel(
-                            item.encrypted_payload,
-                            isPasswordRevealed,
-                            unlockPassphrase ?? undefined,
-                          )}
+                          {revealedPasswordItemIds.includes(item.id)
+                            ? revealedPasswords[item.id] ?? getHiddenPasswordPlaceholder(item.encrypted_payload)
+                            : getHiddenPasswordPlaceholder(item.encrypted_payload)}
                         </span>
                         {payload.username.trim() ? (
                           <button
@@ -484,13 +514,7 @@ export function VaultPanel() {
                           <button
                             type="button"
                             onClick={() =>
-                              void copyPassword(
-                                item.id,
-                                readDraftPassword(
-                                  item.encrypted_payload,
-                                  unlockPassphrase ?? undefined,
-                                ),
-                              )
+                              void copyPassword(item.id, item.encrypted_payload)
                             }
                             disabled={isSyncing || !isUnlocked}
                           >
@@ -502,7 +526,7 @@ export function VaultPanel() {
                         {hasPassword ? (
                           <button
                             type="button"
-                            onClick={() => togglePasswordVisibility(item.id)}
+                            onClick={() => void togglePasswordVisibility(item.id, item.encrypted_payload)}
                             disabled={isSyncing || !isUnlocked}
                           >
                             {isPasswordRevealed
@@ -512,7 +536,7 @@ export function VaultPanel() {
                         ) : null}
                         <button
                           type="button"
-                          onClick={() => startEditing(item)}
+                          onClick={() => void startEditing(item)}
                           disabled={isSyncing}
                         >
                           Edit {item.title}

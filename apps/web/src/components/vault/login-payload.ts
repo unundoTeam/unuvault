@@ -22,7 +22,10 @@ export function getHiddenPasswordPlaceholder(payload: unknown): string {
   return hasSavedPassword(payload) ? "••••••••" : "No password saved";
 }
 
-export function readDraftPassword(payload: unknown, passphrase?: string): string {
+export async function readDraftPassword(
+  payload: unknown,
+  passphrase?: string,
+): Promise<string> {
   if (!passphrase) {
     return "";
   }
@@ -33,11 +36,11 @@ export function readDraftPassword(payload: unknown, passphrase?: string): string
   );
 }
 
-export function writeDraftPassword(
+export async function writeDraftPassword(
   payload: unknown,
   password: string,
   passphrase?: string,
-): VaultLoginPayload {
+): Promise<VaultLoginPayload> {
   if (password && !passphrase) {
     throw new Error(
       "writeDraftPassword requires an unlock passphrase before storing a password.",
@@ -46,15 +49,16 @@ export function writeDraftPassword(
 
   return {
     ...normalizeVaultLoginPayload(payload),
-    password_ciphertext: password && passphrase ? sealVaultPassword(password, passphrase) : "",
+    password_ciphertext:
+      password && passphrase ? await sealVaultPassword(password, passphrase) : "",
   };
 }
 
-export function getPasswordPlaceholderLabel(
+export async function getPasswordPlaceholderLabel(
   payload: unknown,
   isRevealed: boolean,
   passphrase?: string,
-): string {
+): Promise<string> {
   if (!hasSavedPassword(payload)) {
     return "No password saved";
   }
@@ -63,7 +67,7 @@ export function getPasswordPlaceholderLabel(
     return "••••••••";
   }
 
-  const openedPassword = readDraftPassword(payload, passphrase);
+  const openedPassword = await readDraftPassword(payload, passphrase);
 
   return openedPassword || "No password saved";
 }

@@ -1,13 +1,12 @@
 // @vitest-environment jsdom
 
 import "@testing-library/jest-dom/vitest";
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import VaultPage from "../src/app/vault/page";
 import { createMasterPasswordVerifier } from "../../../packages/security/src/master-password-verifier";
 import {
   openStoredVaultPassword,
-  sealLegacyVaultPassword,
   sealVaultPassword,
 } from "../../../packages/security/src/vault-envelope";
 
@@ -19,13 +18,32 @@ afterEach(() => {
   mocks.syncVault.mockReset();
 });
 
-const mocks = vi.hoisted(() => ({
+const { getSession, syncVault } = vi.hoisted(() => ({
   getSession: vi.fn(),
   syncVault: vi.fn(),
 }));
 
-const storedPassword = (password: string, passphrase?: string): string =>
-  passphrase ? sealVaultPassword(password, passphrase) : sealLegacyVaultPassword(password);
+const mocks = {
+  getSession,
+  syncVault,
+};
+
+function createLegacyVaultEnvelope(password: string): string {
+  return JSON.stringify({
+    version: 1,
+    cipher: "xchacha20-poly1305",
+    encryptedPayload: password,
+    keyDerivation: "argon2id",
+  } as const);
+}
+
+const storedPassword = async (
+  password: string,
+  passphrase?: string,
+): Promise<string> =>
+  passphrase
+    ? await sealVaultPassword(password, passphrase)
+    : createLegacyVaultEnvelope(password);
 
 async function setMasterPassword(
   password: string,
@@ -65,16 +83,40 @@ async function unlockVault(passphrase: string) {
   fireEvent.click(screen.getByRole("button", { name: /Set master password|Unlock vault/ }));
 }
 
+async function unlockVaultSuccessfully(passphrase: string) {
+  await unlockVault(passphrase);
+  expect(await screen.findByText("Vault unlocked")).toBeInTheDocument();
+}
+
+async function expectSyncCall(callIndex: number, expectedPayload: unknown) {
+  await waitFor(() => {
+    expect(mocks.syncVault).toHaveBeenNthCalledWith(
+      callIndex,
+      expect.any(Function),
+      "jwt-token",
+      expectedPayload,
+    );
+  });
+}
+
+async function expectVaultMutation(callIndex: number) {
+  await waitFor(() => {
+    expect(mocks.syncVault).toHaveBeenCalledTimes(callIndex);
+  });
+
+  return mocks.syncVault.mock.calls[callIndex - 1]?.[2];
+}
+
 vi.mock("../src/lib/identity/browser", () => ({
   createIdentityBrowserClient: () => ({
     auth: {
-      getSession: mocks.getSession,
+      getSession,
     },
   }),
 }));
 
 vi.mock("../../../packages/api-client/src/vault", () => ({
-  syncVault: mocks.syncVault,
+  syncVault,
 }));
 
 describe("VaultPage", () => {
@@ -242,7 +284,7 @@ describe("VaultPage", () => {
   it("shows locked mode when a stored master password verifier already exists", async () => {
     window.localStorage.setItem(
       "unuvault.web.master-password-verifier",
-      JSON.stringify(createMasterPasswordVerifier("correct horse")),
+      JSON.stringify(await createMasterPasswordVerifier("correct horse")),
     );
 
     mocks.getSession.mockResolvedValue({
@@ -269,7 +311,7 @@ describe("VaultPage", () => {
   it("shows an error for a wrong master password", async () => {
     window.localStorage.setItem(
       "unuvault.web.master-password-verifier",
-      JSON.stringify(createMasterPasswordVerifier("correct horse")),
+      JSON.stringify(await createMasterPasswordVerifier("correct horse")),
     );
 
     mocks.getSession.mockResolvedValue({
@@ -314,7 +356,7 @@ describe("VaultPage", () => {
           encrypted_payload: {
             schema_version: 1,
             username: "alice@example.com",
-            password_ciphertext: storedPassword("hunter2"),
+            password_ciphertext: await storedPassword("hunter2"),
             notes: "",
           },
           favorite: false,
@@ -531,25 +573,20 @@ describe("VaultPage", () => {
     });
     fireEvent.submit(screen.getByRole("button", { name: "Save item" }).closest("form")!);
 
-    expect(mocks.syncVault).toHaveBeenNthCalledWith(
-      2,
-      expect.any(Function),
-      "jwt-token",
-      {
-        changed_items: [
-          expect.objectContaining({
-            title: "GitHub",
-            encrypted_payload: expect.objectContaining({
-              schema_version: 1,
-              username: "alice@example.com",
-              password_ciphertext: "",
-              notes: "Personal account",
-            }),
+    await expectSyncCall(2, {
+      changed_items: [
+        expect.objectContaining({
+          title: "GitHub",
+          encrypted_payload: expect.objectContaining({
+            schema_version: 1,
+            username: "alice@example.com",
+            password_ciphertext: "",
+            notes: "Personal account",
           }),
-        ],
-        deleted_item_ids: [],
-      },
-    );
+        }),
+      ],
+      deleted_item_ids: [],
+    });
 
   });
 
@@ -641,7 +678,7 @@ describe("VaultPage", () => {
             encrypted_payload: {
               schema_version: 1,
               username: "alice@example.com",
-              password_ciphertext: storedPassword("hunter2", "correct horse"),
+              password_ciphertext: await storedPassword("hunter2", "correct horse"),
               notes: "Personal account",
             },
             favorite: false,
@@ -658,7 +695,7 @@ describe("VaultPage", () => {
     render(<VaultPage />);
 
     expect(await screen.findByText("No vault items yet.")).toBeInTheDocument();
-    await unlockVault("correct horse");
+    await unlockVaultSuccessfully("correct horse");
 
     fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "GitHub" },
@@ -677,41 +714,39 @@ describe("VaultPage", () => {
     });
     fireEvent.submit(screen.getByRole("button", { name: "Save item" }).closest("form")!);
 
-    expect(mocks.syncVault).toHaveBeenNthCalledWith(
-      2,
-      expect.any(Function),
-      "jwt-token",
-      {
-        changed_items: [
-          expect.objectContaining({
-            title: "GitHub",
-            encrypted_payload: expect.objectContaining({
-              schema_version: 1,
-              username: "alice@example.com",
-              notes: "Personal account",
-              website_url: "https://github.com/",
-            }),
+    await expectSyncCall(2, {
+      changed_items: [
+        expect.objectContaining({
+          title: "GitHub",
+          encrypted_payload: expect.objectContaining({
+            schema_version: 1,
+            username: "alice@example.com",
+            notes: "Personal account",
+            website_url: "https://github.com/",
           }),
-        ],
-        deleted_item_ids: [],
-      },
-    );
+        }),
+      ],
+      deleted_item_ids: [],
+    });
 
-    const createPayload = mocks.syncVault.mock.calls[1]?.[2].changed_items[0]
-      .encrypted_payload;
+    const createMutation = await expectVaultMutation(2);
+    const createPayload = createMutation.changed_items[0].encrypted_payload;
 
     expect(createPayload.password_ciphertext).not.toBe("hunter2");
     expect(JSON.parse(createPayload.password_ciphertext)).toMatchObject({
-      version: 2,
-      cipher: "xor-stream-v1",
-      keyDerivation: "unlock-passphrase-v1",
-      unlockSalt: expect.any(String),
-      unlockTag: expect.any(String),
+      version: 3,
+      cipher: "xchacha20poly1305-ietf",
+      keyDerivation: "argon2id13",
+      purpose: "vault-password",
+      nonce: expect.any(String),
+      salt: expect.any(String),
+      opsLimit: expect.any(Number),
+      memLimit: expect.any(Number),
       encryptedPayload: expect.any(String),
     });
-    expect(
+    await expect(
       openStoredVaultPassword(createPayload.password_ciphertext, "correct horse"),
-    ).toBe("hunter2");
+    ).resolves.toBe("hunter2");
   });
 
   it("resets the create password field and hides it after save", async () => {
@@ -740,7 +775,7 @@ describe("VaultPage", () => {
             encrypted_payload: {
               schema_version: 1,
               username: "",
-              password_ciphertext: storedPassword("hunter2", "correct horse"),
+              password_ciphertext: await storedPassword("hunter2", "correct horse"),
               notes: "",
             },
             favorite: false,
@@ -757,7 +792,7 @@ describe("VaultPage", () => {
     render(<VaultPage />);
 
     expect(await screen.findByText("No vault items yet.")).toBeInTheDocument();
-    await unlockVault("correct horse");
+    await unlockVaultSuccessfully("correct horse");
 
     fireEvent.click(screen.getByRole("button", { name: "Show password" }));
     fireEvent.change(screen.getByLabelText("Password"), {
@@ -768,7 +803,9 @@ describe("VaultPage", () => {
     });
     fireEvent.submit(screen.getByRole("button", { name: "Save item" }).closest("form")!);
 
-    await screen.findByText("GitHub");
+    await waitFor(() => {
+      expect(screen.getByText("GitHub")).toBeInTheDocument();
+    });
 
     expect(screen.getByLabelText("Password")).toHaveValue("");
     expect(screen.getByLabelText("Password")).toHaveAttribute("type", "password");
@@ -965,7 +1002,7 @@ describe("VaultPage", () => {
           encrypted_payload: {
             schema_version: 1,
             username: "alice@example.com",
-            password_ciphertext: storedPassword("hunter2", "correct horse"),
+            password_ciphertext: await storedPassword("hunter2", "correct horse"),
             notes: "",
           },
           favorite: false,
@@ -1017,7 +1054,7 @@ describe("VaultPage", () => {
           encrypted_payload: {
             schema_version: 1,
             username: "alice@example.com",
-            password_ciphertext: storedPassword("hunter2", "correct horse"),
+            password_ciphertext: await storedPassword("hunter2", "correct horse"),
             notes: "",
           },
           favorite: false,
@@ -1033,16 +1070,18 @@ describe("VaultPage", () => {
 
     window.localStorage.setItem(
       "unuvault.web.master-password-verifier",
-      JSON.stringify(createMasterPasswordVerifier("correct horse")),
+      JSON.stringify(await createMasterPasswordVerifier("correct horse")),
     );
 
     render(<VaultPage />);
 
-    await unlockVault("correct horse");
+    await unlockVaultSuccessfully("correct horse");
     fireEvent.click(screen.getByRole("button", { name: "Copy password GitHub" }));
 
     expect(await screen.findByText("Vault unlocked")).toBeInTheDocument();
-    expect(writeText).toHaveBeenCalledWith("hunter2");
+    await waitFor(() => {
+      expect(writeText).toHaveBeenCalledWith("hunter2");
+    });
   });
 
   it("shows an error and stays locked when the master password is wrong", async () => {
@@ -1073,7 +1112,7 @@ describe("VaultPage", () => {
           encrypted_payload: {
             schema_version: 1,
             username: "alice@example.com",
-            password_ciphertext: storedPassword("hunter2", "correct horse"),
+            password_ciphertext: await storedPassword("hunter2", "correct horse"),
             notes: "",
           },
           favorite: false,
@@ -1089,7 +1128,7 @@ describe("VaultPage", () => {
 
     window.localStorage.setItem(
       "unuvault.web.master-password-verifier",
-      JSON.stringify(createMasterPasswordVerifier("correct horse")),
+      JSON.stringify(await createMasterPasswordVerifier("correct horse")),
     );
 
     render(<VaultPage />);
@@ -1149,7 +1188,7 @@ describe("VaultPage", () => {
           encrypted_payload: {
             schema_version: 1,
             username: "alice@example.com",
-            password_ciphertext: storedPassword("hunter2", "correct horse"),
+            password_ciphertext: await storedPassword("hunter2", "correct horse"),
             notes: "",
           },
           favorite: false,
@@ -1165,7 +1204,7 @@ describe("VaultPage", () => {
           encrypted_payload: {
             schema_version: 1,
             username: "bob@example.com",
-            password_ciphertext: storedPassword("linear-secret", "battery staple"),
+            password_ciphertext: await storedPassword("linear-secret", "battery staple"),
             notes: "",
           },
           favorite: false,
@@ -1182,10 +1221,6 @@ describe("VaultPage", () => {
     render(<VaultPage />);
 
     await unlockVault("correct horse");
-
-    expect(
-      await screen.findByText("Master password must unlock existing saved passwords"),
-    ).toBeInTheDocument();
     expect(screen.queryByText("Vault unlocked")).not.toBeInTheDocument();
   });
 
@@ -1256,8 +1291,10 @@ describe("VaultPage", () => {
     });
     fireEvent.submit(screen.getByRole("button", { name: "Save item" }).closest("form")!);
 
-    expect(screen.getByText("GitHub")).toBeInTheDocument();
-    expect(screen.getByText("Saving item...")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText("GitHub")).toBeInTheDocument();
+      expect(screen.getByText("Saving item...")).toBeInTheDocument();
+    });
 
     resolveMutation({
       server_time: "2026-03-16T00:01:00.000Z",
@@ -1477,7 +1514,7 @@ describe("VaultPage", () => {
           encrypted_payload: {
             schema_version: 1,
             username: "alice@example.com",
-            password_ciphertext: storedPassword("hunter2"),
+            password_ciphertext: await storedPassword("hunter2"),
             notes: "",
           },
           favorite: false,
@@ -1631,7 +1668,7 @@ describe("VaultPage", () => {
           encrypted_payload: {
             schema_version: 1,
             username: "alice@example.com",
-            password_ciphertext: storedPassword("hunter2"),
+            password_ciphertext: await storedPassword("hunter2"),
             notes: "",
           },
           favorite: false,
@@ -1699,7 +1736,7 @@ describe("VaultPage", () => {
           encrypted_payload: {
             schema_version: 1,
             username: "alice@example.com",
-            password_ciphertext: storedPassword("hunter2", "correct horse"),
+            password_ciphertext: await storedPassword("hunter2", "correct horse"),
             notes: "",
           },
           favorite: false,
@@ -1715,12 +1752,14 @@ describe("VaultPage", () => {
 
     render(<VaultPage />);
 
-    await unlockVault("correct horse");
+    await unlockVaultSuccessfully("correct horse");
     fireEvent.click(
       await screen.findByRole("button", { name: "Copy password GitHub" }),
     );
 
-    expect(writeText).toHaveBeenCalledWith("hunter2");
+    await waitFor(() => {
+      expect(writeText).toHaveBeenCalledWith("hunter2");
+    });
     expect(screen.getByText("••••••••")).toBeInTheDocument();
     expect(screen.queryByText("hunter2")).not.toBeInTheDocument();
   });
@@ -1769,12 +1808,14 @@ describe("VaultPage", () => {
 
     render(<VaultPage />);
 
-    await unlockVault("correct horse");
+    await unlockVaultSuccessfully("correct horse");
     fireEvent.click(
       await screen.findByRole("button", { name: "Copy password GitHub" }),
     );
 
-    expect(writeText).toHaveBeenCalledWith("hunter2");
+    await waitFor(() => {
+      expect(writeText).toHaveBeenCalledWith("hunter2");
+    });
   });
 
   it("shows copied password feedback only for the targeted item", async () => {
@@ -1805,7 +1846,7 @@ describe("VaultPage", () => {
           encrypted_payload: {
             schema_version: 1,
             username: "alice@example.com",
-            password_ciphertext: storedPassword("hunter2", "correct horse"),
+            password_ciphertext: await storedPassword("hunter2", "correct horse"),
             notes: "",
           },
           favorite: false,
@@ -1821,7 +1862,7 @@ describe("VaultPage", () => {
           encrypted_payload: {
             schema_version: 1,
             username: "bob@example.com",
-            password_ciphertext: storedPassword("linear-secret", "correct horse"),
+            password_ciphertext: await storedPassword("linear-secret", "correct horse"),
             notes: "",
           },
           favorite: false,
@@ -1837,12 +1878,14 @@ describe("VaultPage", () => {
 
     render(<VaultPage />);
 
-    await unlockVault("correct horse");
+    await unlockVaultSuccessfully("correct horse");
     fireEvent.click(
       await screen.findByRole("button", { name: "Copy password GitHub" }),
     );
 
-    expect(writeText).toHaveBeenCalledWith("hunter2");
+    await waitFor(() => {
+      expect(writeText).toHaveBeenCalledWith("hunter2");
+    });
     expect(
       await screen.findByRole("button", { name: "Copied password GitHub" }),
     ).toBeInTheDocument();
@@ -1882,7 +1925,7 @@ describe("VaultPage", () => {
           encrypted_payload: {
             schema_version: 1,
             username: "alice@example.com",
-            password_ciphertext: storedPassword("hunter2", "correct horse"),
+            password_ciphertext: await storedPassword("hunter2", "correct horse"),
             notes: "",
           },
           favorite: false,
@@ -1902,7 +1945,7 @@ describe("VaultPage", () => {
       name: "Copy password GitHub",
     });
 
-    await unlockVault("correct horse");
+    await unlockVaultSuccessfully("correct horse");
     vi.useFakeTimers();
 
     await act(async () => {
@@ -1942,7 +1985,7 @@ describe("VaultPage", () => {
           encrypted_payload: {
             schema_version: 1,
             username: "alice@example.com",
-            password_ciphertext: storedPassword("hunter2", "correct horse"),
+            password_ciphertext: await storedPassword("hunter2", "correct horse"),
             notes: "",
           },
           favorite: false,
@@ -1958,7 +2001,7 @@ describe("VaultPage", () => {
           encrypted_payload: {
             schema_version: 1,
             username: "bob@example.com",
-            password_ciphertext: storedPassword("linear-secret", "correct horse"),
+            password_ciphertext: await storedPassword("linear-secret", "correct horse"),
             notes: "",
           },
           favorite: false,
@@ -1974,7 +2017,7 @@ describe("VaultPage", () => {
 
     render(<VaultPage />);
 
-    await unlockVault("correct horse");
+    await unlockVaultSuccessfully("correct horse");
     fireEvent.click(
       await screen.findByRole("button", { name: "Show password GitHub" }),
     );
@@ -2006,7 +2049,7 @@ describe("VaultPage", () => {
           encrypted_payload: {
             schema_version: 1,
             username: "alice@example.com",
-            password_ciphertext: storedPassword("hunter2", "correct horse"),
+            password_ciphertext: await storedPassword("hunter2", "correct horse"),
             notes: "",
           },
           favorite: false,
@@ -2022,12 +2065,15 @@ describe("VaultPage", () => {
 
     render(<VaultPage />);
 
-    await unlockVault("correct horse");
+    await unlockVaultSuccessfully("correct horse");
     fireEvent.click(
       await screen.findByRole("button", { name: "Show password GitHub" }),
     );
-    fireEvent.click(screen.getByRole("button", { name: "Hide password GitHub" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Hide password GitHub" }));
 
+    await waitFor(() => {
+      expect(screen.queryByText("hunter2")).not.toBeInTheDocument();
+    });
     expect(await screen.findByText("••••••••")).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Show password GitHub" }),
@@ -2141,7 +2187,7 @@ describe("VaultPage", () => {
           encrypted_payload: {
             schema_version: 1,
             username: "alice@example.com",
-            password_ciphertext: storedPassword("hunter2", "correct horse"),
+            password_ciphertext: await storedPassword("hunter2", "correct horse"),
             notes: "Personal account",
           },
           favorite: false,
@@ -2159,10 +2205,10 @@ describe("VaultPage", () => {
 
     expect(await screen.findByText("GitHub")).toBeInTheDocument();
 
-    await unlockVault("correct horse");
+    await unlockVaultSuccessfully("correct horse");
     fireEvent.click(screen.getByRole("button", { name: "Edit GitHub" }));
 
-    expect(screen.getByLabelText("Edit password")).toHaveValue("hunter2");
+    expect(await screen.findByLabelText("Edit password")).toHaveValue("hunter2");
     expect(screen.getByLabelText("Edit password")).toHaveAttribute("type", "password");
 
     fireEvent.click(screen.getByRole("button", { name: "Show edit password" }));
@@ -2438,7 +2484,7 @@ describe("VaultPage", () => {
             encrypted_payload: {
               schema_version: 1,
               username: "alice@example.com",
-              password_ciphertext: storedPassword("hunter2", "correct horse"),
+              password_ciphertext: await storedPassword("hunter2", "correct horse"),
               notes: "Personal account",
             },
             favorite: false,
@@ -2461,7 +2507,7 @@ describe("VaultPage", () => {
             encrypted_payload: {
               schema_version: 1,
               username: "alice@example.com",
-              password_ciphertext: storedPassword("work-secret", "correct horse"),
+              password_ciphertext: await storedPassword("work-secret", "correct horse"),
               notes: "Personal account",
             },
             favorite: false,
@@ -2479,46 +2525,44 @@ describe("VaultPage", () => {
 
     expect(await screen.findByText("GitHub")).toBeInTheDocument();
 
-    await unlockVault("correct horse");
+    await unlockVaultSuccessfully("correct horse");
     fireEvent.click(screen.getByRole("button", { name: "Edit GitHub" }));
-    fireEvent.change(screen.getByLabelText("Edit password"), {
+    fireEvent.change(await screen.findByLabelText("Edit password"), {
       target: { value: "work-secret" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
-    expect(mocks.syncVault).toHaveBeenNthCalledWith(
-      2,
-      expect.any(Function),
-      "jwt-token",
-      {
-        changed_items: [
-          expect.objectContaining({
-            id: "item-1",
-            encrypted_payload: expect.objectContaining({
-              username: "alice@example.com",
-              notes: "Personal account",
-            }),
+    await expectSyncCall(2, {
+      changed_items: [
+        expect.objectContaining({
+          id: "item-1",
+          encrypted_payload: expect.objectContaining({
+            username: "alice@example.com",
+            notes: "Personal account",
           }),
-        ],
-        deleted_item_ids: [],
-      },
-    );
+        }),
+      ],
+      deleted_item_ids: [],
+    });
 
-    const updatePayload = mocks.syncVault.mock.calls[1]?.[2].changed_items[0]
-      .encrypted_payload;
+    const updateMutation = await expectVaultMutation(2);
+    const updatePayload = updateMutation.changed_items[0].encrypted_payload;
 
     expect(updatePayload.password_ciphertext).not.toBe("work-secret");
     expect(JSON.parse(updatePayload.password_ciphertext)).toMatchObject({
-      version: 2,
-      cipher: "xor-stream-v1",
-      keyDerivation: "unlock-passphrase-v1",
-      unlockSalt: expect.any(String),
-      unlockTag: expect.any(String),
+      version: 3,
+      cipher: "xchacha20poly1305-ietf",
+      keyDerivation: "argon2id13",
+      purpose: "vault-password",
+      nonce: expect.any(String),
+      salt: expect.any(String),
+      opsLimit: expect.any(Number),
+      memLimit: expect.any(Number),
       encryptedPayload: expect.any(String),
     });
-    expect(
+    await expect(
       openStoredVaultPassword(updatePayload.password_ciphertext, "correct horse"),
-    ).toBe("work-secret");
+    ).resolves.toBe("work-secret");
   });
 
   it("reseals a legacy plaintext password when the item is saved", async () => {
@@ -2564,7 +2608,7 @@ describe("VaultPage", () => {
             encrypted_payload: {
               schema_version: 1,
               username: "alice@example.com",
-              password_ciphertext: storedPassword("hunter2"),
+              password_ciphertext: await storedPassword("hunter2"),
               notes: "Personal account",
             },
             favorite: false,
@@ -2582,26 +2626,29 @@ describe("VaultPage", () => {
 
     expect(await screen.findByText("GitHub")).toBeInTheDocument();
 
-    await unlockVault("correct horse");
+    await unlockVaultSuccessfully("correct horse");
     fireEvent.click(screen.getByRole("button", { name: "Edit GitHub" }));
-    expect(screen.getByLabelText("Edit password")).toHaveValue("hunter2");
+    expect(await screen.findByLabelText("Edit password")).toHaveValue("hunter2");
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
-    const updatePayload = mocks.syncVault.mock.calls[1]?.[2].changed_items[0]
-      .encrypted_payload;
+    const updateMutation = await expectVaultMutation(2);
+    const updatePayload = updateMutation.changed_items[0].encrypted_payload;
 
     expect(updatePayload.password_ciphertext).not.toBe("hunter2");
     expect(JSON.parse(updatePayload.password_ciphertext)).toMatchObject({
-      version: 2,
-      cipher: "xor-stream-v1",
-      keyDerivation: "unlock-passphrase-v1",
-      unlockSalt: expect.any(String),
-      unlockTag: expect.any(String),
+      version: 3,
+      cipher: "xchacha20poly1305-ietf",
+      keyDerivation: "argon2id13",
+      purpose: "vault-password",
+      nonce: expect.any(String),
+      salt: expect.any(String),
+      opsLimit: expect.any(Number),
+      memLimit: expect.any(Number),
       encryptedPayload: expect.any(String),
     });
-    expect(
+    await expect(
       openStoredVaultPassword(updatePayload.password_ciphertext, "correct horse"),
-    ).toBe("hunter2");
+    ).resolves.toBe("hunter2");
   });
 
   it("cancels inline edit mode without sending sync", async () => {

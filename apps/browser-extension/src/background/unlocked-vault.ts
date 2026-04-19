@@ -56,27 +56,29 @@ export function createUnlockedVaultReader(
 
       const items = await resolvedDeps.readPopupVaultItems();
 
-      return items
-        .filter((item) => item.item_type === "login")
-        .map((item) => {
-          const payload = normalizeVaultLoginPayload(item.encrypted_payload);
-          const password = openStoredVaultPassword(
-            payload.password_ciphertext,
-            passphrase,
-          );
-          const websiteMetadata = parseVaultWebsiteMetadata(payload.website_url);
+      return Promise.all(
+        items
+          .filter((item) => item.item_type === "login")
+          .map(async (item) => {
+            const payload = normalizeVaultLoginPayload(item.encrypted_payload);
+            const password = await openStoredVaultPassword(
+              payload.password_ciphertext,
+              passphrase,
+            );
+            const websiteMetadata = parseVaultWebsiteMetadata(payload.website_url);
 
-          return {
-            hasPassword: Boolean(password),
-            id: item.id,
-            password,
-            title: item.title,
-            username: payload.username,
-            websiteHostname: websiteMetadata.websiteHostname,
-            websiteOrigin: websiteMetadata.websiteOrigin,
-            websiteUrl: websiteMetadata.websiteUrl,
-          };
-        });
+            return {
+              hasPassword: Boolean(password),
+              id: item.id,
+              password,
+              title: item.title,
+              username: payload.username,
+              websiteHostname: websiteMetadata.websiteHostname,
+              websiteOrigin: websiteMetadata.websiteOrigin,
+              websiteUrl: websiteMetadata.websiteUrl,
+            };
+          }),
+      );
     },
   };
 }
