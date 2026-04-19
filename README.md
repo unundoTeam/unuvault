@@ -105,25 +105,28 @@ For local MVP auth setup:
 - `unuidentity` needs a redirect URL for
   `http://127.0.0.1:3001/auth/callback` during local development
 
-For the local-only dev secrets bridge:
+For the private env-secrets bridge:
 
 - enable the API surface with `UNUVAULT_ENABLE_DEV_SECRETS=1`
-- the stable local shell entrypoint is:
-  `bash scripts/secrets/provider.sh read --app <app> --env local`
+- the stable shell entrypoint is:
+  `bash scripts/secrets/provider.sh read --app <app> --env <local|staging|production>`
 - the matching import entrypoint is:
-  `bash scripts/secrets/provider.sh import --app <app> --env local --from /absolute/path/to/local.env`
+  `bash scripts/secrets/provider.sh import --app <app> --env <local|staging|production> --from /absolute/path/to/<env>.env`
 - the TypeScript command module is also exposed as:
   `pnpm secrets:provider --help`
 - the currently supported private namespaces are:
   - `unundo/local/dotenv`
+  - `unundo/staging/dotenv`
+  - `unundo/production/dotenv`
   - `unuidentity/local/dotenv`
+  - `unuidentity/staging/dotenv`
+  - `unuidentity/production/dotenv`
 - `read` prints plaintext only to `stdout` on success
 - `import` prints only a safe summary to `stderr` before confirmation and upload
-- this remains a local-only, developer-scoped bridge rather than a general
-  non-local secrets platform
-- the non-local formal storage path for shared identity and product-data values
-  still belongs to password-manager / `op`-style storage plus deployment
-  consumer injection, not to this bridge
+- this remains a developer-owned private record surface rather than a team-wide
+  shared secrets platform
+- CI and other non-interactive callers should provide a short-lived
+  `UNUVAULT_DEV_SECRETS_CLI_SESSION_TOKEN` instead of relying on browser handoff
 
 ## Machine Entrypoints
 

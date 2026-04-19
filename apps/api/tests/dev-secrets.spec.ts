@@ -139,7 +139,7 @@ describe("/dev/secrets", () => {
 });
 
 describe("createDevSecretsService", () => {
-  it("accepts unuidentity/local/dotenv as a supported target", async () => {
+  it("accepts unuidentity/production/dotenv as a supported target", async () => {
     const service = createDevSecretsService({
       sessionStore: createDevSecretSessionStore(),
       getBrowserAccountIdFromToken: async () => "account-1",
@@ -151,7 +151,7 @@ describe("createDevSecretsService", () => {
 
     const result = await service.createBrowserHandoff("browser-jwt", {
       app_code: "unuidentity",
-      target_env: "local",
+      target_env: "production",
       secret_kind: "dotenv",
     });
 
@@ -171,7 +171,7 @@ describe("createDevSecretsService", () => {
     await expect(
       service.createBrowserHandoff("browser-jwt", {
         app_code: "unuidentity",
-        target_env: "staging",
+        target_env: "qa",
         secret_kind: "dotenv",
       }),
     ).rejects.toThrowError(new DevSecretValidationError("unsupported_target"));
