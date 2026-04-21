@@ -53,13 +53,13 @@ Fill this as soon as the request leaves the repo so the packet can distinguish
 between `not sent yet` and `sent, waiting for verdict`.
 
 - Request packet status: `ready to send`
-- Request owner: `pending`
+- Request owner: `yuchen`
 - Reviewer or vendor: `pending`
 - Contact path: `pending`
 - Sent date: `pending`
 - Requested reply date: `pending`
 - Tracking link: `pending`
-- Recording owner for repo updates: `pending`
+- Recording owner for repo updates: `yuchen`
 
 Sending the packet does not clear the launch gate by itself. Keep the
 `External Review Result` section below at `pending` until the reviewer returns a
