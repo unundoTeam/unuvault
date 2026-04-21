@@ -22,6 +22,9 @@ phase-1 beta or rehearsal blocker.
 - Any independent reviewer verdict and required follow-up still need to be
   recorded in the launch packet before GA/public launch or before representing
   the crypto boundary as independently reviewed.
+- Sending the packet or naming a reviewer is not enough to clear this gate. The
+  gate stays open until the reviewer verdict is recorded with reviewed
+  surfaces, findings, remediation, and follow-up limits.
 
 ## Current Review Target
 
@@ -109,6 +112,9 @@ The external review output should record:
 - any findings, required remediation, or accepted follow-up limits
 - confirmation that the launch checklist still matches the current crypto
   boundary
+
+Use `docs/operations/secure-crypto-pr-audit-handoff.md` to record send status
+before the verdict arrives, then copy the final verdict back into both docs.
 
 ## Gate Clears For GA/Public Launch When
 

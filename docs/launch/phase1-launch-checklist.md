@@ -52,6 +52,10 @@ phase 1.
   - `docs/operations/secure-crypto-pr-audit-handoff.md`
 - This section tracks the GA/public-launch crypto approval boundary rather than
   the phase-1 beta or rehearsal gate.
+- This checklist only tracks whether the external crypto review gate is still
+  open or has been cleared for launch.
+- A sent request without a recorded reviewer verdict still counts as pending for
+  this checklist item.
 - If the reviewer returns `cleared with follow-up`, record the allowed launch
   limits in those gate docs before this checklist item is treated as closed.
 

@@ -144,13 +144,37 @@ Please confirm the following:
 - `docs/launch/phase1-qa-matrix.md`
 - `docs/architecture/0005-secure-password-crypto.md`
 
+## Dispatch Worksheet
+
+Fill this block before sending the request so the packet has one consistent
+record of who sent it, where it was sent, and when to expect the reply.
+
+- Request owner: `<name>`
+- Reviewer or vendor: `<name or company>`
+- Contact path: `<email thread / ticket / shared channel>`
+- Sent date: `<YYYY-MM-DD>`
+- Requested reply date: `<YYYY-MM-DD>`
+- Tracking link: `<URL or internal reference>`
+- Recording owner for repo updates: `<name>`
+- Attachments sent:
+  - `docs/operations/crypto-review-gate.md`
+  - `docs/operations/secure-crypto-pr-audit-handoff.md`
+  - `docs/operations/crypto-legacy-smoke-checklist.md`
+  - `docs/launch/phase1-launch-checklist.md`
+  - `docs/launch/phase1-qa-matrix.md`
+  - `docs/architecture/0005-secure-password-crypto.md`
+
 ## Send Checklist
 
+- fill `Dispatch Worksheet` with the actual reviewer / vendor, send date, and
+  tracking path before sending
 - attach or link every file listed under `Launch Packet Attachments`
 - keep the review target anchored to merged `main` at or after
   `46ae0c655deef0ef15cb0cd180b4844a32cac43d`
 - include the current verification summary from this request in the message body
 - ask for the reviewer output in exactly the requested verdict shape
+- copy the filled dispatch metadata into
+  `docs/operations/secure-crypto-pr-audit-handoff.md` once the request is sent
 - record the reply in the docs listed under `Recording The Result`
 
 ## Fresh Verification Included In The Packet
