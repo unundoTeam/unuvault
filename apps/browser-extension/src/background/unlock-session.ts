@@ -3,9 +3,15 @@ import {
   verifyMasterPassword,
 } from "../../../../packages/security/src/master-password-verifier";
 import {
+  isPassphraseProtectedVaultPassword,
+  openStoredVaultPassword,
+} from "../../../../packages/security/src/vault-envelope";
+import { normalizeVaultLoginPayload } from "../popup/login-payload";
+import {
   readMasterPasswordVerifier,
   writeMasterPasswordVerifier,
 } from "../popup/master-password-storage";
+import { readPopupVaultItems } from "../popup/popup-vault-storage";
 
 export type ExtensionUnlockMode = "needs_setup" | "locked" | "unlocked";
 
@@ -26,6 +32,7 @@ export type UnlockWithPassphraseResult =
 
 type ExtensionUnlockRuntimeDeps = {
   createMasterPasswordVerifier: typeof createMasterPasswordVerifier;
+  readPopupVaultItems: typeof readPopupVaultItems;
   readMasterPasswordVerifier: typeof readMasterPasswordVerifier;
   verifyMasterPassword: typeof verifyMasterPassword;
   writeMasterPasswordVerifier: typeof writeMasterPasswordVerifier;
@@ -34,6 +41,7 @@ type ExtensionUnlockRuntimeDeps = {
 function createDefaultDeps(): ExtensionUnlockRuntimeDeps {
   return {
     createMasterPasswordVerifier,
+    readPopupVaultItems,
     readMasterPasswordVerifier,
     verifyMasterPassword,
     writeMasterPasswordVerifier,
@@ -48,6 +56,24 @@ export function createExtensionUnlockRuntime(
     ...deps,
   };
   let unlockPassphrase: string | null = null;
+
+  async function canUnlockProtectedCiphertexts(passphrase: string): Promise<boolean> {
+    const protectedCiphertexts = (await resolvedDeps.readPopupVaultItems())
+      .map((item) => normalizeVaultLoginPayload(item.encrypted_payload).password_ciphertext)
+      .filter((ciphertext) => isPassphraseProtectedVaultPassword(ciphertext));
+
+    if (protectedCiphertexts.length === 0) {
+      return true;
+    }
+
+    const openedPasswords = await Promise.all(
+      protectedCiphertexts.map((ciphertext) =>
+        openStoredVaultPassword(ciphertext, passphrase),
+      ),
+    );
+
+    return openedPasswords.every((password) => password.length > 0);
+  }
 
   async function readUnlockState(): Promise<ExtensionUnlockState> {
     const verifier = await resolvedDeps.readMasterPasswordVerifier();
@@ -82,6 +108,18 @@ export function createExtensionUnlockRuntime(
       const verifier = await resolvedDeps.readMasterPasswordVerifier();
 
       if (!verifier) {
+        if (!(await canUnlockProtectedCiphertexts(passphrase))) {
+          unlockPassphrase = null;
+
+          return {
+            ok: false,
+            error: "Master password must unlock existing saved passwords",
+            unlockState: {
+              mode: "needs_setup",
+            },
+          };
+        }
+
         const nextVerifier = await resolvedDeps.createMasterPasswordVerifier(
           passphrase,
         );
@@ -102,6 +140,18 @@ export function createExtensionUnlockRuntime(
       );
 
       if (!verification.success) {
+        unlockPassphrase = null;
+
+        return {
+          ok: false,
+          error: "Wrong master password",
+          unlockState: {
+            mode: "locked",
+          },
+        };
+      }
+
+      if (!(await canUnlockProtectedCiphertexts(passphrase))) {
         unlockPassphrase = null;
 
         return {
