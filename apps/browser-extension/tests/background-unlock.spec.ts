@@ -130,6 +130,20 @@ describe("background unlock runtime", () => {
     });
   });
 
+  it("fails locked unlock when cached protected items cannot be unlocked", async () => {
+    await seedVerifier("correct horse");
+    await seedProtectedPopupVaultItem("different horse");
+    const runtime = createExtensionUnlockRuntime();
+
+    await expect(runtime.unlockWithPassphrase("correct horse")).resolves.toEqual({
+      ok: false,
+      error: "Wrong master password",
+      unlockState: {
+        mode: "locked",
+      },
+    });
+  });
+
   it("upgrades a legacy verifier to v2 after a successful unlock", async () => {
     await writeMasterPasswordVerifier(
       LEGACY_FIXTURE_MASTER_PASSWORD_VERIFIER_V1,
