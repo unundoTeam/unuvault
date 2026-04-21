@@ -15,6 +15,10 @@ phase-1 beta or rehearsal blocker.
   phase-1 beta/rehearsal packet.
 - Independent third-party crypto review is still pending, so the GA/public-launch
   gate is not yet cleared.
+- A GitHub metadata audit on `2026-04-21` found no PR reviews or issue comments
+  on `unundoTeam/unuvault#59` that can be treated as the required external
+  crypto verdict, so the gate still lacks a recorded reviewer assignment and
+  sign-off artifact.
 - Any independent reviewer verdict and required follow-up still need to be
   recorded in the launch packet before GA/public launch or before representing
   the crypto boundary as independently reviewed.
@@ -40,10 +44,13 @@ phase-1 beta or rehearsal blocker.
 - Accepted follow-up limits: `pending`
 - Launch checklist still matches the reviewed crypto boundary: `pending`
 
-As of `2026-04-23`, no independent third-party verdict is recorded in the
-checked-in launch packet yet. The thread does have a repo-backed internal
-preflight reply, but the remaining blocker now applies to GA/public launch, not
-to the current phase-1 beta/rehearsal packet.
+As of `2026-04-23`, no independent third-party verdict or reviewer assignment
+is recorded in the checked-in launch packet yet. A GitHub metadata audit on
+`2026-04-21` also found no PR reviews or issue comments on
+`unundoTeam/unuvault#59` that can be treated as the required external crypto
+verdict. The thread does have a repo-backed internal preflight reply, but the
+remaining blocker now applies to GA/public launch, not to the current phase-1
+beta/rehearsal packet.
 
 ## Recorded Thread Reply (2026-04-23)
 

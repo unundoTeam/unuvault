@@ -34,6 +34,9 @@ rehearsal, and the handoff packet for the later independent review.
   iOS gate, and the phase-1 Web/API/browser-extension surface checks.
 - The launch packet now has repo-owned proof for the current web
   login/register trust-copy surface as well.
+- GitHub metadata checked on `2026-04-21` shows PR `#59` merged on `main`, but
+  no PR review or issue-comment artifact is recorded there for the required
+  external crypto verdict.
 
 ## Current Review Target
 
@@ -57,7 +60,9 @@ rehearsal, and the handoff packet for the later independent review.
 - Launch checklist still matches the reviewed crypto boundary: `pending`
 
 As of `2026-04-23`, the checked-in packet still has no independent third-party
-verdict attached. The remaining blocker now applies to GA/public launch rather
+verdict attached. GitHub review metadata checked on `2026-04-21` also records
+no PR review or issue-comment artifact that can serve as the required external
+crypto verdict. The remaining blocker now applies to GA/public launch rather
 than the current phase-1 beta/rehearsal packet.
 
 ## Recorded Thread Reply (2026-04-23)

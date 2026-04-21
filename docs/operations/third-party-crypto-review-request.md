@@ -109,6 +109,15 @@ CLI target shape unchanged while preserving legacy read compatibility.
 - Review against the merged `main` state at or after that commit, not the
   deleted feature branch.
 
+## Current Dispatch Status
+
+- Packet refresh date: `2026-04-21`
+- GitHub metadata checked on `2026-04-21` shows PR `#59` merged on `main`
+  without any recorded PR review or issue-comment artifact that can serve as
+  the required external crypto verdict.
+- Reviewer or vendor assignment still needs to be recorded outside this repo
+  when the request is actually sent.
+
 ## Requested Review Scope
 
 Please review these call chains together because they now share one crypto
