@@ -149,13 +149,14 @@ Please confirm the following:
 Fill this block before sending the request so the packet has one consistent
 record of who sent it, where it was sent, and when to expect the reply.
 
-- Request owner: `<name>`
+- Current send status: `not yet sent`
+- Request owner: `yuchen`
 - Reviewer or vendor: `<name or company>`
 - Contact path: `<email thread / ticket / shared channel>`
 - Sent date: `<YYYY-MM-DD>`
 - Requested reply date: `<YYYY-MM-DD>`
 - Tracking link: `<URL or internal reference>`
-- Recording owner for repo updates: `<name>`
+- Recording owner for repo updates: `yuchen`
 - Attachments sent:
   - `docs/operations/crypto-review-gate.md`
   - `docs/operations/secure-crypto-pr-audit-handoff.md`
