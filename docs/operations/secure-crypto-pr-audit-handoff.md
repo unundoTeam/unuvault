@@ -64,6 +64,9 @@ between `not sent yet` and `sent, waiting for verdict`.
 Sending the packet does not clear the launch gate by itself. Keep the
 `External Review Result` section below at `pending` until the reviewer returns a
 real verdict.
+Do not fill `Contact path` or `Tracking link` with repo-local docs, PR URLs, or
+launch-packet references alone. Those can support the review, but they do not
+prove the request reached a real external reviewer or vendor queue.
 
 ## External Review Result
 - Reviewer or vendor: `pending`

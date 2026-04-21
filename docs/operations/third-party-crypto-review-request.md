@@ -164,6 +164,11 @@ record of who sent it, where it was sent, and when to expect the reply.
   - `docs/launch/phase1-qa-matrix.md`
   - `docs/architecture/0005-secure-password-crypto.md`
 
+Do not treat repo docs, PR links, or the launch packet itself as the external
+contact path. `Contact path` and `Tracking link` must point at the real
+out-of-repo handoff surface, such as an email thread, vendor ticket, or shared
+security review channel.
+
 ## Send Checklist
 
 - fill `Dispatch Worksheet` with the actual reviewer / vendor, send date, and
