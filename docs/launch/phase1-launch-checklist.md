@@ -47,6 +47,10 @@ phase 1.
   dispatch.
 - No reviewer assignment or verdict is recorded in repo docs or GitHub review
   metadata yet.
+- Dispatch path requirement for this wave:
+  - the external handoff must be tracked through an email thread or vendor
+    ticket
+  - shared chat coordination alone does not satisfy the pending review record
 - Full reviewer detail lives in:
   - `docs/operations/crypto-review-gate.md`
   - `docs/operations/secure-crypto-pr-audit-handoff.md`

@@ -22,6 +22,9 @@ phase-1 beta or rehearsal blocker.
 - Any independent reviewer verdict and required follow-up still need to be
   recorded in the launch packet before GA/public launch or before representing
   the crypto boundary as independently reviewed.
+- The approved out-of-repo dispatch path for the current packet is an email
+  thread or vendor ticket. Shared chat may help route the request, but it does
+  not count as the authoritative reviewer handoff path.
 - Sending the packet or naming a reviewer is not enough to clear this gate. The
   gate stays open until the reviewer verdict is recorded with reviewed
   surfaces, findings, remediation, and follow-up limits.
@@ -115,6 +118,8 @@ The external review output should record:
 
 Use `docs/operations/secure-crypto-pr-audit-handoff.md` to record send status
 before the verdict arrives, then copy the final verdict back into both docs.
+That send-status record should point at the actual email thread or vendor
+ticket used for the handoff.
 
 ## Gate Clears For GA/Public Launch When
 

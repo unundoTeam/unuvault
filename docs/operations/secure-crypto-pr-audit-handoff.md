@@ -53,6 +53,8 @@ Fill this as soon as the request leaves the repo so the packet can distinguish
 between `not sent yet` and `sent, waiting for verdict`.
 
 - Request packet status: `ready to send`
+- Approved dispatch mode: `email thread or vendor ticket`
+- Request packet status: `ready to send`
 - Request owner: `yuchen`
 - Reviewer or vendor: `pending`
 - Contact path: `pending`
@@ -67,6 +69,8 @@ real verdict.
 Do not fill `Contact path` or `Tracking link` with repo-local docs, PR URLs, or
 launch-packet references alone. Those can support the review, but they do not
 prove the request reached a real external reviewer or vendor queue.
+For the current launch packet, shared chat can assist with introductions, but
+the authoritative handoff must still live in an email thread or vendor ticket.
 
 ## External Review Result
 - Reviewer or vendor: `pending`
