@@ -103,9 +103,11 @@ Launch checklist still matches the reviewed crypto boundary: yes | no
 
 ## Recording The Result
 
-After the reviewer responds, copy the verdict, reviewed surfaces, findings, and
-required follow-up into:
+After the reviewer responds, copy the detailed verdict, reviewed surfaces,
+findings, and required follow-up into:
 
 - `docs/operations/secure-crypto-pr-audit-handoff.md`
 - `docs/operations/crypto-review-gate.md`
-- `docs/launch/phase1-launch-checklist.md`
+
+Then update `docs/launch/phase1-launch-checklist.md` so the pending external
+crypto review item reflects whether the gate is still open or has been cleared.

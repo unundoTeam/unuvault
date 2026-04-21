@@ -33,6 +33,11 @@ clear while any item under `Pending Before Phase 1 Launch` remains open.
 
 - [ ] Third-party crypto review is cleared and recorded according to
   `docs/operations/crypto-review-gate.md`
+- Full reviewer detail lives in:
+  - `docs/operations/crypto-review-gate.md`
+  - `docs/operations/secure-crypto-pr-audit-handoff.md`
+- This checklist only tracks whether the external crypto review gate is still
+  open or has been cleared for launch.
 
 ## Surface Map
 

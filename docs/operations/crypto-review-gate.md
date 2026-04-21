@@ -41,8 +41,11 @@ The following inputs must travel together for launch review:
 - the current phase-1 launch checklist under `docs/launch/phase1-launch-checklist.md`
 - fresh repo-owned verification evidence for:
   - `bash scripts/testing/lint-runner.sh`
+  - `bash scripts/testing/test-runner.sh`
   - `./node_modules/.bin/vitest --run ...` secure-crypto matrix
   - `bash scripts/testing/run-ios.sh` when the iPhone surface is in scope
+- any additional launch-surface evidence recorded in
+  `docs/launch/phase1-launch-checklist.md`
 - any current repo-wide verification blocker discovered while refreshing the
   packet
 
