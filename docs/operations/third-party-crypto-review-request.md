@@ -26,6 +26,15 @@ sodium-backed boundary and upgraded the active write formats to:
 The current implementation keeps server API shape, browser storage keys, and
 CLI target shape unchanged while preserving legacy read compatibility.
 
+## Current Review Target
+
+- GitHub PR: `#59` `[codex] finalize unuvault phase-1 launch packet`
+- PR URL: `https://github.com/unundoTeam/unuvault/pull/59`
+- Current base branch: `main`
+- Merge commit on `main`: `46ae0c655deef0ef15cb0cd180b4844a32cac43d`
+- Review against the merged `main` state at or after that commit, not the
+  deleted feature branch.
+
 ## Requested Review Scope
 
 Please review these call chains together because they now share one crypto
