@@ -31,6 +31,15 @@ This document is the secure-crypto launch-review packet for phase 1.
 - The launch packet now has repo-owned proof for the current web
   login/register trust-copy surface as well.
 
+## Current Review Target
+
+- GitHub PR: `#59` `[codex] finalize unuvault phase-1 launch packet`
+- PR URL: `https://github.com/unundoTeam/unuvault/pull/59`
+- Current base branch: `main`
+- Merge commit on `main`: `46ae0c655deef0ef15cb0cd180b4844a32cac43d`
+- Use the merged `main` state at or after that commit as the review target for
+  the external crypto verdict.
+
 ## External Review Result
 
 - Reviewer or vendor: `pending`

@@ -13,6 +13,15 @@ slice can be treated as phase-1 launch-ready.
 - Phase 1 must remain blocked until the external reviewer verdict and any
   required follow-up are recorded in the launch packet.
 
+## Current Review Target
+
+- GitHub PR: `#59` `[codex] finalize unuvault phase-1 launch packet`
+- PR URL: `https://github.com/unundoTeam/unuvault/pull/59`
+- Current base branch: `main`
+- Merge commit on `main`: `46ae0c655deef0ef15cb0cd180b4844a32cac43d`
+- External review should anchor to the merged `main` state at or after that
+  commit.
+
 ## External Review Status
 
 - Reviewer or vendor: `pending`
