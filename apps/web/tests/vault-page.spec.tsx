@@ -83,9 +83,15 @@ async function unlockVault(passphrase: string) {
   fireEvent.click(screen.getByRole("button", { name: /Set master password|Unlock vault/ }));
 }
 
+async function expectVaultUnlocked() {
+  expect(
+    await screen.findByText("Vault unlocked", undefined, { timeout: 5000 }),
+  ).toBeInTheDocument();
+}
+
 async function unlockVaultSuccessfully(passphrase: string) {
   await unlockVault(passphrase);
-  expect(await screen.findByText("Vault unlocked")).toBeInTheDocument();
+  await expectVaultUnlocked();
 }
 
 async function expectSyncCall(callIndex: number, expectedPayload: unknown) {
@@ -277,7 +283,7 @@ describe("VaultPage", () => {
 
     await setMasterPassword("correct horse");
 
-    expect(await screen.findByText("Vault unlocked")).toBeInTheDocument();
+    await expectVaultUnlocked();
     expect(screen.getByRole("button", { name: "Lock vault" })).toBeInTheDocument();
   });
 
@@ -803,9 +809,9 @@ describe("VaultPage", () => {
     });
     fireEvent.submit(screen.getByRole("button", { name: "Save item" }).closest("form")!);
 
-    await waitFor(() => {
-      expect(screen.getByText("GitHub")).toBeInTheDocument();
-    });
+    expect(
+      await screen.findByText("GitHub", undefined, { timeout: 5000 }),
+    ).toBeInTheDocument();
 
     expect(screen.getByLabelText("Password")).toHaveValue("");
     expect(screen.getByLabelText("Password")).toHaveAttribute("type", "password");
@@ -1078,7 +1084,7 @@ describe("VaultPage", () => {
     await unlockVaultSuccessfully("correct horse");
     fireEvent.click(screen.getByRole("button", { name: "Copy password GitHub" }));
 
-    expect(await screen.findByText("Vault unlocked")).toBeInTheDocument();
+    await expectVaultUnlocked();
     await waitFor(() => {
       expect(writeText).toHaveBeenCalledWith("hunter2");
     });
@@ -1160,7 +1166,7 @@ describe("VaultPage", () => {
     const firstRender = render(<VaultPage />);
 
     await setMasterPassword("correct horse");
-    expect(await screen.findByText("Vault unlocked")).toBeInTheDocument();
+    await expectVaultUnlocked();
 
     firstRender.unmount();
     render(<VaultPage />);

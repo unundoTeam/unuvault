@@ -31,6 +31,12 @@ describe("RegisterPage", () => {
   it("shows the MVP auth form fields", async () => {
     render(await RegisterPage({}));
 
+    expect(screen.getByText("Local onboarding")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Start with a safer home for the passwords you already use every day.",
+      ),
+    ).toBeInTheDocument();
     expect(screen.getByLabelText("Email")).toBeInTheDocument();
     expect(screen.getByLabelText("Password")).toBeInTheDocument();
     expect(

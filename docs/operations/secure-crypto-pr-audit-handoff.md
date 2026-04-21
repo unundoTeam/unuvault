@@ -18,17 +18,64 @@
 - `docs/operations/crypto-review-gate.md`
 - `docs/operations/crypto-legacy-smoke-checklist.md`
 
+## Launch Packet Status (2026-04-21)
+
+This document is the secure-crypto launch-review packet for phase 1.
+
+- Internal crypto evidence is attached below and remains reusable.
+- Third-party crypto review is still pending, so the secure-crypto gate is not
+  yet cleared for launch.
+- The packet refresh on 2026-04-21 now has fresh repo-owned verification
+  evidence for lint, repo-wide tests, focused secure-crypto coverage, the
+  iOS gate, and the phase-1 Web/API/browser-extension surface checks.
+- The launch packet now has repo-owned proof for the current web
+  login/register trust-copy surface as well.
+
+## External Review Result
+
+- Reviewer or vendor: `pending`
+- Review date: `pending`
+- Verdict: `pending`
+- Reviewed surfaces: `pending`
+- Findings: `pending`
+- Required remediation: `pending`
+- Accepted follow-up limits: `pending`
+- Launch checklist still matches the reviewed crypto boundary: `pending`
+
 ## Verification Commands
 
 - `bash scripts/testing/lint-runner.sh`
 - `bash scripts/testing/test-runner.sh`
+- `bash scripts/testing/run-ios.sh`
 - `./node_modules/.bin/vitest --run packages/security/tests/sodium.spec.ts packages/security/tests/vault-envelope.spec.ts packages/security/tests/master-password-verifier.spec.ts packages/security/tests/developer-secret-envelope.spec.ts apps/web/tests/security-sodium-runtime.spec.ts apps/web/tests/master-password-storage.spec.ts apps/web/tests/vault-page.spec.tsx apps/browser-extension/tests/security-sodium-runtime.spec.ts apps/browser-extension/tests/master-password-storage.spec.ts apps/browser-extension/tests/background-unlock.spec.ts apps/browser-extension/tests/background-unlocked-vault.spec.ts apps/browser-extension/tests/popup.spec.tsx apps/browser-extension/tests/packaging-build.spec.ts tests/dev-secrets-provider.spec.ts`
+- `./node_modules/.bin/vitest --run apps/web/tests/security-page.spec.tsx apps/web/tests/import-page.spec.tsx apps/api/tests/imports.spec.ts apps/api/tests/devices.spec.ts apps/api/tests/activity.spec.ts apps/api/tests/vault-sync.spec.ts apps/browser-extension/tests/popup.spec.tsx apps/browser-extension/tests/autofill.spec.ts apps/browser-extension/tests/background-unlocked-vault.spec.ts apps/browser-extension/tests/packaging-build.spec.ts`
+- `./node_modules/.bin/vitest --run apps/web/tests/login-page.spec.tsx apps/web/tests/register-page.spec.tsx`
 
-## Verification Result
+## Packet Refresh Result (2026-04-21)
 
-- Local lint passed on 2026-04-18
-- Repo test runner passed on 2026-04-18
-- Focused secure-crypto matrix passed on 2026-04-18
+- `bash scripts/testing/lint-runner.sh` passed on 2026-04-21
+- `bash scripts/testing/test-runner.sh` passed on 2026-04-21
+- Focused secure-crypto matrix passed on 2026-04-21
+- Focused phase-1 surface matrix passed on 2026-04-21, covering:
+  - Web trust-center entry points on the security page
+  - browser import entry UI plus `/imports/browser`
+  - `/devices`, `/activity/recent`, and `/vault/sync`
+  - browser extension popup, autofill helpers, unlocked-vault reads, and packaging
+- `bash scripts/testing/run-ios.sh` passed on 2026-04-21 using the available
+  `iPhone 17` simulator:
+  - `AutofillOnboardingViewTests.testAutofillOnboardingShowsEnableAutofill`
+  - `LoginViewTests.testLoginViewShowsSecureSyncMessage`
+- Focused onboarding trust-copy matrix passed on 2026-04-21, pinning the
+  current login/register launch copy
+- `docs/help/account-recovery.md` and
+  `docs/help/import-troubleshooting.md` were reviewed on 2026-04-21 before
+  external testing
+- Manual legacy smoke checklist was not rerun in this packet refresh; the
+  current launch packet still uses the completed 2026-04-18 manual smoke
+  evidence below
+
+## Historical Secure-Crypto Evidence (2026-04-18)
+
 - Weak-path sweep on 2026-04-18 confirmed no production caller still depends on exported legacy write helpers
 - Hosted local-development Supabase refs were `NXDOMAIN` on 2026-04-18, so manual smoke was rerun against the local dual-stack fallback:
   - shared identity stack at `http://127.0.0.1:54331`
@@ -98,13 +145,15 @@
 - No CLI flag or target-shape change
 - External audit vendor or reviewer should inspect Web, extension, and CLI call chains together because they now share one crypto substrate
 
-## Audit Package Contents
+## Launch Packet Attachments
 
 - Algorithm and compatibility ADR: `docs/architecture/0005-secure-password-crypto.md`
+- Sendable reviewer request: `docs/operations/third-party-crypto-review-request.md`
 - Internal review gate: `docs/operations/crypto-review-gate.md`
 - Fixed legacy samples: `tests/fixtures/crypto-legacy-fixtures.ts`
 - Manual legacy smoke path: `docs/operations/crypto-legacy-smoke-checklist.md`
 - Focused regression evidence from security, Web, extension, and CLI suites
+- Phase-1 launch checklist: `docs/launch/phase1-launch-checklist.md`
 
 ## Reviewer Watchpoints
 

@@ -47,6 +47,12 @@ describe("LoginPage", () => {
   it("shows sign-in actions for existing users", async () => {
     render(await LoginPage({}));
 
+    expect(screen.getByText("Local onboarding")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Continue with your existing account so local handoff and vault access can finish in this browser.",
+      ),
+    ).toBeInTheDocument();
     expect(screen.getByLabelText("Email")).toBeInTheDocument();
     expect(screen.getByLabelText("Password")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Sign in" })).toBeInTheDocument();
