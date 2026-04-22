@@ -183,11 +183,15 @@ verification shell. Start with
 [docs/operations/runtime-authority.md](docs/operations/runtime-authority.md)
 for the current first-layer entrypoint.
 
-- `incident`: shared-identity cutover and rollback routing, plus env and
-  secret-truth guidance
-- `observability`: current status is limited and routed through deeper docs
-- `production-readiness`: launch checklist, repo-local cutover rehearsal, and
-  upstream operator-reviewed sign-off routing
+- `incident`: first route through
+  `docs/operations/incident-observability-authority.md`, then into cutover,
+  env, and security-boundary detail
+- `observability`: a minimal authority page now exists, but it still describes
+  a limited pre-launch program rather than a mature telemetry stack
+- `production-readiness`: launch checklist, dry-run rehearsal, and
+  repo-local hosted-pass plus upstream operator-reviewed sign-off routing now
+  live together under
+  `docs/operations/runtime-authority.md`
 
 ## Review Model
 
@@ -221,9 +225,12 @@ migration, and iOS bridge changes.
 - production-landing prep authority is now split across:
   - `docs/operations/identity-production-cutover-rehearsal.md` for the
     repo-local dry-run env, verification, and rollback mapping
+  - `docs/operations/identity-production-cutover-hosted-pass.md` for the
+    current repo-local hosted-pass boundary without publishing live hosted
+    inventory
   - `unuidentity/docs/operations/unuvault-cutover-operator-signoff.md` for the
     first real operator-reviewed cutover-preparation pass
-- neither record claims that a live hosted-identity switch or production
+- none of those records claim that a live hosted-identity switch or production
   landing completion has already happened
 - the local auth bridge is a clean cutover for pre-launch test users; old local
   `users_profile` rows should be recreated through the new `unuidentity` flow

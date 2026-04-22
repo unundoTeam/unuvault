@@ -25,9 +25,15 @@ It only points to the current authority that already exists.
 
 ## Incident Authority
 
-Current incident-facing authority is split across a few deeper sources:
+Current incident-facing authority now starts with one minimal page:
+
+- [Incident And Observability Authority](incident-observability-authority.md)
+
+That page routes first response and escalation. Use the deeper sources below
+when the incident has already been classified:
 
 - [Identity Production Cutover Rehearsal](identity-production-cutover-rehearsal.md)
+- [Identity Production Cutover Hosted Pass](identity-production-cutover-hosted-pass.md)
 - `unuidentity/docs/operations/unuvault-cutover-operator-signoff.md`
 - [Supabase Environment Mapping](supabase-env-mapping.md)
 - [Supabase Boundary](../architecture/0002-supabase-boundary.md)
@@ -35,17 +41,20 @@ Current incident-facing authority is split across a few deeper sources:
 
 Use those docs for auth-bridge rollback, env and secret-truth routing, and the
 client-side security boundary around high-risk actions. The repo-local
-rehearsal stays dry-run-only; the upstream `unuidentity` sign-off is the
-operator-reviewed cutover-preparation authority.
+rehearsal stays dry-run-only; the hosted-pass record captures the current
+repo-local hosted review boundary; the upstream `unuidentity` sign-off remains
+the operator-reviewed cutover-preparation authority.
 
 ## Observability And Telemetry Status
 
-`unuvault` does not yet expose a standalone telemetry or observability authority page.
+`unuvault` now exposes a minimal standalone incident and observability
+authority page:
 
-The current nearest authority is this hub plus the deeper operational docs that
-already describe the product boundary. For now, the honest status is that
-observability routing is still limited and should be treated as a gap rather
-than as a mature program.
+- [Incident And Observability Authority](incident-observability-authority.md)
+
+The honest status is still limited: the repo now has a first-layer authority
+page, but it does not yet claim a mature observability program, dedicated
+telemetry stack, on-call coverage, or automated alerting.
 
 ## Production Readiness
 
@@ -53,18 +62,20 @@ Current production-readiness authority is split across:
 
 - [Phase 1 Launch Checklist](../launch/phase1-launch-checklist.md)
 - [Identity Production Cutover Rehearsal](identity-production-cutover-rehearsal.md)
+- [Identity Production Cutover Hosted Pass](identity-production-cutover-hosted-pass.md)
 - `unuidentity/docs/operations/unuvault-cutover-operator-signoff.md`
 - the `Verification` section in [README.md](../../README.md)
 
 Use those docs for launch checklist routing, cutover rehearsal, and
-scope-dependent verification. The upstream sign-off records the first real
-operator-reviewed pass; it does not claim live cutover execution or landing
+scope-dependent verification. The repo-local hosted-pass record is narrower
+than live cutover completion, and the upstream sign-off records the first real
+operator-reviewed pass; neither record claims live cutover execution or landing
 completion.
 
 ## Current Gaps
 
-- no dedicated observability or telemetry runbook yet
-- no standalone incident program page yet
+- no mature telemetry or observability program yet
+- no on-call or automated-alerting program claimed yet
 - no completed production-ops maturity statement yet
 - deeper docs still carry the operational detail, so this hub is only a route
   map

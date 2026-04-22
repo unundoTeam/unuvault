@@ -9,6 +9,11 @@ Record a dry-run-only rehearsal for `unuvault` so the repo can show how it
 would participate in shared identity production landing without changing any
 live hosted identity targets.
 
+The current operator-reviewed hosted-pass sibling authority now lives in
+[Identity Production Cutover Hosted Pass](identity-production-cutover-hosted-pass.md).
+This document remains the dry-run baseline and does not change status because
+that sibling doc exists.
+
 ## Authority Inputs
 
 This rehearsal is driven by these upstream authority docs in `unuidentity`:
