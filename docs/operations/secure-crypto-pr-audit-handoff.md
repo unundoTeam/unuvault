@@ -20,14 +20,15 @@
 
 ## Launch Packet Status (2026-04-21)
 
-This document is the secure-crypto launch-review packet for phase 1.
+This document is the secure-crypto launch-review packet for phase-1 beta or
+rehearsal, and the handoff packet for the later independent review.
 
 - Internal crypto evidence is attached below and remains reusable.
-- Third-party crypto review is still pending because no real external reviewer,
-  vendor, or contact path is currently recorded.
-- The current phase-1 launch packet now relies on the explicit internal launch
-  exception in `docs/operations/crypto-review-launch-exception.md` instead of
-  pretending that external review has already happened.
+- The reviewer request packet is now assembled and ready for external dispatch.
+- Independent third-party crypto review is still pending, so GA/public-launch
+  crypto approval is not yet cleared.
+- Phase-1 beta/rehearsal now relies on the repo-owned packet plus the recorded
+  internal preflight reply below.
 - The packet refresh on 2026-04-21 now has fresh repo-owned verification
   evidence for lint, repo-wide tests, focused secure-crypto coverage, the
   iOS gate, and the phase-1 Web/API/browser-extension surface checks.
@@ -41,10 +42,11 @@ This document is the secure-crypto launch-review packet for phase 1.
 - Current base branch: `main`
 - Merge commit on `main`: `46ae0c655deef0ef15cb0cd180b4844a32cac43d`
 - Use the merged `main` state at or after that commit as the review target for
-  the external crypto verdict.
+  the independent crypto verdict.
 
-## External Review Result
+## Independent Review Result
 
+- Request packet status: `ready to send`
 - Reviewer or vendor: `pending`
 - Review date: `pending`
 - Verdict: `pending`
@@ -54,23 +56,52 @@ This document is the secure-crypto launch-review packet for phase 1.
 - Accepted follow-up limits: `pending`
 - Launch checklist still matches the reviewed crypto boundary: `pending`
 
-## Launch Exception Result
+As of `2026-04-23`, the checked-in packet still has no independent third-party
+verdict attached. The remaining blocker now applies to GA/public launch rather
+than the current phase-1 beta/rehearsal packet.
 
-- Exception type:
-  `internal operator-reviewed launch exception for missing third-party path`
-- Decision owner of record: `yuchen`
-- Decision date: `2026-04-22`
-- Decision:
-  `accepted for the current phase-1 launch packet`
-- Why the exception was needed:
-  `no real external reviewer, vendor, or contact path is currently recorded`
-- Scope carried by the exception:
-  - Web unlock, reveal, copy, and secure rewrite paths
-  - browser extension unlock, popup read, and autofill-read paths
+## Recorded Thread Reply (2026-04-23)
+
+The review thread now has one recorded reply, but it is a repo-backed internal
+preflight note rather than an independent third-party crypto verdict.
+
+The original reply wording still used the older phase-1 blocker framing. Under
+the current launch policy, treat that unresolved requirement as the
+GA/public-launch independent review gate.
+
+- Reply type: `repo-backed internal preflight`
+- Reviewer: `chen yu (repo-backed internal preflight, not independent third-party)`
+- Review date: `2026-04-23`
+- Verdict: `blocked`
+- Reviewed surfaces:
+  - shared helper layer in `packages/security`
   - CLI developer-secret read/import paths
-  - the shared helper layer in `packages/security`
-- Follow-up expectation:
-  `replace or retire this exception when a real external review path exists`
+  - browser-extension verifier/unlock/autofill-read packet evidence
+  - web verifier/storage and launch-packet evidence for unlock/reveal/copy/rewrite paths
+- Findings:
+  - no blocker found in the repo-owned secure-crypto helper layer, secure write
+    formats, verifier upgrade rules, or CLI failure handling
+  - legacy compatibility evidence in the launch packet still matches the
+    current secure boundary
+  - this reply is not an independent third-party review verdict
+  - current web/popup/login jsdom reruns are blocked by a local Vitest
+    matcher-harness issue, so those UI-facing packet proofs remain
+    packet-backed rather than freshly rerun in this reply
+- Required remediation:
+  - obtain a real independent third-party crypto review before GA/public launch
+    or before claiming independent crypto approval
+  - refresh the local jsdom matcher harness and rerun the UI-facing packet
+    suites if fresh local UI evidence is required before dispatch
+- Accepted follow-up limits:
+  - repo-owned internal evidence can continue to travel in the launch packet as
+    supporting material
+  - phase-1 beta/rehearsal can proceed without a third-party verdict, but
+    GA/public launch stays blocked until a real independent reviewer records one
+- Launch checklist still matches the reviewed crypto boundary: `yes`
+
+This recorded reply is enough to document the current internal sign-off
+boundary for phase 1. It does not clear the independent GA/public-launch review
+gate.
 
 ## Verification Commands
 
@@ -158,8 +189,8 @@ This document is the secure-crypto launch-review packet for phase 1.
 
 ## Risks
 
-- Third-party security review is still deferred and should replace this
-  exception when a real external path exists
+- Independent third-party security review is still required before GA/public
+  launch
 - Legacy compatibility depends on user activity to trigger reseal of old values
 - Observability and incident runbook expansion are intentionally not part of this slice
 
@@ -175,15 +206,11 @@ This document is the secure-crypto launch-review packet for phase 1.
 - No browser storage key rename
 - No CLI flag or target-shape change
 - External audit vendor or reviewer should inspect Web, extension, and CLI call chains together because they now share one crypto substrate
-- The current launch packet uses an internal exception only because no real
-  external reviewer path is presently recorded
 
 ## Launch Packet Attachments
 
 - Algorithm and compatibility ADR: `docs/architecture/0005-secure-password-crypto.md`
 - Sendable reviewer request: `docs/operations/third-party-crypto-review-request.md`
-- Launch exception fallback:
-  `docs/operations/crypto-review-launch-exception.md`
 - Internal review gate: `docs/operations/crypto-review-gate.md`
 - Fixed legacy samples: `tests/fixtures/crypto-legacy-fixtures.ts`
 - Manual legacy smoke path: `docs/operations/crypto-legacy-smoke-checklist.md`

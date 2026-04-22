@@ -186,7 +186,8 @@ for the current first-layer entrypoint.
 - `incident`: shared-identity cutover and rollback routing, plus env and
   secret-truth guidance
 - `observability`: current status is limited and routed through deeper docs
-- `production-readiness`: launch checklist and cutover rehearsal routing
+- `production-readiness`: launch checklist, repo-local cutover rehearsal, and
+  upstream operator-reviewed sign-off routing
 
 ## Review Model
 
@@ -217,9 +218,13 @@ migration, and iOS bridge changes.
   - `env contract`: `adopted`
 - the shared identity cutover is in place, but automation and documentation
   rollout still need to keep converging across the broader portfolio
-- production-landing dry-run evidence now lives in
-  `docs/operations/identity-production-cutover-rehearsal.md`; it documents the
-  cutover and rollback rehearsal only, not a live hosted-identity switch
+- production-landing prep authority is now split across:
+  - `docs/operations/identity-production-cutover-rehearsal.md` for the
+    repo-local dry-run env, verification, and rollback mapping
+  - `unuidentity/docs/operations/unuvault-cutover-operator-signoff.md` for the
+    first real operator-reviewed cutover-preparation pass
+- neither record claims that a live hosted-identity switch or production
+  landing completion has already happened
 - the local auth bridge is a clean cutover for pre-launch test users; old local
   `users_profile` rows should be recreated through the new `unuidentity` flow
   instead of being rebound automatically

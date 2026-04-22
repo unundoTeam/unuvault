@@ -36,6 +36,9 @@ describe("runtime authority contract", () => {
     expect(runtimeAuthority).toContain("## Observability And Telemetry Status");
     expect(runtimeAuthority).toContain("## Production Readiness");
     expect(runtimeAuthority).toContain("identity-production-cutover-rehearsal.md");
+    expect(runtimeAuthority).toContain(
+      "unuidentity/docs/operations/unuvault-cutover-operator-signoff.md",
+    );
     expect(runtimeAuthority).toContain("supabase-env-mapping.md");
     expect(runtimeAuthority).toContain("phase1-launch-checklist.md");
     expect(runtimeAuthority).toContain("does not yet expose a standalone telemetry or observability authority page");

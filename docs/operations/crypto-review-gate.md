@@ -2,23 +2,22 @@
 
 ## Purpose
 
-This gate defines the secure-crypto release review path required before the
-phase-1 launch packet can be treated as launch-ready.
-
-The default path is third-party crypto review. If no real external reviewer,
-vendor, or contact path exists, the packet may instead rely on an explicit
-internal launch exception that is recorded honestly and kept narrower than an
-independent external verdict.
+This gate defines the independent crypto review required before the secure
+crypto slice can be treated as GA/public-launch ready. It is no longer the
+phase-1 beta or rehearsal blocker.
 
 ## Current Gate State
 
 - Internal implementation work is complete enough to prepare a launch-review
   packet.
-- Third-party crypto review is still pending and no real external reviewer,
-  vendor, or contact path is currently recorded.
-- The current phase-1 launch packet now uses the explicit internal launch
-  exception recorded in `docs/operations/crypto-review-launch-exception.md`
-  instead of pretending that external review has already happened.
+- The launch-review packet is assembled and ready for external dispatch.
+- A repo-backed internal preflight reply is now recorded for the current
+  phase-1 beta/rehearsal packet.
+- Independent third-party crypto review is still pending, so the GA/public-launch
+  gate is not yet cleared.
+- Any independent reviewer verdict and required follow-up still need to be
+  recorded in the launch packet before GA/public launch or before representing
+  the crypto boundary as independently reviewed.
 
 ## Current Review Target
 
@@ -29,8 +28,9 @@ independent external verdict.
 - External review should anchor to the merged `main` state at or after that
   commit.
 
-## External Review Status
+## Independent Review Status
 
+- Request packet status: `ready to send`
 - Reviewer or vendor: `pending`
 - Review date: `pending`
 - Verdict: `pending`
@@ -40,17 +40,24 @@ independent external verdict.
 - Accepted follow-up limits: `pending`
 - Launch checklist still matches the reviewed crypto boundary: `pending`
 
-## Launch Exception Status
+As of `2026-04-23`, no independent third-party verdict is recorded in the
+checked-in launch packet yet. The thread does have a repo-backed internal
+preflight reply, but the remaining blocker now applies to GA/public launch, not
+to the current phase-1 beta/rehearsal packet.
 
-- Exception type:
-  `internal operator-reviewed launch exception for missing third-party path`
-- Decision owner of record: `yuchen`
-- Decision date: `2026-04-22`
-- Current decision: `accepted for the current phase-1 launch packet`
-- Reason:
-  `no real external reviewer, vendor, or contact path is currently recorded`
-- Follow-up expectation:
-  `replace or retire this exception when a real external review path exists`
+## Recorded Thread Reply (2026-04-23)
+
+- Reply type: `repo-backed internal preflight`
+- Reviewer: `chen yu (repo-backed internal preflight, not independent third-party)`
+- Review date: `2026-04-23`
+- Verdict: `blocked`
+- Launch checklist still matches the reviewed crypto boundary: `yes`
+- Gate effect: `supports phase-1 beta/rehearsal sign-off, but does not clear the independent GA/public-launch review requirement`
+
+The recorded reply confirms that repo-owned supporting evidence can continue to
+travel with the launch packet. The reply itself used the older phase-1 blocker
+framing, but the current launch policy now carries that unresolved requirement
+forward as the GA/public-launch independent review gate.
 
 ## Completed Within This Slice
 
@@ -64,7 +71,6 @@ independent external verdict.
 The following inputs must travel together for launch review:
 
 - `docs/operations/third-party-crypto-review-request.md`
-- `docs/operations/crypto-review-launch-exception.md`
 - `docs/operations/secure-crypto-pr-audit-handoff.md`
 - `docs/operations/crypto-legacy-smoke-checklist.md`
 - the current phase-1 launch checklist under `docs/launch/phase1-launch-checklist.md`
@@ -97,19 +103,12 @@ The external review output should record:
 - confirmation that the launch checklist still matches the current crypto
   boundary
 
-## Gate Clears When
+## Gate Clears For GA/Public Launch When
 
-One of the following review outcomes must be true, and the supporting packet
-must stay current:
+All of the following are true:
 
-- third-party review of the crypto implementation and call chains is complete
-  and recorded
-- or the explicit launch exception in
-  `docs/operations/crypto-review-launch-exception.md` is accepted and still
-  matches the current reviewed target
-
-In all cases, the following must also be true:
-
+- independent third-party review of the crypto implementation and call chains is
+  complete
 - legacy compatibility evidence is attached and still reflects the current
   secure boundary
 - no new plaintext, XOR, or custom-hash write path remains on the active launch
@@ -121,8 +120,7 @@ In all cases, the following must also be true:
 ## Notes
 
 - This gate is narrower than a general incident or observability runbook
-- It exists to separate internal implementation completion from external launch approval
+- It exists to separate internal implementation completion from independent
+  GA/public-launch approval
 - `docs/operations/third-party-crypto-review-request.md` is the sendable cover
   note for the external reviewer or vendor
-- `docs/operations/crypto-review-launch-exception.md` is the honest fallback
-  when no real external reviewer path exists yet

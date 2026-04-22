@@ -1,58 +1,31 @@
 # Third-Party Crypto Review Request
 
-Use this as the sendable cover note when requesting the phase-1 external crypto
-review for `unuvault`.
+Use this as the sendable cover note and operator dispatch checklist when
+requesting the independent crypto review for `unuvault`'s phase-1 secure crypto
+slice before GA/public launch.
 
 ## Suggested Subject
 
-`unuvault phase-1 crypto review request: Web, browser extension, and CLI shared security boundary`
+`unuvault crypto review request: phase-1 secure crypto boundary for GA/public-launch approval`
 
-## If No Real External Reviewer Exists
+## Forwardable Reviewer Brief
 
-Do not use this request to relabel an internal operator, repo author, or Codex
-session as a third-party reviewer or vendor.
-
-If no real external reviewer, vendor, or contact path exists yet:
-
-- stop the outbound request flow
-- keep the external review fields as `pending`
-- route the launch packet through
-  `docs/operations/crypto-review-launch-exception.md` instead
-
-## Dispatch Mode
-
-Use this request through one of these paths only:
-
-- email thread
-- vendor ticket
-
-Do not treat a shared chat message as the contact path of record for this gate.
-
-## Fill Before Send
-
-Replace these fields in the short send-ready copy before dispatch:
-
-- reviewer or vendor name
-- requested reply date
-- contact path of record
-- tracking link or ticket id after send
-
-## Send-Ready Email Body
-
-Use this version when the contact path of record is an email thread:
+Use this shorter version when you need one message that can be forwarded
+directly to a reviewer or vendor without extra editing:
 
 ```md
-Hello <reviewer or vendor>,
+Hello,
 
-We are requesting a third-party crypto review for the `unuvault` phase-1 secure
-crypto slice. This is an explicit pre-launch gate for phase 1.
+We are requesting a third-party crypto review for the `unuvault` phase-1
+secure crypto slice. This is not the current phase-1 beta/rehearsal gate, but
+it remains required before GA/public launch and before we describe the crypto
+boundary as independently reviewed.
 
 Please review the merged `main` state at or after commit
-`46ae0c655deef0ef15cb0cd180b4844a32cac43d`:
-- PR reference: `#59` `[codex] finalize unuvault phase-1 launch packet`
-- PR URL: `https://github.com/unundoTeam/unuvault/pull/59`
+`46ae0c655deef0ef15cb0cd180b4844a32cac43d` from PR `#59`:
+`https://github.com/unundoTeam/unuvault/pull/59`
 
-Requested scope:
+Review these call chains together because they now share one crypto substrate:
 - Web unlock, reveal, copy, and secure rewrite paths
 - browser extension unlock, popup read, and autofill-read paths
 - CLI developer-secret read/import paths
@@ -62,18 +35,9 @@ Please confirm:
 - failures are fail-closed and do not leak plaintext to `stderr` or logs
 - new writes emit only the newest secure formats
 - legacy compatibility evidence still matches the current secure boundary
-- any required remediation or launch limits are explicit
+- any required remediation or accepted launch limits are explicit
 
-Fresh verification included in the packet:
-- `bash scripts/testing/lint-runner.sh` passed on 2026-04-21
-- `bash scripts/testing/test-runner.sh` passed on 2026-04-21
-- focused secure-crypto regression matrix passed on 2026-04-21
-- focused phase-1 Web/API/browser-extension surface matrix passed on 2026-04-21
-- focused web onboarding trust-copy matrix passed on 2026-04-21
-- `bash scripts/testing/run-ios.sh` passed on 2026-04-21
-- manual legacy smoke evidence for Web, browser extension, and CLI was last refreshed on 2026-04-18
-
-Attached or linked packet files:
+Packet attachments:
 - `docs/operations/crypto-review-gate.md`
 - `docs/operations/secure-crypto-pr-audit-handoff.md`
 - `docs/operations/crypto-legacy-smoke-checklist.md`
@@ -81,90 +45,50 @@ Attached or linked packet files:
 - `docs/launch/phase1-qa-matrix.md`
 - `docs/architecture/0005-secure-password-crypto.md`
 
-Requested response shape:
+Please return the review result in this exact shape:
 
 Reviewer: <name or vendor>
 Review date: <YYYY-MM-DD>
 Verdict: cleared | cleared with follow-up | blocked
+
 Reviewed surfaces:
 - <surface>
+
 Findings:
 - <finding or none>
+
 Required remediation:
 - <item or none>
+
 Accepted follow-up limits:
 - <item or none>
+
 Launch checklist still matches the reviewed crypto boundary: yes | no
-
-Requested reply date: <YYYY-MM-DD>
-Thank you.
 ```
 
-## Send-Ready Ticket Body
+## Operator Dispatch Checklist
 
-Use this version when the contact path of record is a vendor portal or external
-ticket:
+Before sending the request:
 
-```md
-Request: third-party crypto review for `unuvault` phase-1 secure crypto slice
+1. keep the review target anchored to merged `main` at or after
+   `46ae0c655deef0ef15cb0cd180b4844a32cac43d`
+2. send either the short brief above or the longer copy below
+3. attach or link every file listed under `Launch Packet Attachments`
+4. ask for the reviewer output in exactly the requested verdict shape
+5. after the reply arrives, record it in:
+   - `docs/operations/secure-crypto-pr-audit-handoff.md`
+   - `docs/operations/crypto-review-gate.md`
+6. then update `docs/launch/phase1-launch-checklist.md` so the GA/public-launch
+   carry-forward item reflects whether the gate is still open or has cleared
 
-Review target:
-- merged `main` state at or after commit `46ae0c655deef0ef15cb0cd180b4844a32cac43d`
-- PR reference: `#59` `[codex] finalize unuvault phase-1 launch packet`
-- PR URL: `https://github.com/unundoTeam/unuvault/pull/59`
-
-Scope:
-- Web unlock, reveal, copy, and secure rewrite paths
-- browser extension unlock, popup read, and autofill-read paths
-- CLI developer-secret read/import paths
-- shared helper layer in `packages/security`
-
-Please confirm:
-- failures are fail-closed and do not leak plaintext to `stderr` or logs
-- new writes emit only the newest secure formats
-- legacy compatibility evidence still matches the current secure boundary
-- any required remediation or launch limits are explicit
-
-Fresh verification included:
-- `bash scripts/testing/lint-runner.sh` passed on 2026-04-21
-- `bash scripts/testing/test-runner.sh` passed on 2026-04-21
-- focused secure-crypto regression matrix passed on 2026-04-21
-- focused phase-1 Web/API/browser-extension surface matrix passed on 2026-04-21
-- focused web onboarding trust-copy matrix passed on 2026-04-21
-- `bash scripts/testing/run-ios.sh` passed on 2026-04-21
-- manual legacy smoke evidence last refreshed on 2026-04-18
-
-Required attachments or links:
-- `docs/operations/crypto-review-gate.md`
-- `docs/operations/secure-crypto-pr-audit-handoff.md`
-- `docs/operations/crypto-legacy-smoke-checklist.md`
-- `docs/launch/phase1-launch-checklist.md`
-- `docs/launch/phase1-qa-matrix.md`
-- `docs/architecture/0005-secure-password-crypto.md`
-
-Requested verdict shape:
-- Reviewer: <name or vendor>
-- Review date: <YYYY-MM-DD>
-- Verdict: cleared | cleared with follow-up | blocked
-- Reviewed surfaces
-- Findings
-- Required remediation
-- Accepted follow-up limits
-- Launch checklist still matches the reviewed crypto boundary: yes | no
-
-Requested reply date: <YYYY-MM-DD>
-```
-
-## Long-Form Request
-
-Use this version when the reviewer asks for the full background in one message.
+## Full Copy/Paste Request
 
 Hello,
 
 We are requesting a third-party crypto review for the `unuvault` phase-1 secure
-crypto slice. This review is an explicit pre-launch gate. Phase 1 remains
-blocked until the reviewer verdict and any required follow-up are recorded in
-the launch packet.
+crypto slice. This review is no longer the current phase-1 beta/rehearsal gate,
+but it remains required before GA/public launch and before we represent the
+crypto boundary as independently reviewed.
 
 The slice replaced the previous weak placeholder helpers with one shared async
 sodium-backed boundary and upgraded the active write formats to:
@@ -205,7 +129,6 @@ Please confirm the following:
 ## Launch Packet Attachments
 
 - `docs/operations/crypto-review-gate.md`
-- `docs/operations/crypto-review-launch-exception.md`
 - `docs/operations/secure-crypto-pr-audit-handoff.md`
 - `docs/operations/crypto-legacy-smoke-checklist.md`
 - `docs/launch/phase1-launch-checklist.md`
@@ -215,6 +138,8 @@ Please confirm the following:
 ## Send Checklist
 
 - attach or link every file listed under `Launch Packet Attachments`
+- keep the review target anchored to merged `main` at or after
+  `46ae0c655deef0ef15cb0cd180b4844a32cac43d`
 - include the current verification summary from this request in the message body
 - ask for the reviewer output in exactly the requested verdict shape
 - record the reply in the docs listed under `Recording The Result`
@@ -269,9 +194,6 @@ findings, and required follow-up into:
 - `docs/operations/secure-crypto-pr-audit-handoff.md`
 - `docs/operations/crypto-review-gate.md`
 
-Then update `docs/launch/phase1-launch-checklist.md` so the secure-crypto
-launch gate reflects whether the packet is using an external verdict or an
-accepted exception of record.
-
-If no real external review path exists, do not write an internal reviewer into
-the external-review fields. Record the explicit launch exception instead.
+Then update `docs/launch/phase1-launch-checklist.md` so the carry-forward
+independent review item reflects whether the gate is still open or has been
+cleared.

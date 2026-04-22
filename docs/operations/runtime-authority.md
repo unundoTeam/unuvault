@@ -28,12 +28,15 @@ It only points to the current authority that already exists.
 Current incident-facing authority is split across a few deeper sources:
 
 - [Identity Production Cutover Rehearsal](identity-production-cutover-rehearsal.md)
+- `unuidentity/docs/operations/unuvault-cutover-operator-signoff.md`
 - [Supabase Environment Mapping](supabase-env-mapping.md)
 - [Supabase Boundary](../architecture/0002-supabase-boundary.md)
 - [Client Crypto Boundary](../architecture/0003-client-crypto-boundary.md)
 
 Use those docs for auth-bridge rollback, env and secret-truth routing, and the
-client-side security boundary around high-risk actions.
+client-side security boundary around high-risk actions. The repo-local
+rehearsal stays dry-run-only; the upstream `unuidentity` sign-off is the
+operator-reviewed cutover-preparation authority.
 
 ## Observability And Telemetry Status
 
@@ -50,10 +53,13 @@ Current production-readiness authority is split across:
 
 - [Phase 1 Launch Checklist](../launch/phase1-launch-checklist.md)
 - [Identity Production Cutover Rehearsal](identity-production-cutover-rehearsal.md)
+- `unuidentity/docs/operations/unuvault-cutover-operator-signoff.md`
 - the `Verification` section in [README.md](../../README.md)
 
 Use those docs for launch checklist routing, cutover rehearsal, and
-scope-dependent verification.
+scope-dependent verification. The upstream sign-off records the first real
+operator-reviewed pass; it does not claim live cutover execution or landing
+completion.
 
 ## Current Gaps
 

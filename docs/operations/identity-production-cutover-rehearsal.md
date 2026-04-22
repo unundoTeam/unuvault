@@ -1,6 +1,6 @@
 # Identity Production Cutover Rehearsal
 
-> 更新时间：2026-03-30
+> 更新时间：2026-04-23
 > 状态：Dry-run evidence
 
 ## Goal
@@ -16,9 +16,22 @@ This rehearsal is driven by these upstream authority docs in `unuidentity`:
 - `docs/operations/production-landing.md`
 - `docs/operations/consumer-cutover-checklist.md`
 - `docs/operations/consumer-rollback-checklist.md`
+- `docs/operations/unuvault-cutover-operator-signoff.md`
 
 This rehearsal also assumes the portfolio governance decision adopted in
 `unuOS/docs/portfolio/decisions/identity-production-landing-governance.md`.
+
+## Upstream Operator-Reviewed Pass
+
+This repo-local record still exists to show the `unuvault`-side dry-run
+mapping for env surfaces, verification, and consumer-first rollback.
+
+The first real operator-reviewed cutover-preparation pass now lives upstream in
+`unuidentity/docs/operations/unuvault-cutover-operator-signoff.md`.
+
+That upstream sign-off confirms cutover-preparation and rollback-checklist
+review only. It does not claim that a live cutover or production landing
+completion has already happened.
 
 ## Current Consumer State
 
@@ -81,25 +94,29 @@ Additional verification remains conditional:
 
 ## Blocked For Real Cutover
 
-`unuvault` is still blocked from live cutover today because this slice only
-documents the procedure. It does not:
+`unuvault` is still blocked from live cutover completion today because this
+repo-local slice only documents the consumer procedure. It does not:
 
 - designate a live hosted identity target inside this repo
 - rotate or distribute new live secrets
 - change callback registration
-- record an operator-reviewed live cutover pass
+- record live cutover execution or landing completion inside this repo
 
-That means this rehearsal is sufficient for cutover preparation, but not for
-cutover completion.
+The upstream operator-reviewed pass now covers cutover-preparation sign-off, but
+that still leaves live execution and completion evidence outside this dry-run
+record.
 
 ## Outcome
 
 This dry-run rehearsal passes if:
 
 - `unuvault` can point to one clear upstream landing authority
+- `unuvault` can point to the upstream operator-reviewed pass for the first
+  consumer package
 - the repo can state which env surfaces would move during cutover
 - the repo can state which local commands would verify the switch
 - the repo can describe a consumer-first rollback without guessing
 
-This document is evidence of dry-run readiness only. It is not evidence that a
+This document is evidence of dry-run readiness only. The operator-reviewed
+cutover-preparation pass lives upstream, and neither record is evidence that a
 live hosted identity cutover has already happened.
