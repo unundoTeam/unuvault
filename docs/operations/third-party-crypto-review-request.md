@@ -7,6 +7,18 @@ review for `unuvault`.
 
 `unuvault phase-1 crypto review request: Web, browser extension, and CLI shared security boundary`
 
+## If No Real External Reviewer Exists
+
+Do not use this request to relabel an internal operator, repo author, or Codex
+session as a third-party reviewer or vendor.
+
+If no real external reviewer, vendor, or contact path exists yet:
+
+- stop the outbound request flow
+- keep the external review fields as `pending`
+- route the launch packet through
+  `docs/operations/crypto-review-launch-exception.md` instead
+
 ## Copy/Paste Request
 
 Hello,
@@ -55,6 +67,7 @@ Please confirm the following:
 ## Launch Packet Attachments
 
 - `docs/operations/crypto-review-gate.md`
+- `docs/operations/crypto-review-launch-exception.md`
 - `docs/operations/secure-crypto-pr-audit-handoff.md`
 - `docs/operations/crypto-legacy-smoke-checklist.md`
 - `docs/launch/phase1-launch-checklist.md`
@@ -118,5 +131,9 @@ findings, and required follow-up into:
 - `docs/operations/secure-crypto-pr-audit-handoff.md`
 - `docs/operations/crypto-review-gate.md`
 
-Then update `docs/launch/phase1-launch-checklist.md` so the pending external
-crypto review item reflects whether the gate is still open or has been cleared.
+Then update `docs/launch/phase1-launch-checklist.md` so the secure-crypto
+launch gate reflects whether the packet is using an external verdict or an
+accepted exception of record.
+
+If no real external review path exists, do not write an internal reviewer into
+the external-review fields. Record the explicit launch exception instead.
