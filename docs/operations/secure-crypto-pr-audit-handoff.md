@@ -23,8 +23,11 @@
 This document is the secure-crypto launch-review packet for phase 1.
 
 - Internal crypto evidence is attached below and remains reusable.
-- Third-party crypto review is still pending, so the secure-crypto gate is not
-  yet cleared for launch.
+- Third-party crypto review is still pending because no real external reviewer,
+  vendor, or contact path is currently recorded.
+- The current phase-1 launch packet now relies on the explicit internal launch
+  exception in `docs/operations/crypto-review-launch-exception.md` instead of
+  pretending that external review has already happened.
 - The packet refresh on 2026-04-21 now has fresh repo-owned verification
   evidence for lint, repo-wide tests, focused secure-crypto coverage, the
   iOS gate, and the phase-1 Web/API/browser-extension surface checks.
@@ -50,6 +53,24 @@ This document is the secure-crypto launch-review packet for phase 1.
 - Required remediation: `pending`
 - Accepted follow-up limits: `pending`
 - Launch checklist still matches the reviewed crypto boundary: `pending`
+
+## Launch Exception Result
+
+- Exception type:
+  `internal operator-reviewed launch exception for missing third-party path`
+- Decision owner of record: `yuchen`
+- Decision date: `2026-04-22`
+- Decision:
+  `accepted for the current phase-1 launch packet`
+- Why the exception was needed:
+  `no real external reviewer, vendor, or contact path is currently recorded`
+- Scope carried by the exception:
+  - Web unlock, reveal, copy, and secure rewrite paths
+  - browser extension unlock, popup read, and autofill-read paths
+  - CLI developer-secret read/import paths
+  - the shared helper layer in `packages/security`
+- Follow-up expectation:
+  `replace or retire this exception when a real external review path exists`
 
 ## Verification Commands
 
@@ -137,7 +158,8 @@ This document is the secure-crypto launch-review packet for phase 1.
 
 ## Risks
 
-- Third-party security review is still required before phase 1 launch
+- Third-party security review is still deferred and should replace this
+  exception when a real external path exists
 - Legacy compatibility depends on user activity to trigger reseal of old values
 - Observability and incident runbook expansion are intentionally not part of this slice
 
@@ -153,11 +175,15 @@ This document is the secure-crypto launch-review packet for phase 1.
 - No browser storage key rename
 - No CLI flag or target-shape change
 - External audit vendor or reviewer should inspect Web, extension, and CLI call chains together because they now share one crypto substrate
+- The current launch packet uses an internal exception only because no real
+  external reviewer path is presently recorded
 
 ## Launch Packet Attachments
 
 - Algorithm and compatibility ADR: `docs/architecture/0005-secure-password-crypto.md`
 - Sendable reviewer request: `docs/operations/third-party-crypto-review-request.md`
+- Launch exception fallback:
+  `docs/operations/crypto-review-launch-exception.md`
 - Internal review gate: `docs/operations/crypto-review-gate.md`
 - Fixed legacy samples: `tests/fixtures/crypto-legacy-fixtures.ts`
 - Manual legacy smoke path: `docs/operations/crypto-legacy-smoke-checklist.md`
