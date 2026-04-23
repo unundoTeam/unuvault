@@ -28,5 +28,7 @@ Phase 1 upgrades the client-side password and dev-secret crypto boundary to a sh
 ## Residual Risks
 
 - Legacy compatibility keeps older payloads readable, so migration pressure still depends on user activity
-- External review is still required before phase-1 launch
+- Independent review is still required before GA/public launch; phase-1
+  beta/rehearsal currently relies on repo-owned evidence plus recorded internal
+  preflight sign-off
 - Observability and incident runbook work remain out of this slice by design
