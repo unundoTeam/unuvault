@@ -25,7 +25,7 @@ describe("auth boundary contract", () => {
     const readme = readText("README.md");
     const boundaryDoc = readText("docs/architecture/0002-supabase-boundary.md");
 
-    expect(readme).toContain("## Canonical Auth Boundary");
+    expect(readme).toContain("### Canonical Auth Boundary");
     expect(readme).toContain("`POST /auth/bootstrap` is the product identity bridge");
     expect(readme).toContain(
       "`unuidentity signup/login -> /auth/callback -> /auth/finalize -> POST /auth/bootstrap`",

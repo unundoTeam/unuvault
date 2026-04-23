@@ -14,7 +14,7 @@ describe("runtime authority contract", () => {
   it("adds a first-layer runtime authority route in the root readme", () => {
     const readme = readText("README.md");
 
-    expect(readme).toContain("## Runtime Authority");
+    expect(readme).toContain("### Runtime Authority");
     expect(readme).toContain("docs/operations/runtime-authority.md");
     expect(readme).toContain("docs/operations/incident-observability-authority.md");
     expect(readme).toContain("docs/operations/identity-production-cutover-hosted-pass.md");

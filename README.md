@@ -13,13 +13,7 @@ who want a more trustworthy home for credentials than browser-native storage.
 - product-local data contracts and the client-side security model for vault
   access
 
-## What It Does Not Own
-
-- the shared identity and account platform owned by `unuidentity`
-- the shared machine automation core owned by `unuforge`
-- portfolio-wide governance and rollout policy owned by `unuOS`
-
-## Canonical Auth Boundary
+### Canonical Auth Boundary
 
 `unuvault` uses one shared auth contract across Web, API, and browser-extension
 surfaces:
@@ -43,6 +37,12 @@ same:
   repo-owned, but still expected to follow the same bridge model once its auth
   surface is fully live
 
+## What It Does Not Own
+
+- the shared identity and account platform owned by `unuidentity`
+- the shared machine automation core owned by `unuforge`
+- portfolio-wide governance and rollout policy owned by `unuOS`
+
 ## Source Of Truth
 
 - `docs/superpowers/specs/2026-03-14-chinese-password-manager-phase1-design.md`
@@ -55,6 +55,23 @@ same:
   posture
 - [the sibling `unuOS` repo's `docs/portfolio/README.md`](https://github.com/unundoTeam/unuos/blob/main/docs/portfolio/README.md)
   for portfolio overview and cross-repo authority
+
+### Runtime Authority
+
+`unuvault` keeps runtime authority routing separate from the core auth and
+verification shell. Start with
+[docs/operations/runtime-authority.md](docs/operations/runtime-authority.md)
+for the current first-layer entrypoint.
+
+- `incident`: first route through
+  `docs/operations/incident-observability-authority.md`, then into cutover,
+  env, and security-boundary detail
+- `observability`: a minimal authority page now exists, but it still describes
+  a limited pre-launch program rather than a mature telemetry stack
+- `production-readiness`: launch checklist, dry-run rehearsal, and
+  repo-local hosted-pass plus upstream operator-reviewed sign-off routing now
+  live together under
+  `docs/operations/runtime-authority.md`
 
 ## Workspace Layout
 
@@ -90,13 +107,6 @@ For local MVP auth setup:
 - copy `apps/api/.env.example` to `apps/api/.env.local`
 - replace the placeholder project refs and keys with real hosted project values
   while keeping the documented local runtime fields concrete
-- `apps/web/.env.local` needs the browser-facing product and `unuidentity`
-  values: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
-  `NEXT_PUBLIC_IDENTITY_SUPABASE_URL`,
-  `NEXT_PUBLIC_IDENTITY_SUPABASE_ANON_KEY`, and `NEXT_PUBLIC_API_BASE_URL`
-- `apps/api/.env.local` needs both shared identity and product-data values:
-  `IDENTITY_SUPABASE_URL`, `IDENTITY_SUPABASE_SERVICE_ROLE_KEY`,
-  `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `PORT`
 - the local auth loop is:
   `unuidentity signup/login -> /auth/callback -> /auth/finalize -> POST /auth/bootstrap`
 - `/auth/finalize` is not the final authority by itself; it is the Web surface
@@ -104,6 +114,26 @@ For local MVP auth setup:
   `POST /auth/bootstrap`
 - `unuidentity` needs a redirect URL for
   `http://127.0.0.1:3001/auth/callback` during local development
+
+Browser-facing product and identity env in `apps/web/.env.example`:
+
+| Variable | Required | Surface | Layer | Source repo | Default/example | Public |
+| --- | --- | --- | --- | --- | --- | --- |
+| `NEXT_PUBLIC_SUPABASE_URL` | yes | client | public-client | `unuvault` | `https://your-product-project-ref.supabase.co` | yes |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | yes | client | public-client | `unuvault` | `your-product-anon-key` | yes |
+| `NEXT_PUBLIC_IDENTITY_SUPABASE_URL` | yes | client | identity | `unuidentity` | `https://your-identity-project-ref.supabase.co` | yes |
+| `NEXT_PUBLIC_IDENTITY_SUPABASE_ANON_KEY` | yes | client | identity | `unuidentity` | `your-identity-anon-key` | yes |
+| `NEXT_PUBLIC_API_BASE_URL` | yes | client | public-client | `unuvault` | `http://localhost:3000` | yes |
+
+Shared identity and product-data env in `apps/api/.env.example`:
+
+| Variable | Required | Surface | Layer | Source repo | Default/example | Public |
+| --- | --- | --- | --- | --- | --- | --- |
+| `IDENTITY_SUPABASE_URL` | yes | server | identity | `unuidentity` | `https://your-identity-project-ref.supabase.co` | yes |
+| `IDENTITY_SUPABASE_SERVICE_ROLE_KEY` | yes | server | identity | `unuidentity` | `your-identity-service-role-key` | no |
+| `SUPABASE_URL` | yes | server | product-data | `unuvault` | `https://your-project-ref.supabase.co` | yes |
+| `SUPABASE_SERVICE_ROLE_KEY` | yes | server | product-data | `unuvault` | `your-service-role-key` | no |
+| `PORT` | yes | server | product-data | `unuvault` | `3000` | yes |
 
 For the private env-secrets bridge:
 
@@ -175,23 +205,6 @@ The baseline installed-package smoke coverage is still JS-safe in this phase:
 - `test-runner --dry-run`
 
 It does not yet include `ios-test-runner`.
-
-## Runtime Authority
-
-`unuvault` keeps runtime authority routing separate from the core auth and
-verification shell. Start with
-[docs/operations/runtime-authority.md](docs/operations/runtime-authority.md)
-for the current first-layer entrypoint.
-
-- `incident`: first route through
-  `docs/operations/incident-observability-authority.md`, then into cutover,
-  env, and security-boundary detail
-- `observability`: a minimal authority page now exists, but it still describes
-  a limited pre-launch program rather than a mature telemetry stack
-- `production-readiness`: launch checklist, dry-run rehearsal, and
-  repo-local hosted-pass plus upstream operator-reviewed sign-off routing now
-  live together under
-  `docs/operations/runtime-authority.md`
 
 ## Review Model
 
