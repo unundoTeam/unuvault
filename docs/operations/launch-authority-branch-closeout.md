@@ -35,16 +35,14 @@ the cleanup objects that were deleted after merge.
 - Written record: this note
 - Why not delete now: `n/a`
 
-### Attached local worktree: `/Users/yuchen/Code/unu/unuvault`
+### Former attached local scratchpad line: `codex/unuvault-local-scratchpad`
 
-- Current branch: `codex/unuvault-local-scratchpad`
-- Lifecycle state: `discard-candidate`
+- Lifecycle state: closed after `discard-candidate`
 - Owner: `yuchen`
-- Next action: delete the local branch and attached clean worktree after final
-  cleanup confirmation
-- Delete by / review by: `2026-04-30`
+- Next action: none
+- Delete by / review by: completed on `2026-04-23`
 - Written record: this note
-- Why not delete now: destructive cleanup still requires explicit confirmation
+- Why not delete now: `n/a`
 
 ### Local branch without attached worktree: `codex/unuvault-launch-authority`
 
@@ -81,6 +79,8 @@ the cleanup objects that were deleted after merge.
   scratchpad into `main`
 - reverted the remaining local `apps/web/next-env.d.ts` delta so the attached
   worktree is now clean
+- returned the attached local worktree `/Users/yuchen/Code/unu/unuvault` to
+  `main` and deleted `codex/unuvault-local-scratchpad`
 - kept `codex/unuvault-launch-authority` only as a frozen historical reference
 
 ## What This Note Resolves
