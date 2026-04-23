@@ -37,7 +37,7 @@ the cleanup objects that were deleted after merge.
 
 ### Attached local worktree: `/Users/yuchen/Code/unu/unuvault`
 
-- Current branch: `codex/unuvault-launch-authority`
+- Current branch: `codex/unuvault-local-scratchpad`
 - Lifecycle state: `scratchpad`
 - Owner: `yuchen`
 - Next action: salvage or re-home the remaining local edits onto a fresh line
@@ -46,6 +46,18 @@ the cleanup objects that were deleted after merge.
 - Written record: this note
 - Why not delete now: the worktree still contains user-local edits in
   `.github/PULL_REQUEST_TEMPLATE.md` and `apps/web/next-env.d.ts`
+
+### Local branch without attached worktree: `codex/unuvault-launch-authority`
+
+- Lifecycle state: `frozen-archive`
+- Owner: `yuchen`
+- Next action: keep only as historical reference until a final salvage review
+  decides whether the old pre-restack commits are still worth preserving
+- Delete by / review by: `2026-04-30`
+- Written record: this note
+- Why not delete now: it is the only remaining local ref that preserves the
+  superseded pre-restack commit chain
+  `9297cb4 -> d3e7c06 -> 2a6b1b1`, which is no longer reachable from `main`
 
 ### Clean reconcile worktree:
 `/Users/yuchen/Code/unu/unuvault/.worktrees/codex-unuvault-launch-authority-reconcile`
@@ -64,8 +76,9 @@ the cleanup objects that were deleted after merge.
 - deleted local branch `codex/unuvault-launch-authority-reconcile`
 - removed worktree
   `/Users/yuchen/Code/unu/unuvault/.worktrees/codex-unuvault-launch-authority-reconcile`
-- kept `/Users/yuchen/Code/unu/unuvault` attached on
-  `codex/unuvault-launch-authority` because it still contains user-local edits
+- moved the attached local worktree `/Users/yuchen/Code/unu/unuvault` from
+  `codex/unuvault-launch-authority` to `codex/unuvault-local-scratchpad`
+- kept `codex/unuvault-launch-authority` only as a frozen historical reference
 
 ## What This Note Resolves
 
