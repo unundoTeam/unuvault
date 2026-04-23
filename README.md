@@ -202,6 +202,10 @@ for the current first-layer entrypoint.
 - Codex automatic review by default
 - passing automation gates before merge
 
+Agent-led delivery status, review-status reporting, commit closeout, push, and
+cleanup defaults follow the portfolio delivery authority in
+`/Users/yuchen/Code/unu/unuOS/docs/portfolio/agent-delivery-defaults.md`.
+
 Human review is optional and is mainly recommended for auth, sync, crypto,
 migration, and iOS bridge changes.
 
