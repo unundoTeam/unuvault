@@ -15,9 +15,19 @@ phase-1 beta or rehearsal blocker.
   phase-1 beta/rehearsal packet.
 - Independent third-party crypto review is still pending, so the GA/public-launch
   gate is not yet cleared.
+- A GitHub metadata audit on `2026-04-21` found no PR reviews or issue comments
+  on `unundoTeam/unuvault#59` that can be treated as the required external
+  crypto verdict, so the gate still lacks a recorded reviewer assignment and
+  sign-off artifact.
 - Any independent reviewer verdict and required follow-up still need to be
   recorded in the launch packet before GA/public launch or before representing
   the crypto boundary as independently reviewed.
+- The approved out-of-repo dispatch path for the current packet is an email
+  thread or vendor ticket. Shared chat may help route the request, but it does
+  not count as the authoritative reviewer handoff path.
+- Sending the packet or naming a reviewer is not enough to clear this gate. The
+  gate stays open until the reviewer verdict is recorded with reviewed
+  surfaces, findings, remediation, and follow-up limits.
 
 ## Current Review Target
 
@@ -40,10 +50,13 @@ phase-1 beta or rehearsal blocker.
 - Accepted follow-up limits: `pending`
 - Launch checklist still matches the reviewed crypto boundary: `pending`
 
-As of `2026-04-23`, no independent third-party verdict is recorded in the
-checked-in launch packet yet. The thread does have a repo-backed internal
-preflight reply, but the remaining blocker now applies to GA/public launch, not
-to the current phase-1 beta/rehearsal packet.
+As of `2026-04-23`, no independent third-party verdict or reviewer assignment
+is recorded in the checked-in launch packet yet. A GitHub metadata audit on
+`2026-04-21` also found no PR reviews or issue comments on
+`unundoTeam/unuvault#59` that can be treated as the required external crypto
+verdict. The thread does have a repo-backed internal preflight reply, but the
+remaining blocker now applies to GA/public launch, not to the current phase-1
+beta/rehearsal packet.
 
 ## Recorded Thread Reply (2026-04-23)
 
@@ -102,6 +115,11 @@ The external review output should record:
 - any findings, required remediation, or accepted follow-up limits
 - confirmation that the launch checklist still matches the current crypto
   boundary
+
+Use `docs/operations/secure-crypto-pr-audit-handoff.md` to record send status
+before the verdict arrives, then copy the final verdict back into both docs.
+That send-status record should point at the actual email thread or vendor
+ticket used for the handoff.
 
 ## Gate Clears For GA/Public Launch When
 

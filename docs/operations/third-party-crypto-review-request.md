@@ -109,6 +109,19 @@ CLI target shape unchanged while preserving legacy read compatibility.
 - Review against the merged `main` state at or after that commit, not the
   deleted feature branch.
 
+## Current Dispatch Status
+
+- Packet refresh date: `2026-04-21`
+- Approved dispatch mode for this packet: `email thread or vendor ticket`
+- GitHub metadata checked on `2026-04-21` shows PR `#59` merged on `main`
+  without any recorded PR review or issue-comment artifact that can serve as
+  the required external crypto verdict.
+- Reviewer or vendor assignment still needs to be recorded outside this repo
+  when the request is actually sent.
+- Shared chat can help route the packet, but the authoritative reviewer
+  handoff for this wave must still resolve to an email thread or vendor
+  ticket.
+
 ## Requested Review Scope
 
 Please review these call chains together because they now share one crypto
@@ -135,13 +148,47 @@ Please confirm the following:
 - `docs/launch/phase1-qa-matrix.md`
 - `docs/architecture/0005-secure-password-crypto.md`
 
+## Dispatch Worksheet
+
+Fill this block before sending the request so the packet has one consistent
+record of who sent it, where it was sent, and when to expect the reply.
+
+- Current send status: `not yet sent`
+- Request owner: `yuchen`
+- Reviewer or vendor: `<name or company>`
+- Contact path: `<email thread subject or vendor ticket reference>`
+- Sent date: `<YYYY-MM-DD>`
+- Requested reply date: `<YYYY-MM-DD>`
+- Tracking link: `<email thread URL / vendor ticket URL / internal case URL>`
+- Recording owner for repo updates: `yuchen`
+- Attachments sent:
+  - `docs/operations/crypto-review-gate.md`
+  - `docs/operations/secure-crypto-pr-audit-handoff.md`
+  - `docs/operations/crypto-legacy-smoke-checklist.md`
+  - `docs/launch/phase1-launch-checklist.md`
+  - `docs/launch/phase1-qa-matrix.md`
+  - `docs/architecture/0005-secure-password-crypto.md`
+
+Do not treat repo docs, PR links, or the launch packet itself as the external
+contact path. `Contact path` and `Tracking link` must point at the real
+out-of-repo handoff surface, such as an email thread or vendor ticket. Shared
+chat can support coordination, but it is not the packet contact path of record
+for this wave.
+
 ## Send Checklist
 
+- fill `Dispatch Worksheet` with the actual reviewer / vendor, send date, and
+  tracking path before sending
+- use an email thread or vendor ticket as the durable reviewer handoff path
+- if the handoff starts over email, record the mailbox/thread subject and save
+  a durable link or searchable reference in `Tracking link`
 - attach or link every file listed under `Launch Packet Attachments`
 - keep the review target anchored to merged `main` at or after
   `46ae0c655deef0ef15cb0cd180b4844a32cac43d`
 - include the current verification summary from this request in the message body
 - ask for the reviewer output in exactly the requested verdict shape
+- copy the filled dispatch metadata into
+  `docs/operations/secure-crypto-pr-audit-handoff.md` once the request is sent
 - record the reply in the docs listed under `Recording The Result`
 
 ## Fresh Verification Included In The Packet

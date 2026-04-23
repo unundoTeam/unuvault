@@ -48,11 +48,23 @@ phase 1.
   `docs/operations/crypto-review-gate.md`
 - The repo-owned launch packet is assembled and ready for independent review
   dispatch.
+- No reviewer assignment or verdict is recorded in repo docs or GitHub review
+  metadata yet.
+- Dispatch path requirement for this wave:
+  - the external handoff must be tracked through an email thread or vendor
+    ticket
+  - shared chat coordination alone does not satisfy the pending review record
 - Full reviewer detail lives in:
   - `docs/operations/crypto-review-gate.md`
   - `docs/operations/secure-crypto-pr-audit-handoff.md`
 - This section tracks the GA/public-launch crypto approval boundary rather than
   the phase-1 beta or rehearsal gate.
+- This checklist only tracks whether the external crypto review gate is still
+  open or has been cleared for launch.
+- A sent request without a recorded reviewer verdict still counts as pending for
+  this checklist item.
+- If the reviewer returns `cleared with follow-up`, record the allowed launch
+  limits in those gate docs before this checklist item is treated as closed.
 
 ## Surface Map
 

@@ -34,6 +34,9 @@ rehearsal, and the handoff packet for the later independent review.
   iOS gate, and the phase-1 Web/API/browser-extension surface checks.
 - The launch packet now has repo-owned proof for the current web
   login/register trust-copy surface as well.
+- GitHub metadata checked on `2026-04-21` shows PR `#59` merged on `main`, but
+  no PR review or issue-comment artifact is recorded there for the required
+  external crypto verdict.
 
 ## Current Review Target
 
@@ -44,9 +47,32 @@ rehearsal, and the handoff packet for the later independent review.
 - Use the merged `main` state at or after that commit as the review target for
   the independent crypto verdict.
 
-## Independent Review Result
+## External Review Dispatch Record
+
+Fill this as soon as the request leaves the repo so the packet can distinguish
+between `not sent yet` and `sent, waiting for verdict`.
 
 - Request packet status: `ready to send`
+- Approved dispatch mode: `email thread or vendor ticket`
+- Request packet status: `ready to send`
+- Request owner: `yuchen`
+- Reviewer or vendor: `pending`
+- Contact path: `pending`
+- Sent date: `pending`
+- Requested reply date: `pending`
+- Tracking link: `pending`
+- Recording owner for repo updates: `yuchen`
+
+Sending the packet does not clear the launch gate by itself. Keep the
+`External Review Result` section below at `pending` until the reviewer returns a
+real verdict.
+Do not fill `Contact path` or `Tracking link` with repo-local docs, PR URLs, or
+launch-packet references alone. Those can support the review, but they do not
+prove the request reached a real external reviewer or vendor queue.
+For the current launch packet, shared chat can assist with introductions, but
+the authoritative handoff must still live in an email thread or vendor ticket.
+
+## External Review Result
 - Reviewer or vendor: `pending`
 - Review date: `pending`
 - Verdict: `pending`
@@ -57,7 +83,9 @@ rehearsal, and the handoff packet for the later independent review.
 - Launch checklist still matches the reviewed crypto boundary: `pending`
 
 As of `2026-04-23`, the checked-in packet still has no independent third-party
-verdict attached. The remaining blocker now applies to GA/public launch rather
+verdict attached. GitHub review metadata checked on `2026-04-21` also records
+no PR review or issue-comment artifact that can serve as the required external
+crypto verdict. The remaining blocker now applies to GA/public launch rather
 than the current phase-1 beta/rehearsal packet.
 
 ## Recorded Thread Reply (2026-04-23)
