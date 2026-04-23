@@ -1,7 +1,7 @@
 # Launch Authority Branch Closeout Review
 
 > 更新时间: 2026-04-23
-> 状态: Active
+> 状态: Closed
 
 ## Purpose
 
@@ -10,7 +10,8 @@ launch-authority slice after its current closeout content landed on `main`.
 
 It exists so the surviving branch refs and worktrees are not mistaken for an
 active implementation line now that the launch-authority changes have already
-been absorbed.
+been absorbed, and so the remaining local scratchpad can be distinguished from
+the cleanup objects that were deleted after merge.
 
 ## Merged Result
 
@@ -27,13 +28,12 @@ been absorbed.
 
 ### Remote branch: `origin/codex/unuvault-launch-authority`
 
-- Lifecycle state: `discard-candidate`
+- Lifecycle state: closed after `discard-candidate`
 - Owner: `yuchen`
-- Next action: delete the remote branch after final cleanup confirmation
-- Delete by / review by: `2026-04-30`
+- Next action: none
+- Delete by / review by: completed on `2026-04-23`
 - Written record: this note
-- Why not delete now: destructive cleanup still requires explicit operator
-  confirmation
+- Why not delete now: `n/a`
 
 ### Attached local worktree: `/Users/yuchen/Code/unu/unuvault`
 
@@ -51,15 +51,21 @@ been absorbed.
 `/Users/yuchen/Code/unu/unuvault/.worktrees/codex-unuvault-launch-authority-reconcile`
 
 - Current branch: `codex/unuvault-launch-authority-reconcile`
-- Lifecycle state: `discard-candidate`
+- Lifecycle state: closed after `discard-candidate`
 - Owner: `yuchen`
-- Next action: remove the clean reconcile worktree and delete its local branch
-  after final cleanup confirmation
-- Delete by / review by: `2026-04-30`
+- Next action: none
+- Delete by / review by: completed on `2026-04-23`
 - Written record: this note
-- Why not delete now: destructive cleanup still requires explicit confirmation,
-  and this worktree remains the cleanest local provenance for the exact
-  fast-forwarded `main` tip
+- Why not delete now: `n/a`
+
+## Completed Cleanup
+
+- deleted remote branch `origin/codex/unuvault-launch-authority`
+- deleted local branch `codex/unuvault-launch-authority-reconcile`
+- removed worktree
+  `/Users/yuchen/Code/unu/unuvault/.worktrees/codex-unuvault-launch-authority-reconcile`
+- kept `/Users/yuchen/Code/unu/unuvault` attached on
+  `codex/unuvault-launch-authority` because it still contains user-local edits
 
 ## What This Note Resolves
 
@@ -73,6 +79,5 @@ been absorbed.
 
 - this note does not change the launch-policy authority recorded in
   `docs/operations/crypto-review-launch-exception.md`
-- this note does not delete any local or remote branch by itself
 - other `unuvault` worktrees such as `codex/launch-gate-docs` and
   `codex/runtime-authority-docs` are not reclassified here
