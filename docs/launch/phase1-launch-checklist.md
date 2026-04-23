@@ -33,6 +33,9 @@ phase 1.
 - [x] `docs/help/account-recovery.md` and
   `docs/help/import-troubleshooting.md` were reviewed on 2026-04-21 before
   external testing
+- [x] `docs/operations/incident-observability-authority.md` now gives phase-1
+  launch packet readers one explicit incident / observability route without
+  adding a new launch blocker
 
 ## Pending Before Phase 1 Launch
 
