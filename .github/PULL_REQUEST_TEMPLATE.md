@@ -20,3 +20,12 @@
 
 ## Cross-Repo Impact
 - List affected repos or say `none`.
+
+### Post-Merge Closeout
+- Source line:
+- Lifecycle state: `discard-candidate` / `frozen-archive` / `active-slice` / `mother-branch` / `scratchpad`
+- Owner:
+- Next action: `delete` / `cut next slice` / `write retirement note` / `cleanup review`
+- Delete by / review by:
+- Written record:
+- Why not delete now: `n/a` by default; required when the lifecycle state is not `discard-candidate`

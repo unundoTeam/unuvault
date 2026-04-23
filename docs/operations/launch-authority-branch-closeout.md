@@ -44,8 +44,8 @@ the cleanup objects that were deleted after merge.
   from current `main`
 - Delete by / review by: `2026-04-30`
 - Written record: this note
-- Why not delete now: the worktree still contains user-local edits in
-  `.github/PULL_REQUEST_TEMPLATE.md` and `apps/web/next-env.d.ts`
+- Why not delete now: the worktree still contains the remaining user-local
+  edit in `apps/web/next-env.d.ts`
 
 ### Local branch without attached worktree: `codex/unuvault-launch-authority`
 
@@ -78,6 +78,8 @@ the cleanup objects that were deleted after merge.
   `/Users/yuchen/Code/unu/unuvault/.worktrees/codex-unuvault-launch-authority-reconcile`
 - moved the attached local worktree `/Users/yuchen/Code/unu/unuvault` from
   `codex/unuvault-launch-authority` to `codex/unuvault-local-scratchpad`
+- promoted the `Post-Merge Closeout` PR-template shell from the local
+  scratchpad into `main`
 - kept `codex/unuvault-launch-authority` only as a frozen historical reference
 
 ## What This Note Resolves
