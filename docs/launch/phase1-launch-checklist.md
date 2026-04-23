@@ -43,8 +43,9 @@ phase 1.
 
 - [ ] Independent third-party crypto review is cleared and recorded according to
   `docs/operations/crypto-review-gate.md`
-- The repo-owned launch packet is assembled and ready for independent review
-  dispatch.
+- A repo-backed internal preflight reply was recorded on `2026-04-23`, but it
+  does not satisfy the independent third-party crypto review gate.
+- The repo-owned launch packet is assembled and ready for external dispatch.
 - Full reviewer detail lives in:
   - `docs/operations/crypto-review-gate.md`
   - `docs/operations/secure-crypto-pr-audit-handoff.md`
