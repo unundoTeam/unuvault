@@ -55,6 +55,10 @@ same:
   posture
 - [the sibling `unuOS` repo's `docs/portfolio/README.md`](https://github.com/unundoTeam/unuos/blob/main/docs/portfolio/README.md)
   for portfolio overview and cross-repo authority
+- [the sibling `unuOS` repo's design foundation contract](https://github.com/unundoTeam/unuos/blob/main/docs/portfolio/design-foundation-contract.md)
+  and [common component contract](https://github.com/unundoTeam/unuos/blob/main/docs/portfolio/common-component-contract.md)
+  for shared web foundation variables and common component semantics; palette,
+  brand, typography, and implementation details remain repo-local
 
 ### Runtime Authority
 
