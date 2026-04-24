@@ -1,8 +1,12 @@
 # Third-Party Crypto Review Request
 
-Use this as the sendable cover note and operator dispatch checklist when
-requesting the independent crypto review for `unuvault`'s phase-1 secure crypto
-slice before GA/public launch.
+Use this only when a real external reviewer or vendor path is reopened for
+`unuvault`'s phase-1 secure crypto slice.
+
+As of `2026-04-25`, the current launch path defers third-party crypto review
+under `docs/operations/crypto-review-launch-exception.md` and uses the internal
+iterative review gate in `docs/operations/crypto-review-gate.md`. Do not use
+this request to imply that the current packet is independently reviewed.
 
 ## Suggested Subject
 
@@ -17,8 +21,8 @@ directly to a reviewer or vendor without extra editing:
 Hello,
 
 We are requesting a third-party crypto review for the `unuvault` phase-1
-secure crypto slice. This is not the current phase-1 beta/rehearsal gate, but
-it remains required before GA/public launch and before we describe the crypto
+secure crypto slice. This external review path was deferred for the current
+launch wave, but it remains the required path before we describe the crypto
 boundary as independently reviewed.
 
 Please review the merged `main` state at or after commit
@@ -68,7 +72,10 @@ Launch checklist still matches the reviewed crypto boundary: yes | no
 
 ## Operator Dispatch Checklist
 
-Before sending the request:
+Before sending the request, confirm that an external review path has been
+reopened under `docs/operations/crypto-review-launch-exception.md`.
+
+Then:
 
 1. keep the review target anchored to merged `main` at or after
    `46ae0c655deef0ef15cb0cd180b4844a32cac43d`
@@ -78,17 +85,18 @@ Before sending the request:
 5. after the reply arrives, record it in:
    - `docs/operations/secure-crypto-pr-audit-handoff.md`
    - `docs/operations/crypto-review-gate.md`
-6. then update `docs/launch/phase1-launch-checklist.md` so the GA/public-launch
-   carry-forward item reflects whether the gate is still open or has cleared
+6. then update `docs/launch/phase1-launch-checklist.md` so the crypto review
+   carry-forward item reflects whether the external review path is still open
+   or has cleared
 
 ## Full Copy/Paste Request
 
 Hello,
 
 We are requesting a third-party crypto review for the `unuvault` phase-1 secure
-crypto slice. This review is no longer the current phase-1 beta/rehearsal gate,
-but it remains required before GA/public launch and before we represent the
-crypto boundary as independently reviewed.
+crypto slice. This review is not the current phase-1 beta/rehearsal gate. It is
+the required path before we represent the crypto boundary as independently
+reviewed.
 
 The slice replaced the previous weak placeholder helpers with one shared async
 sodium-backed boundary and upgraded the active write formats to:
@@ -112,12 +120,13 @@ CLI target shape unchanged while preserving legacy read compatibility.
 ## Current Dispatch Status
 
 - Packet refresh date: `2026-04-21`
-- Approved dispatch mode for this packet: `email thread or vendor ticket`
-- GitHub metadata checked on `2026-04-21` shows PR `#59` merged on `main`
+- Current third-party review status: `deferred by docs/operations/crypto-review-launch-exception.md`
+- Approved dispatch mode if reopened: `email thread or vendor ticket`
+- GitHub metadata checked on `2026-04-25` shows PR `#59` merged on `main`
   without any recorded PR review or issue-comment artifact that can serve as
-  the required external crypto verdict.
-- Reviewer or vendor assignment still needs to be recorded outside this repo
-  when the request is actually sent.
+  an external crypto verdict.
+- Reviewer or vendor assignment still needs to be recorded outside this repo if
+  the external request is reopened.
 - Shared chat can help route the packet, but the authoritative reviewer
   handoff for this wave must still resolve to an email thread or vendor
   ticket.
@@ -235,12 +244,11 @@ Launch checklist still matches the reviewed crypto boundary: yes | no
 
 ## Recording The Result
 
-After the reviewer responds, copy the detailed verdict, reviewed surfaces,
-findings, and required follow-up into:
+If the external review path is reopened and the reviewer responds, copy the
+detailed verdict, reviewed surfaces, findings, and required follow-up into:
 
 - `docs/operations/secure-crypto-pr-audit-handoff.md`
 - `docs/operations/crypto-review-gate.md`
 
-Then update `docs/launch/phase1-launch-checklist.md` so the carry-forward
-independent review item reflects whether the gate is still open or has been
-cleared.
+Then update `docs/launch/phase1-launch-checklist.md` so the crypto review item
+reflects whether the external review path is still open or has been cleared.

@@ -21,12 +21,15 @@
 ## Launch Packet Status (2026-04-21)
 
 This document is the secure-crypto launch-review packet for phase-1 beta or
-rehearsal, and the handoff packet for the later independent review.
+rehearsal, and the handoff packet for the current internal iterative review
+gate.
 
 - Internal crypto evidence is attached below and remains reusable.
-- The reviewer request packet is now assembled and ready for external dispatch.
-- Independent third-party crypto review is still pending, so GA/public-launch
-  crypto approval is not yet cleared.
+- The prior reviewer request packet was sent, but it did not produce a real
+  independent third-party verdict.
+- Third-party crypto review is deferred by
+  `docs/operations/crypto-review-launch-exception.md`, so GA/public-launch
+  crypto approval now depends on the internal iterative review gate.
 - Phase-1 beta/rehearsal now relies on the repo-owned packet plus the recorded
   internal preflight reply below.
 - The packet refresh on 2026-04-21 now has fresh repo-owned verification
@@ -34,9 +37,9 @@ rehearsal, and the handoff packet for the later independent review.
   iOS gate, and the phase-1 Web/API/browser-extension surface checks.
 - The launch packet now has repo-owned proof for the current web
   login/register trust-copy surface as well.
-- GitHub metadata checked on `2026-04-21` shows PR `#59` merged on `main`, but
-  no PR review or issue-comment artifact is recorded there for the required
-  external crypto verdict.
+- GitHub metadata checked on `2026-04-25` shows PR `#59` merged on `main`, but
+  no PR review or issue-comment artifact is recorded there for an external
+  crypto verdict.
 
 ## Current Review Target
 
@@ -45,33 +48,36 @@ rehearsal, and the handoff packet for the later independent review.
 - Current base branch: `main`
 - Merge commit on `main`: `46ae0c655deef0ef15cb0cd180b4844a32cac43d`
 - Use the merged `main` state at or after that commit as the review target for
-  the independent crypto verdict.
+  the internal iterative review loop, plus any later commits that update this
+  gate or review evidence. If a real external reviewer path is reopened, use the
+  same merged-main anchor for that review.
 
-## External Review Dispatch Record
+## Historical External Review Dispatch Record
 
-Fill this as soon as the request leaves the repo so the packet can distinguish
-between `not sent yet` and `sent, waiting for verdict`.
+This records the attempted external request path before the `2026-04-25`
+deferral decision. It remains useful evidence that no real third-party verdict
+was returned, but it is no longer the active launch gate.
 
-- Request packet status: `sent, waiting for verdict`
+- Request packet status: `sent; no independent verdict returned; deferred`
 - Approved dispatch mode: `email thread or vendor ticket`
 - Request owner: `yuchen`
-- Reviewer or vendor: `pending confirmation from fengzhendeyu@gmail.com`
+- Reviewer or vendor: `no independent reviewer or vendor confirmed`
 - Contact path: `email to fengzhendeyu@gmail.com; subject: unuvault crypto review request: phase-1 secure crypto boundary for GA/public-launch approval`
 - Sent date: `2026-04-25`
 - Requested reply date: `pending`
 - Tracking link: `pending; email thread URL not recorded in repo yet`
 - Recording owner for repo updates: `yuchen`
 
-Sending the packet does not clear the launch gate by itself. Keep the
-`External Review Result` section below at `pending` until the reviewer returns a
-real verdict.
+Sending the packet did not clear the launch gate by itself. Keep the
+`External Review Result` section below at `pending` unless a real reviewer later
+returns a verdict.
 Do not fill `Contact path` or `Tracking link` with repo-local docs, PR URLs, or
 launch-packet references alone. Those can support the review, but they do not
 prove the request reached a real external reviewer or vendor queue.
 For the current launch packet, shared chat can assist with introductions, but
 the authoritative handoff must still live in an email thread or vendor ticket.
 
-## External Review Result
+## Historical External Review Result
 - Reviewer or vendor: `pending`
 - Review date: `pending`
 - Verdict: `pending`
@@ -84,9 +90,29 @@ the authoritative handoff must still live in an email thread or vendor ticket.
 As of `2026-04-25`, the request has been sent by email, but the checked-in
 packet still has no independent third-party verdict attached. GitHub review
 metadata checked on `2026-04-25` also records no PR review or issue-comment
-artifact that can serve as the required external crypto verdict. The remaining
-blocker now applies to GA/public launch rather than the current phase-1
-beta/rehearsal packet.
+artifact that can serve as an external crypto verdict. The current blocker is
+the replacement internal iterative review loop rather than the historical
+external dispatch path.
+
+This external dispatch record is historical. The current launch gate is the
+internal iterative review loop recorded in `docs/operations/crypto-review-gate.md`.
+
+## Internal Iterative Review Loop
+
+- Gate authority: `docs/operations/crypto-review-gate.md`
+- Deferral authority: `docs/operations/crypto-review-launch-exception.md`
+- Loop status: `pending current Codex review pass`
+- Reviewer: `Codex repo-backed review loop`
+- Current-scope verdict: `pending`
+- Required loop:
+  1. review current crypto boundary and launch-packet evidence
+  2. fix any blocker found in code, tests, or docs
+  3. rerun focused verification
+  4. review again
+  5. repeat until no unresolved blocker remains
+
+The final current-scope result must not be described as independent third-party
+approval.
 
 ## Recorded Thread Reply (2026-04-23)
 
@@ -94,8 +120,8 @@ The review thread now has recorded repo-backed internal replies, but they are
 not independent third-party crypto verdicts.
 
 The original reply wording still used the older phase-1 blocker framing. Under
-the current launch policy, treat that unresolved requirement as the
-GA/public-launch independent review gate.
+the current launch policy, treat that unresolved requirement as historical
+context superseded by the internal iterative review gate.
 
 - Reply type: `repo-backed internal preflight`
 - Reviewer: `chen yu (repo-backed internal preflight, not independent third-party)`
@@ -124,12 +150,14 @@ GA/public-launch independent review gate.
   - repo-owned internal evidence can continue to travel in the launch packet as
     supporting material
   - phase-1 beta/rehearsal can proceed without a third-party verdict, but
-    GA/public launch stays blocked until a real independent reviewer records one
+    GA/public launch stayed blocked under the previous policy until the
+    `2026-04-25` deferral decision replaced that requirement with the internal
+    iterative review gate
 - Launch checklist still matches the reviewed crypto boundary: `yes`
 
-This recorded reply is enough to document the current internal sign-off
-boundary for phase 1. It does not clear the independent GA/public-launch review
-gate.
+This recorded reply is enough to document the internal sign-off boundary for
+phase 1. It does not clear the current internal iterative gate by itself, and it
+does not count as independent third-party approval.
 
 ## Recorded Thread Reply (2026-04-25)
 
@@ -160,14 +188,15 @@ not an independent third-party crypto review verdict.
     findings, remediation, and accepted follow-up limits in the launch packet
     after the independent review returns
 - Accepted follow-up limits:
-  - the current packet can remain in `sent, waiting for verdict` status
+  - the attempted external request can remain recorded as historical/deferred
+    status
   - this internal confirmation may travel with the packet as supporting context,
-    but it does not clear the independent GA/public-launch crypto gate
+    but it does not clear crypto review by itself
 - Launch checklist still matches the reviewed crypto boundary: `yes, for the
   request and packet framing reviewed here; no independent crypto approval is
   granted by this reply`
-- Gate effect: `supports packet tracking only; does not clear the independent
-  GA/public-launch review requirement`
+- Gate effect: `supports packet tracking only; does not clear crypto review by
+  itself`
 
 ## Verification Commands
 
@@ -249,14 +278,18 @@ not an independent third-party crypto review verdict.
 
 - ADR added for the secure crypto boundary
 - Internal crypto review gate added
-- Launch checklist updated to separate internal completion from third-party audit gate
+- Launch checklist updated to separate the current internal iterative review gate
+  from the deferred third-party audit path
 - Fixed legacy fixture set and manual smoke checklist added for review and audit reuse
 - Runtime code now keeps legacy read compatibility without exporting weak helper writers for production reuse
 
 ## Risks
 
-- Independent third-party security review is still required before GA/public
-  launch
+- Third-party security review is deferred under
+  `docs/operations/crypto-review-launch-exception.md`; public claims must not
+  describe this packet as independently reviewed
+- The internal iterative review loop still needs a current completed pass before
+  the current GA/public-launch crypto gate can be closed
 - Legacy compatibility depends on user activity to trigger reseal of old values
 - Observability and incident runbook expansion are intentionally not part of this slice
 
@@ -271,13 +304,16 @@ not an independent third-party crypto review verdict.
 - No server API or database schema change
 - No browser storage key rename
 - No CLI flag or target-shape change
-- External audit vendor or reviewer should inspect Web, extension, and CLI call chains together because they now share one crypto substrate
+- If a future external audit vendor or reviewer path is reopened, inspect Web,
+  extension, and CLI call chains together because they now share one crypto
+  substrate
 
 ## Launch Packet Attachments
 
 - Algorithm and compatibility ADR: `docs/architecture/0005-secure-password-crypto.md`
-- Sendable reviewer request: `docs/operations/third-party-crypto-review-request.md`
+- Deferred external reviewer request: `docs/operations/third-party-crypto-review-request.md`
 - Internal review gate: `docs/operations/crypto-review-gate.md`
+- Launch exception / deferral authority: `docs/operations/crypto-review-launch-exception.md`
 - Fixed legacy samples: `tests/fixtures/crypto-legacy-fixtures.ts`
 - Manual legacy smoke path: `docs/operations/crypto-legacy-smoke-checklist.md`
 - Focused regression evidence from security, Web, extension, and CLI suites

@@ -2,28 +2,33 @@
 
 ## Purpose
 
-This document records the explicit phase-1 launch exception used when
-`unuvault` does not yet have a real third-party crypto reviewer, vendor, or
-contact path of record.
+This document records the explicit crypto-review policy exception used when
+`unuvault` relies on a repo-backed iterative review loop instead of treating an
+independent third-party crypto verdict as the current launch gate.
 
 It exists so the launch packet can stay honest:
 
-- third-party review remains pending
-- internal operators are not mislabeled as an external reviewer or vendor
-- any temporary waiver is scoped, reviewable, and reversible
+- third-party review is deferred, not completed
+- Codex, repo authors, and internal operators are not mislabeled as external
+  reviewers or vendors
+- any waiver is scoped, reviewable, and reversible
+- the replacement gate is an explicit internal review/fix/review loop, not a
+  silent removal of crypto review
 
-## Current Exception Status (2026-04-22)
+## Current Exception Status (2026-04-25)
 
-- Third-party crypto review remains pending.
-- No real external reviewer, vendor, or contact path is currently recorded in
-  the launch packet.
-- Phase 1 currently relies on this explicit internal launch exception rather
-  than claiming that third-party review has been completed.
+- Third-party crypto review is deferred under this exception.
+- No real external reviewer, vendor, or third-party verdict is currently
+  recorded in the launch packet.
+- Phase 1 and bounded GA/public launch readiness rely on the internal iterative
+  crypto review gate in `docs/operations/crypto-review-gate.md`.
+- The product must not claim that the crypto boundary is independently reviewed
+  unless a real external reviewer or vendor later returns a verdict.
 
 ## Decision Owner And Review Target
 
 - Decision owner of record: `yuchen`
-- Decision date: `2026-04-22`
+- Decision date: `2026-04-25`
 - Review target:
   - GitHub PR: `#59` `[codex] finalize unuvault phase-1 launch packet`
   - PR URL: `https://github.com/unundoTeam/unuvault/pull/59`
@@ -37,11 +42,29 @@ It exists so the launch packet can stay honest:
 
 ## Why The Exception Exists
 
-- The current launch packet does not have a real external reviewer or vendor.
+- The current launch path has no real external reviewer or vendor.
 - Rewriting an internal operator, repo author, or Codex session as a
   third-party reviewer would be false.
 - The launch packet already contains the repo-owned verification and manual
   compatibility evidence needed to make a narrower internal release decision.
+- The active operating model is owner plus Codex, so the honest replacement is
+  repeated repo-backed review, remediation, and re-review until no blocker is
+  found in the current scope.
+
+## Replacement Gate
+
+The replacement gate is:
+
+1. Codex performs a repo-backed crypto review of the current scope.
+2. Any blocker is fixed in the repo, with focused tests or evidence added where
+   practical.
+3. Verification is rerun.
+4. Codex reviews again.
+5. The loop repeats until the current scoped review has no unresolved blocker.
+
+The result may be recorded as `internal iterative review cleared for current
+scope`. It must not be recorded or described as `independently reviewed` or
+`third-party reviewed`.
 
 ## Evidence Reused By This Exception
 
@@ -69,11 +92,30 @@ It exists so the launch packet can stay honest:
 - Any crypto, unlock, or developer-secret incident should reopen the release
   decision instead of treating this waiver as permanent.
 - Any future real external reviewer path should supersede this exception.
+- Public-facing copy, release notes, or marketing must not imply independent
+  crypto approval.
+
+## Re-Trigger Conditions For Third-Party Review
+
+A real independent third-party crypto review should be reopened before any of
+these changes:
+
+- storing broad real-user production password data beyond the current bounded
+  launch scope
+- paid or large-scale public launch
+- enterprise, compliance, or procurement claims about independent security
+  review
+- material changes to crypto algorithms, envelope formats, key derivation,
+  unlock policy, extension autofill trust boundaries, or CLI secret handling
+- any incident involving plaintext exposure, key handling, unlock bypass, or
+  legacy-format migration
 
 ## Result
 
-- For the current phase-1 launch packet, the secure-crypto release gate is
-  satisfied through this explicit internal launch exception.
+- For the current phase-1 launch packet and bounded GA/public launch readiness,
+  the third-party crypto-review requirement is deferred through this explicit
+  exception.
+- The active security gate is the internal iterative review loop.
 - Third-party crypto review remains deferred, not completed.
 - No new external contact path, vendor assignment, secret rotation, or wider
   launch approval is implied by this exception alone.

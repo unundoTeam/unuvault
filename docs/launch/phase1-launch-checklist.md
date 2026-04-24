@@ -7,10 +7,12 @@ phase 1.
 
 ## Completed Evidence
 
-- [x] Internal crypto review is complete for the client-side security boundary
+- [x] Implementation-time internal crypto review is complete for the client-side
+  security boundary
 - [x] `docs/operations/crypto-review-gate.md` now matches the current launch
-  policy and treats independent review as a GA/public-launch carry-forward gate
-  rather than a phase-1 beta blocker
+  policy and treats the current GA/public-launch crypto gate as an internal
+  iterative review loop with third-party review explicitly deferred by
+  `docs/operations/crypto-review-launch-exception.md`
 - [x] A repo-backed internal preflight reply was recorded on `2026-04-23`, and
   the current phase-1 packet can rely on it for the internal sign-off boundary
 - [x] `docs/operations/crypto-legacy-smoke-checklist.md` is complete for Web,
@@ -39,32 +41,29 @@ phase 1.
 
 ## Pending Before Phase 1 Launch
 
-- None. The independent third-party crypto review requirement now lives under
+- None. The current crypto-review carry-forward requirement lives under
   `Carry-Forward Before GA/Public Launch`.
 
 ## Carry-Forward Before GA/Public Launch
 
-- [ ] Independent third-party crypto review is cleared and recorded according to
-  `docs/operations/crypto-review-gate.md`
-- The repo-owned launch packet is assembled and ready for independent review
-  dispatch.
-- No reviewer assignment or verdict is recorded in repo docs or GitHub review
-  metadata yet.
-- Dispatch path requirement for this wave:
-  - the external handoff must be tracked through an email thread or vendor
-    ticket
-  - shared chat coordination alone does not satisfy the pending review record
-- Full reviewer detail lives in:
+- [ ] Internal iterative crypto review loop is completed and recorded according
+  to `docs/operations/crypto-review-gate.md`
+- Third-party crypto review is deferred under
+  `docs/operations/crypto-review-launch-exception.md`, not completed.
+- The repo-owned launch packet has internal evidence and attempted external
+  dispatch history, but no real independent verdict.
+- Full review detail lives in:
   - `docs/operations/crypto-review-gate.md`
   - `docs/operations/secure-crypto-pr-audit-handoff.md`
 - This section tracks the GA/public-launch crypto approval boundary rather than
   the phase-1 beta or rehearsal gate.
-- This checklist only tracks whether the external crypto review gate is still
-  open or has been cleared for launch.
-- A sent request without a recorded reviewer verdict still counts as pending for
-  this checklist item.
-- If the reviewer returns `cleared with follow-up`, record the allowed launch
-  limits in those gate docs before this checklist item is treated as closed.
+- This checklist tracks whether the current internal iterative crypto gate is
+  still open or has been cleared for the current scope.
+- A sent third-party request without a real external verdict does not clear this
+  checklist item.
+- If the internal iterative review returns `cleared with follow-up`, record the
+  allowed launch limits in those gate docs before this checklist item is treated
+  as closed.
 
 ## Surface Map
 
@@ -82,6 +81,7 @@ phase 1.
 
 - `docs/operations/third-party-crypto-review-request.md`
 - `docs/operations/crypto-review-gate.md`
+- `docs/operations/crypto-review-launch-exception.md`
 - `docs/operations/secure-crypto-pr-audit-handoff.md`
 - `docs/operations/crypto-legacy-smoke-checklist.md`
 - `docs/launch/phase1-qa-matrix.md`

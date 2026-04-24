@@ -2,32 +2,26 @@
 
 ## Purpose
 
-This gate defines the independent crypto review required before the secure
-crypto slice can be treated as GA/public-launch ready. It is no longer the
-phase-1 beta or rehearsal blocker.
+This gate defines the repo-backed internal iterative crypto review required for
+the current `unuvault` launch path. The previous independent third-party crypto
+review requirement is now explicitly deferred through
+`docs/operations/crypto-review-launch-exception.md`.
+
+This gate does not allow `unuvault` to claim that the crypto boundary is
+independently reviewed or third-party reviewed.
 
 ## Current Gate State
 
-- Internal implementation work is complete enough to prepare a launch-review
-  packet.
-- The launch-review packet was sent by email on `2026-04-25` and is now waiting
-  for an independent verdict.
-- Repo-backed internal preflight and follow-up confirmation replies are now
-  recorded for the packet.
-- Independent third-party crypto review is still pending, so the GA/public-launch
-  gate is not yet cleared.
-- A GitHub metadata audit on `2026-04-25` found no PR reviews or issue comments
-  on `unundoTeam/unuvault#59` that can be treated as the required external
-  crypto verdict, so the gate still lacks a recorded sign-off artifact.
-- Any independent reviewer verdict and required follow-up still need to be
-  recorded in the launch packet before GA/public launch or before representing
-  the crypto boundary as independently reviewed.
-- The approved out-of-repo dispatch path for the current packet is an email
-  thread or vendor ticket. Shared chat may help route the request, but it does
-  not count as the authoritative reviewer handoff path.
-- Sending the packet or naming a reviewer is not enough to clear this gate. The
-  gate stays open until the reviewer verdict is recorded with reviewed
-  surfaces, findings, remediation, and follow-up limits.
+- Internal implementation work is complete enough to run a launch-facing review
+  loop.
+- Repo-backed internal preflight and follow-up confirmation replies are recorded
+  for the packet.
+- The attempted third-party request path did not produce a real independent
+  reviewer or vendor verdict.
+- The decision owner approved replacing the current third-party requirement with
+  an internal iterative review gate on `2026-04-25`.
+- Current internal iterative review status: `pending current Codex review pass`.
+- Third-party crypto review status: `deferred by explicit launch exception`.
 
 ## Current Review Target
 
@@ -35,16 +29,14 @@ phase-1 beta or rehearsal blocker.
 - PR URL: `https://github.com/unundoTeam/unuvault/pull/59`
 - Current base branch: `main`
 - Merge commit on `main`: `46ae0c655deef0ef15cb0cd180b4844a32cac43d`
-- External review should anchor to the merged `main` state at or after that
-  commit.
+- The internal iterative review should anchor to the merged `main` state at or
+  after that commit, plus any later commits that update this gate or review
+  evidence.
 
-## Independent Review Status
+## Internal Iterative Review Status
 
-- Request packet status: `sent, waiting for verdict`
-- Reviewer or vendor: `pending confirmation from fengzhendeyu@gmail.com`
-- Contact path: `email to fengzhendeyu@gmail.com; subject: unuvault crypto review request: phase-1 secure crypto boundary for GA/public-launch approval`
-- Sent date: `2026-04-25`
-- Tracking link: `pending; email thread URL not recorded in repo yet`
+- Review loop status: `pending current Codex review pass`
+- Reviewer: `Codex repo-backed review loop`
 - Review date: `pending`
 - Verdict: `pending`
 - Reviewed surfaces: `pending`
@@ -53,12 +45,25 @@ phase-1 beta or rehearsal blocker.
 - Accepted follow-up limits: `pending`
 - Launch checklist still matches the reviewed crypto boundary: `pending`
 
-As of `2026-04-25`, no independent third-party verdict is recorded in the
-checked-in launch packet yet. A GitHub metadata audit on `2026-04-25` also
-found no PR reviews or issue comments on `unundoTeam/unuvault#59` that can be
-treated as the required external crypto verdict. The thread does have
-repo-backed internal replies, but the remaining blocker now applies to GA/public
-launch, not to the current phase-1 beta/rehearsal packet.
+As of `2026-04-25`, the replacement internal iterative review loop has been
+adopted but has not yet returned a current cleared result. The launch packet
+must stay open until that loop records a reviewed surface list, findings,
+required remediation, accepted follow-up limits, and a final current-scope
+verdict.
+
+## Third-Party Review Deferral
+
+- Deferral authority: `docs/operations/crypto-review-launch-exception.md`
+- Deferral date: `2026-04-25`
+- Decision owner: `yuchen`
+- External request status: `sent but not resolved into a real independent
+  verdict`
+- External contact path attempted: `email to fengzhendeyu@gmail.com; subject:
+  unuvault crypto review request: phase-1 secure crypto boundary for
+  GA/public-launch approval`
+- GitHub metadata audit on `2026-04-25`: no PR reviews or issue comments on
+  `unundoTeam/unuvault#59` can be treated as an external crypto verdict.
+- Result: third-party crypto review is deferred, not completed.
 
 ## Recorded Thread Reply (2026-04-23)
 
@@ -67,12 +72,12 @@ launch, not to the current phase-1 beta/rehearsal packet.
 - Review date: `2026-04-23`
 - Verdict: `blocked`
 - Launch checklist still matches the reviewed crypto boundary: `yes`
-- Gate effect: `supports phase-1 beta/rehearsal sign-off, but does not clear the independent GA/public-launch review requirement`
+- Gate effect: `supports phase-1 beta/rehearsal sign-off, but did not clear the
+  GA/public-launch review gate before the 2026-04-25 deferral decision`
 
 The recorded reply confirms that repo-owned supporting evidence can continue to
 travel with the launch packet. The reply itself used the older phase-1 blocker
-framing, but the current launch policy now carries that unresolved requirement
-forward as the GA/public-launch independent review gate.
+framing.
 
 ## Recorded Thread Reply (2026-04-25)
 
@@ -83,12 +88,12 @@ forward as the GA/public-launch independent review gate.
 - Launch checklist still matches the reviewed crypto boundary: `yes, for the
   request and packet framing reviewed here; no independent crypto approval is
   granted by this reply`
-- Gate effect: `supports packet tracking only; does not clear the independent
-  GA/public-launch review requirement`
+- Gate effect: `supports packet tracking only; does not clear crypto review by
+  itself`
 
 The follow-up reply confirms the request and packet framing after dispatch. It
 does not independently verify the cryptographic implementation and cannot be
-treated as the required third-party verdict.
+treated as a third-party verdict.
 
 ## Completed Within This Slice
 
@@ -97,12 +102,13 @@ treated as the required third-party verdict.
 - Targeted tests for read, write, and failure behavior
 - Documentation of residual risks and migration expectations
 
-## Required Launch Packet Inputs
+## Required Internal Review Inputs
 
-The following inputs must travel together for launch review:
+The following inputs must travel together for the internal iterative review
+loop:
 
-- `docs/operations/third-party-crypto-review-request.md`
 - `docs/operations/secure-crypto-pr-audit-handoff.md`
+- `docs/operations/crypto-review-launch-exception.md`
 - `docs/operations/crypto-legacy-smoke-checklist.md`
 - the current phase-1 launch checklist under `docs/launch/phase1-launch-checklist.md`
 - fresh repo-owned verification evidence for:
@@ -115,36 +121,36 @@ The following inputs must travel together for launch review:
 - any current repo-wide verification blocker discovered while refreshing the
   packet
 
-## External Review Scope
+## Internal Review Scope
 
 - Review the CLI provider, web unlock paths, and browser extension read paths together
 - Confirm failures are fail-closed and do not leak plaintext to stderr or logs
 - Confirm new writes only emit the newest secure envelope formats
 - Confirm any migration or remediation notes are captured before launch
-- Reuse `docs/operations/crypto-legacy-smoke-checklist.md` for the manual legacy compatibility pass
+- Reuse `docs/operations/crypto-legacy-smoke-checklist.md` for the manual legacy
+  compatibility pass
 
-## Expected Sign-Off Output
+## Expected Internal Review Output
 
-The external review output should record:
+The internal iterative review output should record:
 
-- reviewer identity or vendor plus review date
-- verdict: `cleared`, `cleared with follow-up`, or `blocked`
+- reviewer identity plus review date
+- verdict: `internal iterative review cleared for current scope`,
+  `cleared with follow-up`, or `blocked`
 - reviewed surfaces and call chains
 - any findings, required remediation, or accepted follow-up limits
 - confirmation that the launch checklist still matches the current crypto
   boundary
 
-Use `docs/operations/secure-crypto-pr-audit-handoff.md` to record send status
-before the verdict arrives, then copy the final verdict back into both docs.
-That send-status record should point at the actual email thread or vendor
-ticket used for the handoff.
+Use `docs/operations/secure-crypto-pr-audit-handoff.md` to record each review
+pass and any remediation. Copy the final current-scope result back into this
+gate.
 
 ## Gate Clears For GA/Public Launch When
 
 All of the following are true:
 
-- independent third-party review of the crypto implementation and call chains is
-  complete
+- the internal iterative review loop has completed with no unresolved blockers
 - legacy compatibility evidence is attached and still reflects the current
   secure boundary
 - no new plaintext, XOR, or custom-hash write path remains on the active launch
@@ -152,11 +158,23 @@ All of the following are true:
 - the launch checklist and audit handoff are updated consistently
 - any blocking findings are resolved or an explicit launch exception is
   documented
+- third-party review remains deferred under
+  `docs/operations/crypto-review-launch-exception.md`
+- no outward-facing copy claims that the crypto boundary is independently
+  reviewed
+
+## Re-Trigger Conditions For Third-Party Review
+
+Follow `docs/operations/crypto-review-launch-exception.md` when deciding whether
+a real independent reviewer or vendor must be reopened. The short rule is:
+large-scale public risk, paid/enterprise/compliance claims, material crypto
+boundary changes, or crypto incidents should reopen real third-party review.
 
 ## Notes
 
-- This gate is narrower than a general incident or observability runbook
-- It exists to separate internal implementation completion from independent
-  GA/public-launch approval
-- `docs/operations/third-party-crypto-review-request.md` is the sendable cover
-  note for the external reviewer or vendor
+- This gate is narrower than a general incident or observability runbook.
+- It exists to separate internal implementation completion from current-scope
+  launch approval.
+- `docs/operations/third-party-crypto-review-request.md` remains available only
+  if a real external reviewer path is reopened under the re-trigger conditions
+  in `docs/operations/crypto-review-launch-exception.md`.
