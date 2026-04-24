@@ -243,7 +243,7 @@ migration, and iOS bridge changes.
   - `env contract`: `adopted`
 - the shared identity cutover is in place, but automation and documentation
   rollout still need to keep converging across the broader portfolio
-- production-landing prep authority is now split across:
+- production-landing authority is now split across:
   - `docs/operations/identity-production-cutover-rehearsal.md` for the
     repo-local dry-run env, verification, and rollback mapping
   - `docs/operations/identity-production-cutover-hosted-pass.md` for the
@@ -251,8 +251,11 @@ migration, and iOS bridge changes.
     inventory
   - `unuidentity/docs/operations/unuvault-cutover-operator-signoff.md` for the
     first real operator-reviewed cutover-preparation pass
-- none of those records claim that a live hosted-identity switch or production
-  landing completion has already happened
+  - `unuidentity/docs/operations/production-landing-completion.md` for the
+    bounded checked-in result-layer production landing completion record
+- the repo-local `unuvault` records still do not publish live hosted inventory,
+  callback payloads, or secret values, and they do not by themselves claim live
+  hosted-identity execution
 - the local auth bridge is a clean cutover for pre-launch test users; old local
   `users_profile` rows should be recreated through the new `unuidentity` flow
   instead of being rebound automatically

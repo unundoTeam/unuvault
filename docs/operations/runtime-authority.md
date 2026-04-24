@@ -64,13 +64,16 @@ Current production-readiness authority is split across:
 - [Identity Production Cutover Rehearsal](identity-production-cutover-rehearsal.md)
 - [Identity Production Cutover Hosted Pass](identity-production-cutover-hosted-pass.md)
 - `unuidentity/docs/operations/unuvault-cutover-operator-signoff.md`
+- `unuidentity/docs/operations/production-landing-completion.md`
 - the `Verification` section in [README.md](../../README.md)
 
 Use those docs for launch checklist routing, cutover rehearsal, and
 scope-dependent verification. The repo-local hosted-pass record is narrower
 than live cutover completion, and the upstream sign-off records the first real
-operator-reviewed pass; neither record claims live cutover execution or landing
-completion.
+operator-reviewed pass. The bounded production landing completion conclusion
+lives in the upstream `production-landing-completion.md` result-layer authority;
+the repo-local `unuvault` records still do not publish live hosted inventory,
+callback payloads, secret values, or live cutover execution evidence.
 
 ## Current Gaps
 

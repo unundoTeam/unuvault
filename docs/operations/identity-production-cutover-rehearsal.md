@@ -35,8 +35,9 @@ The first real operator-reviewed cutover-preparation pass now lives upstream in
 `unuidentity/docs/operations/unuvault-cutover-operator-signoff.md`.
 
 That upstream sign-off confirms cutover-preparation and rollback-checklist
-review only. It does not claim that a live cutover or production landing
-completion has already happened.
+review only. It does not claim live cutover execution. Bounded production
+landing completion is recorded separately upstream in
+`unuidentity/docs/operations/production-landing-completion.md`.
 
 ## Current Consumer State
 
@@ -97,19 +98,20 @@ Additional verification remains conditional:
 - machine-entrypoint verification stays unchanged in this rehearsal because the
   slice is docs-only
 
-## Blocked For Real Cutover
+## Live Cutover Boundary
 
-`unuvault` is still blocked from live cutover completion today because this
-repo-local slice only documents the consumer procedure. It does not:
+This repo-local dry-run record is not the live cutover completion record. It
+does not:
 
 - designate a live hosted identity target inside this repo
 - rotate or distribute new live secrets
 - change callback registration
-- record live cutover execution or landing completion inside this repo
+- record live cutover execution inside this repo
 
-The upstream operator-reviewed pass now covers cutover-preparation sign-off, but
-that still leaves live execution and completion evidence outside this dry-run
-record.
+The upstream operator-reviewed pass covers cutover-preparation sign-off, and the
+upstream completion record covers the checked-in result-layer production landing
+conclusion. Live execution details and sensitive hosted evidence stay outside
+this dry-run record.
 
 ## Outcome
 
@@ -123,5 +125,6 @@ This dry-run rehearsal passes if:
 - the repo can describe a consumer-first rollback without guessing
 
 This document is evidence of dry-run readiness only. The operator-reviewed
-cutover-preparation pass lives upstream, and neither record is evidence that a
-live hosted identity cutover has already happened.
+cutover-preparation pass lives upstream, and this repo-local dry-run record is
+not evidence that live hosted identity cutover execution has been recorded
+inside this repo.

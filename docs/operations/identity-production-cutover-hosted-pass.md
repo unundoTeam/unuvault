@@ -13,6 +13,10 @@ to the upstream `unuidentity` sign-off chain for the first consumer package.
 This is narrower than a live cutover-completion record. It documents the
 current hosted review boundary and the accepted consumer contract path.
 
+The bounded checked-in result-layer production landing completion authority
+lives upstream in `unuidentity/docs/operations/production-landing-completion.md`.
+This document remains the `unuvault` consumer hosted-pass evidence record.
+
 ## Upstream Authority Inputs
 
 This hosted-pass authority depends on these upstream records in `unuidentity`:
@@ -138,11 +142,11 @@ Current outcome:
 
 Remaining limits stay explicit:
 
-- this is hosted-pass evidence, not proof that a broad permanent production
-  cutover campaign has completed
+- this is hosted-pass evidence, not the result-layer production landing
+  completion authority
 - no new secret rotation or callback re-registration is implied unless
   separately recorded upstream
 - checked-in docs still do not publish live hosted app identifiers, callback
   payloads, or secret inventory
-- this document does not claim that the long-term formal hosted authority has
-  already replaced every transitional surface
+- the upstream completion record is the place to answer whether the checked-in
+  authority layer treats the formal hosted identity as the long-term authority
