@@ -52,15 +52,14 @@ rehearsal, and the handoff packet for the later independent review.
 Fill this as soon as the request leaves the repo so the packet can distinguish
 between `not sent yet` and `sent, waiting for verdict`.
 
-- Request packet status: `ready to send`
+- Request packet status: `sent, waiting for verdict`
 - Approved dispatch mode: `email thread or vendor ticket`
-- Request packet status: `ready to send`
 - Request owner: `yuchen`
-- Reviewer or vendor: `pending`
-- Contact path: `pending`
-- Sent date: `pending`
+- Reviewer or vendor: `pending confirmation from fengzhendeyu@gmail.com`
+- Contact path: `email to fengzhendeyu@gmail.com; subject: unuvault crypto review request: phase-1 secure crypto boundary for GA/public-launch approval`
+- Sent date: `2026-04-25`
 - Requested reply date: `pending`
-- Tracking link: `pending`
+- Tracking link: `pending; email thread URL not recorded in repo yet`
 - Recording owner for repo updates: `yuchen`
 
 Sending the packet does not clear the launch gate by itself. Keep the
@@ -82,11 +81,12 @@ the authoritative handoff must still live in an email thread or vendor ticket.
 - Accepted follow-up limits: `pending`
 - Launch checklist still matches the reviewed crypto boundary: `pending`
 
-As of `2026-04-23`, the checked-in packet still has no independent third-party
-verdict attached. GitHub review metadata checked on `2026-04-21` also records
-no PR review or issue-comment artifact that can serve as the required external
-crypto verdict. The remaining blocker now applies to GA/public launch rather
-than the current phase-1 beta/rehearsal packet.
+As of `2026-04-25`, the request has been sent by email, but the checked-in
+packet still has no independent third-party verdict attached. GitHub review
+metadata checked on `2026-04-25` also records no PR review or issue-comment
+artifact that can serve as the required external crypto verdict. The remaining
+blocker now applies to GA/public launch rather than the current phase-1
+beta/rehearsal packet.
 
 ## Recorded Thread Reply (2026-04-23)
 
