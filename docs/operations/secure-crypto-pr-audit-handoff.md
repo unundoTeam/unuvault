@@ -90,8 +90,8 @@ beta/rehearsal packet.
 
 ## Recorded Thread Reply (2026-04-23)
 
-The review thread now has one recorded reply, but it is a repo-backed internal
-preflight note rather than an independent third-party crypto verdict.
+The review thread now has recorded repo-backed internal replies, but they are
+not independent third-party crypto verdicts.
 
 The original reply wording still used the older phase-1 blocker framing. Under
 the current launch policy, treat that unresolved requirement as the
@@ -130,6 +130,44 @@ GA/public-launch independent review gate.
 This recorded reply is enough to document the current internal sign-off
 boundary for phase 1. It does not clear the independent GA/public-launch review
 gate.
+
+## Recorded Thread Reply (2026-04-25)
+
+A follow-up repo-backed internal confirmation was sent after the external
+request left the repo. It confirms the request and packet framing only. It is
+not an independent third-party crypto review verdict.
+
+- Reply type: `repo-backed internal confirmation`
+- Reviewer: `Codex (repo-backed internal confirmation, not independent third-party)`
+- Review date: `2026-04-25`
+- Verdict: `blocked`
+- Reviewed surfaces:
+  - third-party crypto review request shape
+  - linked launch packet materials
+  - crypto review gate routing
+  - secure crypto PR/audit handoff packet
+  - phase-1 launch checklist references
+- Findings:
+  - the request is correctly scoped as a GA/public-launch independent crypto
+    review gate, not a phase-1 beta/rehearsal blocker
+  - the packet links are present and point to the expected launch packet
+    materials
+  - no independent third-party verdict is provided by this reply
+- Required remediation:
+  - obtain a real independent third-party crypto review before GA/public launch
+    or before representing the crypto boundary as independently reviewed
+  - record the reviewer/vendor, review date, verdict, reviewed surfaces,
+    findings, remediation, and accepted follow-up limits in the launch packet
+    after the independent review returns
+- Accepted follow-up limits:
+  - the current packet can remain in `sent, waiting for verdict` status
+  - this internal confirmation may travel with the packet as supporting context,
+    but it does not clear the independent GA/public-launch crypto gate
+- Launch checklist still matches the reviewed crypto boundary: `yes, for the
+  request and packet framing reviewed here; no independent crypto approval is
+  granted by this reply`
+- Gate effect: `supports packet tracking only; does not clear the independent
+  GA/public-launch review requirement`
 
 ## Verification Commands
 

@@ -12,8 +12,8 @@ phase-1 beta or rehearsal blocker.
   packet.
 - The launch-review packet was sent by email on `2026-04-25` and is now waiting
   for an independent verdict.
-- A repo-backed internal preflight reply is now recorded for the current
-  phase-1 beta/rehearsal packet.
+- Repo-backed internal preflight and follow-up confirmation replies are now
+  recorded for the packet.
 - Independent third-party crypto review is still pending, so the GA/public-launch
   gate is not yet cleared.
 - A GitHub metadata audit on `2026-04-25` found no PR reviews or issue comments
@@ -56,9 +56,9 @@ phase-1 beta or rehearsal blocker.
 As of `2026-04-25`, no independent third-party verdict is recorded in the
 checked-in launch packet yet. A GitHub metadata audit on `2026-04-25` also
 found no PR reviews or issue comments on `unundoTeam/unuvault#59` that can be
-treated as the required external crypto verdict. The thread does have a
-repo-backed internal preflight reply, but the remaining blocker now applies to
-GA/public launch, not to the current phase-1 beta/rehearsal packet.
+treated as the required external crypto verdict. The thread does have
+repo-backed internal replies, but the remaining blocker now applies to GA/public
+launch, not to the current phase-1 beta/rehearsal packet.
 
 ## Recorded Thread Reply (2026-04-23)
 
@@ -73,6 +73,22 @@ The recorded reply confirms that repo-owned supporting evidence can continue to
 travel with the launch packet. The reply itself used the older phase-1 blocker
 framing, but the current launch policy now carries that unresolved requirement
 forward as the GA/public-launch independent review gate.
+
+## Recorded Thread Reply (2026-04-25)
+
+- Reply type: `repo-backed internal confirmation`
+- Reviewer: `Codex (repo-backed internal confirmation, not independent third-party)`
+- Review date: `2026-04-25`
+- Verdict: `blocked`
+- Launch checklist still matches the reviewed crypto boundary: `yes, for the
+  request and packet framing reviewed here; no independent crypto approval is
+  granted by this reply`
+- Gate effect: `supports packet tracking only; does not clear the independent
+  GA/public-launch review requirement`
+
+The follow-up reply confirms the request and packet framing after dispatch. It
+does not independently verify the cryptographic implementation and cannot be
+treated as the required third-party verdict.
 
 ## Completed Within This Slice
 
