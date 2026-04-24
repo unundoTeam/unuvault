@@ -294,7 +294,6 @@ describe("background autofill status", () => {
     const response = await handleBackgroundRequest(
       {
         type: "read_autofill_candidates",
-        pageUrl: "https://github.com/login",
       } as never,
       createDeps({
         authState: {
@@ -318,6 +317,10 @@ describe("background autofill status", () => {
         ],
         unlockMode: "unlocked",
       }),
+      {
+        source: "content",
+        trustedPageUrl: "https://github.com/login",
+      },
     );
 
     expect(response).toEqual({
@@ -342,7 +345,6 @@ describe("background autofill status", () => {
     const response = await handleBackgroundRequest(
       {
         type: "read_autofill_candidates",
-        pageUrl: "https://app.github.com/login",
       } as never,
       createDeps({
         authState: {
@@ -366,6 +368,10 @@ describe("background autofill status", () => {
         ],
         unlockMode: "unlocked",
       }),
+      {
+        source: "content",
+        trustedPageUrl: "https://app.github.com/login",
+      },
     );
 
     expect(response).toEqual({
@@ -377,11 +383,10 @@ describe("background autofill status", () => {
     });
   });
 
-  it("returns no_page_url when pageUrl is invalid", async () => {
+  it("returns no_page_url when trusted caller page URL is invalid", async () => {
     const response = await handleBackgroundRequest(
       {
         type: "read_autofill_candidates",
-        pageUrl: "not a url",
       } as never,
       createDeps({
         authState: {
@@ -405,6 +410,53 @@ describe("background autofill status", () => {
         ],
         unlockMode: "unlocked",
       }),
+      {
+        source: "content",
+        trustedPageUrl: "not a url",
+      },
+    );
+
+    expect(response).toEqual({
+      ok: true,
+      autofillCandidates: {
+        status: "no_page_url",
+        matches: [],
+      },
+    });
+  });
+
+  it("fails closed on candidate reads from non-content callers even with a pageUrl", async () => {
+    const response = await handleBackgroundRequest(
+      {
+        type: "read_autofill_candidates",
+        pageUrl: "https://github.com/login",
+      } as never,
+      createDeps({
+        authState: {
+          status: "signed_in",
+          accessToken: "jwt-token",
+          email: "user@example.com",
+          profileId: "profile-1",
+          signedInAt: "2026-03-17T00:00:00.000Z",
+        },
+        items: [
+          {
+            hasPassword: true,
+            id: "item-1",
+            password: "hunter2",
+            title: "GitHub",
+            username: "alice@example.com",
+            websiteHostname: "github.com",
+            websiteOrigin: "https://github.com",
+            websiteUrl: "https://github.com/login",
+          },
+        ],
+        unlockMode: "unlocked",
+      }),
+      {
+        source: "popup",
+        trustedPageUrl: null,
+      },
     );
 
     expect(response).toEqual({

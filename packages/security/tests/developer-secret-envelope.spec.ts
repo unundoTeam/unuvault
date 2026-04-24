@@ -3,6 +3,7 @@ import {
   openDeveloperSecretBlob,
   sealDeveloperSecretBlob,
 } from "../src/developer-secret-envelope";
+import { sealWithPassword } from "../src/sodium";
 import {
   LEGACY_FIXTURE_DEVELOPER_SECRET_BLOB_V1,
   LEGACY_FIXTURE_DEV_SECRET_DOTENV,
@@ -66,6 +67,24 @@ describe("developer secret envelope helpers", () => {
         JSON.stringify({
           version: 2,
           cipher: "xchacha20poly1305-ietf",
+        }),
+        "correct horse",
+      ),
+    ).resolves.toBe("");
+  });
+
+  it("fails closed when a secure envelope uses the wrong purpose", async () => {
+    const sealed = await sealWithPassword(
+      "SUPABASE_URL=https://example.supabase.co\n",
+      "correct horse",
+      "vault-password",
+    );
+
+    await expect(
+      openDeveloperSecretBlob(
+        JSON.stringify({
+          version: 2,
+          ...sealed,
         }),
         "correct horse",
       ),

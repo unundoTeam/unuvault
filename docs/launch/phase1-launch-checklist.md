@@ -46,7 +46,7 @@ phase 1.
 
 ## Carry-Forward Before GA/Public Launch
 
-- [ ] Internal iterative crypto review loop is completed and recorded according
+- [x] Internal iterative crypto review loop is completed and recorded according
   to `docs/operations/crypto-review-gate.md`
 - Third-party crypto review is deferred under
   `docs/operations/crypto-review-launch-exception.md`, not completed.
@@ -57,8 +57,8 @@ phase 1.
   - `docs/operations/secure-crypto-pr-audit-handoff.md`
 - This section tracks the GA/public-launch crypto approval boundary rather than
   the phase-1 beta or rehearsal gate.
-- This checklist tracks whether the current internal iterative crypto gate is
-  still open or has been cleared for the current scope.
+- This checklist tracks that the current internal iterative crypto gate is
+  cleared for the current scope.
 - A sent third-party request without a real external verdict does not clear this
   checklist item.
 - If the internal iterative review returns `cleared with follow-up`, record the

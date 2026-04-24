@@ -20,7 +20,7 @@ independently reviewed or third-party reviewed.
   reviewer or vendor verdict.
 - The decision owner approved replacing the current third-party requirement with
   an internal iterative review gate on `2026-04-25`.
-- Current internal iterative review status: `pending current Codex review pass`.
+- Current internal iterative review status: `cleared for current scope`.
 - Third-party crypto review status: `deferred by explicit launch exception`.
 
 ## Current Review Target
@@ -35,21 +35,42 @@ independently reviewed or third-party reviewed.
 
 ## Internal Iterative Review Status
 
-- Review loop status: `pending current Codex review pass`
+- Review loop status: `completed for current scope`
 - Reviewer: `Codex repo-backed review loop`
-- Review date: `pending`
-- Verdict: `pending`
-- Reviewed surfaces: `pending`
-- Findings: `pending`
-- Required remediation: `pending`
-- Accepted follow-up limits: `pending`
-- Launch checklist still matches the reviewed crypto boundary: `pending`
+- Review date: `2026-04-25`
+- Verdict: `internal iterative review cleared for current scope`
+- Reviewed surfaces:
+  - shared helper layer in `packages/security`
+  - Web unlock, reveal, copy, and secure rewrite paths
+  - browser extension unlock, popup read, and autofill-read paths
+  - CLI developer-secret read/import paths
+  - launch packet authority and legacy compatibility evidence
+- Findings:
+  - `packages/security/src/developer-secret-envelope.ts` accepted any secure
+    envelope purpose string for developer-secret reads instead of requiring
+    `developer-secret-blob`
+  - `apps/browser-extension/src/background/runtime.ts` accepted autofill
+    candidate page origin from request body instead of binding the read to the
+    trusted content-script caller URL
+  - no additional blocker was found in active Web writes, extension popup reads,
+    CLI stdout/stderr behavior, or legacy compatibility evidence after
+    remediation
+- Required remediation:
+  - developer-secret secure-envelope reads now require
+    `purpose: "developer-secret-blob"` before decrypting
+  - autofill candidate reads now derive the origin from trusted content caller
+    context and fail closed for popup/internal callers
+  - focused regression tests were added for both remediations
+- Accepted follow-up limits:
+  - third-party crypto review remains deferred, not completed
+  - public copy must not claim the crypto boundary is independently reviewed or
+    third-party reviewed
+  - manual legacy smoke remains the attached `2026-04-18` evidence because this
+    review did not change legacy reader formats or storage keys
+- Launch checklist still matches the reviewed crypto boundary: `yes`
 
-As of `2026-04-25`, the replacement internal iterative review loop has been
-adopted but has not yet returned a current cleared result. The launch packet
-must stay open until that loop records a reviewed surface list, findings,
-required remediation, accepted follow-up limits, and a final current-scope
-verdict.
+As of `2026-04-25`, the replacement internal iterative review loop has completed
+for the current scope. It does not create an independent third-party verdict.
 
 ## Third-Party Review Deferral
 

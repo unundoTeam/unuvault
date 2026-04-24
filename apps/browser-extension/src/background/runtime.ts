@@ -36,23 +36,11 @@ function readPageOrigin(pageUrl: string) {
 }
 
 function buildAutofillCandidatesResponse(
-  pageUrl: string,
+  pageOrigin: string,
   unlockedItems: Awaited<
     ReturnType<typeof defaultUnlockedVaultReader.readUnlockedLoginItems>
   >,
 ): BackgroundResponse {
-  const pageOrigin = readPageOrigin(pageUrl);
-
-  if (!pageOrigin) {
-    return {
-      ok: true,
-      autofillCandidates: {
-        status: "no_page_url",
-        matches: [],
-      },
-    };
-  }
-
   const matches = unlockedItems
     .filter((item) => item.websiteOrigin === pageOrigin)
     .map((item) => ({
@@ -264,8 +252,20 @@ export async function handleBackgroundRequest(
         };
       }
 
+      const pageOrigin = readTrustedContentPageOrigin(callerContext);
+
+      if (!pageOrigin) {
+        return {
+          ok: true,
+          autofillCandidates: {
+            status: "no_page_url",
+            matches: [],
+          },
+        };
+      }
+
       return buildAutofillCandidatesResponse(
-        request.pageUrl,
+        pageOrigin,
         await deps.unlockedVaultReader.readUnlockedLoginItems(),
       );
     }

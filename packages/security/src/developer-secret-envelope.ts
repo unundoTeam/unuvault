@@ -99,7 +99,8 @@ function isSecureDeveloperSecretEnvelope(
     (value as Partial<SecureDeveloperSecretEnvelope>).cipher ===
       "xchacha20poly1305-ietf" &&
     (value as Partial<SecureDeveloperSecretEnvelope>).keyDerivation === "argon2id13" &&
-    typeof (value as Partial<SecureDeveloperSecretEnvelope>).purpose === "string" &&
+    (value as Partial<SecureDeveloperSecretEnvelope>).purpose ===
+      "developer-secret-blob" &&
     typeof (value as Partial<SecureDeveloperSecretEnvelope>).encryptedPayload === "string" &&
     typeof (value as Partial<SecureDeveloperSecretEnvelope>).nonce === "string" &&
     typeof (value as Partial<SecureDeveloperSecretEnvelope>).salt === "string" &&

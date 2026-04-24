@@ -120,7 +120,7 @@ describe("shouldOfferAutofill", () => {
     });
   });
 
-  it("requests autofill candidates for a page URL", async () => {
+  it("requests autofill candidates without exposing pageUrl in the request body", async () => {
     const sendMessage = vi.fn(async () => ({
       ok: true,
       autofillCandidates: {
@@ -158,7 +158,6 @@ describe("shouldOfferAutofill", () => {
 
     expect(sendMessage).toHaveBeenCalledWith({
       type: "read_autofill_candidates",
-      pageUrl: "https://github.com/login",
     });
   });
 
@@ -508,7 +507,6 @@ describe("shouldOfferAutofill", () => {
     expect(sendMessage).toHaveBeenCalledTimes(1);
     expect(sendMessage).toHaveBeenCalledWith({
       type: "read_autofill_candidates",
-      pageUrl: "https://github.com/login",
     });
   });
 

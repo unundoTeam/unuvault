@@ -96,10 +96,15 @@ export async function readAutofillCandidates(
   pageUrl: string,
 ): Promise<ContentAutofillCandidates> {
   try {
-    const response = await callBackground({
-      type: "read_autofill_candidates",
-      pageUrl,
-    });
+    const response = await callBackground(
+      {
+        type: "read_autofill_candidates",
+      },
+      {
+        source: "content",
+        trustedPageUrl: pageUrl,
+      },
+    );
 
     if (!response.ok || !("autofillCandidates" in response)) {
       return {

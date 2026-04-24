@@ -98,7 +98,7 @@ export type BackgroundRequest =
     }
   | {
       type: "read_autofill_candidates";
-      pageUrl: string;
+      pageUrl?: string;
     }
   | {
       type: "read_autofill_fill_data";

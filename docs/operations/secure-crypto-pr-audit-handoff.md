@@ -101,9 +101,9 @@ internal iterative review loop recorded in `docs/operations/crypto-review-gate.m
 
 - Gate authority: `docs/operations/crypto-review-gate.md`
 - Deferral authority: `docs/operations/crypto-review-launch-exception.md`
-- Loop status: `pending current Codex review pass`
+- Loop status: `completed for current scope`
 - Reviewer: `Codex repo-backed review loop`
-- Current-scope verdict: `pending`
+- Current-scope verdict: `internal iterative review cleared for current scope`
 - Required loop:
   1. review current crypto boundary and launch-packet evidence
   2. fix any blocker found in code, tests, or docs
@@ -113,6 +113,49 @@ internal iterative review loop recorded in `docs/operations/crypto-review-gate.m
 
 The final current-scope result must not be described as independent third-party
 approval.
+
+## Internal Iterative Review Result (2026-04-25)
+
+- Reviewer: `Codex repo-backed review loop`
+- Review date: `2026-04-25`
+- Verdict: `internal iterative review cleared for current scope`
+- Reviewed surfaces:
+  - shared helper layer in `packages/security`
+  - Web unlock, reveal, copy, and secure rewrite paths
+  - browser extension unlock, popup read, and autofill-read paths
+  - CLI developer-secret read/import paths
+  - launch packet authority and legacy compatibility evidence
+- Findings:
+  - developer-secret secure-envelope reads accepted any secure purpose string
+    instead of requiring `developer-secret-blob`
+  - browser-extension autofill candidate reads trusted request-body `pageUrl`
+    instead of the content-script caller URL
+  - no additional blocker was found in active Web writes, extension popup reads,
+    CLI stdout/stderr behavior, or legacy compatibility evidence after
+    remediation
+- Required remediation:
+  - `packages/security/src/developer-secret-envelope.ts` now requires
+    `purpose: "developer-secret-blob"` for secure developer-secret envelopes
+  - `apps/browser-extension/src/background/runtime.ts` now derives autofill
+    candidate origin from trusted content caller context and fails closed for
+    popup/internal callers
+  - focused regression tests were added in
+    `packages/security/tests/developer-secret-envelope.spec.ts`,
+    `apps/browser-extension/tests/background-unlocked-vault.spec.ts`, and
+    `apps/browser-extension/tests/autofill.spec.ts`
+- Accepted follow-up limits:
+  - third-party crypto review remains deferred, not completed
+  - public copy must not claim the crypto boundary is independently reviewed or
+    third-party reviewed
+  - manual legacy smoke remains the attached `2026-04-18` evidence because this
+    review did not change legacy reader formats or storage keys
+- Launch checklist still matches the reviewed crypto boundary: `yes`
+
+Fresh verification for this review:
+
+- `./node_modules/.bin/vitest --run packages/security/tests/developer-secret-envelope.spec.ts apps/browser-extension/tests/background-unlocked-vault.spec.ts apps/browser-extension/tests/autofill.spec.ts` passed on `2026-04-25`
+- `pnpm lint` passed on `2026-04-25`
+- `pnpm test` passed on `2026-04-25`
 
 ## Recorded Thread Reply (2026-04-23)
 
@@ -288,8 +331,8 @@ not an independent third-party crypto review verdict.
 - Third-party security review is deferred under
   `docs/operations/crypto-review-launch-exception.md`; public claims must not
   describe this packet as independently reviewed
-- The internal iterative review loop still needs a current completed pass before
-  the current GA/public-launch crypto gate can be closed
+- The internal iterative review loop is complete for the current scope, but it
+  is still not independent third-party approval
 - Legacy compatibility depends on user activity to trigger reseal of old values
 - Observability and incident runbook expansion are intentionally not part of this slice
 
