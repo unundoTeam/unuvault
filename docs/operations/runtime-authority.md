@@ -65,6 +65,7 @@ Current production-readiness authority is split across:
 - [Identity Production Cutover Hosted Pass](identity-production-cutover-hosted-pass.md)
 - `unuidentity/docs/operations/unuvault-cutover-operator-signoff.md`
 - `unuidentity/docs/operations/production-landing-completion.md`
+- `unuidentity/docs/operations/consumer-cutover-checklist.md`
 - the `Verification` section in [README.md](../../README.md)
 
 Use those docs for launch checklist routing, cutover rehearsal, and
@@ -74,6 +75,24 @@ operator-reviewed pass. The bounded production landing completion conclusion
 lives in the upstream `production-landing-completion.md` result-layer authority;
 the repo-local `unuvault` records still do not publish live hosted inventory,
 callback payloads, secret values, or live cutover execution evidence.
+
+## Current Hosted Identity Status
+
+As of `2026-04-25`, the current checked-in status is:
+
+- `unuvault` has repo-local hosted-pass evidence in
+  [Identity Production Cutover Hosted Pass](identity-production-cutover-hosted-pass.md)
+- upstream `unuidentity/docs/operations/production-landing-completion.md`
+  records the bounded result-layer production landing completion authority
+- checked-in `unuvault` docs intentionally do not publish live hosted inventory,
+  callback payloads, secret values, or a live execution log
+
+That means the launch packet is no longer missing a production-landing authority
+route. It does not mean that this repo stores live hosted values or that future
+identity target changes can be called complete from this hub alone. Any future
+live-target change must be recorded through the upstream consumer cutover checklist,
+`unuidentity/docs/operations/consumer-cutover-checklist.md`, plus repo-local
+verification and rollback notes before that change is called complete.
 
 ## Current Gaps
 

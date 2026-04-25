@@ -253,6 +253,10 @@ migration, and iOS bridge changes.
     first real operator-reviewed cutover-preparation pass
   - `unuidentity/docs/operations/production-landing-completion.md` for the
     bounded checked-in result-layer production landing completion record
+- as of 2026-04-25, the checked-in production-landing route is closed through
+  those repo-local and upstream records; future live-target changes still need
+  the upstream consumer cutover checklist plus repo-local verification before
+  being called complete
 - the repo-local `unuvault` records still do not publish live hosted inventory,
   callback payloads, or secret values, and they do not by themselves claim live
   hosted-identity execution

@@ -45,6 +45,12 @@ describe("runtime authority contract", () => {
     expect(runtimeAuthority).toContain("identity-production-cutover-hosted-pass.md");
     expect(runtimeAuthority).toContain("supabase-env-mapping.md");
     expect(runtimeAuthority).toContain("phase1-launch-checklist.md");
+    expect(runtimeAuthority).toContain("## Current Hosted Identity Status");
+    expect(runtimeAuthority).toContain("production-landing-completion.md");
+    expect(runtimeAuthority).toContain("consumer-cutover-checklist.md");
+    expect(runtimeAuthority).toContain(
+      "live-target change must be recorded through the upstream consumer cutover checklist",
+    );
     expect(runtimeAuthority).toContain(
       "minimal standalone incident and observability",
     );

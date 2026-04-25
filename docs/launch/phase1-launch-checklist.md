@@ -43,6 +43,12 @@ phase 1.
   `vault-password` item unlock, and real DOM username/password fill on a local
   HTTP login page. Evidence is recorded in
   `docs/operations/secure-crypto-pr-audit-handoff.md`.
+- [x] Hosted identity / production landing routing was rechecked on 2026-04-25:
+  `docs/operations/runtime-authority.md` routes to the repo-local hosted-pass
+  evidence and upstream
+  `unuidentity/docs/operations/production-landing-completion.md`. This closes the
+  checked-in production-landing route without publishing live hosted inventory,
+  callback payloads, or secrets.
 
 ## Pending Before Phase 1 Launch
 
@@ -81,6 +87,10 @@ phase 1.
   the current explicit launch gate.
 - The web onboarding and security/trust-center surfaces now both have
   repo-owned proof in the launch packet.
+- Hosted identity production-landing status is a routed authority question:
+  current checked-in completion authority lives upstream, while future
+  live-target changes must be recorded through the upstream consumer cutover
+  checklist and repo-local verification before being called complete.
 - If any surface-specific check stays blocked, record the gap in
   `docs/operations/secure-crypto-pr-audit-handoff.md` instead of silently
   treating the launch packet as complete.

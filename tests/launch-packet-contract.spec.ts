@@ -14,6 +14,7 @@ describe("launch packet contract", () => {
   it("keeps the deferred third-party crypto request reopen-ready", () => {
     const request = readText("docs/operations/third-party-crypto-review-request.md");
     const checklist = readText("docs/launch/phase1-launch-checklist.md");
+    const architecture = readText("docs/architecture/0005-secure-password-crypto.md");
 
     expect(request).toContain("# Third-Party Crypto Review Request");
     expect(request).toContain(
@@ -34,5 +35,14 @@ describe("launch packet contract", () => {
     expect(checklist).toContain("Internal iterative crypto review loop");
     expect(checklist).toContain("Third-party crypto review is deferred");
     expect(checklist).toContain("docs/operations/crypto-review-launch-exception.md");
+    expect(checklist).toContain("production landing routing was rechecked on 2026-04-25");
+    expect(checklist).toContain(
+      "unuidentity/docs/operations/production-landing-completion.md",
+    );
+    expect(architecture).toContain("repo-backed internal iterative review gate");
+    expect(architecture).toContain("docs/operations/crypto-review-launch-exception.md");
+    expect(architecture).not.toContain(
+      "Independent review is still required before GA/public launch",
+    );
   });
 });

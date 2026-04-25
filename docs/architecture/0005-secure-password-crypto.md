@@ -28,7 +28,12 @@ Phase 1 upgrades the client-side password and dev-secret crypto boundary to a sh
 ## Residual Risks
 
 - Legacy compatibility keeps older payloads readable, so migration pressure still depends on user activity
-- Independent review is still required before GA/public launch; phase-1
-  beta/rehearsal currently relies on repo-owned evidence plus recorded internal
-  preflight sign-off
+- Current-scope crypto launch approval uses the repo-backed internal iterative review gate in
+  `docs/operations/crypto-review-gate.md`
+- Third-party crypto review is deferred by
+  `docs/operations/crypto-review-launch-exception.md`; reopen it under that
+  policy before large-scale public risk, paid or compliance claims, material
+  crypto-boundary changes, or crypto incidents
+- Public copy must not describe this crypto boundary as independently reviewed
+  or third-party reviewed
 - Observability and incident runbook work remain out of this slice by design
