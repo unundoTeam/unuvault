@@ -35,20 +35,34 @@ it("build emits a loadable extension bundle", { timeout: 30_000 }, () => {
 
   expect(manifest.background.service_worker).toBe("background.js");
   expect(manifest.action.default_popup).toBe("popup.html");
+  expect(manifest.permissions).toEqual(["activeTab", "storage"]);
+  expect(manifest.content_scripts).toEqual([
+    {
+      js: ["content.js"],
+      matches: ["http://*/*", "https://*/*"],
+      run_at: "document_idle",
+    },
+  ]);
   expect(manifest.content_security_policy).toMatchObject({
     extension_pages: "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';",
   });
   expect(existsSync(join(distRoot, "background.js"))).toBe(true);
+  expect(existsSync(join(distRoot, "content.js"))).toBe(true);
   expect(existsSync(join(distRoot, "popup.js"))).toBe(true);
   expect(existsSync(join(distRoot, "popup.html"))).toBe(true);
 
   const backgroundBundle = stripJsComments(
     readFileSync(join(distRoot, "background.js"), "utf8"),
   );
+  const contentBundle = stripJsComments(
+    readFileSync(join(distRoot, "content.js"), "utf8"),
+  );
   const popupBundle = stripJsComments(
     readFileSync(join(distRoot, "popup.js"), "utf8"),
   );
 
   expect(backgroundBundle).not.toMatch(/\bprocess\.env\b/);
+  expect(contentBundle).not.toMatch(/\bprocess\.env\b/);
+  expect(contentBundle).not.toMatch(/(^|\n)export\s*\{/);
   expect(popupBundle).not.toMatch(/\bprocess\.env\b/);
 });

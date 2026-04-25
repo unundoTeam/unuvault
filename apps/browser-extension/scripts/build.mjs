@@ -25,6 +25,11 @@ const browserBundleOptions = {
   platform: "browser",
   target: "chrome120",
 };
+const contentBundleOptions = {
+  ...browserBundleOptions,
+  format: "iife",
+  globalName: "unuvaultContent",
+};
 
 const manifest = {
   manifest_version: 3,
@@ -40,7 +45,14 @@ const manifest = {
   action: {
     default_popup: "popup.html",
   },
-  permissions: ["storage"],
+  content_scripts: [
+    {
+      js: ["content.js"],
+      matches: ["http://*/*", "https://*/*"],
+      run_at: "document_idle",
+    },
+  ],
+  permissions: ["activeTab", "storage"],
 };
 
 async function main() {
@@ -51,6 +63,12 @@ async function main() {
     ...browserBundleOptions,
     entryPoints: [join(packageRoot, "src/background/index.ts")],
     outfile: join(distRoot, "background.js"),
+  });
+
+  await build({
+    ...contentBundleOptions,
+    entryPoints: [join(packageRoot, "src/content/index.ts")],
+    outfile: join(distRoot, "content.js"),
   });
 
   await build({

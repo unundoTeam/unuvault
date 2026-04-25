@@ -1,13 +1,17 @@
 import type { FormEvent } from "react";
+import { useState } from "react";
 import {
   hasSavedPassword,
   normalizeVaultLoginPayload,
 } from "./login-payload";
+import { requestAutofillCurrentTab } from "./autofill-current-tab";
 import { usePopupAuth } from "./use-popup-auth";
 import { usePopupUnlock } from "./use-popup-unlock";
 import { usePopupVaultSearch } from "./use-popup-vault-search";
 
 export function App() {
+  const [autofillErrorMessage, setAutofillErrorMessage] = useState<string | null>(null);
+  const [autofillMessage, setAutofillMessage] = useState<string | null>(null);
   const {
     authErrorMessage,
     draftEmail,
@@ -50,6 +54,26 @@ export function App() {
     unlockPassphrase,
   });
 
+  async function autofillCurrentPage() {
+    setAutofillErrorMessage(null);
+    setAutofillMessage(null);
+
+    try {
+      const response = await requestAutofillCurrentTab();
+
+      if (response.result.status !== "filled") {
+        setAutofillErrorMessage("We couldn't autofill this page.");
+        return;
+      }
+
+      setAutofillMessage("Autofilled current page.");
+    } catch (error) {
+      setAutofillErrorMessage(
+        error instanceof Error ? error.message : "We couldn't autofill this page.",
+      );
+    }
+  }
+
   return (
     <section>
       <h1>unuvault</h1>
@@ -86,6 +110,9 @@ export function App() {
         <>
           <button type="button" onClick={lock}>
             Lock vault
+          </button>
+          <button type="button" onClick={() => void autofillCurrentPage()}>
+            Autofill current page
           </button>
           <p>Vault unlocked</p>
           <label>
@@ -186,6 +213,8 @@ export function App() {
         </form>
       )}
       {errorMessage ? <p>{errorMessage}</p> : null}
+      {autofillMessage ? <p>{autofillMessage}</p> : null}
+      {autofillErrorMessage ? <p>{autofillErrorMessage}</p> : null}
       {authErrorMessage ? <p>{authErrorMessage}</p> : null}
       {vaultErrorMessage ? <p>{vaultErrorMessage}</p> : null}
     </section>

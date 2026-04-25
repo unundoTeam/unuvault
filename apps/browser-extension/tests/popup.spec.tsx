@@ -192,6 +192,10 @@ function createBackgroundMessageHandler(options?: {
 function installChromeExtensionMock(options?: {
   initialValues?: Record<string, unknown>;
   sendMessage?: ReturnType<typeof vi.fn>;
+  tabs?: {
+    query: ReturnType<typeof vi.fn>;
+    sendMessage: ReturnType<typeof vi.fn>;
+  };
 }) {
   const store = new Map<string, unknown>();
 
@@ -231,6 +235,7 @@ function installChromeExtensionMock(options?: {
     storage: {
       local: storageArea,
     },
+    tabs: options?.tabs,
   });
 }
 
@@ -689,6 +694,48 @@ describe("App", () => {
     expect(writeText).toHaveBeenCalledWith("hunter2");
     expect(screen.getByText("••••••••")).toBeInTheDocument();
     expect(screen.queryByText("hunter2")).not.toBeInTheDocument();
+  });
+
+  it("triggers autofill in the active tab after unlock", async () => {
+    const tabs = {
+      query: vi.fn().mockResolvedValue([
+        {
+          id: 42,
+        },
+      ]),
+      sendMessage: vi.fn().mockResolvedValue({
+        ok: true,
+        result: {
+          status: "filled",
+          filledUsername: true,
+          filledPassword: true,
+        },
+      }),
+    };
+
+    installChromeExtensionMock({
+      initialValues: {
+        [POPUP_VAULT_STORAGE_KEY]: JSON.stringify([createVaultItem()]),
+      },
+      sendMessage: createBackgroundMessageHandler({
+        initialAuthState: createSignedInAuthState(),
+      }),
+      tabs,
+    });
+
+    render(<App />);
+
+    await setMasterPassword("correct horse");
+    fireEvent.click(await screen.findByRole("button", { name: "Autofill current page" }));
+
+    expect(await screen.findByText("Autofilled current page.")).toBeInTheDocument();
+    expect(tabs.query).toHaveBeenCalledWith({
+      active: true,
+      currentWindow: true,
+    });
+    expect(tabs.sendMessage).toHaveBeenCalledWith(42, {
+      type: "attempt_autofill_for_current_page",
+    });
   });
 
   it("clears a revealed password after locking and unlocking again", async () => {

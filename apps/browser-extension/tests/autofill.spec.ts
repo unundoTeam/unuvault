@@ -10,6 +10,11 @@ import {
 } from "../src/content/autofill";
 
 type SendMessage = (request: { type?: string }) => Promise<unknown>;
+type ContentMessageListener = (
+  request: { type?: string },
+  sender: unknown,
+  sendResponse: (response: unknown) => void,
+) => boolean | void;
 
 const defaultCandidate = {
   hasPassword: true,
@@ -561,6 +566,106 @@ describe("shouldOfferAutofill", () => {
       readAutofillFillData("https://github.com/login"),
     ).resolves.toEqual({
       status: "unavailable",
+    });
+  });
+});
+
+describe("content autofill runtime", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.unstubAllGlobals();
+    document.body.innerHTML = "";
+  });
+
+  it("registers an explicit extension trigger and fills the current page", async () => {
+    let listener: ContentMessageListener | null = null;
+    const addListener = vi.fn((nextListener: ContentMessageListener) => {
+      listener = nextListener;
+    });
+    const sendMessage = vi.fn(async (request: { type?: string }) => {
+      if (request.type === "read_autofill_candidates") {
+        return {
+          ok: true,
+          autofillCandidates: {
+            status: "ready",
+            matches: [defaultCandidate],
+          },
+        };
+      }
+
+      if (request.type === "read_autofill_fill_data") {
+        return {
+          ok: true,
+          autofillFillData: {
+            status: "ready",
+            fillData: defaultFillData,
+          },
+        };
+      }
+
+      return {
+        ok: false,
+        error: "unexpected request",
+      };
+    });
+
+    vi.stubGlobal("chrome", {
+      runtime: {
+        onMessage: {
+          addListener,
+        },
+        sendMessage,
+      },
+    });
+    document.body.innerHTML = `
+      <form>
+        <input autocomplete="username" />
+        <input type="password" />
+      </form>
+    `;
+
+    const [username, password] = Array.from(document.querySelectorAll("input"));
+
+    if (!(username instanceof HTMLInputElement) || !(password instanceof HTMLInputElement)) {
+      throw new Error("expected autofill inputs");
+    }
+
+    markInputVisible(username);
+    markInputVisible(password);
+
+    const runtime = await import("../src/content/index");
+
+    expect(runtime.registerContentAutofillTrigger).toBeTypeOf("function");
+    expect(addListener).toHaveBeenCalledTimes(1);
+    expect(listener).not.toBeNull();
+
+    const response = await new Promise<unknown>((resolve) => {
+      const returned = listener?.(
+        {
+          type: "attempt_autofill_for_current_page",
+        },
+        {},
+        resolve,
+      );
+
+      expect(returned).toBe(true);
+    });
+
+    expect(response).toEqual({
+      ok: true,
+      result: {
+        status: "filled",
+        filledUsername: true,
+        filledPassword: true,
+      },
+    });
+    expect(username.value).toBe("alice@example.com");
+    expect(password.value).toBe("hunter2");
+    expect(sendMessage).toHaveBeenCalledWith({
+      type: "read_autofill_candidates",
+    });
+    expect(sendMessage).toHaveBeenCalledWith({
+      type: "read_autofill_fill_data",
     });
   });
 });

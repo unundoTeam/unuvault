@@ -42,7 +42,8 @@ independently reviewed or third-party reviewed.
 - Reviewed surfaces:
   - shared helper layer in `packages/security`
   - Web unlock, reveal, copy, and secure rewrite paths
-  - browser extension unlock, popup read, and autofill-read paths
+  - browser extension unlock, popup read, autofill-read paths, and packaged
+    content-script autofill trigger wiring
   - CLI developer-secret read/import paths
   - launch packet authority and legacy compatibility evidence
 - Findings:
@@ -61,10 +62,15 @@ independently reviewed or third-party reviewed.
   - autofill candidate reads now derive the origin from trusted content caller
     context and fail closed for popup/internal callers
   - focused regression tests were added for both remediations
+  - packaged browser-extension autofill now has generated `content_scripts`,
+    explicit popup-to-content trigger coverage, and real-page Chrome smoke
+    evidence recorded in `docs/operations/secure-crypto-pr-audit-handoff.md`
 - Accepted follow-up limits:
   - third-party crypto review remains deferred, not completed
   - public copy must not claim the crypto boundary is independently reviewed or
     third-party reviewed
+  - browser-extension page autofill remains an explicit extension trigger, not
+    automatic page-load fill
   - manual legacy smoke remains the attached `2026-04-18` evidence because this
     review did not change legacy reader formats or storage keys
 - Launch checklist still matches the reviewed crypto boundary: `yes`

@@ -38,6 +38,11 @@ phase 1.
 - [x] `docs/operations/incident-observability-authority.md` now gives phase-1
   launch packet readers one explicit incident / observability route without
   adding a new launch blocker
+- [x] Real browser-extension page autofill smoke passed on 2026-04-25, covering
+  generated MV3 `content_scripts`, the explicit popup autofill action, secure
+  `vault-password` item unlock, and real DOM username/password fill on a local
+  HTTP login page. Evidence is recorded in
+  `docs/operations/secure-crypto-pr-audit-handoff.md`.
 
 ## Pending Before Phase 1 Launch
 
@@ -69,6 +74,9 @@ phase 1.
 
 - Web, browser extension, and sync surfaces should stay aligned with
   `docs/launch/phase1-qa-matrix.md` and the repo-owned JS verification path.
+- Browser-extension real-page autofill now has repo-owned packaging tests and a
+  manual Chrome for Testing smoke record; the content script is injected but
+  only fills after an explicit extension trigger.
 - iPhone login and AutoFill onboarding use `bash scripts/testing/run-ios.sh` as
   the current explicit launch gate.
 - The web onboarding and security/trust-center surfaces now both have

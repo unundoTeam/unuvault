@@ -273,6 +273,37 @@ not an independent third-party crypto review verdict.
   current launch packet still uses the completed 2026-04-18 manual smoke
   evidence below
 
+## Extension Real-Page Autofill Refresh (2026-04-25)
+
+- `pnpm --filter @unuvault/browser-extension build` passed on 2026-04-25
+- `./node_modules/.bin/vitest --run apps/browser-extension/tests/packaging-build.spec.ts apps/browser-extension/tests/autofill.spec.ts apps/browser-extension/tests/popup.spec.tsx`
+  passed on 2026-04-25, covering:
+  - generated MV3 `content_scripts` manifest wiring for `content.js`
+  - classic-script content bundle output with no ESM `export` footer
+  - explicit content-script autofill trigger registration
+  - popup `Autofill current page` action routing to the active tab
+- `./node_modules/.bin/vitest --run apps/browser-extension/tests` passed on
+  2026-04-25
+- Real Chrome for Testing smoke passed on 2026-04-25 using a temporary profile
+  and a temporary local HTTP login page:
+  - loaded the generated unpacked extension from `apps/browser-extension/dist`
+  - confirmed the generated manifest includes `content_scripts` for
+    `http://*/*` and `https://*/*`, plus `activeTab` and `storage`
+  - seeded one signed-in auth state and one protected `vault-password` item in
+    `chrome.storage.local`
+  - unlocked through the extension popup with the matching master password
+  - triggered the injected content script through extension-owned
+    `tabs.sendMessage`
+  - confirmed the real page DOM was filled with `alice@example.com` and
+    `hunter2`
+  - confirmed both username and password fields received `input` and `change`
+    events
+  - observed no page errors or console errors
+- Scope note: the content script does not auto-fill on page load. The real-page
+  path remains an explicit extension trigger, while background fill-data release
+  still depends on signed-in auth, active unlock, exact-origin matching, and a
+  single matching item.
+
 ## Historical Secure-Crypto Evidence (2026-04-18)
 
 - Weak-path sweep on 2026-04-18 confirmed no production caller still depends on exported legacy write helpers
