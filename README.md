@@ -158,6 +158,10 @@ For the local `unubrowser` credential bridge:
   only for `reason: "fill-active-page"` and records a non-secret audit event
 - the API bridge reads from a local unlocked credential provider; it does not
   treat encrypted `vault_items` rows as server-readable plaintext
+- optional local smoke server:
+  `UNUBROWSER_SMOKE_ORIGIN=<origin> pnpm smoke:unubrowser-bridge-server`
+  starts the real bridge routes with an in-memory unlocked session for
+  `unubrowser`'s `test:e2e:unuvault-bridge` command
 
 For the private env-secrets bridge:
 
