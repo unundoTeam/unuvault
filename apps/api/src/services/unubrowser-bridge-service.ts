@@ -13,7 +13,7 @@ export type UnlockedUnubrowserBridgeCredential = {
   id: string;
   label: string;
   password: string;
-  profileId: string;
+  profileId?: string;
   username: string;
   websiteOrigin: string;
 };
@@ -37,14 +37,25 @@ export type UnubrowserBridgeAuditEvent = {
   type: "credential_release";
 };
 
+export type UnubrowserBridgeSessionPublishRequest = {
+  credentials: UnlockedUnubrowserBridgeCredential[];
+};
+
 type UnubrowserBridgeServiceDependencies = {
+  clearUnlockedCredentials?(): Promise<void> | void;
+  getBrowserAccountIdFromToken?(token: string): Promise<string | null>;
   readUnlockedCredentials(): Promise<UnlockedUnubrowserBridgeCredential[]>;
+  replaceUnlockedCredentials?(
+    credentials: UnlockedUnubrowserBridgeCredential[],
+  ): Promise<void> | void;
   recordBridgeAuditEvent(event: UnubrowserBridgeAuditEvent): Promise<void>;
 };
 
 export class UnubrowserBridgeValidationError extends Error {}
 
 export class UnubrowserBridgeCredentialNotFoundError extends Error {}
+
+export class UnubrowserBridgeUnauthorizedError extends Error {}
 
 function normalizeHttpOrigin(origin: string): string {
   let parsedUrl: URL;
@@ -71,7 +82,11 @@ function validateProfileId(profileId: string): string {
 }
 
 function validateCredentialId(id: string): string {
-  if (!/^vault-[a-z0-9]+(?:-[a-z0-9]+)*$/.test(id)) {
+  if (
+    id.length === 0 ||
+    id.length > 200 ||
+    !/^[a-zA-Z0-9][a-zA-Z0-9._:-]*$/.test(id)
+  ) {
     throw new UnubrowserBridgeValidationError("invalid credential id");
   }
 
@@ -91,7 +106,88 @@ function matchesBridgeContext(
   origin: string,
   profileId: string,
 ) {
-  return credential.websiteOrigin === origin && credential.profileId === profileId;
+  return (
+    credential.websiteOrigin === origin &&
+    (!credential.profileId || credential.profileId === profileId)
+  );
+}
+
+function assertUnlockedCredential(
+  value: unknown,
+): asserts value is UnlockedUnubrowserBridgeCredential {
+  if (!value || typeof value !== "object") {
+    throw new UnubrowserBridgeValidationError("invalid credential");
+  }
+
+  const credential = value as Partial<UnlockedUnubrowserBridgeCredential>;
+
+  validateCredentialId(credential.id ?? "");
+  normalizeHttpOrigin(credential.websiteOrigin ?? "");
+  if (credential.profileId) {
+    validateProfileId(credential.profileId);
+  }
+
+  if (
+    typeof credential.label !== "string" ||
+    credential.label.trim().length === 0 ||
+    typeof credential.username !== "string" ||
+    typeof credential.password !== "string" ||
+    credential.password.length === 0
+  ) {
+    throw new UnubrowserBridgeValidationError("invalid credential");
+  }
+}
+
+function normalizeUnlockedCredential(
+  credential: UnlockedUnubrowserBridgeCredential,
+): UnlockedUnubrowserBridgeCredential {
+  assertUnlockedCredential(credential);
+
+  return {
+    id: credential.id,
+    label: credential.label,
+    password: credential.password,
+    profileId: credential.profileId,
+    username: credential.username,
+    websiteOrigin: normalizeHttpOrigin(credential.websiteOrigin),
+  };
+}
+
+type InMemoryUnubrowserBridgeCredentialStoreOptions = {
+  now?: () => number;
+  ttlMs?: number;
+};
+
+export function createInMemoryUnubrowserBridgeCredentialStore(
+  options: InMemoryUnubrowserBridgeCredentialStoreOptions = {},
+) {
+  const now = options.now ?? (() => Date.now());
+  const ttlMs = options.ttlMs ?? 5 * 60 * 1000;
+  let credentials: UnlockedUnubrowserBridgeCredential[] = [];
+  let expiresAt = 0;
+
+  return {
+    async readUnlockedCredentials() {
+      if (now() >= expiresAt) {
+        credentials = [];
+        return [];
+      }
+
+      return credentials;
+    },
+
+    async replaceUnlockedCredentials(
+      nextCredentials: UnlockedUnubrowserBridgeCredential[],
+    ) {
+      credentials = nextCredentials.map(normalizeUnlockedCredential);
+      expiresAt = now() + ttlMs;
+    },
+
+    async clearUnlockedCredentials() {
+      credentials = [];
+      expiresAt = 0;
+    },
+  };
 }
 
 export function createUnubrowserBridgeService(
@@ -148,18 +244,41 @@ export function createUnubrowserBridgeService(
         username: credential.username,
       };
     },
-  };
-}
 
-export function createConfiguredUnubrowserBridgeService() {
-  return createUnubrowserBridgeService({
-    async readUnlockedCredentials() {
-      return [];
+    async publishUnlockedCredentialSession(
+      token: string,
+      request: UnubrowserBridgeSessionPublishRequest,
+    ) {
+      const accountId = await deps.getBrowserAccountIdFromToken?.(token);
+
+      if (!accountId) {
+        throw new UnubrowserBridgeUnauthorizedError("invalid browser token");
+      }
+
+      if (!deps.replaceUnlockedCredentials) {
+        throw new UnubrowserBridgeValidationError("bridge session unavailable");
+      }
+
+      const credentials = request.credentials.map(normalizeUnlockedCredential);
+
+      await deps.replaceUnlockedCredentials(credentials);
+
+      return {
+        ok: true as const,
+        credential_count: credentials.length,
+      };
     },
-    async recordBridgeAuditEvent(event) {
-      console.info(
-        `[unubrowser-bridge] ${event.type} id=${event.id} origin=${event.origin} profileId=${event.profileId} reason=${event.reason} releasedAt=${event.releasedAt}`,
-      );
+
+    async clearUnlockedCredentialSession(token: string) {
+      const accountId = await deps.getBrowserAccountIdFromToken?.(token);
+
+      if (!accountId) {
+        throw new UnubrowserBridgeUnauthorizedError("invalid browser token");
+      }
+
+      await deps.clearUnlockedCredentials?.();
+
+      return { ok: true as const };
     },
-  });
+  };
 }

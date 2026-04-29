@@ -11,6 +11,10 @@ import {
 } from "./login-payload";
 import { useVaultSync } from "./use-vault-sync";
 import { useVaultUnlock } from "./use-vault-unlock";
+import {
+  clearUnubrowserBridgeSession,
+  publishUnubrowserBridgeSession,
+} from "../../lib/unubrowser/bridge-session";
 
 function formatUtcSyncTime(timestamp: string): string {
   const value = new Date(timestamp);
@@ -22,6 +26,7 @@ function formatUtcSyncTime(timestamp: string): string {
 
 export function VaultPanel() {
   const {
+    accessToken,
     createItem,
     deleteItem,
     errorMessage,
@@ -253,6 +258,23 @@ export function VaultPanel() {
       setRevealedPasswords({});
     }
   }, [isUnlocked]);
+
+  useEffect(() => {
+    if (!accessToken) {
+      return;
+    }
+
+    if (!isUnlocked || !unlockPassphrase) {
+      void clearUnubrowserBridgeSession({ accessToken }).catch(() => undefined);
+      return;
+    }
+
+    void publishUnubrowserBridgeSession({
+      accessToken,
+      items,
+      unlockPassphrase,
+    }).catch(() => undefined);
+  }, [accessToken, isUnlocked, items, unlockPassphrase]);
 
   const statusMessage = errorMessage
     ? null

@@ -2,7 +2,7 @@
 
 import "@testing-library/jest-dom/vitest";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import VaultPage from "../src/app/vault/page";
 import { createMasterPasswordVerifier } from "../../../packages/security/src/master-password-verifier";
 import {
@@ -16,17 +16,39 @@ afterEach(() => {
   window.localStorage.clear();
   mocks.getSession.mockReset();
   mocks.syncVault.mockReset();
+  mocks.publishUnubrowserBridgeSession.mockReset();
+  mocks.clearUnubrowserBridgeSession.mockReset();
 });
 
-const { getSession, syncVault } = vi.hoisted(() => ({
+const {
+  clearUnubrowserBridgeSession,
+  getSession,
+  publishUnubrowserBridgeSession,
+  syncVault,
+} = vi.hoisted(() => ({
+  clearUnubrowserBridgeSession: vi.fn().mockResolvedValue({ ok: true }),
   getSession: vi.fn(),
+  publishUnubrowserBridgeSession: vi.fn().mockResolvedValue({
+    ok: true,
+    credential_count: 1,
+  }),
   syncVault: vi.fn(),
 }));
 
 const mocks = {
+  clearUnubrowserBridgeSession,
   getSession,
+  publishUnubrowserBridgeSession,
   syncVault,
 };
+
+beforeEach(() => {
+  mocks.clearUnubrowserBridgeSession.mockResolvedValue({ ok: true });
+  mocks.publishUnubrowserBridgeSession.mockResolvedValue({
+    ok: true,
+    credential_count: 1,
+  });
+});
 
 function createLegacyVaultEnvelope(password: string): string {
   return JSON.stringify({
@@ -123,6 +145,11 @@ vi.mock("../src/lib/identity/browser", () => ({
 
 vi.mock("../../../packages/api-client/src/vault", () => ({
   syncVault,
+}));
+
+vi.mock("../src/lib/unubrowser/bridge-session", () => ({
+  clearUnubrowserBridgeSession,
+  publishUnubrowserBridgeSession,
 }));
 
 describe("VaultPage", () => {
@@ -285,6 +312,69 @@ describe("VaultPage", () => {
 
     await expectVaultUnlocked();
     expect(screen.getByRole("button", { name: "Lock vault" })).toBeInTheDocument();
+  });
+
+  it("publishes and clears the local unubrowser bridge session with the web unlock state", async () => {
+    mocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: "jwt-token",
+        },
+      },
+      error: null,
+    });
+    mocks.syncVault.mockResolvedValue({
+      server_time: "2026-03-16T00:00:00.000Z",
+      updated_items: [
+        {
+          id: "550e8400-e29b-41d4-a716-446655440000",
+          item_type: "login",
+          title: "Developer console client A",
+          encrypted_payload: {
+            schema_version: 1,
+            username: "client-a@example.com",
+            password_ciphertext: await storedPassword(
+              "client-a-password",
+              "correct horse",
+            ),
+            notes: "",
+            website_url: "https://console.example.com/login",
+          },
+          favorite: false,
+          source: "manual",
+          last_used_at: null,
+          created_at: "2026-04-29T00:00:00.000Z",
+          updated_at: "2026-04-29T00:00:00.000Z",
+        },
+      ],
+      deleted_item_ids: [],
+      conflicts: [],
+    });
+
+    render(<VaultPage />);
+
+    expect(await screen.findByText("Developer console client A")).toBeInTheDocument();
+    await unlockVaultSuccessfully("correct horse");
+
+    await waitFor(() => {
+      expect(mocks.publishUnubrowserBridgeSession).toHaveBeenCalledWith({
+        accessToken: "jwt-token",
+        items: [
+          expect.objectContaining({
+            id: "550e8400-e29b-41d4-a716-446655440000",
+          }),
+        ],
+        unlockPassphrase: "correct horse",
+      });
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Lock vault" }));
+
+    await waitFor(() => {
+      expect(mocks.clearUnubrowserBridgeSession).toHaveBeenCalledWith({
+        accessToken: "jwt-token",
+      });
+    });
   });
 
   it("shows locked mode when a stored master password verifier already exists", async () => {

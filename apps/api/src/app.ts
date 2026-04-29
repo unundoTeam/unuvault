@@ -12,7 +12,7 @@ export const app = Fastify();
 
 void app.register(cors, {
   origin: ["http://127.0.0.1:3001", "http://localhost:3001"],
-  methods: ["GET", "POST", "OPTIONS"],
+  methods: ["DELETE", "GET", "POST", "PUT", "OPTIONS"],
 });
 
 app.get("/health", async () => ({ ok: true }));

@@ -1,7 +1,8 @@
 import type { FastifyPluginAsync } from "fastify";
+import { createConfiguredUnubrowserBridgeService } from "../lib/supabase";
 import {
-  createConfiguredUnubrowserBridgeService,
   UnubrowserBridgeCredentialNotFoundError,
+  UnubrowserBridgeUnauthorizedError,
   UnubrowserBridgeValidationError,
 } from "../services/unubrowser-bridge-service";
 
@@ -18,6 +19,20 @@ type UnubrowserBridgeRouteDependencies = {
       profileId: string;
       reason: string;
     }): Promise<{ password: string; username: string }>;
+    publishUnlockedCredentialSession?(
+      token: string,
+      request: {
+        credentials: Array<{
+          id: string;
+          label: string;
+          password: string;
+          profileId?: string;
+          username: string;
+          websiteOrigin: string;
+        }>;
+      },
+    ): Promise<{ ok: true; credential_count: number }>;
+    clearUnlockedCredentialSession?(token: string): Promise<{ ok: true }>;
   };
 };
 
@@ -80,6 +95,114 @@ export function createUnubrowserBridgeRoutes(
   deps: UnubrowserBridgeRouteDependencies,
 ): FastifyPluginAsync {
   return async (app) => {
+    app.put("/credentials/unlocked-session", async (request, reply) => {
+      const localRequest = rejectNonLocalBridgeRequest(request.ip);
+
+      if (!localRequest.ok) {
+        reply.code(localRequest.statusCode);
+        return {
+          ok: false,
+          error: localRequest.error,
+        };
+      }
+
+      const token = readBearerToken(request.headers.authorization);
+
+      if (!token || !deps.service.publishUnlockedCredentialSession) {
+        reply.code(401);
+        return {
+          ok: false,
+          error: "invalid_token",
+        };
+      }
+
+      const body = (request.body ?? {}) as {
+        credentials?: Array<{
+          id?: string;
+          label?: string;
+          password?: string;
+          profileId?: string;
+          username?: string;
+          websiteOrigin?: string;
+        }>;
+      };
+
+      try {
+        return await deps.service.publishUnlockedCredentialSession(token, {
+          credentials: (body.credentials ?? []).map((credential) => ({
+            id: credential.id ?? "",
+            label: credential.label ?? "",
+            password: credential.password ?? "",
+            profileId: credential.profileId,
+            username: credential.username ?? "",
+            websiteOrigin: credential.websiteOrigin ?? "",
+          })),
+        });
+      } catch (error) {
+        if (error instanceof UnubrowserBridgeUnauthorizedError) {
+          reply.code(401);
+          return {
+            ok: false,
+            error: "invalid_token",
+          };
+        }
+
+        if (error instanceof UnubrowserBridgeValidationError) {
+          reply.code(400);
+          return {
+            ok: false,
+            error: "invalid_bridge_request",
+          };
+        }
+
+        reply.code(500);
+        return {
+          ok: false,
+          error: "unlocked_session_publish_failed",
+        };
+      }
+    });
+
+    app.delete("/credentials/unlocked-session", async (request, reply) => {
+      const localRequest = rejectNonLocalBridgeRequest(request.ip);
+
+      if (!localRequest.ok) {
+        reply.code(localRequest.statusCode);
+        return {
+          ok: false,
+          error: localRequest.error,
+        };
+      }
+
+      const token = readBearerToken(request.headers.authorization);
+
+      if (!token || !deps.service.clearUnlockedCredentialSession) {
+        reply.code(401);
+        return {
+          ok: false,
+          error: "invalid_token",
+        };
+      }
+
+      try {
+        return await deps.service.clearUnlockedCredentialSession(token);
+      } catch (error) {
+        if (error instanceof UnubrowserBridgeUnauthorizedError) {
+          reply.code(401);
+          return {
+            ok: false,
+            error: "invalid_token",
+          };
+        }
+
+        reply.code(500);
+        return {
+          ok: false,
+          error: "unlocked_session_clear_failed",
+        };
+      }
+    });
+
     app.get("/credentials", async (request, reply) => {
       const localRequest = rejectNonLocalBridgeRequest(request.ip);
 

@@ -1,6 +1,10 @@
 import { createDevSecretSessionStore } from "./dev-secret-session-store";
 import { createAuthBootstrapService } from "../services/auth-bootstrap-service";
 import { createDevSecretsService } from "../services/dev-secrets-service";
+import {
+  createInMemoryUnubrowserBridgeCredentialStore,
+  createUnubrowserBridgeService,
+} from "../services/unubrowser-bridge-service";
 import { createVaultSyncService } from "../services/vault-service";
 import type { VaultSyncItem } from "../../../../packages/api-client/src/vault";
 import type { DevSecretTarget } from "./dev-secret-session-store";
@@ -430,7 +434,12 @@ let configuredVaultSyncService:
 let configuredDevSecretsService:
   | ReturnType<typeof createDevSecretsService>
   | undefined;
+let configuredUnubrowserBridgeService:
+  | ReturnType<typeof createUnubrowserBridgeService>
+  | undefined;
 const configuredDevSecretSessionStore = createDevSecretSessionStore();
+const configuredUnubrowserBridgeStore =
+  createInMemoryUnubrowserBridgeCredentialStore();
 
 async function ensureConfiguredDevSecretsService() {
   if (!configuredDevSecretsService) {
@@ -595,4 +604,81 @@ export function createConfiguredDevSecretsService() {
       return service.putPrivateRecord(token, target, ciphertext);
     },
   };
+}
+
+export function createConfiguredUnubrowserBridgeService() {
+  return {
+    async findCredentialMetadata(
+      request: Parameters<
+        ReturnType<typeof createUnubrowserBridgeService>["findCredentialMetadata"]
+      >[0],
+    ) {
+      const service = await ensureConfiguredUnubrowserBridgeService();
+
+      return service.findCredentialMetadata(request);
+    },
+
+    async releaseSecret(
+      request: Parameters<
+        ReturnType<typeof createUnubrowserBridgeService>["releaseSecret"]
+      >[0],
+    ) {
+      const service = await ensureConfiguredUnubrowserBridgeService();
+
+      return service.releaseSecret(request);
+    },
+
+    async publishUnlockedCredentialSession(
+      token: string,
+      request: Parameters<
+        ReturnType<
+          typeof createUnubrowserBridgeService
+        >["publishUnlockedCredentialSession"]
+      >[1],
+    ) {
+      const service = await ensureConfiguredUnubrowserBridgeService();
+
+      return service.publishUnlockedCredentialSession(token, request);
+    },
+
+    async clearUnlockedCredentialSession(token: string) {
+      const service = await ensureConfiguredUnubrowserBridgeService();
+
+      return service.clearUnlockedCredentialSession(token);
+    },
+  };
+}
+
+async function ensureConfiguredUnubrowserBridgeService() {
+  if (!configuredUnubrowserBridgeService) {
+    const [identityClient, dataClient] = await Promise.all([
+      createIdentitySupabaseClient(),
+      createProductDataSupabaseClient(),
+    ]);
+    const authDependencies = createSupabaseAuthBootstrapDependencies({
+      identityClient,
+      dataClient,
+    });
+
+    configuredUnubrowserBridgeService = createUnubrowserBridgeService({
+      clearUnlockedCredentials:
+        configuredUnubrowserBridgeStore.clearUnlockedCredentials,
+      readUnlockedCredentials:
+        configuredUnubrowserBridgeStore.readUnlockedCredentials,
+      replaceUnlockedCredentials:
+        configuredUnubrowserBridgeStore.replaceUnlockedCredentials,
+      async getBrowserAccountIdFromToken(browserToken) {
+        const user = await authDependencies.getUserByToken(browserToken);
+
+        return user?.account_id ?? null;
+      },
+      async recordBridgeAuditEvent(event) {
+        console.info(
+          `[unubrowser-bridge] ${event.type} id=${event.id} origin=${event.origin} profileId=${event.profileId} reason=${event.reason} releasedAt=${event.releasedAt}`,
+        );
+      },
+    });
+  }
+
+  return configuredUnubrowserBridgeService;
 }

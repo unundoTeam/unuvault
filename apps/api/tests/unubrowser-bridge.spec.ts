@@ -2,6 +2,7 @@ import Fastify from "fastify";
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createUnubrowserBridgeRoutes } from "../src/routes/unubrowser-bridge";
 import {
+  createInMemoryUnubrowserBridgeCredentialStore,
   createUnubrowserBridgeService,
   UnubrowserBridgeCredentialNotFoundError,
   UnubrowserBridgeValidationError,
@@ -183,6 +184,190 @@ describe("/v1 unubrowser bridge", () => {
       error: "invalid_bridge_request",
     });
   });
+
+  it("publishes a browser-unlocked session and serves it to the local bridge", async () => {
+    const store = createInMemoryUnubrowserBridgeCredentialStore({
+      now: () => new Date("2026-04-29T12:00:00.000Z").getTime(),
+      ttlMs: 300_000,
+    });
+    const recordBridgeAuditEvent = vi.fn().mockResolvedValue(undefined);
+    const service = createUnubrowserBridgeService({
+      readUnlockedCredentials: store.readUnlockedCredentials,
+      replaceUnlockedCredentials: store.replaceUnlockedCredentials,
+      clearUnlockedCredentials: store.clearUnlockedCredentials,
+      getBrowserAccountIdFromToken: async (token) =>
+        token === "browser-jwt" ? "account-1" : null,
+      recordBridgeAuditEvent,
+    });
+    const sessionApp = Fastify();
+
+    sessionApp.register(
+      createUnubrowserBridgeRoutes({
+        accessToken: "bridge-token",
+        service,
+      }),
+      { prefix: "/v1" },
+    );
+    await sessionApp.ready();
+
+    try {
+      const publishResponse = await sessionApp.inject({
+        method: "PUT",
+        url: "/v1/credentials/unlocked-session",
+        headers: {
+          authorization: "Bearer browser-jwt",
+        },
+        payload: {
+          credentials: [
+            {
+              id: "550e8400-e29b-41d4-a716-446655440000",
+              label: "Developer console client A",
+              password: "client-a-password",
+              username: "client-a@example.com",
+              websiteOrigin: "https://console.example.com",
+            },
+          ],
+        },
+      });
+      const metadataResponse = await sessionApp.inject({
+        method: "GET",
+        url: "/v1/credentials?origin=https%3A%2F%2Fconsole.example.com%2Flogin&profileId=workspace-client-a",
+        headers: {
+          authorization: "Bearer bridge-token",
+        },
+      });
+      const releaseResponse = await sessionApp.inject({
+        method: "POST",
+        url: "/v1/credentials/release",
+        headers: {
+          authorization: "Bearer bridge-token",
+        },
+        payload: {
+          id: "550e8400-e29b-41d4-a716-446655440000",
+          origin: "https://console.example.com/login",
+          profileId: "workspace-client-a",
+          reason: "fill-active-page",
+        },
+      });
+      const clearResponse = await sessionApp.inject({
+        method: "DELETE",
+        url: "/v1/credentials/unlocked-session",
+        headers: {
+          authorization: "Bearer browser-jwt",
+        },
+      });
+      const clearedMetadataResponse = await sessionApp.inject({
+        method: "GET",
+        url: "/v1/credentials?origin=https%3A%2F%2Fconsole.example.com&profileId=workspace-client-a",
+        headers: {
+          authorization: "Bearer bridge-token",
+        },
+      });
+
+      expect(publishResponse.statusCode).toBe(200);
+      expect(publishResponse.json()).toEqual({
+        ok: true,
+        credential_count: 1,
+      });
+      expect(metadataResponse.statusCode).toBe(200);
+      expect(metadataResponse.json()).toEqual({
+        credentials: [
+          {
+            id: "550e8400-e29b-41d4-a716-446655440000",
+            label: "Developer console client A",
+            username: "client-a@example.com",
+          },
+        ],
+      });
+      expect(metadataResponse.body).not.toContain("client-a-password");
+      expect(releaseResponse.statusCode).toBe(200);
+      expect(releaseResponse.json()).toEqual({
+        credential: {
+          username: "client-a@example.com",
+          password: "client-a-password",
+        },
+      });
+      expect(recordBridgeAuditEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: "550e8400-e29b-41d4-a716-446655440000",
+          origin: "https://console.example.com",
+          profileId: "workspace-client-a",
+          type: "credential_release",
+        }),
+      );
+      expect(clearResponse.statusCode).toBe(200);
+      expect(clearResponse.json()).toEqual({ ok: true });
+      expect(clearedMetadataResponse.json()).toEqual({ credentials: [] });
+    } finally {
+      await sessionApp.close();
+    }
+  });
+
+  it("rejects unlocked session publish without a valid browser token", async () => {
+    const store = createInMemoryUnubrowserBridgeCredentialStore();
+    const service = createUnubrowserBridgeService({
+      readUnlockedCredentials: store.readUnlockedCredentials,
+      replaceUnlockedCredentials: store.replaceUnlockedCredentials,
+      clearUnlockedCredentials: store.clearUnlockedCredentials,
+      getBrowserAccountIdFromToken: async () => null,
+      recordBridgeAuditEvent: async () => undefined,
+    });
+    const sessionApp = Fastify();
+
+    sessionApp.register(
+      createUnubrowserBridgeRoutes({
+        accessToken: "bridge-token",
+        service,
+      }),
+      { prefix: "/v1" },
+    );
+    await sessionApp.ready();
+
+    try {
+      const response = await sessionApp.inject({
+        method: "PUT",
+        url: "/v1/credentials/unlocked-session",
+        headers: {
+          authorization: "Bearer invalid-browser-jwt",
+        },
+        payload: {
+          credentials: [],
+        },
+      });
+
+      expect(response.statusCode).toBe(401);
+      expect(response.json()).toEqual({
+        ok: false,
+        error: "invalid_token",
+      });
+    } finally {
+      await sessionApp.close();
+    }
+  });
+
+  it("expires unlocked bridge session credentials after the configured ttl", async () => {
+    let now = new Date("2026-04-29T12:00:00.000Z").getTime();
+    const store = createInMemoryUnubrowserBridgeCredentialStore({
+      now: () => now,
+      ttlMs: 1_000,
+    });
+
+    await store.replaceUnlockedCredentials([
+      {
+        id: "550e8400-e29b-41d4-a716-446655440000",
+        label: "Developer console client A",
+        password: "client-a-password",
+        username: "client-a@example.com",
+        websiteOrigin: "https://console.example.com",
+      },
+    ]);
+
+    await expect(store.readUnlockedCredentials()).resolves.toHaveLength(1);
+
+    now += 1_001;
+
+    await expect(store.readUnlockedCredentials()).resolves.toEqual([]);
+  });
 });
 
 describe("createUnubrowserBridgeService", () => {
@@ -293,7 +478,7 @@ describe("createUnubrowserBridgeService", () => {
     ).rejects.toBeInstanceOf(UnubrowserBridgeValidationError);
     await expect(
       service.releaseSecret({
-        id: "item-1",
+        id: "../item-1",
         origin: "https://console.example.com",
         profileId: "workspace-client-a",
         reason: "fill-active-page",

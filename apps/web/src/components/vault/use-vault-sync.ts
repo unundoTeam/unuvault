@@ -25,6 +25,7 @@ type VaultLoginFields = {
 };
 
 type VaultSyncState = {
+  accessToken: string | null;
   createItem(input: VaultLoginFields): Promise<boolean>;
   deleteItem(itemId: string): Promise<boolean>;
   errorMessage: string | null;
@@ -269,6 +270,7 @@ export function useVaultSync(): VaultSyncState {
   }, []);
 
   return {
+    accessToken,
     createItem,
     deleteItem,
     errorMessage,

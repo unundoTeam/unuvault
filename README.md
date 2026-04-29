@@ -147,6 +147,11 @@ For the local `unubrowser` credential bridge:
 - set `UNUVAULT_BRIDGE_TOKEN` and pass the same value to `unubrowser` as
   `UNUVAULT_BRIDGE_TOKEN`
 - point `unubrowser` at `UNUVAULT_BRIDGE_URL=http://127.0.0.1:3000`
+- when the Web vault is unlocked, it publishes a short-lived in-memory bridge
+  session through `PUT /v1/credentials/unlocked-session` using the user's
+  browser session token
+- locking the Web vault clears that bridge session through
+  `DELETE /v1/credentials/unlocked-session`
 - `GET /v1/credentials?origin=<origin>&profileId=<profileId>` returns only
   credential metadata: `id`, `label`, and `username`
 - `POST /v1/credentials/release` releases one `{ username, password }` payload
