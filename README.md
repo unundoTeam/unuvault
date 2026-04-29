@@ -137,7 +137,22 @@ Shared identity and product-data env in `apps/api/.env.example`:
 | `IDENTITY_SUPABASE_SERVICE_ROLE_KEY` | yes | server | identity | `unuidentity` | `your-identity-service-role-key` | no |
 | `SUPABASE_URL` | yes | server | product-data | `unuvault` | `https://your-project-ref.supabase.co` | yes |
 | `SUPABASE_SERVICE_ROLE_KEY` | yes | server | product-data | `unuvault` | `your-service-role-key` | no |
+| `HOST` | yes | server | product-data | `unuvault` | `127.0.0.1` | yes |
 | `PORT` | yes | server | product-data | `unuvault` | `3000` | yes |
+| `UNUVAULT_BRIDGE_TOKEN` | yes for `unubrowser` bridge | server | local-bridge | `unuvault` | short-lived local token | no |
+
+For the local `unubrowser` credential bridge:
+
+- keep the API bound to `HOST=127.0.0.1` and `PORT=3000`
+- set `UNUVAULT_BRIDGE_TOKEN` and pass the same value to `unubrowser` as
+  `UNUVAULT_BRIDGE_TOKEN`
+- point `unubrowser` at `UNUVAULT_BRIDGE_URL=http://127.0.0.1:3000`
+- `GET /v1/credentials?origin=<origin>&profileId=<profileId>` returns only
+  credential metadata: `id`, `label`, and `username`
+- `POST /v1/credentials/release` releases one `{ username, password }` payload
+  only for `reason: "fill-active-page"` and records a non-secret audit event
+- the API bridge reads from a local unlocked credential provider; it does not
+  treat encrypted `vault_items` rows as server-readable plaintext
 
 For the private env-secrets bridge:
 
