@@ -1,7 +1,7 @@
 # Launch Authority Branch Closeout Review
 
-> 更新时间: 2026-04-23
-> 状态: Closed
+> 更新时间: 2026-05-01
+> 状态: Closed - final salvage complete
 
 ## Purpose
 
@@ -46,15 +46,15 @@ the cleanup objects that were deleted after merge.
 
 ### Local branch without attached worktree: `codex/unuvault-launch-authority`
 
-- Lifecycle state: `frozen-archive`
+- Lifecycle state: closed after `discard-candidate`
 - Owner: `yuchen`
-- Next action: keep only as historical reference until a final salvage review
-  decides whether the old pre-restack commits are still worth preserving
-- Delete by / review by: `2026-04-30`
+- Next action: none
+- Delete by / review by: completed on `2026-05-01`
 - Written record: this note
-- Why not delete now: it is the only remaining local ref that preserves the
-  superseded pre-restack commit chain
-  `9297cb4 -> d3e7c06 -> 2a6b1b1`, which is no longer reachable from `main`
+- Final salvage review: completed on `2026-05-01`; the local branch ref is
+  already absent, the superseded pre-restack commits remain visible only via
+  reflog, and no remaining patch was selected for preservation outside `main`
+- Why not delete now: `n/a`
 
 ### Clean reconcile worktree:
 `/Users/yuchen/Code/unu/unuvault/.worktrees/codex-unuvault-launch-authority-reconcile`
@@ -82,6 +82,8 @@ the cleanup objects that were deleted after merge.
 - returned the attached local worktree `/Users/yuchen/Code/unu/unuvault` to
   `main` and deleted `codex/unuvault-local-scratchpad`
 - kept `codex/unuvault-launch-authority` only as a frozen historical reference
+- completed final salvage review for `codex/unuvault-launch-authority` on
+  `2026-05-01` and confirmed the local branch ref is absent
 
 ## What This Note Resolves
 
