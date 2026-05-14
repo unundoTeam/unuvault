@@ -139,17 +139,17 @@ Shared identity and product-data env in `apps/api/.env.example`:
 | `SUPABASE_SERVICE_ROLE_KEY` | yes | server | product-data | `unuvault` | `your-service-role-key` | no |
 | `HOST` | yes | server | product-data | `unuvault` | `127.0.0.1` | yes |
 | `PORT` | yes | server | product-data | `unuvault` | `3000` | yes |
-| `UNUVAULT_BRIDGE_TOKEN` | yes for `unubrowser` bridge | server | local-bridge | `unuvault` | short-lived local token | no |
+| `UNUVAULT_BRIDGE_TOKEN` | yes for local credential bridge | server | local-bridge | `unuvault` | short-lived local token | no |
 
-For the local `unubrowser` credential bridge:
+For the local credential bridge:
 
 - keep the API bound to `HOST=127.0.0.1` and `PORT=3000`
-- set `UNUVAULT_BRIDGE_TOKEN` and pass the same value to `unubrowser` as
-  `UNUVAULT_BRIDGE_TOKEN`
-- point `unubrowser` at `UNUVAULT_BRIDGE_URL=http://127.0.0.1:3000`
+- set `UNUVAULT_BRIDGE_TOKEN` and pass the same value to the local bridge
+  client as `UNUVAULT_BRIDGE_TOKEN`
+- point the local bridge client at `UNUVAULT_BRIDGE_URL=http://127.0.0.1:3000`
 - when the Web vault is unlocked, it publishes a short-lived in-memory bridge
   session through `PUT /v1/credentials/unlocked-session` using the user's
-  browser session token
+  Web session token
 - locking the Web vault clears that bridge session through
   `DELETE /v1/credentials/unlocked-session`
 - `GET /v1/credentials?origin=<origin>&profileId=<profileId>` returns only
@@ -159,9 +159,11 @@ For the local `unubrowser` credential bridge:
 - the API bridge reads from a local unlocked credential provider; it does not
   treat encrypted `vault_items` rows as server-readable plaintext
 - optional local smoke server:
-  `UNUBROWSER_SMOKE_ORIGIN=<origin> pnpm smoke:unubrowser-bridge-server`
-  starts the real bridge routes with an in-memory unlocked session for
-  `unubrowser`'s `test:e2e:unuvault-bridge` command
+  `UNUVAULT_BRIDGE_SMOKE_ORIGIN=<origin> pnpm smoke:local-credential-bridge-server`
+  starts the real bridge routes with an in-memory unlocked session for bridge
+  clients
+- the legacy `pnpm smoke:unubrowser-bridge-server` command remains as a
+  compatibility alias while retired `unubrowser` callers are phased out
 
 For the private env-secrets bridge:
 

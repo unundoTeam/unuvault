@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { VaultSyncItem } from "../../../packages/api-client/src/vault";
 import { sealVaultPassword } from "../../../packages/security/src/vault-envelope";
 
-describe("unubrowser bridge session publisher", () => {
+describe("local credential bridge session publisher", () => {
   beforeEach(() => {
     vi.resetModules();
     vi.stubEnv("NEXT_PUBLIC_API_BASE_URL", "http://127.0.0.1:3000");
@@ -32,8 +32,8 @@ describe("unubrowser bridge session publisher", () => {
   }
 
   it("publishes decrypted login credentials for the unlocked local bridge session", async () => {
-    const { publishUnubrowserBridgeSession } = await import(
-      "../src/lib/unubrowser/bridge-session"
+    const { publishLocalCredentialBridgeSession } = await import(
+      "../src/lib/local-credential-bridge/bridge-session"
     );
     const fetcher = vi.fn().mockResolvedValue({
       ok: true,
@@ -66,8 +66,8 @@ describe("unubrowser bridge session publisher", () => {
     });
 
     await expect(
-      publishUnubrowserBridgeSession({
-        accessToken: "browser-jwt",
+      publishLocalCredentialBridgeSession({
+        accessToken: "web-session-jwt",
         fetcher,
         items: [protectedItem, emptyPasswordItem],
         unlockPassphrase: "correct horse",
@@ -82,7 +82,7 @@ describe("unubrowser bridge session publisher", () => {
       expect.objectContaining({
         method: "PUT",
         headers: expect.objectContaining({
-          authorization: "Bearer browser-jwt",
+          authorization: "Bearer web-session-jwt",
           "content-type": "application/json",
         }),
       }),
@@ -105,8 +105,8 @@ describe("unubrowser bridge session publisher", () => {
   });
 
   it("clears the unlocked local bridge session", async () => {
-    const { clearUnubrowserBridgeSession } = await import(
-      "../src/lib/unubrowser/bridge-session"
+    const { clearLocalCredentialBridgeSession } = await import(
+      "../src/lib/local-credential-bridge/bridge-session"
     );
     const fetcher = vi.fn().mockResolvedValue({
       ok: true,
@@ -114,8 +114,8 @@ describe("unubrowser bridge session publisher", () => {
     });
 
     await expect(
-      clearUnubrowserBridgeSession({
-        accessToken: "browser-jwt",
+      clearLocalCredentialBridgeSession({
+        accessToken: "web-session-jwt",
         fetcher,
       }),
     ).resolves.toEqual({ ok: true });
@@ -125,7 +125,7 @@ describe("unubrowser bridge session publisher", () => {
       expect.objectContaining({
         method: "DELETE",
         headers: expect.objectContaining({
-          authorization: "Bearer browser-jwt",
+          authorization: "Bearer web-session-jwt",
         }),
       }),
     );

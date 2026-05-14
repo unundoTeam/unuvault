@@ -12,9 +12,9 @@ import {
 import { useVaultSync } from "./use-vault-sync";
 import { useVaultUnlock } from "./use-vault-unlock";
 import {
-  clearUnubrowserBridgeSession,
-  publishUnubrowserBridgeSession,
-} from "../../lib/unubrowser/bridge-session";
+  clearLocalCredentialBridgeSession,
+  publishLocalCredentialBridgeSession,
+} from "../../lib/local-credential-bridge/bridge-session";
 
 function formatUtcSyncTime(timestamp: string): string {
   const value = new Date(timestamp);
@@ -265,11 +265,11 @@ export function VaultPanel() {
     }
 
     if (!isUnlocked || !unlockPassphrase) {
-      void clearUnubrowserBridgeSession({ accessToken }).catch(() => undefined);
+      void clearLocalCredentialBridgeSession({ accessToken }).catch(() => undefined);
       return;
     }
 
-    void publishUnubrowserBridgeSession({
+    void publishLocalCredentialBridgeSession({
       accessToken,
       items,
       unlockPassphrase,

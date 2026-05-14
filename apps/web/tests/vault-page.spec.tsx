@@ -16,19 +16,19 @@ afterEach(() => {
   window.localStorage.clear();
   mocks.getSession.mockReset();
   mocks.syncVault.mockReset();
-  mocks.publishUnubrowserBridgeSession.mockReset();
-  mocks.clearUnubrowserBridgeSession.mockReset();
+  mocks.publishLocalCredentialBridgeSession.mockReset();
+  mocks.clearLocalCredentialBridgeSession.mockReset();
 });
 
 const {
-  clearUnubrowserBridgeSession,
+  clearLocalCredentialBridgeSession,
   getSession,
-  publishUnubrowserBridgeSession,
+  publishLocalCredentialBridgeSession,
   syncVault,
 } = vi.hoisted(() => ({
-  clearUnubrowserBridgeSession: vi.fn().mockResolvedValue({ ok: true }),
+  clearLocalCredentialBridgeSession: vi.fn().mockResolvedValue({ ok: true }),
   getSession: vi.fn(),
-  publishUnubrowserBridgeSession: vi.fn().mockResolvedValue({
+  publishLocalCredentialBridgeSession: vi.fn().mockResolvedValue({
     ok: true,
     credential_count: 1,
   }),
@@ -36,15 +36,15 @@ const {
 }));
 
 const mocks = {
-  clearUnubrowserBridgeSession,
+  clearLocalCredentialBridgeSession,
   getSession,
-  publishUnubrowserBridgeSession,
+  publishLocalCredentialBridgeSession,
   syncVault,
 };
 
 beforeEach(() => {
-  mocks.clearUnubrowserBridgeSession.mockResolvedValue({ ok: true });
-  mocks.publishUnubrowserBridgeSession.mockResolvedValue({
+  mocks.clearLocalCredentialBridgeSession.mockResolvedValue({ ok: true });
+  mocks.publishLocalCredentialBridgeSession.mockResolvedValue({
     ok: true,
     credential_count: 1,
   });
@@ -147,9 +147,9 @@ vi.mock("../../../packages/api-client/src/vault", () => ({
   syncVault,
 }));
 
-vi.mock("../src/lib/unubrowser/bridge-session", () => ({
-  clearUnubrowserBridgeSession,
-  publishUnubrowserBridgeSession,
+vi.mock("../src/lib/local-credential-bridge/bridge-session", () => ({
+  clearLocalCredentialBridgeSession,
+  publishLocalCredentialBridgeSession,
 }));
 
 describe("VaultPage", () => {
@@ -314,7 +314,7 @@ describe("VaultPage", () => {
     expect(screen.getByRole("button", { name: "Lock vault" })).toBeInTheDocument();
   });
 
-  it("publishes and clears the local unubrowser bridge session with the web unlock state", async () => {
+  it("publishes and clears the local credential bridge session with the web unlock state", async () => {
     mocks.getSession.mockResolvedValue({
       data: {
         session: {
@@ -357,7 +357,7 @@ describe("VaultPage", () => {
     await unlockVaultSuccessfully("correct horse");
 
     await waitFor(() => {
-      expect(mocks.publishUnubrowserBridgeSession).toHaveBeenCalledWith({
+      expect(mocks.publishLocalCredentialBridgeSession).toHaveBeenCalledWith({
         accessToken: "jwt-token",
         items: [
           expect.objectContaining({
@@ -371,7 +371,7 @@ describe("VaultPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Lock vault" }));
 
     await waitFor(() => {
-      expect(mocks.clearUnubrowserBridgeSession).toHaveBeenCalledWith({
+      expect(mocks.clearLocalCredentialBridgeSession).toHaveBeenCalledWith({
         accessToken: "jwt-token",
       });
     });

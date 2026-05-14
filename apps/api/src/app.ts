@@ -5,7 +5,7 @@ import { authRoutes } from "./routes/auth";
 import { devSecretsRoutes } from "./routes/dev-secrets";
 import { deviceRoutes } from "./routes/devices";
 import { importRoutes } from "./routes/imports";
-import { unubrowserBridgeRoutes } from "./routes/unubrowser-bridge";
+import { localCredentialBridgeRoutes } from "./routes/local-credential-bridge";
 import { vaultRoutes } from "./routes/vault";
 
 export const app = Fastify();
@@ -21,7 +21,7 @@ app.register(vaultRoutes, { prefix: "/vault" });
 app.register(deviceRoutes, { prefix: "/devices" });
 app.register(importRoutes, { prefix: "/imports" });
 app.register(activityRoutes, { prefix: "/activity" });
-app.register(unubrowserBridgeRoutes, { prefix: "/v1" });
+app.register(localCredentialBridgeRoutes, { prefix: "/v1" });
 
 if (process.env.UNUVAULT_ENABLE_DEV_SECRETS === "1") {
   app.register(devSecretsRoutes, { prefix: "/dev/secrets" });

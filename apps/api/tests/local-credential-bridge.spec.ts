@@ -1,20 +1,20 @@
 import Fastify from "fastify";
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createUnubrowserBridgeRoutes } from "../src/routes/unubrowser-bridge";
+import { createLocalCredentialBridgeRoutes } from "../src/routes/local-credential-bridge";
 import {
-  createInMemoryUnubrowserBridgeCredentialStore,
-  createUnubrowserBridgeService,
-  UnubrowserBridgeCredentialNotFoundError,
-  UnubrowserBridgeValidationError,
-} from "../src/services/unubrowser-bridge-service";
+  createInMemoryLocalCredentialBridgeCredentialStore,
+  createLocalCredentialBridgeService,
+  LocalCredentialBridgeCredentialNotFoundError,
+  LocalCredentialBridgeValidationError,
+} from "../src/services/local-credential-bridge-service";
 
-describe("/v1 unubrowser bridge", () => {
+describe("/v1 local credential bridge", () => {
   const findCredentialMetadata = vi.fn();
   const releaseSecret = vi.fn();
   const app = Fastify();
 
   app.register(
-    createUnubrowserBridgeRoutes({
+    createLocalCredentialBridgeRoutes({
       accessToken: "bridge-token",
       service: {
         findCredentialMetadata,
@@ -144,10 +144,10 @@ describe("/v1 unubrowser bridge", () => {
 
   it("maps bridge service misses and validation failures to safe errors", async () => {
     releaseSecret.mockRejectedValueOnce(
-      new UnubrowserBridgeCredentialNotFoundError("credential not found"),
+      new LocalCredentialBridgeCredentialNotFoundError("credential not found"),
     );
     findCredentialMetadata.mockRejectedValueOnce(
-      new UnubrowserBridgeValidationError("invalid origin"),
+      new LocalCredentialBridgeValidationError("invalid origin"),
     );
 
     await app.ready();
@@ -185,24 +185,24 @@ describe("/v1 unubrowser bridge", () => {
     });
   });
 
-  it("publishes a browser-unlocked session and serves it to the local bridge", async () => {
-    const store = createInMemoryUnubrowserBridgeCredentialStore({
+  it("publishes a web-unlocked session and serves it to the local bridge", async () => {
+    const store = createInMemoryLocalCredentialBridgeCredentialStore({
       now: () => new Date("2026-04-29T12:00:00.000Z").getTime(),
       ttlMs: 300_000,
     });
     const recordBridgeAuditEvent = vi.fn().mockResolvedValue(undefined);
-    const service = createUnubrowserBridgeService({
+    const service = createLocalCredentialBridgeService({
       readUnlockedCredentials: store.readUnlockedCredentials,
       replaceUnlockedCredentials: store.replaceUnlockedCredentials,
       clearUnlockedCredentials: store.clearUnlockedCredentials,
-      getBrowserAccountIdFromToken: async (token) =>
-        token === "browser-jwt" ? "account-1" : null,
+      getAccountIdFromSessionToken: async (token) =>
+        token === "web-session-jwt" ? "account-1" : null,
       recordBridgeAuditEvent,
     });
     const sessionApp = Fastify();
 
     sessionApp.register(
-      createUnubrowserBridgeRoutes({
+      createLocalCredentialBridgeRoutes({
         accessToken: "bridge-token",
         service,
       }),
@@ -215,7 +215,7 @@ describe("/v1 unubrowser bridge", () => {
         method: "PUT",
         url: "/v1/credentials/unlocked-session",
         headers: {
-          authorization: "Bearer browser-jwt",
+          authorization: "Bearer web-session-jwt",
         },
         payload: {
           credentials: [
@@ -253,7 +253,7 @@ describe("/v1 unubrowser bridge", () => {
         method: "DELETE",
         url: "/v1/credentials/unlocked-session",
         headers: {
-          authorization: "Bearer browser-jwt",
+          authorization: "Bearer web-session-jwt",
         },
       });
       const clearedMetadataResponse = await sessionApp.inject({
@@ -303,19 +303,19 @@ describe("/v1 unubrowser bridge", () => {
     }
   });
 
-  it("rejects unlocked session publish without a valid browser token", async () => {
-    const store = createInMemoryUnubrowserBridgeCredentialStore();
-    const service = createUnubrowserBridgeService({
+  it("rejects unlocked session publish without a valid session token", async () => {
+    const store = createInMemoryLocalCredentialBridgeCredentialStore();
+    const service = createLocalCredentialBridgeService({
       readUnlockedCredentials: store.readUnlockedCredentials,
       replaceUnlockedCredentials: store.replaceUnlockedCredentials,
       clearUnlockedCredentials: store.clearUnlockedCredentials,
-      getBrowserAccountIdFromToken: async () => null,
+      getAccountIdFromSessionToken: async () => null,
       recordBridgeAuditEvent: async () => undefined,
     });
     const sessionApp = Fastify();
 
     sessionApp.register(
-      createUnubrowserBridgeRoutes({
+      createLocalCredentialBridgeRoutes({
         accessToken: "bridge-token",
         service,
       }),
@@ -328,7 +328,7 @@ describe("/v1 unubrowser bridge", () => {
         method: "PUT",
         url: "/v1/credentials/unlocked-session",
         headers: {
-          authorization: "Bearer invalid-browser-jwt",
+          authorization: "Bearer invalid-session-jwt",
         },
         payload: {
           credentials: [],
@@ -347,7 +347,7 @@ describe("/v1 unubrowser bridge", () => {
 
   it("expires unlocked bridge session credentials after the configured ttl", async () => {
     let now = new Date("2026-04-29T12:00:00.000Z").getTime();
-    const store = createInMemoryUnubrowserBridgeCredentialStore({
+    const store = createInMemoryLocalCredentialBridgeCredentialStore({
       now: () => now,
       ttlMs: 1_000,
     });
@@ -370,7 +370,7 @@ describe("/v1 unubrowser bridge", () => {
   });
 });
 
-describe("createUnubrowserBridgeService", () => {
+describe("createLocalCredentialBridgeService", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-04-29T12:00:00.000Z"));
@@ -380,8 +380,8 @@ describe("createUnubrowserBridgeService", () => {
     vi.useRealTimers();
   });
 
-  it("returns exact-origin metadata for the requested browser profile", async () => {
-    const service = createUnubrowserBridgeService({
+  it("returns exact-origin metadata for the requested profile", async () => {
+    const service = createLocalCredentialBridgeService({
       readUnlockedCredentials: async () => [
         {
           id: "vault-workspace-client-a",
@@ -420,7 +420,7 @@ describe("createUnubrowserBridgeService", () => {
 
   it("releases a matching credential and records a non-secret audit event", async () => {
     const recordBridgeAuditEvent = vi.fn().mockResolvedValue(undefined);
-    const service = createUnubrowserBridgeService({
+    const service = createLocalCredentialBridgeService({
       readUnlockedCredentials: async () => [
         {
           id: "vault-workspace-client-a",
@@ -459,7 +459,7 @@ describe("createUnubrowserBridgeService", () => {
   });
 
   it("rejects unsupported origins, profile ids, ids, and release reasons", async () => {
-    const service = createUnubrowserBridgeService({
+    const service = createLocalCredentialBridgeService({
       readUnlockedCredentials: async () => [],
       recordBridgeAuditEvent: async () => undefined,
     });
@@ -469,13 +469,13 @@ describe("createUnubrowserBridgeService", () => {
         origin: "file:///tmp/login.html",
         profileId: "workspace-client-a",
       }),
-    ).rejects.toBeInstanceOf(UnubrowserBridgeValidationError);
+    ).rejects.toBeInstanceOf(LocalCredentialBridgeValidationError);
     await expect(
       service.findCredentialMetadata({
         origin: "https://console.example.com",
         profileId: "../client-a",
       }),
-    ).rejects.toBeInstanceOf(UnubrowserBridgeValidationError);
+    ).rejects.toBeInstanceOf(LocalCredentialBridgeValidationError);
     await expect(
       service.releaseSecret({
         id: "../item-1",
@@ -483,7 +483,7 @@ describe("createUnubrowserBridgeService", () => {
         profileId: "workspace-client-a",
         reason: "fill-active-page",
       }),
-    ).rejects.toBeInstanceOf(UnubrowserBridgeValidationError);
+    ).rejects.toBeInstanceOf(LocalCredentialBridgeValidationError);
     await expect(
       service.releaseSecret({
         id: "vault-workspace-client-a",
@@ -491,6 +491,6 @@ describe("createUnubrowserBridgeService", () => {
         profileId: "workspace-client-a",
         reason: "copy-password",
       }),
-    ).rejects.toBeInstanceOf(UnubrowserBridgeValidationError);
+    ).rejects.toBeInstanceOf(LocalCredentialBridgeValidationError);
   });
 });
