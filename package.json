@@ -8,7 +8,6 @@
     "dev:web": "pnpm --filter @unuvault/web dev",
     "secrets:provider": "tsx scripts/secrets/provider.ts",
     "smoke:local-credential-bridge-server": "tsx scripts/smoke/local-credential-bridge-server.ts",
-    "smoke:unubrowser-bridge-server": "pnpm smoke:local-credential-bridge-server",
     "test": "bash scripts/testing/test-runner.sh",
     "lint": "bash scripts/testing/lint-runner.sh"
   },

@@ -9,8 +9,7 @@ const host = "127.0.0.1";
 const bridgeToken = process.env.UNUVAULT_BRIDGE_TOKEN ?? "local-smoke-bridge-token";
 const sessionToken =
   process.env.UNUVAULT_BRIDGE_SESSION_TOKEN ?? "local-smoke-session-token";
-const origin =
-  process.env.UNUVAULT_BRIDGE_SMOKE_ORIGIN ?? process.env.UNUBROWSER_SMOKE_ORIGIN;
+const origin = process.env.UNUVAULT_BRIDGE_SMOKE_ORIGIN;
 
 if (!origin) {
   throw new Error("UNUVAULT_BRIDGE_SMOKE_ORIGIN is required");

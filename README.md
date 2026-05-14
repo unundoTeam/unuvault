@@ -162,8 +162,6 @@ For the local credential bridge:
   `UNUVAULT_BRIDGE_SMOKE_ORIGIN=<origin> pnpm smoke:local-credential-bridge-server`
   starts the real bridge routes with an in-memory unlocked session for bridge
   clients
-- the legacy `pnpm smoke:unubrowser-bridge-server` command remains as a
-  compatibility alias while retired `unubrowser` callers are phased out
 
 For the private env-secrets bridge:
 
