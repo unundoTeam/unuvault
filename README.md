@@ -70,6 +70,10 @@ same:
   Pencil gate.
 - Historical design specs are planning context only unless the operating index
   or this repo-local entrypoint explicitly routes to them.
+- The legacy product-scope spec named above is routed only through
+  `/Users/yuchen/Code/unu/unuOS/docs/portfolio/design-specs-inventory.md`
+  as `current-routed` product scope and trust posture context; it is not active
+  Pencil or current UI authority.
 - Register the current/draft pair and `current/unuvault/design-system-v1`
   before the next material web, extension, or iOS UI change.
 
