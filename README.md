@@ -60,6 +60,19 @@ same:
   for shared web foundation variables and common component semantics; palette,
   brand, typography, and implementation details remain repo-local
 
+## Design Authority
+
+- First design read:
+  `/Users/yuchen/Code/unu/unuOS/docs/portfolio/design-operating-index.md`;
+  it is the only first-read design authority.
+- Current design status: `pending`.
+- Small UI copy or polish uses the `Lightweight UI Path` in the portfolio
+  Pencil gate.
+- Historical design specs are planning context only unless the operating index
+  or this repo-local entrypoint explicitly routes to them.
+- Register the current/draft pair and `current/unuvault/design-system-v1`
+  before the next material web, extension, or iOS UI change.
+
 ### Runtime Authority
 
 `unuvault` keeps runtime authority routing separate from the core auth and
