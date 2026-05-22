@@ -65,17 +65,24 @@ same:
 - First design read:
   `/Users/yuchen/Code/unu/unuOS/docs/portfolio/design-operating-index.md`;
   it is the only first-read design authority.
-- Current design status: `pending`.
+- Current design status: `registered`.
+- Pencil current:
+  `/Users/yuchen/Design/unu/unuvault/unuvault.current.pen`.
+- Pencil draft:
+  `/Users/yuchen/Design/unu/unuvault/unuvault.draft.pen`.
+- Current design-system frame: `current/unuvault/design-system-v1`.
+- Current web source frame: `current/unuvault/web-vault-management-v1`.
 - Small UI copy or polish uses the `Lightweight UI Path` in the portfolio
   Pencil gate.
 - Historical design specs are planning context only unless the operating index
   or this repo-local entrypoint explicitly routes to them.
 - The legacy product-scope spec named above is routed only through
   `/Users/yuchen/Code/unu/unuOS/docs/portfolio/design-specs-inventory.md`
-  as `current-routed` product scope and trust posture context; it is not active
+  as `current-routed` product scope and trust posture context; it is not broad
   Pencil or current UI authority.
-- Register the current/draft pair and `current/unuvault/design-system-v1`
-  before the next material web, extension, or iOS UI change.
+- Future material web, extension, or iOS UI changes start in the registered
+  draft file, promote only approved frames into current, and keep the current
+  screen/state frame aligned with the shipped UI.
 
 ### Runtime Authority
 
