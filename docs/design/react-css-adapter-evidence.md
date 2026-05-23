@@ -9,9 +9,8 @@ backlog, but it does not claim broad shared primitive adoption by itself.
 - Adapter lane: React/CSS web adapter
 - Repo: `unuvault`
 - Surface: Web vault management
-- Status: browser visual proof recorded; Pencil current promoted on
-  2026-05-23; this lane still stays `blocked-needs-evidence` until
-  keyboard/focus-visible proof is recorded for the Web adapter
+- Status: browser visual proof, Pencil current promotion, keyboard tab order,
+  and focus-visible proof recorded for this Web vault React/CSS surface
 - Pencil current:
   `/Users/yuchen/Design/unu/unuvault/unuvault.current.pen`
 - Pencil source frame: `current/unuvault/web-vault-management-v1`
@@ -57,6 +56,11 @@ Current proof from this lane:
 - semantic HTML surfaces are real controls, not `div`-only controls
 - accessible form, input, and button names are queryable by role or label
 - locked password actions are disabled until the vault is unlocked
+- natural keyboard order covers the enabled form, search, and row-action
+  controls while disabled password actions stay out of the enabled path
+- `.vault-input:focus-visible`, `.vault-button:focus-visible`, and
+  `.vault-action-danger:focus-visible` provide visible focus rings for the
+  mapped React/CSS controls
 - sync and validation states use semantic live-region roles
 - shared foundation variables exist in the Web CSS layer
 - browser visual evidence records the authenticated vault surface with the
@@ -83,14 +87,13 @@ Capture route used for this evidence:
 4. Confirm the live DOM contains `Vault items`, `Search vault`, and
    `github.com`, then render the captured DOM for the screenshot artifact.
 
-## Remaining Gap
+## Claim Boundary
 
-This evidence does not yet move the shared React/CSS adapter to
-`adapter-mapped`. The browser capture and current Pencil source now show the
-same shipped form inventory, including `Website`, `Password`, and `Notes`
-fields. The remaining shared-adapter proof gap is keyboard/focus-visible
-behavior and any broader activation evidence required before a React/CSS lane
-can become `adapter-mapped`.
+This evidence is enough to record the `unuvault` Web vault React/CSS lane as
+`adapter-mapped` for the represented surface, controls, and states. It does not
+make a repo-wide `adopted` claim, and it does not prove React/CSS categories
+that the Web vault surface does not expose, such as navigation, dialogs, or
+toast-style notifications.
 
 Current Pencil sync label for this lane:
 `current matches implementation`.

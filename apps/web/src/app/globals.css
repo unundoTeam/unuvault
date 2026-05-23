@@ -234,6 +234,11 @@ textarea:disabled {
   box-shadow: 0 0 0 3px #bfdbfe;
 }
 
+.vault-input:focus-visible {
+  outline: 3px solid #bfdbfe;
+  outline-offset: 2px;
+}
+
 .vault-input:disabled {
   background: #e2e8f0;
   color: #64748b;
@@ -260,6 +265,11 @@ textarea:disabled {
 
 .vault-button:disabled {
   opacity: 0.55;
+}
+
+.vault-button:focus-visible {
+  outline: 3px solid #bfdbfe;
+  outline-offset: 3px;
 }
 
 .vault-button--primary {
@@ -293,6 +303,11 @@ textarea:disabled {
   border-color: #fca5a5;
   background: #fff7ed;
   color: #b91c1c;
+}
+
+.vault-action-danger:focus-visible {
+  outline-color: #fecaca;
+  box-shadow: 0 0 0 4px #fee2e2;
 }
 
 .vault-alert {

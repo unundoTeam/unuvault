@@ -91,6 +91,33 @@ function mockVaultItems() {
   });
 }
 
+function isDisabledControl(element: HTMLElement): boolean {
+  if (
+    element instanceof HTMLButtonElement ||
+    element instanceof HTMLInputElement ||
+    element instanceof HTMLSelectElement ||
+    element instanceof HTMLTextAreaElement
+  ) {
+    return element.disabled;
+  }
+
+  return false;
+}
+
+function getEnabledKeyboardControls(): HTMLElement[] {
+  return Array.from(
+    document.querySelectorAll<HTMLElement>(
+      "button, input, textarea, select, a[href], [tabindex]",
+    ),
+  ).filter((element) => {
+    if (element.getAttribute("tabindex") === "-1") {
+      return false;
+    }
+
+    return !isDisabledControl(element);
+  });
+}
+
 describe("React/CSS adapter evidence for the vault surface", () => {
   it("maps the approved Pencil workspace to durable React/CSS selectors", async () => {
     mockVaultItems();
@@ -260,5 +287,56 @@ describe("React/CSS adapter evidence for the vault surface", () => {
       "data-unu-primitive",
       "state/validation-error",
     );
+  });
+
+  it("records keyboard tab order and focus-visible evidence", async () => {
+    mockVaultItems();
+
+    render(<VaultPage />);
+
+    expect(await screen.findByText("GitHub")).toBeInTheDocument();
+
+    const enabledKeyboardControls = getEnabledKeyboardControls();
+    const expectedKeyboardOrder = [
+      screen.getByLabelText("Master password"),
+      screen.getByLabelText("Confirm master password"),
+      screen.getByRole("button", { name: "Set master password" }),
+      screen.getByLabelText("Title"),
+      screen.getByLabelText("Username"),
+      screen.getByLabelText("Website"),
+      screen.getByLabelText("Notes"),
+      screen.getByRole("button", { name: "Save item" }),
+      screen.getByLabelText("Search vault"),
+      screen.getByRole("button", { name: "Copy username GitHub" }),
+      screen.getByRole("button", { name: "Edit GitHub" }),
+      screen.getByRole("button", { name: "Delete GitHub" }),
+    ];
+
+    expect(enabledKeyboardControls).toEqual(expectedKeyboardOrder);
+
+    for (const control of expectedKeyboardOrder) {
+      control.focus();
+      expect(control).toHaveFocus();
+    }
+
+    for (const unavailableControl of [
+      screen.getByLabelText("Password"),
+      screen.getByRole("button", { name: "Show password" }),
+      screen.getByRole("button", { name: "Copy password GitHub" }),
+      screen.getByRole("button", { name: "Show password GitHub" }),
+    ]) {
+      expect(unavailableControl).toBeDisabled();
+      expect(enabledKeyboardControls).not.toContain(unavailableControl);
+    }
+
+    const cssSource = readFileSync("src/app/globals.css", "utf8");
+    for (const selector of [
+      ".vault-input:focus-visible",
+      ".vault-button:focus-visible",
+      ".vault-action-danger:focus-visible",
+    ]) {
+      expect(cssSource).toContain(selector);
+    }
+    expect(cssSource).toContain("outline-offset");
   });
 });
