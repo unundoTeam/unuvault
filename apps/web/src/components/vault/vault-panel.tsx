@@ -297,18 +297,28 @@ export function VaultPanel() {
                     : null;
 
   return (
-    <section>
-      <h1>Vault</h1>
+    <section aria-labelledby="vault-heading" data-unu-primitive="vault-surface">
+      <h1 id="vault-heading">Vault</h1>
       <p>Keep your current unuvault items in sync across every trusted surface.</p>
 
-      {statusMessage ? <p>{statusMessage}</p> : null}
+      {statusMessage ? (
+        <p data-unu-primitive="state/status" role="status">
+          {statusMessage}
+        </p>
+      ) : null}
       {lastSyncedAt ? <p>Last synced at {formatUtcSyncTime(lastSyncedAt)}</p> : null}
       {!isBootstrapping && !isAuthenticated ? (
         <p>Sign in from the register flow first.</p>
       ) : null}
-      {errorMessage ? <p>{errorMessage}</p> : null}
+      {errorMessage ? (
+        <p data-unu-primitive="state/error" role="alert">
+          {errorMessage}
+        </p>
+      ) : null}
       {!isBootstrapping && isAuthenticated ? (
         <form
+          aria-label="Unlock vault"
+          data-unu-primitive="form/unlock"
           onSubmit={(event) => {
             event.preventDefault();
             void submitUnlock();
@@ -348,7 +358,11 @@ export function VaultPanel() {
 
       {!isBootstrapping && isAuthenticated ? (
         <>
-          <form onSubmit={handleSubmit}>
+          <form
+            aria-label="Save vault item"
+            data-unu-primitive="form/save-item"
+            onSubmit={handleSubmit}
+          >
             <label>
               <span>Title</span>
               <input
@@ -418,12 +432,16 @@ export function VaultPanel() {
             </button>
           </form>
 
-          {validationMessage ? <p>{validationMessage}</p> : null}
+          {validationMessage ? (
+            <p data-unu-primitive="state/validation-error" role="alert">
+              {validationMessage}
+            </p>
+          ) : null}
 
           {items.length > 0 ? (
-            <ul>
+            <ul data-unu-primitive="list/vault-items">
               {items.map((item) => (
-                <li key={item.id}>
+                <li data-unu-primitive="row/vault-item" key={item.id}>
                   {(() => {
                     const payload = normalizeVaultLoginPayload(item.encrypted_payload);
                     const isPasswordRevealed = revealedPasswordItemIds.includes(item.id);
