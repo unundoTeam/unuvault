@@ -9,8 +9,9 @@ backlog, but it does not claim broad shared primitive adoption by itself.
 - Adapter lane: React/CSS web adapter
 - Repo: `unuvault`
 - Surface: Web vault management
-- Status: browser visual proof recorded; Pencil current needs promotion/backwrite
-  before this lane can be called `adapter-mapped`
+- Status: browser visual proof recorded; Pencil current promoted on
+  2026-05-23; this lane still stays `blocked-needs-evidence` until
+  keyboard/focus-visible proof is recorded for the Web adapter
 - Pencil current:
   `/Users/yuchen/Design/unu/unuvault/unuvault.current.pen`
 - Pencil source frame: `current/unuvault/web-vault-management-v1`
@@ -85,14 +86,14 @@ Capture route used for this evidence:
 ## Remaining Gap
 
 This evidence does not yet move the shared React/CSS adapter to
-`adapter-mapped`. The browser capture now exists, but it shows the implemented
-surface is more complete than the current Pencil screen frame: the shipped Web
-form includes `Website`, `Password`, and `Notes` fields, while the current frame
-still shows the smaller save-login example. The source frame therefore needs a
-Pencil draft backwrite and user approval before promotion into current.
+`adapter-mapped`. The browser capture and current Pencil source now show the
+same shipped form inventory, including `Website`, `Password`, and `Notes`
+fields. The remaining shared-adapter proof gap is keyboard/focus-visible
+behavior and any broader activation evidence required before a React/CSS lane
+can become `adapter-mapped`.
 
 Current Pencil sync label for this lane:
-`draft backwrite pending approval`.
+`current matches implementation`.
 
 Intentionally local values that must not be promoted into the shared library:
 
