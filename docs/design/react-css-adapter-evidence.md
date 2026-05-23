@@ -9,7 +9,8 @@ backlog, but it does not claim broad shared primitive adoption by itself.
 - Adapter lane: React/CSS web adapter
 - Repo: `unuvault`
 - Surface: Web vault management
-- Status: partial repo proof; visual parity browser capture still pending
+- Status: browser visual proof recorded; Pencil current needs promotion/backwrite
+  before this lane can be called `adapter-mapped`
 - Pencil current:
   `/Users/yuchen/Design/unu/unuvault/unuvault.current.pen`
 - Pencil source frame: `current/unuvault/web-vault-management-v1`
@@ -24,6 +25,10 @@ backlog, but it does not claim broad shared primitive adoption by itself.
   `apps/web/tests/react-css-adapter-evidence.spec.tsx`
 - Foundation variable test:
   `apps/web/tests/design-foundation-contract.spec.ts`
+- Browser visual evidence:
+  `docs/design/evidence/2026-05-23-react-css-visual-parity/web-vault-browser.png`
+- Pencil source export:
+  `docs/design/evidence/2026-05-23-react-css-visual-parity/pencil-current-web-vault.png`
 
 ## Primitive Mapping
 
@@ -36,6 +41,7 @@ backlog, but it does not claim broad shared primitive adoption by itself.
 | State | Sync, validation, error, empty | `role="status"` for sync state, `role="alert"` for validation/error state, visible empty copy |
 | Review / approval boundary | Copy/show/delete actions | Credential-revealing and destructive actions stay explicit and disabled when unavailable |
 | Foundation variables | Web CSS token layer | `globals.css` exposes shared spacing, radius, shadow, and motion variables |
+| Visual workspace | Web vault page shell | `.vault-page`, `.vault-shell`, `.vault-header`, `.vault-workspace`, `.vault-panel`, `.vault-card`, `.vault-items-list`, and `.vault-item-row` map the approved Pencil workspace into durable React/CSS selectors |
 
 ## Verification
 
@@ -52,13 +58,41 @@ Current proof from this lane:
 - locked password actions are disabled until the vault is unlocked
 - sync and validation states use semantic live-region roles
 - shared foundation variables exist in the Web CSS layer
+- browser visual evidence records the authenticated vault surface with the
+  header, master-password panel, save-login card, item panel, search control,
+  review-state banner, item rows, disabled password actions, and destructive
+  delete affordance
+
+## Visual Evidence
+
+| Evidence | Path | Notes |
+| --- | --- | --- |
+| Pencil current export | `docs/design/evidence/2026-05-23-react-css-visual-parity/pencil-current-web-vault.png` | Export of `current/unuvault/web-vault-management-v1` from `/Users/yuchen/Design/unu/unuvault/unuvault.current.pen`. |
+| Browser DOM capture | `docs/design/evidence/2026-05-23-react-css-visual-parity/web-vault-browser-dom.html` | Captured from a real authenticated local Next.js `/vault` DOM after seeding a local Supabase session and mock `POST /vault/sync` response. |
+| Browser visual capture | `docs/design/evidence/2026-05-23-react-css-visual-parity/web-vault-browser.png` | Rendered from the captured authenticated browser DOM with the repo CSS at a `1440x920` viewport. |
+
+Capture route used for this evidence:
+
+1. Run the Web app with `pnpm --filter @unuvault/web dev`.
+2. Run a local proxy/mock on `127.0.0.1:3000` that seeds
+   `sb-127-auth-token`, proxies the Next.js Web app from `127.0.0.1:3001`,
+   and returns two vault rows from `POST /vault/sync`.
+3. Open `http://127.0.0.1:3000/seed-session`, which redirects to
+   `http://127.0.0.1:3000/vault`.
+4. Confirm the live DOM contains `Vault items`, `Search vault`, and
+   `github.com`, then render the captured DOM for the screenshot artifact.
 
 ## Remaining Gap
 
 This evidence does not yet move the shared React/CSS adapter to
-`adapter-mapped`. The missing proof is a real browser screenshot or capture of
-the Web vault surface compared with the routed Pencil source frame and the
-relevant `unundo-interface` category files.
+`adapter-mapped`. The browser capture now exists, but it shows the implemented
+surface is more complete than the current Pencil screen frame: the shipped Web
+form includes `Website`, `Password`, and `Notes` fields, while the current frame
+still shows the smaller save-login example. The source frame therefore needs a
+Pencil draft backwrite and user approval before promotion into current.
+
+Current Pencil sync label for this lane:
+`draft backwrite pending approval`.
 
 Intentionally local values that must not be promoted into the shared library:
 

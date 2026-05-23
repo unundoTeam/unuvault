@@ -2,6 +2,7 @@
 
 import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import VaultPage from "../src/app/vault/page";
 
@@ -91,6 +92,106 @@ function mockVaultItems() {
 }
 
 describe("React/CSS adapter evidence for the vault surface", () => {
+  it("maps the approved Pencil workspace to durable React/CSS selectors", async () => {
+    mockVaultItems();
+
+    render(<VaultPage />);
+
+    const heading = await screen.findByRole("heading", { name: "Vault" });
+    const surface = heading.closest("[data-unu-primitive='vault-surface']");
+    const unlockForm = screen.getByRole("form", { name: "Unlock vault" });
+    const saveForm = screen.getByRole("form", { name: "Save vault item" });
+    const itemList = screen.getByRole("list");
+
+    expect(heading.closest("main")).toHaveClass("vault-page");
+    expect(surface).toHaveClass("vault-shell");
+    expect(
+      screen
+        .getByText("Keep your current unuvault items in sync across every trusted surface.")
+        .closest(".vault-header"),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Search vault")).toHaveAttribute(
+      "placeholder",
+      "Search vault",
+    );
+    expect(screen.getByText("Review state")).toHaveClass("vault-review-label");
+    expect(unlockForm.closest(".vault-panel")).toHaveClass("vault-panel--unlock");
+    expect(saveForm.closest(".vault-card")).toHaveClass("vault-card--create");
+    expect(itemList.closest(".vault-panel")).toHaveClass("vault-panel--items");
+
+    const cssSource = readFileSync("src/app/globals.css", "utf8");
+    for (const selector of [
+      ".vault-page",
+      ".vault-shell",
+      ".vault-header",
+      ".vault-workspace",
+      ".vault-panel",
+      ".vault-card",
+      ".vault-items-list",
+      ".vault-item-row",
+      ".vault-action-danger",
+      "@media (max-width: 900px)",
+    ]) {
+      expect(cssSource).toContain(selector);
+    }
+  });
+
+  it("filters vault rows through the Pencil search control", async () => {
+    mocks.syncVault.mockResolvedValue({
+      server_time: "2026-05-23T14:23:00.000Z",
+      updated_items: [
+        {
+          id: "item-github",
+          item_type: "login",
+          title: "GitHub",
+          encrypted_payload: {
+            schema_version: 1,
+            username: "yuchen",
+            password_ciphertext: "sealed-password",
+            notes: "",
+            website_url: "https://github.com/login",
+          },
+          favorite: false,
+          source: "manual",
+          last_used_at: null,
+          created_at: "2026-05-23T14:00:00.000Z",
+          updated_at: "2026-05-23T14:00:00.000Z",
+        },
+        {
+          id: "item-bank",
+          item_type: "login",
+          title: "Bank",
+          encrypted_payload: {
+            schema_version: 1,
+            username: "finance@yuchen.dev",
+            password_ciphertext: "",
+            notes: "",
+            website_url: "https://bank.example",
+          },
+          favorite: false,
+          source: "manual",
+          last_used_at: null,
+          created_at: "2026-05-23T14:00:00.000Z",
+          updated_at: "2026-05-23T14:00:00.000Z",
+        },
+      ],
+      deleted_item_ids: [],
+      conflicts: [],
+    });
+
+    render(<VaultPage />);
+
+    expect(await screen.findByText("GitHub")).toBeInTheDocument();
+    expect(screen.getByText("Bank")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Search vault"), {
+      target: { value: "bank" },
+    });
+
+    expect(screen.queryByText("GitHub")).not.toBeInTheDocument();
+    expect(screen.getByText("Bank")).toBeInTheDocument();
+  });
+
   it("exposes semantic primitive hooks on real vault controls", async () => {
     mockVaultItems();
 

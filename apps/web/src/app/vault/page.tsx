@@ -2,7 +2,7 @@ import { VaultPanel } from "../../components/vault/vault-panel";
 
 export default function VaultPage() {
   return (
-    <main>
+    <main className="vault-page">
       <VaultPanel />
     </main>
   );
