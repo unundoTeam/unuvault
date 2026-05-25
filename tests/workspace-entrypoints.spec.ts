@@ -107,4 +107,31 @@ describe("workspace entrypoints", () => {
     expect(loginTest).toContain("@MainActor");
     expect(loginTest).not.toContain("XCTAssertTrue(String(describing: view.body)");
   });
+
+  it("keeps agent design entrypoints aligned with portfolio routing", () => {
+    const readme = readText("README.md");
+    const agents = readText("AGENTS.md");
+
+    for (const entrypoint of [readme, agents]) {
+      expect(entrypoint).toContain(
+        "/Users/yuchen/Code/unu/unuOS/docs/portfolio/design-operating-index.md",
+      );
+      expect(entrypoint).toContain("it is the only first-read design authority");
+      expect(entrypoint).toContain(
+        "/Users/yuchen/Design/unu/unuvault/unuvault.current.pen",
+      );
+      expect(entrypoint).toContain(
+        "/Users/yuchen/Design/unu/unuvault/unuvault.draft.pen",
+      );
+      expect(entrypoint).toContain("current/unuvault/design-system-v1");
+      expect(entrypoint).toContain("current/unuvault/web-vault-management-v1");
+      expect(entrypoint).toContain("Lightweight UI Path");
+      expect(entrypoint).toContain("Historical design specs are planning context only");
+      expect(entrypoint).toContain("design-specs-inventory.md");
+      expect(entrypoint).toContain(
+        "`current-routed` product scope and trust posture context",
+      );
+      expect(entrypoint).toMatch(/not broad\s+Pencil or current UI authority/);
+    }
+  });
 });

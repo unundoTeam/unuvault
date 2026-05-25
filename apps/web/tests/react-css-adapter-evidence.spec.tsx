@@ -3,8 +3,16 @@
 import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import VaultPage from "../src/app/vault/page";
+
+const webRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+
+function readWebText(pathFromWebRoot: string): string {
+  return readFileSync(resolve(webRoot, pathFromWebRoot), "utf8");
+}
 
 afterEach(() => {
   cleanup();
@@ -146,7 +154,7 @@ describe("React/CSS adapter evidence for the vault surface", () => {
     expect(saveForm.closest(".vault-card")).toHaveClass("vault-card--create");
     expect(itemList.closest(".vault-panel")).toHaveClass("vault-panel--items");
 
-    const cssSource = readFileSync("src/app/globals.css", "utf8");
+    const cssSource = readWebText("src/app/globals.css");
     for (const selector of [
       ".vault-page",
       ".vault-shell",
@@ -329,7 +337,7 @@ describe("React/CSS adapter evidence for the vault surface", () => {
       expect(enabledKeyboardControls).not.toContain(unavailableControl);
     }
 
-    const cssSource = readFileSync("src/app/globals.css", "utf8");
+    const cssSource = readWebText("src/app/globals.css");
     for (const selector of [
       ".vault-input:focus-visible",
       ".vault-button:focus-visible",
