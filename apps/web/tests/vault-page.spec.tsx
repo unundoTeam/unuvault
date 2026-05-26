@@ -116,6 +116,25 @@ async function unlockVaultSuccessfully(passphrase: string) {
   await expectVaultUnlocked();
 }
 
+async function unlockAndOpenCreatePanel(passphrase: string = "correct horse") {
+  await unlockVaultSuccessfully(passphrase);
+  const newLoginButton = screen.queryByRole("button", { name: "New login" });
+
+  if (newLoginButton) {
+    fireEvent.click(newLoginButton);
+  }
+
+  await screen.findByRole("form", { name: "Save vault item" });
+}
+
+async function expectVisibleText(text: string) {
+  expect((await screen.findAllByText(text)).length).toBeGreaterThan(0);
+}
+
+function expectVisibleTextNow(text: string) {
+  expect(screen.getAllByText(text).length).toBeGreaterThan(0);
+}
+
 async function expectSyncCall(callIndex: number, expectedPayload: unknown) {
   await waitFor(() => {
     expect(mocks.syncVault).toHaveBeenNthCalledWith(
@@ -222,7 +241,7 @@ describe("VaultPage", () => {
 
     render(<VaultPage />);
 
-    expect(await screen.findByText("GitHub")).toBeInTheDocument();
+    await expectVisibleText("GitHub");
     expect(mocks.syncVault).toHaveBeenCalledWith(expect.any(Function), "jwt-token", {
       changed_items: [],
       deleted_item_ids: [],
@@ -468,7 +487,7 @@ describe("VaultPage", () => {
 
     render(<VaultPage />);
 
-    expect(await screen.findByText("GitHub")).toBeInTheDocument();
+    await expectVisibleText("GitHub");
     expect(screen.getByRole("button", { name: "Set master password" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Unlock vault" })).not.toBeInTheDocument();
   });
@@ -537,13 +556,14 @@ describe("VaultPage", () => {
     render(<VaultPage />);
 
     expect(await screen.findByText("No vault items yet.")).toBeInTheDocument();
+    await unlockAndOpenCreatePanel();
 
     fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "GitHub" },
     });
     fireEvent.submit(screen.getByRole("button", { name: "Save item" }).closest("form")!);
 
-    expect(await screen.findByText("GitHub")).toBeInTheDocument();
+    await expectVisibleText("GitHub");
     expect(mocks.syncVault).toHaveBeenNthCalledWith(
       2,
       expect.any(Function),
@@ -604,6 +624,7 @@ describe("VaultPage", () => {
     render(<VaultPage />);
 
     expect(await screen.findByText("Vault synced")).toBeInTheDocument();
+    await unlockAndOpenCreatePanel();
 
     fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "GitHub" },
@@ -657,6 +678,7 @@ describe("VaultPage", () => {
     render(<VaultPage />);
 
     expect(await screen.findByText("No vault items yet.")).toBeInTheDocument();
+    await unlockAndOpenCreatePanel();
 
     fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "GitHub" },
@@ -729,6 +751,7 @@ describe("VaultPage", () => {
     render(<VaultPage />);
 
     expect(await screen.findByText("No vault items yet.")).toBeInTheDocument();
+    await unlockAndOpenCreatePanel();
 
     fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "GitHub" },
@@ -741,7 +764,9 @@ describe("VaultPage", () => {
     });
     fireEvent.submit(screen.getByRole("button", { name: "Save item" }).closest("form")!);
 
-    await screen.findByText("GitHub");
+    await expectVisibleText("GitHub");
+
+    fireEvent.click(screen.getByRole("button", { name: "New login" }));
 
     expect(screen.getByLabelText("Title")).toHaveValue("");
     expect(screen.getByLabelText("Username")).toHaveValue("");
@@ -792,6 +817,7 @@ describe("VaultPage", () => {
 
     expect(await screen.findByText("No vault items yet.")).toBeInTheDocument();
     await unlockVaultSuccessfully("correct horse");
+    fireEvent.click(screen.getByRole("button", { name: "New login" }));
 
     fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "GitHub" },
@@ -889,6 +915,7 @@ describe("VaultPage", () => {
 
     expect(await screen.findByText("No vault items yet.")).toBeInTheDocument();
     await unlockVaultSuccessfully("correct horse");
+    fireEvent.click(screen.getByRole("button", { name: "New login" }));
 
     fireEvent.click(screen.getByRole("button", { name: "Show password" }));
     fireEvent.change(screen.getByLabelText("Password"), {
@@ -899,9 +926,9 @@ describe("VaultPage", () => {
     });
     fireEvent.submit(screen.getByRole("button", { name: "Save item" }).closest("form")!);
 
-    expect(
-      await screen.findByText("GitHub", undefined, { timeout: 5000 }),
-    ).toBeInTheDocument();
+    await expectVisibleText("GitHub");
+
+    fireEvent.click(screen.getByRole("button", { name: "New login" }));
 
     expect(screen.getByLabelText("Password")).toHaveValue("");
     expect(screen.getByLabelText("Password")).toHaveAttribute("type", "password");
@@ -927,6 +954,7 @@ describe("VaultPage", () => {
     render(<VaultPage />);
 
     expect(await screen.findByText("No vault items yet.")).toBeInTheDocument();
+    await unlockAndOpenCreatePanel();
 
     fireEvent.submit(screen.getByRole("button", { name: "Save item" }).closest("form")!);
 
@@ -953,6 +981,7 @@ describe("VaultPage", () => {
     render(<VaultPage />);
 
     expect(await screen.findByText("No vault items yet.")).toBeInTheDocument();
+    await unlockAndOpenCreatePanel();
 
     fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "GitHub" },
@@ -1006,7 +1035,8 @@ describe("VaultPage", () => {
 
     render(<VaultPage />);
 
-    expect(await screen.findByText("GitHub")).toBeInTheDocument();
+    await expectVisibleText("GitHub");
+    await unlockVaultSuccessfully("correct horse");
 
     fireEvent.click(screen.getByRole("button", { name: "Delete GitHub" }));
 
@@ -1062,7 +1092,8 @@ describe("VaultPage", () => {
 
     render(<VaultPage />);
 
-    expect(await screen.findByText("GitHub")).toBeInTheDocument();
+    await expectVisibleText("GitHub");
+    await unlockVaultSuccessfully("correct horse");
 
     fireEvent.click(screen.getByRole("button", { name: "Delete GitHub" }));
 
@@ -1114,9 +1145,10 @@ describe("VaultPage", () => {
 
     render(<VaultPage />);
 
+    expect(await screen.findByRole("button", { name: "Locked GitHub" })).toBeDisabled();
     expect(
-      await screen.findByRole("button", { name: "Copy password GitHub" }),
-    ).toBeDisabled();
+      screen.queryByRole("button", { name: "Copy password GitHub" }),
+    ).not.toBeInTheDocument();
 
     expect(writeText).not.toHaveBeenCalled();
     expect(screen.getByRole("button", { name: "Set master password" })).toBeInTheDocument();
@@ -1230,7 +1262,10 @@ describe("VaultPage", () => {
     render(<VaultPage />);
 
     await unlockVault("wrong battery");
-    expect(screen.getByRole("button", { name: "Copy password GitHub" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Locked GitHub" })).toBeDisabled();
+    expect(
+      screen.queryByRole("button", { name: "Copy password GitHub" }),
+    ).not.toBeInTheDocument();
 
     expect(await screen.findByText("Wrong master password")).toBeInTheDocument();
     expect(writeText).not.toHaveBeenCalled();
@@ -1380,7 +1415,8 @@ describe("VaultPage", () => {
 
     render(<VaultPage />);
 
-    expect(await screen.findByText("GitHub")).toBeInTheDocument();
+    await expectVisibleText("GitHub");
+    await unlockAndOpenCreatePanel();
 
     fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "GitLab" },
@@ -1388,7 +1424,7 @@ describe("VaultPage", () => {
     fireEvent.submit(screen.getByRole("button", { name: "Save item" }).closest("form")!);
 
     await waitFor(() => {
-      expect(screen.getByText("GitHub")).toBeInTheDocument();
+      expectVisibleTextNow("GitHub");
       expect(screen.getByText("Saving item...")).toBeInTheDocument();
     });
 
@@ -1464,14 +1500,15 @@ describe("VaultPage", () => {
 
     render(<VaultPage />);
 
-    expect(await screen.findByText("GitHub")).toBeInTheDocument();
+    await expectVisibleText("GitHub");
+    await unlockVaultSuccessfully("correct horse");
 
     fireEvent.click(screen.getByRole("button", { name: "Delete GitHub" }));
 
     expect(
       await screen.findByText("We couldn't sync your vault. Please try again."),
     ).toBeInTheDocument();
-    expect(screen.getByText("GitHub")).toBeInTheDocument();
+    expectVisibleTextNow("GitHub");
   });
 
   it("shows username in the vault list", async () => {
@@ -1509,7 +1546,8 @@ describe("VaultPage", () => {
 
     render(<VaultPage />);
 
-    expect(await screen.findByText("alice@example.com")).toBeInTheDocument();
+    await unlockVaultSuccessfully("correct horse");
+    await expectVisibleText("alice@example.com");
   });
 
   it("shows a notes indicator when notes exist", async () => {
@@ -1585,7 +1623,8 @@ describe("VaultPage", () => {
 
     render(<VaultPage />);
 
-    expect(await screen.findByText("No password saved")).toBeInTheDocument();
+    await unlockVaultSuccessfully("correct horse");
+    await expectVisibleText("No password saved");
     expect(
       screen.queryByRole("button", { name: "Show password GitHub" }),
     ).not.toBeInTheDocument();
@@ -1626,7 +1665,8 @@ describe("VaultPage", () => {
 
     render(<VaultPage />);
 
-    expect(await screen.findByText("••••••••")).toBeInTheDocument();
+    await unlockVaultSuccessfully("correct horse");
+    await expectVisibleText("••••••••");
     expect(
       screen.getByRole("button", { name: "Show password GitHub" }),
     ).toBeInTheDocument();
@@ -1683,6 +1723,7 @@ describe("VaultPage", () => {
 
     render(<VaultPage />);
 
+    await unlockVaultSuccessfully("correct horse");
     expect(
       await screen.findByRole("button", { name: "Copy username GitHub" }),
     ).toBeInTheDocument();
@@ -1735,6 +1776,7 @@ describe("VaultPage", () => {
 
     render(<VaultPage />);
 
+    await unlockVaultSuccessfully("correct horse");
     fireEvent.click(
       await screen.findByRole("button", { name: "Copy username GitHub" }),
     );
@@ -1796,6 +1838,7 @@ describe("VaultPage", () => {
 
     render(<VaultPage />);
 
+    await unlockVaultSuccessfully("correct horse");
     expect(
       await screen.findByRole("button", { name: "Copy password GitHub" }),
     ).toBeInTheDocument();
@@ -1856,7 +1899,7 @@ describe("VaultPage", () => {
     await waitFor(() => {
       expect(writeText).toHaveBeenCalledWith("hunter2");
     });
-    expect(screen.getByText("••••••••")).toBeInTheDocument();
+    expectVisibleTextNow("••••••••");
     expect(screen.queryByText("hunter2")).not.toBeInTheDocument();
   });
 
@@ -2037,11 +2080,11 @@ describe("VaultPage", () => {
 
     render(<VaultPage />);
 
+    await unlockVaultSuccessfully("correct horse");
     const copyButton = await screen.findByRole("button", {
       name: "Copy password GitHub",
     });
 
-    await unlockVaultSuccessfully("correct horse");
     vi.useFakeTimers();
 
     await act(async () => {
@@ -2050,7 +2093,7 @@ describe("VaultPage", () => {
     });
 
     expect(screen.getByRole("button", { name: "Copied password GitHub" })).toBeInTheDocument();
-    expect(screen.getByText("••••••••")).toBeInTheDocument();
+    expectVisibleTextNow("••••••••");
     expect(screen.queryByText("hunter2")).not.toBeInTheDocument();
 
     act(() => {
@@ -2058,7 +2101,7 @@ describe("VaultPage", () => {
     });
 
     expect(screen.getByRole("button", { name: "Copy password GitHub" })).toBeInTheDocument();
-    expect(screen.getByText("••••••••")).toBeInTheDocument();
+    expectVisibleTextNow("••••••••");
     expect(screen.queryByText("hunter2")).not.toBeInTheDocument();
   });
 
@@ -2118,7 +2161,7 @@ describe("VaultPage", () => {
       await screen.findByRole("button", { name: "Show password GitHub" }),
     );
 
-    expect(await screen.findByText("hunter2")).toBeInTheDocument();
+    await expectVisibleText("hunter2");
     expect(screen.queryByText("linear-secret")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Hide password GitHub" })).toBeInTheDocument();
     expect(
@@ -2170,7 +2213,7 @@ describe("VaultPage", () => {
     await waitFor(() => {
       expect(screen.queryByText("hunter2")).not.toBeInTheDocument();
     });
-    expect(await screen.findByText("••••••••")).toBeInTheDocument();
+    await expectVisibleText("••••••••");
     expect(
       screen.getByRole("button", { name: "Show password GitHub" }),
     ).toBeInTheDocument();
@@ -2209,11 +2252,12 @@ describe("VaultPage", () => {
 
     render(<VaultPage />);
 
-    expect(await screen.findByText("GitHub")).toBeInTheDocument();
+    await expectVisibleText("GitHub");
+    await unlockVaultSuccessfully("correct horse");
 
     fireEvent.click(screen.getByRole("button", { name: "Edit GitHub" }));
 
-    expect(screen.getByDisplayValue("GitHub")).toBeInTheDocument();
+    expect(await screen.findByLabelText("Edit title")).toHaveValue("GitHub");
     expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
   });
@@ -2254,14 +2298,15 @@ describe("VaultPage", () => {
 
     render(<VaultPage />);
 
-    expect(await screen.findByText("GitHub")).toBeInTheDocument();
+    await expectVisibleText("GitHub");
+    await unlockVaultSuccessfully("correct horse");
 
     fireEvent.click(screen.getByRole("button", { name: "Edit GitHub" }));
 
-    expect(screen.getByDisplayValue("GitHub")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("alice@example.com")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("Personal account")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("https://github.com/login")).toBeInTheDocument();
+    expect(await screen.findByLabelText("Edit title")).toHaveValue("GitHub");
+    expect(screen.getByLabelText("Edit username")).toHaveValue("alice@example.com");
+    expect(screen.getByLabelText("Edit notes")).toHaveValue("Personal account");
+    expect(screen.getByLabelText("Edit website")).toHaveValue("https://github.com/login");
   });
 
   it("prefills password in edit mode and keeps it hidden by default", async () => {
@@ -2299,7 +2344,7 @@ describe("VaultPage", () => {
 
     render(<VaultPage />);
 
-    expect(await screen.findByText("GitHub")).toBeInTheDocument();
+    await expectVisibleText("GitHub");
 
     await unlockVaultSuccessfully("correct horse");
     fireEvent.click(screen.getByRole("button", { name: "Edit GitHub" }));
@@ -2367,15 +2412,16 @@ describe("VaultPage", () => {
 
     render(<VaultPage />);
 
-    expect(await screen.findByText("GitHub")).toBeInTheDocument();
+    await expectVisibleText("GitHub");
+    await unlockVaultSuccessfully("correct horse");
 
     fireEvent.click(screen.getByRole("button", { name: "Edit GitHub" }));
-    fireEvent.change(screen.getByDisplayValue("GitHub"), {
+    fireEvent.change(await screen.findByLabelText("Edit title"), {
       target: { value: "GitHub Personal" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
-    expect(await screen.findByText("GitHub Personal")).toBeInTheDocument();
+    await expectVisibleText("GitHub Personal");
     expect(mocks.syncVault).toHaveBeenNthCalledWith(
       2,
       expect.any(Function),
@@ -2448,10 +2494,11 @@ describe("VaultPage", () => {
 
     render(<VaultPage />);
 
-    expect(await screen.findByText("GitHub")).toBeInTheDocument();
+    await expectVisibleText("GitHub");
+    await unlockVaultSuccessfully("correct horse");
 
     fireEvent.click(screen.getByRole("button", { name: "Edit GitHub" }));
-    fireEvent.change(screen.getByDisplayValue("GitHub"), {
+    fireEvent.change(await screen.findByLabelText("Edit title"), {
       target: { value: "GitHub Personal" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
@@ -2521,43 +2568,39 @@ describe("VaultPage", () => {
 
     render(<VaultPage />);
 
-    expect(await screen.findByText("GitHub")).toBeInTheDocument();
+    await expectVisibleText("GitHub");
+    await unlockVaultSuccessfully("correct horse");
 
     fireEvent.click(screen.getByRole("button", { name: "Edit GitHub" }));
-    fireEvent.change(screen.getByDisplayValue("GitHub"), {
+    fireEvent.change(await screen.findByLabelText("Edit title"), {
       target: { value: "GitHub Personal" },
     });
-    fireEvent.change(screen.getByDisplayValue("alice@example.com"), {
+    fireEvent.change(screen.getByLabelText("Edit username"), {
       target: { value: "alice@work.com" },
     });
-    fireEvent.change(screen.getByDisplayValue("https://github.com/login"), {
+    fireEvent.change(screen.getByLabelText("Edit website"), {
       target: { value: "app.github.com" },
     });
-    fireEvent.change(screen.getByDisplayValue("Personal account"), {
+    fireEvent.change(screen.getByLabelText("Edit notes"), {
       target: { value: "Work account" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
-    expect(mocks.syncVault).toHaveBeenNthCalledWith(
-      2,
-      expect.any(Function),
-      "jwt-token",
-      {
-        changed_items: [
-          expect.objectContaining({
-            id: "item-1",
-            title: "GitHub Personal",
-            encrypted_payload: expect.objectContaining({
-              username: "alice@work.com",
-              notes: "Work account",
-              password_ciphertext: "",
-              website_url: "https://app.github.com/",
-            }),
+    await expectSyncCall(2, {
+      changed_items: [
+        expect.objectContaining({
+          id: "item-1",
+          title: "GitHub Personal",
+          encrypted_payload: expect.objectContaining({
+            username: "alice@work.com",
+            notes: "Work account",
+            password_ciphertext: "",
+            website_url: "https://app.github.com/",
           }),
-        ],
-        deleted_item_ids: [],
-      },
-    );
+        }),
+      ],
+      deleted_item_ids: [],
+    });
   });
 
   it("saves an edited password through changed_items", async () => {
@@ -2619,7 +2662,7 @@ describe("VaultPage", () => {
 
     render(<VaultPage />);
 
-    expect(await screen.findByText("GitHub")).toBeInTheDocument();
+    await expectVisibleText("GitHub");
 
     await unlockVaultSuccessfully("correct horse");
     fireEvent.click(screen.getByRole("button", { name: "Edit GitHub" }));
@@ -2720,7 +2763,7 @@ describe("VaultPage", () => {
 
     render(<VaultPage />);
 
-    expect(await screen.findByText("GitHub")).toBeInTheDocument();
+    await expectVisibleText("GitHub");
 
     await unlockVaultSuccessfully("correct horse");
     fireEvent.click(screen.getByRole("button", { name: "Edit GitHub" }));
@@ -2780,15 +2823,16 @@ describe("VaultPage", () => {
 
     render(<VaultPage />);
 
-    expect(await screen.findByText("GitHub")).toBeInTheDocument();
+    await expectVisibleText("GitHub");
+    await unlockVaultSuccessfully("correct horse");
 
     fireEvent.click(screen.getByRole("button", { name: "Edit GitHub" }));
-    fireEvent.change(screen.getByDisplayValue("GitHub"), {
+    fireEvent.change(await screen.findByLabelText("Edit title"), {
       target: { value: "GitHub Personal" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
 
-    expect(screen.getByText("GitHub")).toBeInTheDocument();
+    expectVisibleTextNow("GitHub");
     expect(screen.queryByDisplayValue("GitHub Personal")).not.toBeInTheDocument();
     expect(mocks.syncVault).toHaveBeenCalledTimes(1);
   });
@@ -2826,10 +2870,11 @@ describe("VaultPage", () => {
 
     render(<VaultPage />);
 
-    expect(await screen.findByText("GitHub")).toBeInTheDocument();
+    await expectVisibleText("GitHub");
+    await unlockVaultSuccessfully("correct horse");
 
     fireEvent.click(screen.getByRole("button", { name: "Edit GitHub" }));
-    fireEvent.change(screen.getByDisplayValue("GitHub"), {
+    fireEvent.change(await screen.findByLabelText("Edit title"), {
       target: { value: "   " },
     });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));

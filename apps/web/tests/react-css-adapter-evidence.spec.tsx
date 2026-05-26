@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import "@testing-library/jest-dom/vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -126,6 +126,35 @@ function getEnabledKeyboardControls(): HTMLElement[] {
   });
 }
 
+async function unlockVault(passphrase: string = "correct horse") {
+  fireEvent.change(await screen.findByLabelText("Master password"), {
+    target: { value: passphrase },
+  });
+
+  const confirmation = screen.queryByLabelText("Confirm master password");
+
+  if (confirmation) {
+    fireEvent.change(confirmation, {
+      target: { value: passphrase },
+    });
+  }
+
+  fireEvent.click(screen.getByRole("button", { name: /Set master password|Unlock vault/ }));
+
+  expect(await screen.findByText("Vault unlocked")).toBeInTheDocument();
+}
+
+async function unlockAndOpenCreatePanel(passphrase?: string) {
+  await unlockVault(passphrase);
+  const newLoginButton = screen.queryByRole("button", { name: "New login" });
+
+  if (newLoginButton) {
+    fireEvent.click(newLoginButton);
+  }
+
+  return await screen.findByRole("form", { name: "Save vault item" });
+}
+
 describe("React/CSS adapter evidence for the vault surface", () => {
   it("maps the approved Pencil workspace to durable React/CSS selectors", async () => {
     mockVaultItems();
@@ -135,7 +164,6 @@ describe("React/CSS adapter evidence for the vault surface", () => {
     const heading = await screen.findByRole("heading", { name: "Vault" });
     const surface = heading.closest("[data-unu-primitive='vault-surface']");
     const unlockForm = screen.getByRole("form", { name: "Unlock vault" });
-    const saveForm = screen.getByRole("form", { name: "Save vault item" });
     const itemList = screen.getByRole("list");
 
     expect(heading.closest("main")).toHaveClass("vault-page");
@@ -147,12 +175,25 @@ describe("React/CSS adapter evidence for the vault surface", () => {
     ).toBeInTheDocument();
     expect(screen.getByLabelText("Search vault")).toHaveAttribute(
       "placeholder",
+      "Unlock to search",
+    );
+    expect(screen.getByLabelText("Search vault")).toBeDisabled();
+    expect(screen.getByText("Locked state")).toHaveClass("vault-review-label");
+    expect(unlockForm.closest(".vault-panel")).toHaveClass("vault-panel--unlock");
+    expect(itemList.closest(".vault-panel")).toHaveClass("vault-panel--items");
+
+    const saveForm = await unlockAndOpenCreatePanel();
+
+    expect(screen.getByLabelText("Search vault")).toHaveAttribute(
+      "placeholder",
       "Search vault",
     );
-    expect(screen.getByText("Review state")).toHaveClass("vault-review-label");
-    expect(unlockForm.closest(".vault-panel")).toHaveClass("vault-panel--unlock");
+    expect(
+      screen
+        .getAllByText("Unlocked session")
+        .some((element) => element.classList.contains("vault-review-label")),
+    ).toBe(true);
     expect(saveForm.closest(".vault-card")).toHaveClass("vault-card--create");
-    expect(itemList.closest(".vault-panel")).toHaveClass("vault-panel--items");
 
     const cssSource = readWebText("src/app/globals.css");
     for (const selector of [
@@ -219,12 +260,16 @@ describe("React/CSS adapter evidence for the vault surface", () => {
     expect(await screen.findByText("GitHub")).toBeInTheDocument();
     expect(screen.getByText("Bank")).toBeInTheDocument();
 
+    await unlockVault();
+
     fireEvent.change(screen.getByLabelText("Search vault"), {
       target: { value: "bank" },
     });
 
-    expect(screen.queryByText("GitHub")).not.toBeInTheDocument();
-    expect(screen.getByText("Bank")).toBeInTheDocument();
+    const itemList = screen.getByRole("list");
+
+    expect(within(itemList).queryByText("GitHub")).not.toBeInTheDocument();
+    expect(within(itemList).getByText("Bank")).toBeInTheDocument();
   });
 
   it("exposes semantic primitive hooks on real vault controls", async () => {
@@ -248,16 +293,23 @@ describe("React/CSS adapter evidence for the vault surface", () => {
     expect(
       screen.getByRole("button", { name: "Set master password" }),
     ).toBeEnabled();
+    expect(screen.getByLabelText("Search vault")).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Locked GitHub" })).toBeDisabled();
+    expect(
+      screen.queryByRole("button", { name: "Copy username GitHub" }),
+    ).not.toBeInTheDocument();
 
-    expect(screen.getByRole("form", { name: "Save vault item" })).toHaveAttribute(
+    const saveForm = await unlockAndOpenCreatePanel();
+
+    expect(saveForm).toHaveAttribute(
       "data-unu-primitive",
       "form/save-item",
     );
     expect(screen.getByLabelText("Title")).toHaveAttribute("type", "text");
     expect(screen.getByLabelText("Username")).toHaveAttribute("type", "text");
     expect(screen.getByLabelText("Website")).toHaveAttribute("type", "text");
-    expect(screen.getByLabelText("Password")).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Show password" })).toBeDisabled();
+    expect(screen.getByLabelText("Password")).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Show password" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Save item" })).toBeEnabled();
 
     expect(screen.getByText("GitHub").closest("li")).toHaveAttribute(
@@ -267,8 +319,14 @@ describe("React/CSS adapter evidence for the vault surface", () => {
     expect(screen.getByRole("button", { name: "Copy username GitHub" })).toBeEnabled();
     expect(
       screen.getByRole("button", { name: "Copy password GitHub" }),
-    ).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Show password GitHub" })).toBeDisabled();
+    ).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Show password GitHub" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Edit GitHub" })).toBeEnabled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Open details GitHub" }));
+
+    expect(screen.getByRole("button", { name: "Copy password GitHub" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Show password GitHub" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Edit GitHub" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Delete GitHub" })).toBeEnabled();
   });
@@ -288,6 +346,8 @@ describe("React/CSS adapter evidence for the vault surface", () => {
     });
     expect(screen.getByText("No vault items yet.")).toBeInTheDocument();
 
+    await unlockAndOpenCreatePanel();
+
     fireEvent.submit(screen.getByRole("button", { name: "Save item" }).closest("form")!);
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Title is required.");
@@ -304,20 +364,40 @@ describe("React/CSS adapter evidence for the vault surface", () => {
 
     expect(await screen.findByText("GitHub")).toBeInTheDocument();
 
-    const enabledKeyboardControls = getEnabledKeyboardControls();
-    const expectedKeyboardOrder = [
+    let enabledKeyboardControls = getEnabledKeyboardControls();
+    let expectedKeyboardOrder = [
       screen.getByLabelText("Master password"),
       screen.getByLabelText("Confirm master password"),
       screen.getByRole("button", { name: "Set master password" }),
+    ];
+
+    expect(enabledKeyboardControls).toEqual(expectedKeyboardOrder);
+    expect(screen.getByLabelText("Search vault")).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Locked GitHub" })).toBeDisabled();
+    expect(enabledKeyboardControls).not.toContain(screen.getByLabelText("Search vault"));
+    expect(enabledKeyboardControls).not.toContain(
+      screen.getByRole("button", { name: "Locked GitHub" }),
+    );
+
+    await unlockAndOpenCreatePanel();
+
+    enabledKeyboardControls = getEnabledKeyboardControls();
+    expectedKeyboardOrder = [
+      screen.getByRole("button", { name: "Lock vault" }),
+      screen.getByLabelText("Search vault"),
+      screen.getByRole("button", { name: "New login" }),
+      screen.getByRole("button", { name: "Copy username GitHub" }),
+      screen.getByRole("button", { name: "Copy password GitHub" }),
+      screen.getByRole("button", { name: "Show password GitHub" }),
+      screen.getByRole("button", { name: "Open details GitHub" }),
+      screen.getByRole("button", { name: "Edit GitHub" }),
       screen.getByLabelText("Title"),
       screen.getByLabelText("Username"),
       screen.getByLabelText("Website"),
+      screen.getByLabelText("Password"),
+      screen.getByRole("button", { name: "Show password" }),
       screen.getByLabelText("Notes"),
       screen.getByRole("button", { name: "Save item" }),
-      screen.getByLabelText("Search vault"),
-      screen.getByRole("button", { name: "Copy username GitHub" }),
-      screen.getByRole("button", { name: "Edit GitHub" }),
-      screen.getByRole("button", { name: "Delete GitHub" }),
     ];
 
     expect(enabledKeyboardControls).toEqual(expectedKeyboardOrder);
@@ -325,16 +405,6 @@ describe("React/CSS adapter evidence for the vault surface", () => {
     for (const control of expectedKeyboardOrder) {
       control.focus();
       expect(control).toHaveFocus();
-    }
-
-    for (const unavailableControl of [
-      screen.getByLabelText("Password"),
-      screen.getByRole("button", { name: "Show password" }),
-      screen.getByRole("button", { name: "Copy password GitHub" }),
-      screen.getByRole("button", { name: "Show password GitHub" }),
-    ]) {
-      expect(unavailableControl).toBeDisabled();
-      expect(enabledKeyboardControls).not.toContain(unavailableControl);
     }
 
     const cssSource = readWebText("src/app/globals.css");
