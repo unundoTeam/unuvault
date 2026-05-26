@@ -13,10 +13,21 @@ who want a more trustworthy home for credentials than browser-native storage.
 - product-local data contracts and the client-side security model for vault
   access
 
-### Canonical Auth Boundary
+### Canonical Identity And Local Vault Boundary
 
-`unuvault` uses one shared auth contract across Web, API, and browser-extension
-surfaces:
+`unuvault` keeps account identity, vault unlock, and device trust as separate
+concepts:
+
+1. Account identity answers who owns sync, recovery, device management, and
+   account-level activity.
+2. Vault unlock answers whether this local session can release secrets.
+3. Device trust answers which clients may sync, fill, recover, or receive vault
+   material.
+
+Local-only vault use can avoid account login, but it still requires vault
+unlock before credentials are revealed, copied, filled, exported, or
+transferred. Account-enabled surfaces use one shared auth contract across Web,
+API, and browser-extension surfaces:
 
 1. `unuidentity` plus Supabase Auth authenticate the person and issue the
    identity session.
@@ -37,6 +48,10 @@ same:
   repo-owned, but still expected to follow the same bridge model once its auth
   surface is fully live
 
+The account layer must not be described as the reader of plaintext passwords.
+It exists to coordinate encrypted sync, device revocation, recent activity, and
+recovery flows; vault unlock remains the secret-release boundary.
+
 ## What It Does Not Own
 
 - the shared identity and account platform owned by `unuidentity`
@@ -49,6 +64,8 @@ same:
   for product scope and trust posture
 - `docs/architecture/0000-phase1-execution-baseline.md` for the execution
   baseline
+- `docs/architecture/0006-local-first-recovery-boundary.md` for local-first,
+  account-optional, device-loss, and recovery semantics
 - `docs/superpowers/plans/2026-03-14-chinese-password-manager-phase1-roadmap.md`
   for the engineering roadmap
 - this README for contributor-facing local entrypoints and current contract
@@ -182,6 +199,9 @@ For the local credential bridge:
   only for `reason: "fill-active-page"` and records a non-secret audit event
 - the API bridge reads from a local unlocked credential provider; it does not
   treat encrypted `vault_items` rows as server-readable plaintext
+- the bridge must clear unlocked sessions on lock, timeout, revoke, or
+  lost-device state; account-enabled bridge flows may use the Web session token,
+  but local-only bridge flows still need an equivalent local trust proof
 - optional local smoke server:
   `UNUVAULT_BRIDGE_SMOKE_ORIGIN=<origin> pnpm smoke:local-credential-bridge-server`
   starts the real bridge routes with an in-memory unlocked session for bridge
