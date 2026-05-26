@@ -134,4 +134,25 @@ describe("workspace entrypoints", () => {
       expect(entrypoint).toMatch(/not broad\s+Pencil or current UI authority/);
     }
   });
+
+  it("records the current iOS mobile adapter evidence boundary", () => {
+    const evidencePath = "docs/design/mobile-native-adapter-evidence.md";
+
+    expect(existsSync(resolve(repoRoot, evidencePath))).toBe(true);
+
+    const evidence = readText(evidencePath);
+
+    expect(evidence).toContain("Adapter lane: mobile/non-SwiftUI native adapter");
+    expect(evidence).toContain("Status: `blocked-needs-evidence`");
+    expect(evidence).toContain("apps/ios/App/Sources/Features/Auth/LoginView.swift");
+    expect(evidence).toContain("apps/ios/App/Sources/Features/Vault/VaultListView.swift");
+    expect(evidence).toContain(
+      "apps/ios/App/Sources/Features/Autofill/AutofillOnboardingView.swift",
+    );
+    expect(evidence).toContain("bash scripts/testing/run-ios.sh");
+    expect(evidence).toContain("No `adapter-mapped` or `adopted` claim");
+    expect(evidence).toContain("Dynamic Type");
+    expect(evidence).toContain("VoiceOver");
+    expect(evidence).toContain("44pt");
+  });
 });
