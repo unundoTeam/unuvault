@@ -13,7 +13,7 @@
 - Pencil draft: `/Users/yuchen/Design/unu/unuvault/unuvault.draft.pen`.
 - Current design-system frame: `current/unuvault/design-system-v1`.
 - Current web source frame: `current/unuvault/web-vault-management-v1`.
-- Current Mac companion source frame: `current/unuvault/mac-companion-core-flows-v1.1`.
+- Current Mac companion source frame: `current/unuvault/mac-companion-core-flows-v1.2`.
 - Small UI copy or polish uses the `Lightweight UI Path` in the portfolio Pencil gate.
 - Historical design specs are planning context only unless the operating index or this repo-local entrypoint explicitly routes to them.
 - The legacy product-scope spec is routed only through `/Users/yuchen/Code/unu/unuOS/docs/portfolio/design-specs-inventory.md` as `current-routed` product scope and trust posture context; it is not broad Pencil or current UI authority.

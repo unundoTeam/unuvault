@@ -4,6 +4,7 @@ import PackageDescription
 
 let package = Package(
     name: "UnuVaultMacCompanion",
+    defaultLocalization: "en",
     platforms: [
         .macOS(.v14)
     ],
@@ -23,7 +24,10 @@ let package = Package(
         .executableTarget(
             name: "UnuVaultMacCompanion",
             dependencies: ["MacCompanionCore"],
-            path: "Sources/UnuVaultMacCompanion"
+            path: "Sources/UnuVaultMacCompanion",
+            resources: [
+                .process("Resources")
+            ]
         ),
         .executableTarget(
             name: "MacCompanionSmokeHost",

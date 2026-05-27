@@ -92,7 +92,7 @@ recovery flows; vault unlock remains the secret-release boundary.
 - Current design-system frame: `current/unuvault/design-system-v1`.
 - Current web source frame: `current/unuvault/web-vault-management-v1`.
 - Current Mac companion source frame:
-  `current/unuvault/mac-companion-core-flows-v1.1`.
+  `current/unuvault/mac-companion-core-flows-v1.2`.
 - Small UI copy or polish uses the `Lightweight UI Path` in the portfolio
   Pencil gate.
 - Historical design specs are planning context only unless the operating index
@@ -218,6 +218,8 @@ For the native Mac companion proof:
 
 - `apps/macos/App` hosts the SwiftUI menu bar app and loopback bridge proof at
   `127.0.0.1:17666`
+- the menu bar proof includes a Keychain-keyed local encrypted vault file for
+  saving and unlocking local login items before release
 - the Web vault surfaces the Mac companion boundary; the separate Mac companion
   client can request one active-origin release and claim it once after Mac-local
   approval, but Web does not approve or own plaintext release
@@ -226,6 +228,8 @@ For the native Mac companion proof:
   the extension background
 - packaged extension and live native-process fill proof is available through:
   `pnpm smoke:packaged-extension-mac-companion`
+  The smoke host writes and reloads an encrypted local vault file before
+  unlocking the bridge session.
 - current implementation evidence is recorded in
   `docs/design/mac-companion-mvp-evidence.md`
 

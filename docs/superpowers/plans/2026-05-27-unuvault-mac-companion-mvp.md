@@ -2,11 +2,18 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **Design authority note:** This plan records the original 2026-05-27 MVP
+> implementation slice that used
+> `current/unuvault/mac-companion-core-flows-v1.1`. As of 2026-05-28, the
+> approved Mac companion design authority is
+> `current/unuvault/mac-companion-core-flows-v1.2`; use the current frame, not
+> this historical plan, for future UI implementation.
+
 **Goal:** Build the first testable macOS companion proof for UnuVault: a native menu bar app that owns local unlock state, serves a loopback credential bridge, and lets the Web vault request one active-origin fill through explicit local approval.
 
 **Architecture:** Add a Swift Package under `apps/macos/App` with a small `MacCompanionCore` library, a SwiftUI menu bar executable, and XCTest coverage for lock state, bridge policy, approval, timeout, and lost-device boundaries. Keep the existing Web/API bridge intact, then add a separate Web-side Mac companion client that can discover `http://127.0.0.1:17666`, request metadata, and request one approved release without making the Web app the plaintext authority.
 
-**Tech Stack:** Swift 6, SwiftUI, Network.framework, XCTest, pnpm workspace, TypeScript, React, Vitest, current Pencil source `current/unuvault/mac-companion-core-flows-v1.1`
+**Tech Stack:** Swift 6, SwiftUI, Network.framework, XCTest, pnpm workspace, TypeScript, React, Vitest, current Pencil source `current/unuvault/mac-companion-core-flows-v1.2`
 
 ---
 
@@ -15,7 +22,7 @@
 - Product boundary: `README.md`
 - Local-first/recovery boundary: `docs/architecture/0006-local-first-recovery-boundary.md`
 - Mac companion boundary: `docs/architecture/0007-mac-companion-boundary.md`
-- Current design source: `/Users/yuchen/Design/unu/unuvault/unuvault.current.pen`, frame `current/unuvault/mac-companion-core-flows-v1.1`
+- Current design source: `/Users/yuchen/Design/unu/unuvault/unuvault.current.pen`, frame `current/unuvault/mac-companion-core-flows-v1.2`
 - Existing local bridge reference: `apps/api/src/services/local-credential-bridge-service.ts`, `apps/api/src/routes/local-credential-bridge.ts`
 
 ## File Structure Map
@@ -1729,7 +1736,7 @@ Create `docs/design/mac-companion-mvp-evidence.md`:
 ## Design Source
 
 - Pencil current: `/Users/yuchen/Design/unu/unuvault/unuvault.current.pen`
-- Current frame: `current/unuvault/mac-companion-core-flows-v1.1`
+- Current frame: `current/unuvault/mac-companion-core-flows-v1.2`
 
 ## Boundary
 
@@ -1792,7 +1799,7 @@ Expected: all commands pass. If `bash scripts/testing/run-macos.sh` fails becaus
 Check these statements directly in the changed files:
 
 ```bash
-rg -n "server-side plaintext|bulk plaintext|fill-active-page|lost-device|current/unuvault/mac-companion-core-flows-v1.1" README.md docs apps/macos apps/web
+rg -n "server-side plaintext|bulk plaintext|fill-active-page|lost-device|current/unuvault/mac-companion-core-flows-v1.2" README.md docs apps/macos apps/web
 ```
 
 Expected:
@@ -1832,7 +1839,7 @@ Expected:
 - Keep the first Mac proof local-only and loopback-only.
 - Do not add hosted account login, cloud conflict resolution, Touch ID, notarization, or physical iPhone pairing to this MVP unless a new plan expands the scope.
 - Do not change the existing API bridge behavior unless the Web/Mac integration tests expose a specific compatibility issue.
-- Do not promote any further Pencil frames unless visible UI diverges from `current/unuvault/mac-companion-core-flows-v1.1`.
+- Do not promote any further Pencil frames unless visible UI diverges from `current/unuvault/mac-companion-core-flows-v1.2`.
 
 ## Self-Review
 

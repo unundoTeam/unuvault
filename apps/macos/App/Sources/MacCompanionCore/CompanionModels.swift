@@ -12,7 +12,7 @@ public enum CompanionAttentionReason: String, Equatable {
     case unlockExpired
 }
 
-public struct CompanionCredential: Equatable, Identifiable {
+public struct CompanionCredential: Equatable, Identifiable, Codable {
     public let id: String
     public let label: String
     public let username: String

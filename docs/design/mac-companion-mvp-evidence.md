@@ -3,11 +3,13 @@
 ## Design Source
 
 - Pencil current: `/Users/yuchen/Design/unu/unuvault/unuvault.current.pen`
-- Current frame: `current/unuvault/mac-companion-core-flows-v1.1`
+- Current frame: `current/unuvault/mac-companion-core-flows-v1.2`
 
 ## Boundary
 
 - The Mac companion is the local trusted root for local-first fill.
+- The Mac companion stores local login items in an AES-GCM encrypted vault file;
+  the default app key is created and read through Keychain.
 - The Web vault remains the management and review surface.
 - Locked companion state rejects metadata and release.
 - Unlocked companion state can return metadata for the active origin.
@@ -44,17 +46,35 @@ pnpm test
 swift run --package-path apps/macos/App UnuVaultMacCompanion
 ```
 
-The command builds and starts the menu bar app product. A captured native menu
-visual proof is not claimed by this document.
+The command builds and starts the menu bar app product. On 2026-05-27, an
+earlier native menu bar item was opened through macOS UI scripting
+(`menu bar item 1 of menu bar 2` for process `UnuVaultMacCompanion`) and
+captured as previous local visual evidence:
+
+- `/Users/yuchen/Design/unu/unuvault/exports/2026-05-27-mac-companion-menu-popover-light-polished-v2.png`
+
+On 2026-05-28, the native menu bar product was synced to the approved current
+source `current/unuvault/mac-companion-core-flows-v1.2`. The menu opens on a
+trusted-status surface first, keeps credential entry behind an explicit
+`Add login` action, and includes `zh-Hans` localized copy. Local screenshots:
+
+- `/Users/yuchen/Design/unu/unuvault/exports/2026-05-28-mac-companion-menu-popover-v12-current.png`
+- `/Users/yuchen/Design/unu/unuvault/exports/2026-05-28-mac-companion-menu-add-login-v12-current.png`
+- `/Users/yuchen/Design/unu/unuvault/exports/2026-05-28-mac-companion-menu-popover-v12-zh-Hans.png`
+- `/Users/yuchen/Design/unu/unuvault/exports/2026-05-28-mac-companion-menu-add-login-v12-zh-Hans.png`
 
 ## Automated Fill Proof
 
 - `pnpm smoke:packaged-extension-mac-companion` builds
   `apps/browser-extension/dist`, loads it into Chrome through the CDP
   `Extensions.loadUnpacked` path, starts a separate Swift
-  `MacCompanionSmokeHost` native process on loopback, triggers the packaged
-  content script from the extension popup context, and verifies the real login
-  page DOM receives the Mac-approved username and password.
+  `MacCompanionSmokeHost` native process on loopback, writes and reloads an
+  encrypted local vault file, triggers the packaged content script from the
+  extension popup context, and verifies the real login page DOM receives the
+  Mac-approved username and password.
+- `LocalCompanionVaultStoreTests` prove local credential files do not contain
+  the saved username or password as plaintext and cannot be opened with the
+  wrong local key.
 - `LoopbackHTTPServerTests.testLoopbackReleaseRequiresNativeApprovalBeforeOneTimeClaim`
   proves the native loopback bridge creates a pending approval, rejects HTTP
   approve, accepts a Mac-local approval, and releases a claimed credential only
@@ -68,11 +88,13 @@ visual proof is not claimed by this document.
 
 ## Remaining Proof Gaps
 
-- Native app notarization and login-item behavior are not claimed.
+- Native app notarization and macOS login-item behavior are not claimed.
 - Touch ID is not claimed until LocalAuthentication proof exists.
 - Physical iPhone pairing is not claimed until a real LAN pairing run is captured.
 - The packaged extension proof uses the native-process smoke host, not the
-  full menu bar UI product; a captured menu bar approval interaction is still
-  not claimed.
+  full menu bar UI product; a captured menu bar approval interaction for the
+  pending fill dialog is still not claimed.
+- Full product sync into the Mac local vault is not claimed yet; the current
+  menu bar proof can save local login items directly.
 - Server-backed account recovery is not claimed to recover plaintext without
   trusted user-held or device-held material.
