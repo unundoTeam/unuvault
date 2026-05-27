@@ -128,8 +128,8 @@ for the current first-layer entrypoint.
 - `apps/web/` - onboarding, vault management, and trust-center flows
 - `apps/browser-extension/` - popup, autofill, and extension auth surfaces
 - `apps/ios/` - SwiftUI iPhone app and AutoFill onboarding
-- `apps/macos/App/` - Swift package skeleton for the native Mac companion proof
-  covering local unlock, loopback credential release, and device pairing
+- `apps/macos/` - native Mac companion proof for local unlock, loopback
+  credential release, and future device pairing
 - `packages/domain/` - shared schemas and typed data contracts
 - `packages/security/` - crypto, unlock, and trust-boundary logic
 - `packages/api-client/` - shared typed API clients
@@ -213,6 +213,16 @@ For the local credential bridge:
   `UNUVAULT_BRIDGE_SMOKE_ORIGIN=<origin> pnpm smoke:local-credential-bridge-server`
   starts the real bridge routes with an in-memory unlocked session for bridge
   clients
+
+For the native Mac companion proof:
+
+- `apps/macos/App` hosts the SwiftUI menu bar app and loopback bridge proof at
+  `127.0.0.1:17666`
+- the Web vault surfaces the Mac companion boundary; the separate Mac companion
+  client can request one active-origin release, but Web does not approve or own
+  plaintext release
+- current implementation evidence is recorded in
+  `docs/design/mac-companion-mvp-evidence.md`
 
 For the private env-secrets bridge:
 
