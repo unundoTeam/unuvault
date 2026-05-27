@@ -91,6 +91,8 @@ recovery flows; vault unlock remains the secret-release boundary.
   `/Users/yuchen/Design/unu/unuvault/unuvault.draft.pen`.
 - Current design-system frame: `current/unuvault/design-system-v1`.
 - Current web source frame: `current/unuvault/web-vault-management-v1`.
+- Current Mac companion source frame:
+  `current/unuvault/mac-companion-core-flows-v1.1`.
 - Small UI copy or polish uses the `Lightweight UI Path` in the portfolio
   Pencil gate.
 - Historical design specs are planning context only unless the operating index
