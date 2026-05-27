@@ -163,8 +163,8 @@ describe("React/CSS adapter evidence for the vault surface", () => {
 
     const heading = await screen.findByRole("heading", { name: "Vault" });
     const surface = heading.closest("[data-unu-primitive='vault-surface']");
-    const unlockForm = screen.getByRole("form", { name: "Unlock vault" });
-    const itemList = screen.getByRole("list");
+    const unlockForm = await screen.findByRole("form", { name: "Unlock vault" });
+    const itemList = await screen.findByRole("list");
 
     expect(heading.closest("main")).toHaveClass("vault-page");
     expect(surface).toHaveClass("vault-shell");
@@ -278,6 +278,7 @@ describe("React/CSS adapter evidence for the vault surface", () => {
     render(<VaultPage />);
 
     expect(await screen.findByRole("heading", { name: "Vault" })).toBeInTheDocument();
+    expect(await screen.findByText("GitHub")).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "Vault" }).closest("[data-unu-primitive]"),
     ).toHaveAttribute("data-unu-primitive", "vault-surface");
