@@ -9,7 +9,11 @@ let package = Package(
     ],
     products: [
         .library(name: "MacCompanionCore", targets: ["MacCompanionCore"]),
-        .executable(name: "UnuVaultMacCompanion", targets: ["UnuVaultMacCompanion"])
+        .executable(name: "UnuVaultMacCompanion", targets: ["UnuVaultMacCompanion"]),
+        .executable(
+            name: "MacCompanionSmokeHost",
+            targets: ["MacCompanionSmokeHost"]
+        )
     ],
     targets: [
         .target(
@@ -20,6 +24,11 @@ let package = Package(
             name: "UnuVaultMacCompanion",
             dependencies: ["MacCompanionCore"],
             path: "Sources/UnuVaultMacCompanion"
+        ),
+        .executableTarget(
+            name: "MacCompanionSmokeHost",
+            dependencies: ["MacCompanionCore"],
+            path: "Sources/MacCompanionSmokeHost"
         ),
         .testTarget(
             name: "MacCompanionCoreTests",

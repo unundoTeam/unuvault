@@ -27,6 +27,7 @@
 ```bash
 swift test --package-path apps/macos/App --filter LoopbackHTTPServerTests/testLoopbackReleaseRequiresNativeApprovalBeforeOneTimeClaim
 bash scripts/testing/run-macos.sh
+pnpm smoke:packaged-extension-mac-companion
 pnpm --filter @unuvault/browser-extension exec vitest --run tests/autofill.spec.ts tests/background-unlocked-vault.spec.ts
 pnpm --filter @unuvault/browser-extension lint
 pnpm --filter @unuvault/web exec vitest --run tests/mac-companion-client.spec.ts tests/vault-page.spec.tsx
@@ -48,6 +49,12 @@ visual proof is not claimed by this document.
 
 ## Automated Fill Proof
 
+- `pnpm smoke:packaged-extension-mac-companion` builds
+  `apps/browser-extension/dist`, loads it into Chrome through the CDP
+  `Extensions.loadUnpacked` path, starts a separate Swift
+  `MacCompanionSmokeHost` native process on loopback, triggers the packaged
+  content script from the extension popup context, and verifies the real login
+  page DOM receives the Mac-approved username and password.
 - `LoopbackHTTPServerTests.testLoopbackReleaseRequiresNativeApprovalBeforeOneTimeClaim`
   proves the native loopback bridge creates a pending approval, rejects HTTP
   approve, accepts a Mac-local approval, and releases a claimed credential only
@@ -64,7 +71,8 @@ visual proof is not claimed by this document.
 - Native app notarization and login-item behavior are not claimed.
 - Touch ID is not claimed until LocalAuthentication proof exists.
 - Physical iPhone pairing is not claimed until a real LAN pairing run is captured.
-- A packaged Chrome-extension run against the live native Mac app is not claimed
-  until a manual or browser-driven extension smoke is captured.
+- The packaged extension proof uses the native-process smoke host, not the
+  full menu bar UI product; a captured menu bar approval interaction is still
+  not claimed.
 - Server-backed account recovery is not claimed to recover plaintext without
   trusted user-held or device-held material.

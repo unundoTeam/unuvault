@@ -224,6 +224,8 @@ For the native Mac companion proof:
 - the browser extension can use the same Mac companion boundary to fill the
   current page after native approval, while keeping page URL context trusted by
   the extension background
+- packaged extension and live native-process fill proof is available through:
+  `pnpm smoke:packaged-extension-mac-companion`
 - current implementation evidence is recorded in
   `docs/design/mac-companion-mvp-evidence.md`
 
@@ -275,6 +277,8 @@ For the private env-secrets bridge:
     in scope
   - `bash scripts/testing/run-macos.sh` when the macOS companion surface is in
     scope
+  - `pnpm smoke:packaged-extension-mac-companion` when the packaged browser
+    extension plus Mac companion fill boundary is in scope
   - `python3 scripts/ci/tests/test_unuforge_ios_package_consumer_smoke.py` for
     the repo-owned installed-package iOS path
 
