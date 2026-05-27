@@ -425,6 +425,49 @@ textarea:disabled {
   font-weight: 900;
 }
 
+.vault-companion-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-canvas);
+  padding: 14px;
+}
+
+.vault-companion-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.vault-companion-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.vault-companion-panel h2 {
+  font-size: 16px;
+  line-height: 1.25;
+}
+
+.vault-companion-pill {
+  flex: 0 0 auto;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-ink);
+  padding: 7px 10px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.vault-helper-text {
+  font-size: 14px;
+}
+
 .vault-items-list {
   display: flex;
   flex-direction: column;
@@ -633,6 +676,7 @@ textarea:disabled {
   }
 
   .vault-header,
+  .vault-companion-header,
   .vault-items-header,
   .vault-item-row {
     align-items: stretch;

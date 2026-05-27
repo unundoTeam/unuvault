@@ -248,6 +248,30 @@ describe("VaultPage", () => {
     });
   });
 
+  it("shows the Mac companion as the local-first fill authority", async () => {
+    mocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: "jwt-token",
+        },
+      },
+      error: null,
+    });
+    mocks.syncVault.mockResolvedValue({
+      server_time: "2026-05-27T00:00:00.000Z",
+      updated_items: [],
+      deleted_item_ids: [],
+      conflicts: [],
+    });
+
+    render(<VaultPage />);
+
+    expect(await screen.findByText("Mac companion")).toBeInTheDocument();
+    expect(
+      screen.getByText("Local fill requests require the unlocked Mac companion."),
+    ).toBeInTheDocument();
+  });
+
   it("shows sync status and last synced time after initial load", async () => {
     mocks.getSession.mockResolvedValue({
       data: {

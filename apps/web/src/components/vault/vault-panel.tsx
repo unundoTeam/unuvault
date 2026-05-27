@@ -15,6 +15,7 @@ import {
   clearLocalCredentialBridgeSession,
   publishLocalCredentialBridgeSession,
 } from "../../lib/local-credential-bridge/bridge-session";
+import { MacCompanionPanel } from "./mac-companion-panel";
 
 function formatUtcSyncTime(timestamp: string): string {
   const value = new Date(timestamp);
@@ -550,6 +551,8 @@ export function VaultPanel() {
                 ? "Secure green is state feedback only; danger red is reserved for destructive actions."
                 : "Save, copy, reveal, edit, and delete remain unavailable while locked."}
             </p>
+
+            <MacCompanionPanel />
 
             {visibleItems.length > 0 ? (
               <ul className="vault-items-list" data-unu-primitive="list/vault-items">
