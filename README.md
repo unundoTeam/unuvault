@@ -7,8 +7,8 @@ who want a more trustworthy home for credentials than browser-native storage.
 
 ## What This Repo Owns
 
-- the unuvault product boundary across web, API, browser-extension, and iOS
-  surfaces
+- the unuvault product boundary across web, API, browser-extension, iOS, and
+  planned macOS companion surfaces
 - vault, devices, imports, activity, and trust-center product behavior
 - product-local data contracts and the client-side security model for vault
   access
@@ -66,6 +66,8 @@ recovery flows; vault unlock remains the secret-release boundary.
   baseline
 - `docs/architecture/0006-local-first-recovery-boundary.md` for local-first,
   account-optional, device-loss, and recovery semantics
+- `docs/architecture/0007-mac-companion-boundary.md` for the planned native
+  macOS companion, loopback bridge, local unlock, and iOS pairing boundary
 - `docs/superpowers/plans/2026-03-14-chinese-password-manager-phase1-roadmap.md`
   for the engineering roadmap
 - this README for contributor-facing local entrypoints and current contract
@@ -124,6 +126,9 @@ for the current first-layer entrypoint.
 - `apps/web/` - onboarding, vault management, and trust-center flows
 - `apps/browser-extension/` - popup, autofill, and extension auth surfaces
 - `apps/ios/` - SwiftUI iPhone app and AutoFill onboarding
+- future `apps/macos/` - planned native Mac companion for local unlock,
+  loopback credential release, and device pairing; the directory does not exist
+  until the Mac proof starts
 - `packages/domain/` - shared schemas and typed data contracts
 - `packages/security/` - crypto, unlock, and trust-boundary logic
 - `packages/api-client/` - shared typed API clients

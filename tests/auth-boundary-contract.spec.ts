@@ -21,16 +21,21 @@ function readText(pathFromRepoRoot: string): string {
 }
 
 describe("auth boundary contract", () => {
-  it("documents one repo-level auth machine verification guard", () => {
+  it("documents one repo-level identity and local-vault boundary guard", () => {
     const readme = readText("README.md");
     const boundaryDoc = readText("docs/architecture/0002-supabase-boundary.md");
 
-    expect(readme).toContain("### Canonical Auth Boundary");
+    expect(readme).toContain("### Canonical Identity And Local Vault Boundary");
+    expect(readme).toContain("Account identity answers who owns sync");
+    expect(readme).toContain("Vault unlock answers whether this local session can release secrets");
+    expect(readme).toContain("Device trust answers which clients may sync");
     expect(readme).toContain("`POST /auth/bootstrap` is the product identity bridge");
     expect(readme).toContain(
       "`unuidentity signup/login -> /auth/callback -> /auth/finalize -> POST /auth/bootstrap`",
     );
     expect(readme).toContain("extension identity sign-in -> `POST /auth/bootstrap`");
+    expect(readme).toContain("`docs/architecture/0006-local-first-recovery-boundary.md`");
+    expect(readme).toContain("`docs/architecture/0007-mac-companion-boundary.md`");
     expect(readme).toContain("`tests/auth-boundary-contract.spec.ts`");
 
     expect(boundaryDoc).toContain("## Auth Boundary Layers");
