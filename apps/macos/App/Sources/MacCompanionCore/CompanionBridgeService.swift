@@ -1,15 +1,26 @@
 import Foundation
 
-public final class CompanionBridgeService {
+public final class CompanionBridgeService: @unchecked Sendable {
+    private let stateLock = NSRecursiveLock()
     private let session: CompanionVaultSession
-    public private(set) var pendingApproval: CompanionApprovalRequest?
+    private var currentPendingApproval: CompanionApprovalRequest?
     private var pendingCredential: CompanionCredential?
+
+    public var pendingApproval: CompanionApprovalRequest? {
+        stateLock.lock()
+        defer { stateLock.unlock() }
+
+        return currentPendingApproval
+    }
 
     public init(session: CompanionVaultSession) {
         self.session = session
     }
 
     public func metadata(origin: String, profileId: String) -> CompanionMetadataResult {
+        stateLock.lock()
+        defer { stateLock.unlock() }
+
         let credentials = session.metadata(origin: origin, profileId: profileId)
 
         if credentials.isEmpty {
@@ -27,6 +38,9 @@ public final class CompanionBridgeService {
         profileId: String,
         reason: String
     ) -> CompanionReleaseResult {
+        stateLock.lock()
+        defer { stateLock.unlock() }
+
         guard reason == "fill-active-page" else {
             return .invalidRequest
         }
@@ -50,14 +64,17 @@ public final class CompanionBridgeService {
             label: credential.label,
             username: credential.username
         )
-        pendingApproval = approval
+        currentPendingApproval = approval
         pendingCredential = credential
 
         return .approvalRequired(approval)
     }
 
     public func approvePendingRelease(id: String) -> CompanionReleaseResult {
-        guard let approval = pendingApproval,
+        stateLock.lock()
+        defer { stateLock.unlock() }
+
+        guard let approval = currentPendingApproval,
               approval.id == id,
               let credential = pendingCredential
         else {
@@ -88,7 +105,10 @@ public final class CompanionBridgeService {
     }
 
     public func denyPendingRelease(id: String) -> CompanionReleaseResult {
-        guard pendingApproval?.id == id else {
+        stateLock.lock()
+        defer { stateLock.unlock() }
+
+        guard currentPendingApproval?.id == id else {
             return .notFound
         }
 
@@ -97,13 +117,20 @@ public final class CompanionBridgeService {
     }
 
     public func clearPendingApproval() {
-        pendingApproval = nil
+        stateLock.lock()
+        defer { stateLock.unlock() }
+
+        clearPendingApprovalLocked()
+    }
+
+    private func clearPendingApprovalLocked() {
+        currentPendingApproval = nil
         pendingCredential = nil
     }
 
     private func isSessionUnlocked() -> Bool {
         guard case .unlocked = session.lockState else {
-            clearPendingApproval()
+            clearPendingApprovalLocked()
             return false
         }
 

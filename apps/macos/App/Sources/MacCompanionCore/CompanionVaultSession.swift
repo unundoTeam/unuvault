@@ -1,6 +1,7 @@
 import Foundation
 
-public final class CompanionVaultSession {
+public final class CompanionVaultSession: @unchecked Sendable {
+    private let stateLock = NSRecursiveLock()
     private let now: () -> Date
     private var credentials: [CompanionCredential] = []
     private var expiresAt: Date?
@@ -11,25 +12,16 @@ public final class CompanionVaultSession {
     }
 
     public var lockState: CompanionLockState {
-        if let attentionReason {
-            return .attentionNeeded(reason: attentionReason)
-        }
+        stateLock.lock()
+        defer { stateLock.unlock() }
 
-        guard let expiresAt else {
-            return .locked
-        }
-
-        if now() >= expiresAt {
-            credentials = []
-            self.expiresAt = nil
-            attentionReason = .unlockExpired
-            return .attentionNeeded(reason: .unlockExpired)
-        }
-
-        return .unlocked(expiresAt: expiresAt)
+        return currentLockState()
     }
 
     public func unlock(credentials nextCredentials: [CompanionCredential], ttl: TimeInterval) {
+        stateLock.lock()
+        defer { stateLock.unlock() }
+
         credentials = nextCredentials.compactMap { credential in
             guard let websiteOrigin = Self.normalizedOrigin(credential.websiteOrigin) else {
                 return nil
@@ -49,25 +41,37 @@ public final class CompanionVaultSession {
     }
 
     public func lock() {
+        stateLock.lock()
+        defer { stateLock.unlock() }
+
         credentials = []
         expiresAt = nil
         attentionReason = nil
     }
 
     public func markLostDevice() {
+        stateLock.lock()
+        defer { stateLock.unlock() }
+
         credentials = []
         expiresAt = nil
         attentionReason = .lostDevice
     }
 
     public func markRevoked() {
+        stateLock.lock()
+        defer { stateLock.unlock() }
+
         credentials = []
         expiresAt = nil
         attentionReason = .revoked
     }
 
     public func metadata(origin: String, profileId: String) -> [CompanionCredentialMetadata] {
-        guard case .unlocked = lockState else {
+        stateLock.lock()
+        defer { stateLock.unlock() }
+
+        guard case .unlocked = currentLockState() else {
             return []
         }
 
@@ -94,7 +98,10 @@ public final class CompanionVaultSession {
         origin: String,
         profileId: String
     ) -> CompanionCredential? {
-        guard case .unlocked = lockState else {
+        stateLock.lock()
+        defer { stateLock.unlock() }
+
+        guard case .unlocked = currentLockState() else {
             return nil
         }
 
@@ -107,6 +114,25 @@ public final class CompanionVaultSession {
                 credential.websiteOrigin == normalizedOrigin &&
                 credential.profileId == profileId
         }
+    }
+
+    private func currentLockState() -> CompanionLockState {
+        if let attentionReason {
+            return .attentionNeeded(reason: attentionReason)
+        }
+
+        guard let expiresAt else {
+            return .locked
+        }
+
+        if now() >= expiresAt {
+            credentials = []
+            self.expiresAt = nil
+            attentionReason = .unlockExpired
+            return .attentionNeeded(reason: .unlockExpired)
+        }
+
+        return .unlocked(expiresAt: expiresAt)
     }
 
     private static func normalizedOrigin(_ value: String) -> String? {
