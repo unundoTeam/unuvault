@@ -1,4 +1,6 @@
 import { createExtensionAuthRuntime } from "./auth";
+import { createMacCompanionClient } from "./mac-companion";
+import type { MacCompanionClient } from "./mac-companion";
 import type { BackgroundRequest, BackgroundResponse } from "./protocol";
 import { extensionUnlockRuntime } from "./unlock-session";
 import { createUnlockedVaultReader } from "./unlocked-vault";
@@ -9,6 +11,7 @@ const defaultUnlockedVaultReader = createUnlockedVaultReader();
 export type BackgroundRuntimeDeps = {
   authRuntime: ReturnType<typeof createExtensionAuthRuntime>;
   hydratePopupVaultCache(): Promise<{ ok: boolean }>;
+  macCompanionClient?: MacCompanionClient;
   unlockRuntime: typeof extensionUnlockRuntime;
   unlockedVaultReader: typeof defaultUnlockedVaultReader;
 };
@@ -22,6 +25,7 @@ function createDefaultDeps(): BackgroundRuntimeDeps {
   return {
     authRuntime: createExtensionAuthRuntime(),
     hydratePopupVaultCache,
+    macCompanionClient: createMacCompanionClient(),
     unlockRuntime: extensionUnlockRuntime,
     unlockedVaultReader: defaultUnlockedVaultReader,
   };
@@ -67,6 +71,64 @@ function buildAutofillCandidatesResponse(
     autofillCandidates: {
       status: "ready",
       matches,
+    },
+  };
+}
+
+async function buildMacCompanionCandidatesResponse(
+  input: {
+    accessToken: string;
+    macCompanionClient?: MacCompanionClient;
+    pageOrigin: string;
+    profileId: string;
+  },
+): Promise<BackgroundResponse | null> {
+  if (!input.macCompanionClient) {
+    return null;
+  }
+
+  const metadata = await input.macCompanionClient.readCredentialMetadata({
+    accessToken: input.accessToken,
+    origin: input.pageOrigin,
+    profileId: input.profileId,
+  });
+
+  if (metadata.status === "unavailable") {
+    return null;
+  }
+
+  if (metadata.status === "locked") {
+    return {
+      ok: true,
+      autofillCandidates: {
+        status: "locked",
+        matches: [],
+      },
+    };
+  }
+
+  if (metadata.credentials.length === 0) {
+    return {
+      ok: true,
+      autofillCandidates: {
+        status: "no_match",
+        matches: [],
+      },
+    };
+  }
+
+  return {
+    ok: true,
+    autofillCandidates: {
+      status: "ready",
+      matches: metadata.credentials.map((credential) => ({
+        hasPassword: true,
+        id: credential.id,
+        title: credential.label,
+        username: credential.username,
+        websiteOrigin: input.pageOrigin,
+        websiteUrl: input.pageOrigin,
+      })),
     },
   };
 }
@@ -138,6 +200,157 @@ function buildAutofillFillDataResponse(
         password: match.password,
         username: match.username,
       },
+    },
+  };
+}
+
+function hasReleasedCredential(
+  result: Awaited<ReturnType<MacCompanionClient["requestCredentialRelease"]>>,
+): result is {
+  credential: {
+    username: string;
+    password: string;
+  };
+} {
+  return "credential" in result;
+}
+
+async function claimApprovedMacCompanionRelease(input: {
+  accessToken: string;
+  id: string;
+  macCompanionClient: MacCompanionClient;
+  origin: string;
+  profileId: string;
+}): Promise<BackgroundResponse> {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const claim = await input.macCompanionClient.claimCredentialRelease({
+      accessToken: input.accessToken,
+      id: input.id,
+      origin: input.origin,
+      profileId: input.profileId,
+    });
+
+    if (hasReleasedCredential(claim)) {
+      return {
+        ok: true,
+        autofillFillData: {
+          status: "ready",
+          fillData: claim.credential,
+        },
+      };
+    }
+
+    if (claim.error !== "credential_not_found") {
+      break;
+    }
+
+    await new Promise((resolve) => {
+      setTimeout(resolve, 250);
+    });
+  }
+
+  return {
+    ok: true,
+    autofillFillData: {
+      status: "approval_required",
+    },
+  };
+}
+
+async function buildMacCompanionFillDataResponse(input: {
+  accessToken: string;
+  macCompanionClient?: MacCompanionClient;
+  pageOrigin: string;
+  profileId: string;
+}): Promise<BackgroundResponse | null> {
+  if (!input.macCompanionClient) {
+    return null;
+  }
+
+  const metadata = await input.macCompanionClient.readCredentialMetadata({
+    accessToken: input.accessToken,
+    origin: input.pageOrigin,
+    profileId: input.profileId,
+  });
+
+  if (metadata.status === "unavailable") {
+    return null;
+  }
+
+  if (metadata.status === "locked") {
+    return {
+      ok: true,
+      autofillFillData: {
+        status: "locked",
+      },
+    };
+  }
+
+  if (metadata.credentials.length === 0) {
+    return {
+      ok: true,
+      autofillFillData: {
+        status: "no_match",
+      },
+    };
+  }
+
+  if (metadata.credentials.length > 1) {
+    return {
+      ok: true,
+      autofillFillData: {
+        status: "multiple_matches",
+        count: metadata.credentials.length,
+      },
+    };
+  }
+
+  const [credential] = metadata.credentials;
+  const release = await input.macCompanionClient.requestCredentialRelease({
+    accessToken: input.accessToken,
+    id: credential.id,
+    origin: input.pageOrigin,
+    profileId: input.profileId,
+    reason: "fill-active-page",
+  });
+
+  if (hasReleasedCredential(release)) {
+    return {
+      ok: true,
+      autofillFillData: {
+        status: "ready",
+        fillData: release.credential,
+      },
+    };
+  }
+
+  if (release.error === "approval_required") {
+    return claimApprovedMacCompanionRelease({
+      accessToken: input.accessToken,
+      id: credential.id,
+      macCompanionClient: input.macCompanionClient,
+      origin: input.pageOrigin,
+      profileId: input.profileId,
+    });
+  }
+
+  if (release.error === "credential_not_found") {
+    return {
+      ok: true,
+      autofillFillData: {
+        status: "no_match",
+      },
+    };
+  }
+
+  if (release.error === "mac_companion_unavailable") {
+    return null;
+  }
+
+  return {
+    ok: true,
+    autofillFillData: {
+      status: "approval_required",
     },
   };
 }
@@ -240,18 +453,6 @@ export async function handleBackgroundRequest(
         };
       }
 
-      const unlockState = await deps.unlockRuntime.readUnlockState();
-
-      if (unlockState.mode !== "unlocked") {
-        return {
-          ok: true,
-          autofillCandidates: {
-            status: "locked",
-            matches: [],
-          },
-        };
-      }
-
       const pageOrigin = readTrustedContentPageOrigin(callerContext);
 
       if (!pageOrigin) {
@@ -259,6 +460,29 @@ export async function handleBackgroundRequest(
           ok: true,
           autofillCandidates: {
             status: "no_page_url",
+            matches: [],
+          },
+        };
+      }
+
+      const macCompanionResponse = await buildMacCompanionCandidatesResponse({
+        accessToken: authState.accessToken,
+        macCompanionClient: deps.macCompanionClient,
+        pageOrigin,
+        profileId: authState.profileId,
+      });
+
+      if (macCompanionResponse) {
+        return macCompanionResponse;
+      }
+
+      const unlockState = await deps.unlockRuntime.readUnlockState();
+
+      if (unlockState.mode !== "unlocked") {
+        return {
+          ok: true,
+          autofillCandidates: {
+            status: "locked",
             matches: [],
           },
         };
@@ -281,6 +505,21 @@ export async function handleBackgroundRequest(
         };
       }
 
+      const pageOrigin = readTrustedContentPageOrigin(callerContext);
+
+      if (pageOrigin) {
+        const macCompanionResponse = await buildMacCompanionFillDataResponse({
+          accessToken: authState.accessToken,
+          macCompanionClient: deps.macCompanionClient,
+          pageOrigin,
+          profileId: authState.profileId,
+        });
+
+        if (macCompanionResponse) {
+          return macCompanionResponse;
+        }
+      }
+
       const unlockState = await deps.unlockRuntime.readUnlockState();
 
       if (unlockState.mode !== "unlocked") {
@@ -288,6 +527,15 @@ export async function handleBackgroundRequest(
           ok: true,
           autofillFillData: {
             status: "locked",
+          },
+        };
+      }
+
+      if (!pageOrigin) {
+        return {
+          ok: true,
+          autofillFillData: {
+            status: "no_page_url",
           },
         };
       }

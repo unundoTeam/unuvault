@@ -141,6 +141,11 @@ Expected flow:
 7. After local Mac approval, Web claims the approved release once and receives
    the one credential payload.
 
+The browser extension follows the same release boundary when filling page DOM:
+content scripts provide only the trusted page context, the background runtime
+asks the Mac companion for origin-scoped metadata, then a native approval and
+one-time claim provide the password used for DOM fill.
+
 If the local companion is unavailable, Web can still show account, recovery, and
 sync status, but it should not pretend to have local plaintext access.
 

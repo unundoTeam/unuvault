@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { BackgroundRequest } from "../src/background/protocol";
+import { handleBackgroundRequest } from "../src/background/runtime";
 import {
   attemptAutofillForCurrentPage,
   readAutofillCandidates,
@@ -666,6 +668,119 @@ describe("content autofill runtime", () => {
     });
     expect(sendMessage).toHaveBeenCalledWith({
       type: "read_autofill_fill_data",
+    });
+  });
+
+  it("fills the current page through Mac companion native approval claim", async () => {
+    document.body.innerHTML = `
+      <form>
+        <input autocomplete="username" />
+        <input type="password" />
+      </form>
+    `;
+    const [username, password] = Array.from(document.querySelectorAll("input"));
+
+    if (!(username instanceof HTMLInputElement) || !(password instanceof HTMLInputElement)) {
+      throw new Error("expected autofill inputs");
+    }
+
+    markInputVisible(username);
+    markInputVisible(password);
+
+    const macCompanionClient = {
+      claimCredentialRelease: vi.fn().mockResolvedValue({
+        credential: {
+          username: "alice@example.com",
+          password: "native-approved-secret",
+        },
+      }),
+      readCredentialMetadata: vi.fn().mockResolvedValue({
+        status: "ready",
+        credentials: [
+          {
+            id: "github-login",
+            label: "GitHub",
+            username: "alice@example.com",
+          },
+        ],
+      }),
+      requestCredentialRelease: vi.fn().mockResolvedValue({
+        ok: false,
+        error: "approval_required",
+        approval: {
+          id: "github-login",
+          origin: "https://github.com",
+          profileId: "profile-1",
+          label: "GitHub",
+          username: "alice@example.com",
+        },
+      }),
+    };
+
+    const deps = {
+      authRuntime: {
+        readExtensionAuthState: vi.fn().mockResolvedValue({
+          status: "signed_in",
+          accessToken: "jwt-token",
+          email: "user@example.com",
+          profileId: "profile-1",
+          signedInAt: "2026-05-27T00:00:00.000Z",
+        }),
+        signInWithPassword: vi.fn(),
+        signOut: vi.fn(),
+      },
+      hydratePopupVaultCache: vi.fn(),
+      macCompanionClient,
+      unlockRuntime: {
+        lock: vi.fn(),
+        readUnlockPassphrase: vi.fn(),
+        readUnlockState: vi.fn().mockResolvedValue({
+          mode: "locked",
+        }),
+        unlockWithPassphrase: vi.fn(),
+      },
+      unlockedVaultReader: {
+        readUnlockedLoginItems: vi.fn().mockResolvedValue([]),
+      },
+    } as never;
+
+    installChromeRuntimeMock((request) =>
+      handleBackgroundRequest(request as BackgroundRequest, deps, {
+        source: "content",
+        trustedPageUrl: "https://github.com/login",
+      }),
+    );
+
+    await expect(
+      attemptAutofillForCurrentPage({
+        document,
+        pageUrl: "https://github.com/login",
+      }),
+    ).resolves.toEqual({
+      status: "filled",
+      filledUsername: true,
+      filledPassword: true,
+    });
+
+    expect(username.value).toBe("alice@example.com");
+    expect(password.value).toBe("native-approved-secret");
+    expect(macCompanionClient.readCredentialMetadata).toHaveBeenCalledWith({
+      accessToken: "jwt-token",
+      origin: "https://github.com",
+      profileId: "profile-1",
+    });
+    expect(macCompanionClient.requestCredentialRelease).toHaveBeenCalledWith({
+      accessToken: "jwt-token",
+      id: "github-login",
+      origin: "https://github.com",
+      profileId: "profile-1",
+      reason: "fill-active-page",
+    });
+    expect(macCompanionClient.claimCredentialRelease).toHaveBeenCalledWith({
+      accessToken: "jwt-token",
+      id: "github-login",
+      origin: "https://github.com",
+      profileId: "profile-1",
     });
   });
 });

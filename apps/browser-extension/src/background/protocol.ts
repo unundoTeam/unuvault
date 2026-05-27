@@ -67,6 +67,9 @@ export type AutofillFillData =
       status: "no_password";
     }
   | {
+      status: "approval_required";
+    }
+  | {
       status: "ready";
       fillData: {
         username: string;

@@ -16,6 +16,9 @@
   approval has happened.
 - HTTP does not expose approve or deny endpoints; Web can only claim one
   approved release through `/v1/credentials/claim`.
+- The browser extension can use Mac companion metadata, request native approval,
+  claim the approved release once, and fill the current page DOM from that
+  claimed credential.
 - Lost-device, revoke, lock, and timeout clear release ability.
 - Web copy does not claim server-side plaintext recovery.
 
@@ -24,6 +27,8 @@
 ```bash
 swift test --package-path apps/macos/App --filter LoopbackHTTPServerTests/testLoopbackReleaseRequiresNativeApprovalBeforeOneTimeClaim
 bash scripts/testing/run-macos.sh
+pnpm --filter @unuvault/browser-extension exec vitest --run tests/autofill.spec.ts tests/background-unlocked-vault.spec.ts
+pnpm --filter @unuvault/browser-extension lint
 pnpm --filter @unuvault/web exec vitest --run tests/mac-companion-client.spec.ts tests/vault-page.spec.tsx
 pnpm exec vitest --run tests/workspace-entrypoints.spec.ts
 pnpm --filter @unuvault/web exec vitest --run tests/react-css-adapter-evidence.spec.tsx
@@ -41,12 +46,25 @@ swift run --package-path apps/macos/App UnuVaultMacCompanion
 The command builds and starts the menu bar app product. A captured native menu
 visual proof is not claimed by this document.
 
+## Automated Fill Proof
+
+- `LoopbackHTTPServerTests.testLoopbackReleaseRequiresNativeApprovalBeforeOneTimeClaim`
+  proves the native loopback bridge creates a pending approval, rejects HTTP
+  approve, accepts a Mac-local approval, and releases a claimed credential only
+  once.
+- `apps/browser-extension/tests/autofill.spec.ts` proves the extension content
+  script and background runtime can turn a Mac companion approval/claim result
+  into actual username and password DOM field values.
+- `apps/browser-extension/tests/background-unlocked-vault.spec.ts` proves the
+  existing extension unlocked-cache path still works when the Mac companion is
+  unavailable.
+
 ## Remaining Proof Gaps
 
 - Native app notarization and login-item behavior are not claimed.
 - Touch ID is not claimed until LocalAuthentication proof exists.
 - Physical iPhone pairing is not claimed until a real LAN pairing run is captured.
-- Browser autofill DOM completion after native approval is not claimed by this
-  MVP.
+- A packaged Chrome-extension run against the live native Mac app is not claimed
+  until a manual or browser-driven extension smoke is captured.
 - Server-backed account recovery is not claimed to recover plaintext without
   trusted user-held or device-held material.

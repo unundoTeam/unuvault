@@ -221,6 +221,9 @@ For the native Mac companion proof:
 - the Web vault surfaces the Mac companion boundary; the separate Mac companion
   client can request one active-origin release and claim it once after Mac-local
   approval, but Web does not approve or own plaintext release
+- the browser extension can use the same Mac companion boundary to fill the
+  current page after native approval, while keeping page URL context trusted by
+  the extension background
 - current implementation evidence is recorded in
   `docs/design/mac-companion-mvp-evidence.md`
 
