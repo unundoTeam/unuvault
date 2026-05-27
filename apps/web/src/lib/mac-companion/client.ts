@@ -21,6 +21,8 @@ type RequestReleaseOptions = {
   profileId: string;
 };
 
+type ClaimReleaseOptions = RequestReleaseOptions;
+
 type StatusOptions = {
   fetcher?: CompanionFetcher;
 };
@@ -75,6 +77,26 @@ export async function requestMacCompanionCredentialRelease(
       origin: options.origin,
       profileId: options.profileId,
       reason: "fill-active-page",
+    }),
+    headers: {
+      authorization: `Bearer ${options.accessToken}`,
+      "content-type": "application/json",
+    },
+    method: "POST",
+  });
+
+  return readJson<MacCompanionReleaseResult>(response);
+}
+
+export async function claimMacCompanionCredentialRelease(
+  options: ClaimReleaseOptions,
+): Promise<MacCompanionReleaseResult> {
+  const fetcher = options.fetcher ?? fetch;
+  const response = await fetcher("http://127.0.0.1:17666/v1/credentials/claim", {
+    body: JSON.stringify({
+      id: options.id,
+      origin: options.origin,
+      profileId: options.profileId,
     }),
     headers: {
       authorization: `Bearer ${options.accessToken}`,

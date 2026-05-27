@@ -11,13 +11,18 @@
 - The Web vault remains the management and review surface.
 - Locked companion state rejects metadata and release.
 - Unlocked companion state can return metadata for the active origin.
-- Secret release requires `reason: "fill-active-page"` and local approval.
+- Secret release starts with `reason: "fill-active-page"`, creates a native
+  pending approval, and does not expose plaintext to HTTP until Mac-local
+  approval has happened.
+- HTTP does not expose approve or deny endpoints; Web can only claim one
+  approved release through `/v1/credentials/claim`.
 - Lost-device, revoke, lock, and timeout clear release ability.
 - Web copy does not claim server-side plaintext recovery.
 
 ## Verification Commands
 
 ```bash
+swift test --package-path apps/macos/App --filter LoopbackHTTPServerTests/testLoopbackReleaseRequiresNativeApprovalBeforeOneTimeClaim
 bash scripts/testing/run-macos.sh
 pnpm --filter @unuvault/web exec vitest --run tests/mac-companion-client.spec.ts tests/vault-page.spec.tsx
 pnpm exec vitest --run tests/workspace-entrypoints.spec.ts
@@ -41,6 +46,7 @@ visual proof is not claimed by this document.
 - Native app notarization and login-item behavior are not claimed.
 - Touch ID is not claimed until LocalAuthentication proof exists.
 - Physical iPhone pairing is not claimed until a real LAN pairing run is captured.
-- Browser autofill completion after native approval is not claimed by this MVP.
+- Browser autofill DOM completion after native approval is not claimed by this
+  MVP.
 - Server-backed account recovery is not claimed to recover plaintext without
   trusted user-held or device-held material.

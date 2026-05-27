@@ -71,7 +71,7 @@ final class CompanionViewModel: ObservableObject {
         }
 
         _ = bridgeService.approvePendingRelease(id: pendingApproval.id)
-        lastDecisionText = "Filled once for \(pendingApproval.origin)"
+        lastDecisionText = "Approved once for \(pendingApproval.origin)"
         self.pendingApproval = nil
         refresh()
     }

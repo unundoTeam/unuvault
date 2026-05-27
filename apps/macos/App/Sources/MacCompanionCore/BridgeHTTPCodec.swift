@@ -54,10 +54,8 @@ public final class BridgeHTTPCodec: @unchecked Sendable {
             return metadataResponse(queryItems: components.queryItems ?? [])
         case ("POST", "/v1/credentials/release"):
             return releaseResponse(body: body)
-        case ("POST", "/v1/credentials/approve"):
-            return approvalResponse(body: body, approve: true)
-        case ("POST", "/v1/credentials/deny"):
-            return approvalResponse(body: body, approve: false)
+        case ("POST", "/v1/credentials/claim"):
+            return claimResponse(body: body)
         default:
             return json(
                 statusCode: 404,
@@ -130,28 +128,22 @@ public final class BridgeHTTPCodec: @unchecked Sendable {
         )
     }
 
-    private func approvalResponse(body: Data, approve: Bool) -> BridgeHTTPResponse {
-        guard let request = decode(ApprovalDecisionRequest.self, from: body),
-              !request.id.isEmpty
+    private func claimResponse(body: Data) -> BridgeHTTPResponse {
+        guard let request = decode(ClaimRequest.self, from: body),
+              !request.id.isEmpty,
+              !request.origin.isEmpty,
+              !request.profileId.isEmpty
         else {
             return invalidRequest()
         }
 
-        if approve {
-            return releaseResultResponse(service.approvePendingRelease(id: request.id))
-        }
-
-        switch service.denyPendingRelease(id: request.id) {
-        case .denied:
-            return json(statusCode: 200, payload: ["ok": true, "status": "denied"])
-        case .notFound:
-            return json(
-                statusCode: 404,
-                payload: ["ok": false, "error": "credential_not_found"]
+        return releaseResultResponse(
+            service.consumeApprovedRelease(
+                id: request.id,
+                origin: request.origin,
+                profileId: request.profileId
             )
-        default:
-            return invalidRequest()
-        }
+        )
     }
 
     private func releaseResultResponse(_ result: CompanionReleaseResult) -> BridgeHTTPResponse {
@@ -244,8 +236,10 @@ private struct ReleaseRequest: Decodable {
     let reason: String
 }
 
-private struct ApprovalDecisionRequest: Decodable {
+private struct ClaimRequest: Decodable {
     let id: String
+    let origin: String
+    let profileId: String
 }
 
 private extension [URLQueryItem] {

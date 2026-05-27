@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  claimMacCompanionCredentialRelease,
   getMacCompanionStatus,
   requestMacCompanionCredentialRelease,
 } from "../src/lib/mac-companion/client";
@@ -74,6 +75,49 @@ describe("mac companion client", () => {
           origin: "https://github.com/login",
           profileId: "personal",
           reason: "fill-active-page",
+        }),
+        headers: {
+          authorization: "Bearer local-dev-bridge-token",
+          "content-type": "application/json",
+        },
+        method: "POST",
+      },
+    );
+  });
+
+  it("claims one approved credential release with bearer token", async () => {
+    const fetcher = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        credential: {
+          username: "yuchen",
+          password: "secret-github",
+        },
+      }),
+    });
+
+    await expect(
+      claimMacCompanionCredentialRelease({
+        accessToken: "local-dev-bridge-token",
+        fetcher,
+        id: "github-login",
+        origin: "https://github.com/login",
+        profileId: "personal",
+      }),
+    ).resolves.toEqual({
+      credential: {
+        username: "yuchen",
+        password: "secret-github",
+      },
+    });
+
+    expect(fetcher).toHaveBeenCalledWith(
+      "http://127.0.0.1:17666/v1/credentials/claim",
+      {
+        body: JSON.stringify({
+          id: "github-login",
+          origin: "https://github.com/login",
+          profileId: "personal",
         }),
         headers: {
           authorization: "Bearer local-dev-bridge-token",

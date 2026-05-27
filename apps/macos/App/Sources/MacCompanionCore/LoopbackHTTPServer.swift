@@ -26,26 +26,10 @@ public final class LoopbackHTTPServer {
             port: port
         )
 
-        let listener = try NWListener(using: parameters, on: port)
+        let listener = try NWListener(using: parameters)
         listener.newConnectionHandler = { [codec] connection in
             connection.start(queue: .global(qos: .userInitiated))
-            connection.receive(
-                minimumIncompleteLength: 1,
-                maximumLength: 65_536
-            ) { data, _, _, _ in
-                guard let data else {
-                    connection.cancel()
-                    return
-                }
-
-                let request = String(data: data, encoding: .utf8) ?? ""
-                let response = Self.render(
-                    response: Self.route(request: request, codec: codec)
-                )
-                connection.send(content: response, completion: .contentProcessed { _ in
-                    connection.cancel()
-                })
-            }
+            Self.receiveRequest(on: connection, codec: codec, buffer: Data())
         }
         listener.start(queue: .global(qos: .userInitiated))
         self.listener = listener
@@ -83,6 +67,70 @@ public final class LoopbackHTTPServer {
             headers: headers,
             body: Data(bodyText.utf8)
         )
+    }
+
+    private static func receiveRequest(
+        on connection: NWConnection,
+        codec: BridgeHTTPCodec,
+        buffer: Data
+    ) {
+        connection.receive(
+            minimumIncompleteLength: 1,
+            maximumLength: 65_536
+        ) { data, _, isComplete, _ in
+            var nextBuffer = buffer
+            if let data {
+                nextBuffer.append(data)
+            }
+
+            guard !nextBuffer.isEmpty else {
+                connection.cancel()
+                return
+            }
+
+            guard isComplete || isCompleteHTTPRequest(nextBuffer) else {
+                receiveRequest(on: connection, codec: codec, buffer: nextBuffer)
+                return
+            }
+
+            let request = String(data: nextBuffer, encoding: .utf8) ?? ""
+            let response = Self.render(
+                response: Self.route(request: request, codec: codec)
+            )
+            connection.send(content: response, completion: .contentProcessed { _ in
+                connection.cancel()
+            })
+        }
+    }
+
+    private static func isCompleteHTTPRequest(_ data: Data) -> Bool {
+        let separator = Data("\r\n\r\n".utf8)
+
+        guard let headerRange = data.range(of: separator) else {
+            return false
+        }
+
+        let headerText = String(
+            data: data[..<headerRange.lowerBound],
+            encoding: .utf8
+        ) ?? ""
+        let contentLength = headerText
+            .components(separatedBy: "\r\n")
+            .compactMap { line -> Int? in
+                let parts = line.split(separator: ":", maxSplits: 1)
+                guard parts.count == 2,
+                      parts[0].trimmingCharacters(in: .whitespaces)
+                          .lowercased() == "content-length"
+                else {
+                    return nil
+                }
+
+                return Int(parts[1].trimmingCharacters(in: .whitespaces))
+            }
+            .first ?? 0
+
+        let bodyLength = data.count - headerRange.upperBound
+        return bodyLength >= contentLength
     }
 
     private static func render(response: BridgeHTTPResponse) -> Data {

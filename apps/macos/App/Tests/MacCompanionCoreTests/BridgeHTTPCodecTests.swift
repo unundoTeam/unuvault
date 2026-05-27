@@ -92,7 +92,7 @@ final class BridgeHTTPCodecTests: XCTestCase {
         XCTAssertFalse(response.bodyString.contains("secret-github"))
     }
 
-    func testReleaseResponseCreatesApprovalRequestBeforeSecretRelease() {
+    func testHttpApproveCannotReleaseSecret() {
         let session = CompanionVaultSession()
         session.unlock(
             credentials: [
@@ -140,11 +140,11 @@ final class BridgeHTTPCodecTests: XCTestCase {
             """.utf8)
         )
 
-        XCTAssertEqual(approveResponse.statusCode, 200)
-        XCTAssertTrue(approveResponse.bodyString.contains("secret-github"))
+        XCTAssertEqual(approveResponse.statusCode, 404)
+        XCTAssertFalse(approveResponse.bodyString.contains("secret-github"))
     }
 
-    func testDenyPendingReleaseClearsApprovalWithoutSecret() {
+    func testApprovedLocalReleaseCanBeClaimedOnceOverHttp() {
         let session = CompanionVaultSession()
         session.unlock(
             credentials: [
@@ -159,8 +159,87 @@ final class BridgeHTTPCodecTests: XCTestCase {
             ],
             ttl: 300
         )
+        let service = CompanionBridgeService(session: session)
         let codec = BridgeHTTPCodec(
-            service: CompanionBridgeService(session: session),
+            service: service,
+            accessToken: "bridge-token"
+        )
+
+        let releaseResponse = codec.handle(
+            method: "POST",
+            path: "/v1/credentials/release",
+            headers: [
+                "authorization": "Bearer bridge-token",
+                "content-type": "application/json"
+            ],
+            body: Data("""
+            {"id":"github-login","origin":"https://github.com/login","profileId":"personal","reason":"fill-active-page"}
+            """.utf8)
+        )
+
+        XCTAssertEqual(releaseResponse.statusCode, 409)
+        XCTAssertTrue(releaseResponse.bodyString.contains("approval_required"))
+        XCTAssertFalse(releaseResponse.bodyString.contains("secret-github"))
+
+        XCTAssertEqual(
+            service.approvePendingRelease(id: "github-login"),
+            .released(
+                CompanionReleasedCredential(
+                    username: "yuchen",
+                    password: "secret-github"
+                )
+            )
+        )
+
+        let claimResponse = codec.handle(
+            method: "POST",
+            path: "/v1/credentials/claim",
+            headers: [
+                "authorization": "Bearer bridge-token",
+                "content-type": "application/json"
+            ],
+            body: Data("""
+            {"id":"github-login","origin":"https://github.com/login","profileId":"personal"}
+            """.utf8)
+        )
+
+        XCTAssertEqual(claimResponse.statusCode, 200)
+        XCTAssertTrue(claimResponse.bodyString.contains("secret-github"))
+
+        let secondClaimResponse = codec.handle(
+            method: "POST",
+            path: "/v1/credentials/claim",
+            headers: [
+                "authorization": "Bearer bridge-token",
+                "content-type": "application/json"
+            ],
+            body: Data("""
+            {"id":"github-login","origin":"https://github.com/login","profileId":"personal"}
+            """.utf8)
+        )
+
+        XCTAssertEqual(secondClaimResponse.statusCode, 404)
+        XCTAssertFalse(secondClaimResponse.bodyString.contains("secret-github"))
+    }
+
+    func testHttpDenyCannotClearApprovalOrExposeSecret() {
+        let session = CompanionVaultSession()
+        session.unlock(
+            credentials: [
+                CompanionCredential(
+                    id: "github-login",
+                    label: "github.com",
+                    username: "yuchen",
+                    password: "secret-github",
+                    profileId: "personal",
+                    websiteOrigin: "https://github.com"
+                )
+            ],
+            ttl: 300
+        )
+        let service = CompanionBridgeService(session: session)
+        let codec = BridgeHTTPCodec(
+            service: service,
             accessToken: "bridge-token"
         )
 
@@ -188,23 +267,8 @@ final class BridgeHTTPCodecTests: XCTestCase {
             """.utf8)
         )
 
-        XCTAssertEqual(denyResponse.statusCode, 200)
-        XCTAssertTrue(denyResponse.bodyString.contains("\"status\":\"denied\""))
+        XCTAssertEqual(denyResponse.statusCode, 404)
         XCTAssertFalse(denyResponse.bodyString.contains("secret-github"))
-
-        let approveResponse = codec.handle(
-            method: "POST",
-            path: "/v1/credentials/approve",
-            headers: [
-                "authorization": "Bearer bridge-token",
-                "content-type": "application/json"
-            ],
-            body: Data("""
-            {"id":"github-login"}
-            """.utf8)
-        )
-
-        XCTAssertEqual(approveResponse.statusCode, 404)
-        XCTAssertFalse(approveResponse.bodyString.contains("secret-github"))
+        XCTAssertEqual(service.pendingApproval?.id, "github-login")
     }
 }

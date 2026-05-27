@@ -5,6 +5,7 @@ public final class CompanionBridgeService: @unchecked Sendable {
     private let session: CompanionVaultSession
     private var currentPendingApproval: CompanionApprovalRequest?
     private var pendingCredential: CompanionCredential?
+    private var approvedCredential: CompanionCredential?
 
     public var pendingApproval: CompanionApprovalRequest? {
         stateLock.lock()
@@ -66,6 +67,7 @@ public final class CompanionBridgeService: @unchecked Sendable {
         )
         currentPendingApproval = approval
         pendingCredential = credential
+        approvedCredential = nil
 
         return .approvalRequired(approval)
     }
@@ -90,11 +92,42 @@ public final class CompanionBridgeService: @unchecked Sendable {
             origin: approval.origin,
             profileId: approval.profileId
         ) == credential else {
-            clearPendingApproval()
+            clearReleaseMaterialLocked()
             return .notFound
         }
 
-        clearPendingApproval()
+        currentPendingApproval = nil
+        pendingCredential = nil
+        approvedCredential = credential
+
+        return .released(
+            CompanionReleasedCredential(
+                username: credential.username,
+                password: credential.password
+            )
+        )
+    }
+
+    public func consumeApprovedRelease(
+        id: String,
+        origin: String,
+        profileId: String
+    ) -> CompanionReleaseResult {
+        stateLock.lock()
+        defer { stateLock.unlock() }
+
+        guard isSessionUnlocked() else {
+            return .locked
+        }
+
+        guard let credential = approvedCredential,
+              credential.id == id,
+              session.credential(id: id, origin: origin, profileId: profileId) == credential
+        else {
+            return .notFound
+        }
+
+        approvedCredential = nil
 
         return .released(
             CompanionReleasedCredential(
@@ -112,7 +145,7 @@ public final class CompanionBridgeService: @unchecked Sendable {
             return .notFound
         }
 
-        clearPendingApproval()
+        clearReleaseMaterialLocked()
         return .denied
     }
 
@@ -120,17 +153,18 @@ public final class CompanionBridgeService: @unchecked Sendable {
         stateLock.lock()
         defer { stateLock.unlock() }
 
-        clearPendingApprovalLocked()
+        clearReleaseMaterialLocked()
     }
 
-    private func clearPendingApprovalLocked() {
+    private func clearReleaseMaterialLocked() {
         currentPendingApproval = nil
         pendingCredential = nil
+        approvedCredential = nil
     }
 
     private func isSessionUnlocked() -> Bool {
         guard case .unlocked = session.lockState else {
-            clearPendingApprovalLocked()
+            clearReleaseMaterialLocked()
             return false
         }
 

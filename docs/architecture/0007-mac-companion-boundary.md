@@ -113,7 +113,10 @@ Required bridge rules:
 - reject requests when the vault is locked
 - accept credential lookup only for explicit caller context and active origin
 - return metadata before release
-- release at most one `{ username, password }` payload per approved fill intent
+- create a pending native approval before release
+- expose no HTTP approve or deny endpoint
+- release at most one `{ username, password }` payload through a claim after
+  a native approved fill intent
 - require visible user approval for first-time or sensitive release contexts
 - record non-secret audit events
 - expire bridge sessions aggressively
@@ -134,8 +137,9 @@ Expected flow:
 4. If the Mac vault is locked, Web prompts the user to unlock locally.
 5. For password fill, Web asks the companion to release one credential for the
    active origin.
-6. The companion performs local checks and user approval before returning the
-   one credential payload.
+6. The companion creates a native approval prompt without returning plaintext.
+7. After local Mac approval, Web claims the approved release once and receives
+   the one credential payload.
 
 If the local companion is unavailable, Web can still show account, recovery, and
 sync status, but it should not pretend to have local plaintext access.

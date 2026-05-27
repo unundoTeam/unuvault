@@ -219,8 +219,8 @@ For the native Mac companion proof:
 - `apps/macos/App` hosts the SwiftUI menu bar app and loopback bridge proof at
   `127.0.0.1:17666`
 - the Web vault surfaces the Mac companion boundary; the separate Mac companion
-  client can request one active-origin release, but Web does not approve or own
-  plaintext release
+  client can request one active-origin release and claim it once after Mac-local
+  approval, but Web does not approve or own plaintext release
 - current implementation evidence is recorded in
   `docs/design/mac-companion-mvp-evidence.md`
 
