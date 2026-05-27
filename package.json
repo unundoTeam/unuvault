@@ -9,6 +9,7 @@
     "secrets:provider": "tsx scripts/secrets/provider.ts",
     "smoke:local-credential-bridge-server": "tsx scripts/smoke/local-credential-bridge-server.ts",
     "test": "bash scripts/testing/test-runner.sh",
+    "test:macos": "bash scripts/testing/run-macos.sh",
     "lint": "bash scripts/testing/lint-runner.sh"
   },
   "devDependencies": {

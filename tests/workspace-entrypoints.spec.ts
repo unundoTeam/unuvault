@@ -67,6 +67,24 @@ describe("workspace entrypoints", () => {
     expect(workflow).toContain("bash scripts/testing/run-ios.sh");
   });
 
+  it("adds a stable macOS companion test wrapper", () => {
+    const rootPackage = readJson<PackageManifest>("package.json");
+    const macosWrapperPath = "scripts/testing/run-macos.sh";
+
+    expect(existsSync(resolve(repoRoot, "apps/macos/App/Package.swift"))).toBe(
+      true,
+    );
+    expect(existsSync(resolve(repoRoot, macosWrapperPath))).toBe(true);
+    expect(rootPackage.scripts?.["test:macos"]).toBe(
+      "bash scripts/testing/run-macos.sh",
+    );
+
+    const wrapper = readText(macosWrapperPath);
+
+    expect(wrapper).toContain("swift test --package-path");
+    expect(wrapper).toContain("apps/macos/App");
+  });
+
   it("uses the repository-local pnpm binary inside bash wrappers", () => {
     const testRunner = readText("scripts/testing/test-runner.sh");
     const lintRunner = readText("scripts/testing/lint-runner.sh");

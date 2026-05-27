@@ -128,9 +128,8 @@ for the current first-layer entrypoint.
 - `apps/web/` - onboarding, vault management, and trust-center flows
 - `apps/browser-extension/` - popup, autofill, and extension auth surfaces
 - `apps/ios/` - SwiftUI iPhone app and AutoFill onboarding
-- future `apps/macos/` - planned native Mac companion for local unlock,
-  loopback credential release, and device pairing; the directory does not exist
-  until the Mac proof starts
+- `apps/macos/App/` - Swift package skeleton for the native Mac companion proof
+  covering local unlock, loopback credential release, and device pairing
 - `packages/domain/` - shared schemas and typed data contracts
 - `packages/security/` - crypto, unlock, and trust-boundary logic
 - `packages/api-client/` - shared typed API clients
@@ -147,6 +146,7 @@ for the current first-layer entrypoint.
   - `pnpm lint`
   - `pnpm test`
   - `bash scripts/testing/run-ios.sh`
+  - `bash scripts/testing/run-macos.sh`
   - `python3 scripts/ci/tests/test_unuforge_package_consumer_smoke.py`
   - `python3 scripts/ci/tests/test_unuforge_ios_package_consumer_smoke.py`
 
@@ -260,6 +260,8 @@ For the private env-secrets bridge:
 - `Release or heavy verification`:
   - `bash scripts/testing/run-ios.sh` when the iOS surface or native bridge is
     in scope
+  - `bash scripts/testing/run-macos.sh` when the macOS companion surface is in
+    scope
   - `python3 scripts/ci/tests/test_unuforge_ios_package_consumer_smoke.py` for
     the repo-owned installed-package iOS path
 

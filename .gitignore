@@ -6,6 +6,7 @@ node_modules
 node_modules/
 apps/browser-extension/dist/
 apps/ios/App/.build/
+apps/macos/App/.build/
 .worktrees/
 worktrees/
 AGENTS.md
