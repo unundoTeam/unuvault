@@ -2,6 +2,8 @@
 .env.local
 .next/
 .pnpm-store/
+__pycache__/
+*.pyc
 node_modules
 node_modules/
 apps/browser-extension/dist/
