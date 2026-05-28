@@ -260,6 +260,11 @@ For the native Mac companion proof:
   This proves an encrypted local vault backup does not contain plaintext and
   can be restored only with the same user/device-held key material; lost or
   revoked device state clears pending release ability.
+- Mac companion iOS pairing-boundary protocol proof is available through:
+  `pnpm test:macos:pairing-boundary`
+  This proves the first pairing handoff skeleton transfers only AES-GCM wrapped
+  vault material for a named target device and cannot be opened with the wrong
+  transfer material. It does not claim real LAN or physical iPhone pairing yet.
 - current implementation evidence is recorded in
   `docs/design/mac-companion-mvp-evidence.md`
 
