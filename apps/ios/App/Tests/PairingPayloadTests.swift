@@ -333,12 +333,12 @@ final class PairingPayloadTests: XCTestCase {
             )
         )
         let responseData = try JSONEncoder().encode(response)
-        var capturedRequest: URLRequest?
+        let capturedRequestStore = PairingRequestStore()
         let client = PairingExchangeClient(
             macBaseURL: URL(string: "http://127.0.0.1:17666")!,
             now: { Date(timeIntervalSince1970: 1_060) },
             transport: { request in
-                capturedRequest = request
+                await capturedRequestStore.record(request)
                 return (
                     responseData,
                     HTTPURLResponse(
@@ -357,6 +357,7 @@ final class PairingPayloadTests: XCTestCase {
         )
 
         XCTAssertEqual(handoff, response.handoff)
+        let capturedRequest = await capturedRequestStore.request()
         XCTAssertEqual(capturedRequest?.httpMethod, "POST")
         XCTAssertEqual(capturedRequest?.url?.path, "/v1/pairing/claim")
         XCTAssertNil(capturedRequest?.value(forHTTPHeaderField: "authorization"))
@@ -417,12 +418,12 @@ final class PairingPayloadTests: XCTestCase {
             )
         )
         let responseData = try JSONEncoder().encode(response)
-        var capturedRequest: URLRequest?
+        let capturedRequestStore = PairingRequestStore()
         let client = PairingExchangeClient(
             invite: invite,
             now: { Date(timeIntervalSince1970: 1_060) },
             transport: { request in
-                capturedRequest = request
+                await capturedRequestStore.record(request)
                 return (
                     responseData,
                     HTTPURLResponse(
@@ -441,6 +442,7 @@ final class PairingPayloadTests: XCTestCase {
         )
 
         XCTAssertEqual(handoff, response.handoff)
+        let capturedRequest = await capturedRequestStore.request()
         XCTAssertEqual(
             capturedRequest?.url?.absoluteString,
             "http://192.168.1.42:17666/v1/pairing/claim"
@@ -485,5 +487,17 @@ final class PairingPayloadTests: XCTestCase {
         } catch {
             XCTAssertEqual(error as? PairingExchangeClientError, .httpStatus(423))
         }
+    }
+}
+
+private actor PairingRequestStore {
+    private var storedRequest: URLRequest?
+
+    func record(_ request: URLRequest) {
+        storedRequest = request
+    }
+
+    func request() -> URLRequest? {
+        storedRequest
     }
 }

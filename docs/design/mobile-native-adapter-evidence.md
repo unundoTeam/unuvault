@@ -9,7 +9,7 @@ evidence backlog, but it does not claim mobile/native adapter adoption.
 - Adapter lane: mobile/non-SwiftUI native adapter
 - Repo: `unuvault`
 - Surface: iPhone SwiftUI shell
-- Status: `blocked-needs-evidence`
+- Status: `partial-native-proof`
 - Portfolio backlog:
   `/Users/yuchen/Code/unu/unuOS/docs/portfolio/shared-interface-primitives.md`
 - Pencil current:
@@ -17,7 +17,9 @@ evidence backlog, but it does not claim mobile/native adapter adoption.
 - Pencil draft:
   `/Users/yuchen/Design/unu/unuvault/unuvault.draft.pen`
 - Design-system frame: `current/unuvault/design-system-v1`
-- iOS Pencil source frame: not promoted yet
+- iOS Pencil source frames:
+  `current/unuvault/ios-vault-home-native-locked-v1`,
+  `current/unuvault/ios-pairing-invite-receive-v1`
 
 ## Adapter Implementation Paths
 
@@ -28,24 +30,28 @@ evidence backlog, but it does not claim mobile/native adapter adoption.
   `apps/ios/App/Sources/Features/Autofill/AutofillOnboardingView.swift`
 - Mac pairing payload contract:
   `apps/ios/App/Sources/Pairing/PairingPayload.swift`
+- Mac pairing receive flow:
+  `apps/ios/App/Sources/Features/Pairing/PairingInviteReceiveView.swift`
 - Login smoke test: `apps/ios/App/Tests/LoginViewTests.swift`
 - AutoFill smoke test: `apps/ios/App/Tests/AutofillOnboardingViewTests.swift`
 - Pairing payload contract test: `apps/ios/App/Tests/PairingPayloadTests.swift`
+- Pairing receive flow test:
+  `apps/ios/App/Tests/PairingInviteFlowTests.swift`
 - iOS verification wrapper: `bash scripts/testing/run-ios.sh`
 
 ## Current Implementation Evidence
 
 | Requirement | Current evidence | Status |
 | --- | --- | --- |
-| Native implementation path | Minimal SwiftUI views, an iOS Swift package, a Mac pairing invite/payload parser, a target-claim model, a Mac handoff response parser, and an iOS pairing exchange client exist. | partial |
-| Platform token mapping | No iOS token, spacing, radius, typography, color, or component mapping is recorded yet. | missing |
-| Safe-area and touch target behavior | No screen-level layout, safe-area rule, or 44pt target proof is recorded yet. | missing |
-| Auth or vault action review/recovery mapping | Current views have no unlock form, vault actions, disabled/loading states, confirmation, audit trail, or recovery flow. | missing |
+| Native implementation path | Minimal SwiftUI views, an iOS Swift package, a Mac pairing invite/payload parser, a target-claim model, a Mac handoff response parser, an iOS pairing exchange client, and a receive-invite ViewModel/View exist. | partial |
+| Platform token mapping | The receive-invite view uses repo-local neutral gray, secure green, danger red, radius, and typography constants aligned with the approved source frame; formal mobile primitive mapping is not claimed. | partial |
+| Safe-area and touch target behavior | The approved receive-invite frame and SwiftUI view use a single scrollable safe-area stack and a 48pt primary Pair control, but no simulator/device screenshot comparison is recorded yet. | partial |
+| Auth or vault action review/recovery mapping | The receive-invite flow disables pairing until invite validation, fails closed on expired invites, and records error copy; vault unlock/import/recovery actions remain out of scope. | partial |
 | Repo-owned iOS verification command | `bash scripts/testing/run-ios.sh` runs the Swift package tests on an available iPhone simulator. | available |
-| Visual/accessibility proof | No simulator/device screenshot has been compared with a routed Pencil category or iOS source frame. | missing |
+| Visual/accessibility proof | `current/unuvault/ios-pairing-invite-receive-v1` is promoted and the SwiftUI receive flow exposes labels for the invite field, recognized Mac summary, Pair button, and status panel; no simulator/device screenshot or VoiceOver run is recorded yet. | partial |
 | Dynamic Type | No Dynamic Type behavior, truncation, or layout proof is recorded yet. | missing |
-| VoiceOver | No VoiceOver labels, rotor path, or accessibility trait proof is recorded yet. | missing |
-| 44pt targets | No tappable controls exist in the current iOS shell, so no touch target proof exists yet. | missing |
+| VoiceOver | Static accessibility labels exist for the receive-invite field, recognized Mac summary, Pair button, and status panel; rotor path proof is not recorded yet. | partial |
+| 44pt targets | The primary Pair button is 48pt high; full target audit for every control is not recorded yet. | partial |
 
 ## Verification
 
@@ -55,35 +61,39 @@ Run:
 bash scripts/testing/run-ios.sh
 ```
 
-Current proof from this lane is limited to the iOS package and smoke-test
-entrypoint. The existing tests assert minimal SwiftUI copy for login and
-AutoFill onboarding, plus a protocol-shaped Mac pairing contract that parses QR
-payloads and invite envelopes, rejects malformed, expired, or unsupported
-endpoint payloads, builds a target-device identity claim, posts the claim to
-the invite-provided Mac pairing endpoint without a bridge bearer token, parses
-Mac handoff response envelopes, and rejects invalid, expired, status-failed, or
-target-mismatched handoff responses. They do not prove native primitive mapping,
-visual parity, accessibility behavior, camera QR scanning, real LAN discovery,
-local decrypt/import, physical iPhone receipt, or a shipped iPhone vault
-workflow.
+Current proof from this lane is limited to the iOS package, the promoted
+receive-invite Pencil source frame, and Swift package tests. The tests assert
+minimal SwiftUI copy for login and AutoFill onboarding, plus a Mac pairing
+receive flow that parses QR payloads and invite envelopes, rejects malformed,
+expired, or unsupported endpoint payloads, shows the recognized Mac, disables
+pairing until the invite is valid, builds a target-device identity claim, posts
+the claim to the invite-provided Mac pairing endpoint without a bridge bearer
+token, parses Mac handoff response envelopes, rejects invalid, expired,
+status-failed, or target-mismatched handoff responses, and keeps credential,
+password, and vault plaintext out of UI status copy and the claim/response
+contract. They do not prove native primitive adoption, simulator visual parity,
+camera QR scanning, real LAN discovery, local decrypt/import, physical iPhone
+receipt, or a shipped iPhone vault workflow.
 
 ## Claim Boundary
 
 No `adapter-mapped` or `adopted` claim is made for the mobile/non-SwiftUI native
 adapter lane.
 
-This lane stays `blocked-needs-evidence` until a future iOS UI slice supplies:
+This lane stays below `adapter-mapped` until future iOS UI slices supply:
 
-- a promoted or approved iOS Pencil source frame
-- native implementation paths for the represented screen/state
-- platform token and local-value mapping
+- simulator or device screenshot compared with the routed Pencil source
+- platform token and local-value mapping across the full represented flow
 - safe-area and 44pt touch target proof
 - Dynamic Type and VoiceOver evidence
 - disabled/loading/error or recovery proof where the surface exposes actions
-- simulator or device screenshot compared with the routed Pencil source
+- camera QR or copy handoff evidence when the handoff method is implemented
 
 Current Pencil sync label for this lane:
-`current needs promotion before implementation`.
+`current matches implementation`.
+
+Draft cleanup label for `draft/unuvault/ios-pairing-invite-receive-v1`:
+`promoted -> delete-candidate` after user-approved cleanup.
 
 Intentionally local values that must not be promoted into the shared library:
 

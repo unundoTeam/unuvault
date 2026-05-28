@@ -1,18 +1,18 @@
 import Foundation
 
-public enum PairingPayloadError: Error, Equatable {
+public enum PairingPayloadError: Error, Equatable, Sendable {
     case expired
     case invalidPayload
     case invalidVersion
 }
 
-public enum PairingInviteError: Error, Equatable {
+public enum PairingInviteError: Error, Equatable, Sendable {
     case invalidBaseURL
     case invalidPayload
     case invalidVersion
 }
 
-public enum PairingHandoffResponseError: Error, Equatable {
+public enum PairingHandoffResponseError: Error, Equatable, Sendable {
     case expired
     case invalidPayload
     case invalidVersion
@@ -20,17 +20,17 @@ public enum PairingHandoffResponseError: Error, Equatable {
     case unsupportedAlgorithm
 }
 
-public enum PairingExchangeClientError: Error, Equatable {
+public enum PairingExchangeClientError: Error, Equatable, Sendable {
     case httpStatus(Int)
     case invalidHTTPResponse
 }
 
-public typealias PairingExchangeTransport = (URLRequest) async throws -> (
+public typealias PairingExchangeTransport = @Sendable (URLRequest) async throws -> (
     Data,
     HTTPURLResponse
 )
 
-public struct MacPairingQRCodePayload: Equatable, Codable {
+public struct MacPairingQRCodePayload: Equatable, Codable, Sendable {
     public let version: Int
     public let sessionId: String
     public let sessionNonce: String
@@ -58,7 +58,7 @@ public struct MacPairingQRCodePayload: Equatable, Codable {
     }
 }
 
-public struct MacPairingInvite: Equatable, Codable {
+public struct MacPairingInvite: Equatable, Codable, Sendable {
     public let version: Int
     public let macBaseURL: URL
     public let pairing: MacPairingQRCodePayload
@@ -148,7 +148,7 @@ public enum PairingPayloadParser {
     }
 }
 
-public struct PairingTargetIdentity: Equatable, Codable {
+public struct PairingTargetIdentity: Equatable, Codable, Sendable {
     public let deviceId: String
     public let displayName: String
     public let publicKeyFingerprint: String
@@ -164,7 +164,7 @@ public struct PairingTargetIdentity: Equatable, Codable {
     }
 }
 
-public struct PairingTargetClaim: Equatable, Codable {
+public struct PairingTargetClaim: Equatable, Codable, Sendable {
     public let sessionId: String
     public let sessionNonce: String
     public let target: PairingTargetIdentity
@@ -205,7 +205,7 @@ public struct PairingTargetClaimBuilder {
     }
 }
 
-public struct MacPairingHandoffMaterial: Equatable, Codable {
+public struct MacPairingHandoffMaterial: Equatable, Codable, Sendable {
     public let algorithm: String
     public let nonce: String
     public let ciphertext: String
@@ -224,7 +224,7 @@ public struct MacPairingHandoffMaterial: Equatable, Codable {
     }
 }
 
-public struct MacPairingHandoff: Equatable, Codable {
+public struct MacPairingHandoff: Equatable, Codable, Sendable {
     public let handoffId: String
     public let version: Int
     public let sourceDeviceId: String
@@ -258,7 +258,7 @@ public struct MacPairingHandoff: Equatable, Codable {
     }
 }
 
-public struct MacPairingHandoffResponse: Equatable, Codable {
+public struct MacPairingHandoffResponse: Equatable, Codable, Sendable {
     public let handoff: MacPairingHandoff
 
     public init(handoff: MacPairingHandoff) {
@@ -317,14 +317,14 @@ public enum PairingHandoffResponseParser {
     }
 }
 
-public struct PairingExchangeClient {
+public struct PairingExchangeClient: Sendable {
     private let macBaseURL: URL
-    private let now: () -> Date
+    private let now: @Sendable () -> Date
     private let transport: PairingExchangeTransport
 
     public init(
         macBaseURL: URL,
-        now: @escaping () -> Date = Date.init,
+        now: @escaping @Sendable () -> Date = Date.init,
         transport: PairingExchangeTransport? = nil
     ) {
         self.macBaseURL = macBaseURL
@@ -334,7 +334,7 @@ public struct PairingExchangeClient {
 
     public init(
         invite: MacPairingInvite,
-        now: @escaping () -> Date = Date.init,
+        now: @escaping @Sendable () -> Date = Date.init,
         transport: PairingExchangeTransport? = nil
     ) {
         self.init(

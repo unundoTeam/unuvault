@@ -141,12 +141,14 @@ trusted-status surface first, keeps credential entry behind an explicit
   pairing invite envelope and QR payload, reject expired, invalid-version,
   malformed, or unsupported-endpoint payloads, and build a target-device
   identity claim with `deviceId`, `displayName`, and `publicKeyFingerprint`
-  without encoding credential, password, or vault material. It also posts the
-  claim to the invite-provided Mac pairing endpoint without a bridge bearer
-  token, parses Mac handoff response envelopes, and rejects invalid, expired,
-  status-failed, or target-mismatched responses. It does not claim camera QR
-  scanning, real LAN discovery, local decrypt/import, or physical iPhone
-  receipt.
+  without encoding credential, password, or vault material. It also proves the
+  approved `current/unuvault/ios-pairing-invite-receive-v1` SwiftUI receive
+  flow accepts pasted invite JSON, shows the recognized Mac, disables pairing
+  until invite validation, fails closed on expired invites, posts the claim to
+  the invite-provided Mac pairing endpoint without a bridge bearer token, parses
+  Mac handoff response envelopes, and rejects invalid, expired, status-failed,
+  or target-mismatched responses. It does not claim camera QR scanning, real LAN
+  discovery, local decrypt/import, or physical iPhone receipt.
 - `pnpm test:macos:recovery-boundary` proves encrypted local vault backup data
   contains only an AES-GCM envelope, does not contain the credential id,
   username, or password as plaintext, cannot be opened with account-only or
@@ -172,9 +174,10 @@ trusted-status surface first, keeps credential entry behind an explicit
 - Native app notarization and macOS login-item behavior are not claimed.
 - Touch ID is not claimed until LocalAuthentication proof exists.
 - Physical iPhone pairing is not claimed until a real LAN pairing run is captured.
-- The current iOS pairing proof is protocol-shape only; LAN discovery, QR code
+- The current iOS pairing proof is receive-side only; LAN discovery, QR code
   rendering/scanning, physical target-device identity proof, local decrypt or
-  import, and physical iPhone receipt remain unclaimed.
+  import, simulator/device visual parity, and physical iPhone receipt remain
+  unclaimed.
 - Account/Web sync into the Mac local vault is not claimed yet; direct native
   menu local-save and manual menu field entry into the encrypted Mac vault are
   covered by the current proof.

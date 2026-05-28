@@ -93,6 +93,8 @@ recovery flows; vault unlock remains the secret-release boundary.
 - Current web source frame: `current/unuvault/web-vault-management-v1`.
 - Current Mac companion source frame:
   `current/unuvault/mac-companion-core-flows-v1.2`.
+- Current iOS source frames: `current/unuvault/ios-vault-home-native-locked-v1`
+  and `current/unuvault/ios-pairing-invite-receive-v1`.
 - Small UI copy or polish uses the `Lightweight UI Path` in the portfolio
   Pencil gate.
 - Historical design specs are planning context only unless the operating index
@@ -274,15 +276,18 @@ For the native Mac companion proof:
   material, rejects expired handoffs, rejects target public-key fingerprint
   mismatch, and rejects replay of already consumed sessions or handoffs. It
   does not claim real LAN or physical iPhone pairing yet.
-- iOS Mac pairing payload contract proof is available through:
+- iOS Mac pairing receive proof is available through:
   `bash scripts/testing/run-ios.sh`
   This proves the iPhone app can parse the Mac pairing invite envelope and QR
   payload, reject expired, invalid-version, malformed, or unsupported-endpoint
   payloads, and build a target-device identity claim with `deviceId`,
-  `displayName`, and `publicKeyFingerprint`. It also posts that claim to the
-  invite-provided Mac pairing endpoint with no bridge bearer token, parses the
-  Mac handoff response envelope, rejects invalid, expired, status failed, or
-  target-mismatched responses, and keeps credential, password, and vault
+  `displayName`, and `publicKeyFingerprint`. It also proves the approved
+  `current/unuvault/ios-pairing-invite-receive-v1` SwiftUI receive flow can
+  accept pasted invite JSON, surface the recognized Mac, disable pairing until
+  an invite is valid, fail closed on expired invites, post the target claim to
+  the invite-provided Mac pairing endpoint with no bridge bearer token, parse
+  the Mac handoff response envelope, reject invalid, expired, status failed, or
+  target-mismatched responses, and keep credential, password, and vault
   plaintext out of the claim/response contract. It does not claim camera QR
   scanning, real LAN discovery, local decrypt/import, or physical iPhone receipt
   yet.
