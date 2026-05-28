@@ -36,7 +36,7 @@ let package = Package(
         ),
         .testTarget(
             name: "MacCompanionCoreTests",
-            dependencies: ["MacCompanionCore"],
+            dependencies: ["MacCompanionCore", "UnuVaultMacCompanion"],
             path: "Tests/MacCompanionCoreTests"
         )
     ]

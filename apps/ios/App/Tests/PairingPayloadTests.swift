@@ -237,4 +237,122 @@ final class PairingPayloadTests: XCTestCase {
             XCTAssertEqual(error as? PairingHandoffResponseError, .targetMismatch)
         }
     }
+
+    func testPairingExchangeClientPostsTargetClaimWithoutBearerOrSecrets() async throws {
+        let payload = MacPairingQRCodePayload(
+            version: 1,
+            sessionId: "pairing-session-1",
+            sessionNonce: "pairing-nonce-1",
+            sourceDeviceId: "mac-device-1",
+            sourceDeviceDisplayName: "Yuchen Mac",
+            createdAt: Date(timeIntervalSince1970: 1_000),
+            expiresAt: Date(timeIntervalSince1970: 1_120)
+        )
+        let target = PairingTargetIdentity(
+            deviceId: "ios-device-1",
+            displayName: "Yuchen iPhone",
+            publicKeyFingerprint: "ios-public-key-fingerprint"
+        )
+        let response = MacPairingHandoffResponse(
+            handoff: MacPairingHandoff(
+                handoffId: payload.sessionId,
+                version: 1,
+                sourceDeviceId: payload.sourceDeviceId,
+                targetDeviceId: target.deviceId,
+                targetDeviceDisplayName: target.displayName,
+                targetPublicKeyFingerprint: target.publicKeyFingerprint,
+                createdAt: Date(timeIntervalSince1970: 1_000),
+                expiresAt: Date(timeIntervalSince1970: 1_120),
+                material: MacPairingHandoffMaterial(
+                    algorithm: "AES-GCM-256",
+                    nonce: "nonce-base64",
+                    ciphertext: "wrapped-ciphertext-base64",
+                    tag: "tag-base64"
+                )
+            )
+        )
+        let responseData = try JSONEncoder().encode(response)
+        var capturedRequest: URLRequest?
+        let client = PairingExchangeClient(
+            macBaseURL: URL(string: "http://127.0.0.1:17666")!,
+            now: { Date(timeIntervalSince1970: 1_060) },
+            transport: { request in
+                capturedRequest = request
+                return (
+                    responseData,
+                    HTTPURLResponse(
+                        url: request.url!,
+                        statusCode: 200,
+                        httpVersion: "HTTP/1.1",
+                        headerFields: ["content-type": "application/json"]
+                    )!
+                )
+            }
+        )
+
+        let handoff = try await client.exchange(
+            payload: payload,
+            targetIdentity: target
+        )
+
+        XCTAssertEqual(handoff, response.handoff)
+        XCTAssertEqual(capturedRequest?.httpMethod, "POST")
+        XCTAssertEqual(capturedRequest?.url?.path, "/v1/pairing/claim")
+        XCTAssertNil(capturedRequest?.value(forHTTPHeaderField: "authorization"))
+        XCTAssertEqual(
+            capturedRequest?.value(forHTTPHeaderField: "content-type"),
+            "application/json"
+        )
+
+        let requestBody = String(
+            data: try XCTUnwrap(capturedRequest?.httpBody),
+            encoding: .utf8
+        )
+        XCTAssertTrue(requestBody?.contains(payload.sessionId) ?? false)
+        XCTAssertTrue(requestBody?.contains(target.deviceId) ?? false)
+        XCTAssertFalse(requestBody?.contains("credentials") ?? true)
+        XCTAssertFalse(requestBody?.contains("github-login") ?? true)
+        XCTAssertFalse(requestBody?.contains("secret-github") ?? true)
+        XCTAssertFalse(requestBody?.contains("password") ?? true)
+        XCTAssertFalse(requestBody?.contains("vault") ?? true)
+    }
+
+    func testPairingExchangeClientRejectsNonSuccessStatus() async throws {
+        let payload = MacPairingQRCodePayload(
+            version: 1,
+            sessionId: "pairing-session-1",
+            sessionNonce: "pairing-nonce-1",
+            sourceDeviceId: "mac-device-1",
+            sourceDeviceDisplayName: "Yuchen Mac",
+            createdAt: Date(timeIntervalSince1970: 1_000),
+            expiresAt: Date(timeIntervalSince1970: 1_120)
+        )
+        let target = PairingTargetIdentity(
+            deviceId: "ios-device-1",
+            displayName: "Yuchen iPhone",
+            publicKeyFingerprint: "ios-public-key-fingerprint"
+        )
+        let client = PairingExchangeClient(
+            macBaseURL: URL(string: "http://127.0.0.1:17666")!,
+            now: { Date(timeIntervalSince1970: 1_060) },
+            transport: { request in
+                (
+                    Data(#"{"ok":false,"error":"vault_locked"}"#.utf8),
+                    HTTPURLResponse(
+                        url: request.url!,
+                        statusCode: 423,
+                        httpVersion: "HTTP/1.1",
+                        headerFields: ["content-type": "application/json"]
+                    )!
+                )
+            }
+        )
+
+        do {
+            _ = try await client.exchange(payload: payload, targetIdentity: target)
+            XCTFail("Expected non-success pairing exchange status to fail closed")
+        } catch {
+            XCTAssertEqual(error as? PairingExchangeClientError, .httpStatus(423))
+        }
+    }
 }

@@ -268,19 +268,22 @@ For the native Mac companion proof:
   credential ids, usernames, passwords, and transfer material, transfers only
   AES-GCM wrapped vault material for a named target device, exposes a
   `/v1/pairing/claim` exchange that accepts a target claim without the Web
-  bridge bearer token, cannot be opened with the wrong transfer material,
-  rejects expired handoffs, rejects target public-key fingerprint mismatch,
-  and rejects replay of already consumed sessions or handoffs. It does not
-  claim real LAN or physical iPhone pairing yet.
+  bridge bearer token, wires that exchange into the proof-mode Mac companion
+  runtime, cannot be opened with the wrong transfer material, rejects expired
+  handoffs, rejects target public-key fingerprint mismatch, and rejects replay
+  of already consumed sessions or handoffs. It does not claim real LAN or
+  physical iPhone pairing yet.
 - iOS Mac pairing payload contract proof is available through:
   `bash scripts/testing/run-ios.sh`
   This proves the iPhone app can parse the Mac QR payload, reject expired,
   invalid-version, or malformed payloads, and build a target-device identity
   claim with `deviceId`, `displayName`, and `publicKeyFingerprint`. It also
-  parses the Mac handoff response envelope, rejects invalid, expired, or
-  target-mismatched responses, and keeps credential, password, and vault
-  plaintext out of the claim/response contract. It does not claim camera QR
-  scanning, LAN transport, local decrypt/import, or physical iPhone receipt yet.
+  posts that claim to the Mac pairing endpoint with no bridge bearer token,
+  parses the Mac handoff response envelope, rejects invalid, expired, status
+  failed, or target-mismatched responses, and keeps credential, password, and
+  vault plaintext out of the claim/response contract. It does not claim camera
+  QR scanning, real LAN discovery, local decrypt/import, or physical iPhone
+  receipt yet.
 - current implementation evidence is recorded in
   `docs/design/mac-companion-mvp-evidence.md`
 

@@ -14,6 +14,16 @@ public enum PairingHandoffResponseError: Error, Equatable {
     case unsupportedAlgorithm
 }
 
+public enum PairingExchangeClientError: Error, Equatable {
+    case httpStatus(Int)
+    case invalidHTTPResponse
+}
+
+public typealias PairingExchangeTransport = (URLRequest) async throws -> (
+    Data,
+    HTTPURLResponse
+)
+
 public struct MacPairingQRCodePayload: Equatable, Codable {
     public let version: Int
     public let sessionId: String
@@ -242,5 +252,66 @@ public enum PairingHandoffResponseParser {
         }
 
         return handoff
+    }
+}
+
+public struct PairingExchangeClient {
+    private let macBaseURL: URL
+    private let now: () -> Date
+    private let transport: PairingExchangeTransport
+
+    public init(
+        macBaseURL: URL,
+        now: @escaping () -> Date = Date.init,
+        transport: PairingExchangeTransport? = nil
+    ) {
+        self.macBaseURL = macBaseURL
+        self.now = now
+        self.transport = transport ?? Self.defaultTransport
+    }
+
+    public func exchange(
+        payload: MacPairingQRCodePayload,
+        targetIdentity: PairingTargetIdentity
+    ) async throws -> MacPairingHandoff {
+        let claim = try PairingTargetClaimBuilder().makeClaim(
+            payload: payload,
+            targetIdentity: targetIdentity
+        )
+        var request = URLRequest(url: endpointURL())
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "content-type")
+        request.httpBody = try JSONEncoder().encode(claim)
+
+        let (data, response) = try await transport(request)
+
+        guard response.statusCode == 200 else {
+            throw PairingExchangeClientError.httpStatus(response.statusCode)
+        }
+
+        return try PairingHandoffResponseParser.parse(
+            data,
+            expectedTarget: targetIdentity,
+            now: now()
+        )
+    }
+
+    private func endpointURL() -> URL {
+        macBaseURL
+            .appendingPathComponent("v1")
+            .appendingPathComponent("pairing")
+            .appendingPathComponent("claim")
+    }
+
+    private static func defaultTransport(
+        request: URLRequest
+    ) async throws -> (Data, HTTPURLResponse) {
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw PairingExchangeClientError.invalidHTTPResponse
+        }
+
+        return (data, httpResponse)
     }
 }

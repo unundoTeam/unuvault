@@ -1,4 +1,5 @@
 import Combine
+import CryptoKit
 import Foundation
 import MacCompanionCore
 
@@ -14,6 +15,7 @@ final class CompanionViewModel: ObservableObject {
     @Published var credentialPassword = ""
     @Published var credentialUsername = ""
     @Published var lastDecisionText = L10n.string("decision.idle")
+    @Published var pairingPayload: CompanionPairingQRCodePayload?
     @Published var pendingApproval: CompanionApprovalRequest?
     @Published var route: CompanionMenuRoute = .overview
     @Published var savedCredentialCountText = L10n.format("status.saved_count", 0)
@@ -22,11 +24,15 @@ final class CompanionViewModel: ObservableObject {
     private let accessToken: String
     private let addLoginDraftCredential: CompanionCredential?
     private let bridgePort: UInt16
+    private let pairingSourceDeviceDisplayName: String
+    private let pairingSourceDeviceId: String
+    private let pairingTransferKeyData: Data
     private let session = CompanionVaultSession()
     private let startupCredential: CompanionCredential?
     private let unlockOnStart: Bool
     private let vaultStore: LocalCompanionVaultStore?
     private lazy var bridgeService = CompanionBridgeService(session: session)
+    private lazy var pairingCoordinator = CompanionPairingSessionCoordinator(session: session)
     private var didApplyStartupState = false
     private var refreshTimer: Timer?
     private var server: LoopbackHTTPServer?
@@ -36,12 +42,18 @@ final class CompanionViewModel: ObservableObject {
         accessToken: String = "local-dev-bridge-token",
         addLoginDraftCredential: CompanionCredential? = nil,
         bridgePort: UInt16 = 17666,
+        pairingSourceDeviceDisplayName: String = Host.current().localizedName ?? "This Mac",
+        pairingSourceDeviceId: String = "mac-companion-local",
+        pairingTransferKeyData: Data = CompanionViewModel.makePairingTransferKeyData(),
         startupCredential: CompanionCredential? = nil,
         unlockOnStart: Bool = false
     ) {
         self.accessToken = accessToken
         self.addLoginDraftCredential = addLoginDraftCredential
         self.bridgePort = bridgePort
+        self.pairingSourceDeviceDisplayName = pairingSourceDeviceDisplayName
+        self.pairingSourceDeviceId = pairingSourceDeviceId
+        self.pairingTransferKeyData = pairingTransferKeyData
         self.startupCredential = startupCredential
         self.unlockOnStart = unlockOnStart
         self.vaultStore = vaultStore
@@ -91,7 +103,9 @@ final class CompanionViewModel: ObservableObject {
         if server == nil {
             let codec = BridgeHTTPCodec(
                 service: bridgeService,
-                accessToken: accessToken
+                accessToken: accessToken,
+                pairingCoordinator: pairingCoordinator,
+                pairingTransferKeyData: pairingTransferKeyData
             )
             server = LoopbackHTTPServer(codec: codec, port: bridgePort)
 
@@ -111,6 +125,19 @@ final class CompanionViewModel: ObservableObject {
         }
 
         refresh()
+    }
+
+    private static func makePairingTransferKeyData() -> Data {
+        SymmetricKey(size: .bits256).withUnsafeBytes { bytes in
+            Data(bytes)
+        }
+    }
+
+    func stop() {
+        refreshTimer?.invalidate()
+        refreshTimer = nil
+        server?.stop()
+        server = nil
     }
 
     private func applyStartupStateIfNeeded() {
@@ -237,15 +264,29 @@ final class CompanionViewModel: ObservableObject {
     func lock() {
         session.lock()
         bridgeService.clearPendingApproval()
+        pairingPayload = nil
         pendingApproval = nil
         route = .overview
         refresh()
     }
 
     func pairIPhone() {
-        lastDecisionText = isUnlocked
-            ? L10n.string("decision.pairing_ready")
-            : L10n.string("decision.pairing_locked")
+        guard isUnlocked else {
+            pairingPayload = nil
+            lastDecisionText = L10n.string("decision.pairing_locked")
+            return
+        }
+
+        do {
+            pairingPayload = try pairingCoordinator.startSession(
+                sourceDeviceId: pairingSourceDeviceId,
+                sourceDeviceDisplayName: pairingSourceDeviceDisplayName
+            )
+            lastDecisionText = L10n.string("decision.pairing_ready")
+        } catch {
+            pairingPayload = nil
+            lastDecisionText = L10n.string("decision.pairing_locked")
+        }
     }
 
     func approvePendingFill() {
