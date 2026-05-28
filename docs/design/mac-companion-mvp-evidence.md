@@ -33,6 +33,7 @@ pnpm smoke:packaged-extension-mac-companion
 pnpm smoke:menu-app-extension-mac-companion
 pnpm smoke:menu-app-local-save-mac-companion
 pnpm smoke:menu-app-manual-input-mac-companion
+pnpm smoke:menu-app-security-boundaries-mac-companion
 pnpm --filter @unuvault/browser-extension exec vitest --run tests/autofill.spec.ts tests/background-unlocked-vault.spec.ts
 pnpm --filter @unuvault/browser-extension lint
 pnpm --filter @unuvault/web exec vitest --run tests/mac-companion-client.spec.ts tests/vault-page.spec.tsx
@@ -100,6 +101,17 @@ trusted-status surface first, keeps credential entry behind an explicit
   - `/Users/yuchen/Design/unu/unuvault/exports/2026-05-28-mac-companion-manual-input-form-real-app-full.png`
   - `/Users/yuchen/Design/unu/unuvault/exports/2026-05-28-mac-companion-manual-input-real-app-full.png`
   - `/Users/yuchen/Design/unu/unuvault/exports/2026-05-28-mac-companion-manual-input-filled-page-real-app.png`
+- `pnpm smoke:menu-app-security-boundaries-mac-companion` builds the packaged
+  browser extension, starts the real `UnuVaultMacCompanion` SwiftUI menu bar
+  app with an isolated temporary encrypted vault, verifies the locked bridge
+  returns `vault_locked` without filling the page, clicks native `Deny` and
+  proves the page stays empty, then approves one pending release and proves a
+  wrong-origin claim returns `credential_not_found` before the trusted origin
+  can claim it exactly once. Captured 2026-05-28 evidence:
+  - `/Users/yuchen/Design/unu/unuvault/exports/2026-05-28-mac-companion-security-boundaries-locked-page-real-app.png`
+  - `/Users/yuchen/Design/unu/unuvault/exports/2026-05-28-mac-companion-security-boundaries-deny-real-app-full.png`
+  - `/Users/yuchen/Design/unu/unuvault/exports/2026-05-28-mac-companion-security-boundaries-denied-page-real-app.png`
+  - `/Users/yuchen/Design/unu/unuvault/exports/2026-05-28-mac-companion-security-boundaries-wrong-origin-page-real-app.png`
 - `pnpm smoke:packaged-extension-mac-companion` builds
   `apps/browser-extension/dist`, loads it into Chrome through the CDP
   `Extensions.loadUnpacked` path, starts a separate Swift

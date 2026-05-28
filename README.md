@@ -249,6 +249,12 @@ For the native Mac companion proof:
   mouse event, enters origin, label, username, and password through the focused
   menu fields, saves through the real native menu button, and then verifies
   unlock, Mac-local approval, extension fill, and one-time claim behavior.
+- real SwiftUI menu bar security-boundary proof is available through:
+  `pnpm smoke:menu-app-security-boundaries-mac-companion`
+  This launches the packaged extension and native companion in a locked state,
+  verifies locked release returns `vault_locked`, clicks native `Deny` and
+  proves the page stays empty, then proves a Mac-approved release cannot be
+  claimed from the wrong origin.
 - current implementation evidence is recorded in
   `docs/design/mac-companion-mvp-evidence.md`
 

@@ -173,4 +173,18 @@ describe("workspace entrypoints", () => {
     expect(evidence).toContain("VoiceOver");
     expect(evidence).toContain("44pt");
   });
+
+  it("records the Mac companion security-boundary smoke entrypoint", () => {
+    const rootPackage = readJson<PackageManifest>("package.json");
+    const readme = readText("README.md");
+    const evidence = readText("docs/design/mac-companion-mvp-evidence.md");
+    const smokePath = "scripts/smoke/menu-app-security-boundaries-mac-companion.mjs";
+
+    expect(existsSync(resolve(repoRoot, smokePath))).toBe(true);
+    expect(rootPackage.scripts?.["smoke:menu-app-security-boundaries-mac-companion"]).toBe(
+      `node ${smokePath}`,
+    );
+    expect(readme).toContain("pnpm smoke:menu-app-security-boundaries-mac-companion");
+    expect(evidence).toContain("pnpm smoke:menu-app-security-boundaries-mac-companion");
+  });
 });
