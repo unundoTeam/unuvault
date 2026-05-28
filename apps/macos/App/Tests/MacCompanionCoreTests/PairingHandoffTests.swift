@@ -196,6 +196,39 @@ final class PairingHandoffTests: XCTestCase {
         XCTAssertFalse(encodedPayload?.contains("secret-github") ?? true)
     }
 
+    func testPairingInviteCarriesMacBaseURLWithoutVaultSecrets() throws {
+        let now = Date(timeIntervalSince1970: 1_000)
+        let coordinator = CompanionPairingSessionCoordinator(
+            session: makeUnlockedSession(now: now),
+            now: { now },
+            makeSessionId: { "pairing-session-1" },
+            makeSessionNonce: { "pairing-nonce-1" }
+        )
+        let payload = try coordinator.startSession(
+            sourceDeviceId: "mac-device-1",
+            sourceDeviceDisplayName: "Yuchen Mac",
+            ttl: 120
+        )
+
+        let invite = try CompanionPairingInviteBuilder().makeInvite(
+            pairing: payload,
+            macBaseURL: URL(string: "http://192.168.1.42:17666")!
+        )
+        let encodedInvite = try String(
+            data: JSONEncoder().encode(invite),
+            encoding: .utf8
+        )
+
+        XCTAssertEqual(invite.version, 1)
+        XCTAssertEqual(invite.macBaseURL.absoluteString, "http://192.168.1.42:17666")
+        XCTAssertEqual(invite.pairing, payload)
+        XCTAssertTrue(encodedInvite?.contains("192.168.1.42") ?? false)
+        XCTAssertFalse(encodedInvite?.contains("credentials") ?? true)
+        XCTAssertFalse(encodedInvite?.contains("github-login") ?? true)
+        XCTAssertFalse(encodedInvite?.contains("yuchen") ?? true)
+        XCTAssertFalse(encodedInvite?.contains("secret-github") ?? true)
+    }
+
     func testPairingSessionRequiresUnlockedVault() {
         let coordinator = CompanionPairingSessionCoordinator(
             session: CompanionVaultSession(),

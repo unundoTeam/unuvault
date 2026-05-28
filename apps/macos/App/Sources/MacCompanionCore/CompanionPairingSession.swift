@@ -35,6 +35,57 @@ public struct CompanionPairingQRCodePayload: Equatable, Codable {
     }
 }
 
+public enum CompanionPairingInviteError: Error, Equatable {
+    case invalidBaseURL
+}
+
+public struct CompanionPairingInvitePayload: Equatable, Codable {
+    public let version: Int
+    public let macBaseURL: URL
+    public let pairing: CompanionPairingQRCodePayload
+
+    public init(
+        version: Int,
+        macBaseURL: URL,
+        pairing: CompanionPairingQRCodePayload
+    ) {
+        self.version = version
+        self.macBaseURL = macBaseURL
+        self.pairing = pairing
+    }
+}
+
+public struct CompanionPairingInviteBuilder {
+    public init() {}
+
+    public func makeInvite(
+        pairing: CompanionPairingQRCodePayload,
+        macBaseURL: URL
+    ) throws -> CompanionPairingInvitePayload {
+        guard Self.isSupportedBaseURL(macBaseURL) else {
+            throw CompanionPairingInviteError.invalidBaseURL
+        }
+
+        return CompanionPairingInvitePayload(
+            version: 1,
+            macBaseURL: macBaseURL,
+            pairing: pairing
+        )
+    }
+
+    private static func isSupportedBaseURL(_ url: URL) -> Bool {
+        guard let scheme = url.scheme?.lowercased(),
+              ["http", "https"].contains(scheme),
+              let host = url.host(),
+              !host.isEmpty
+        else {
+            return false
+        }
+
+        return true
+    }
+}
+
 public final class CompanionPairingSessionCoordinator: @unchecked Sendable {
     private let stateLock = NSRecursiveLock()
     private let session: CompanionVaultSession

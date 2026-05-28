@@ -14,6 +14,8 @@ enum CompanionAppConfiguration {
             "local-dev-bridge-token"
         let bridgePort = UInt16(environment["UNUVAULT_MAC_COMPANION_PROOF_PORT"] ?? "") ??
             17666
+        let pairingBaseURL = environment["UNUVAULT_MAC_COMPANION_PROOF_PAIRING_BASE_URL"]
+            .flatMap(URL.init(string:))
         let profileId = environment["UNUVAULT_MAC_COMPANION_PROOF_PROFILE_ID"] ??
             "personal"
         let vaultDirectory = URL(
@@ -38,6 +40,7 @@ enum CompanionAppConfiguration {
             accessToken: accessToken,
             addLoginDraftCredential: prefillAddLogin ? proofCredential : nil,
             bridgePort: bridgePort,
+            pairingBaseURL: pairingBaseURL,
             startupCredential: prefillAddLogin ? nil : proofCredential,
             unlockOnStart: environment["UNUVAULT_MAC_COMPANION_PROOF_AUTOUNLOCK"] != "0"
         )

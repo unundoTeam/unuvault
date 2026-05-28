@@ -37,7 +37,7 @@ evidence backlog, but it does not claim mobile/native adapter adoption.
 
 | Requirement | Current evidence | Status |
 | --- | --- | --- |
-| Native implementation path | Minimal SwiftUI views, an iOS Swift package, a Mac pairing payload parser/claim model, a Mac handoff response parser, and an iOS pairing exchange client exist. | partial |
+| Native implementation path | Minimal SwiftUI views, an iOS Swift package, a Mac pairing invite/payload parser, a target-claim model, a Mac handoff response parser, and an iOS pairing exchange client exist. | partial |
 | Platform token mapping | No iOS token, spacing, radius, typography, color, or component mapping is recorded yet. | missing |
 | Safe-area and touch target behavior | No screen-level layout, safe-area rule, or 44pt target proof is recorded yet. | missing |
 | Auth or vault action review/recovery mapping | Current views have no unlock form, vault actions, disabled/loading states, confirmation, audit trail, or recovery flow. | missing |
@@ -58,13 +58,14 @@ bash scripts/testing/run-ios.sh
 Current proof from this lane is limited to the iOS package and smoke-test
 entrypoint. The existing tests assert minimal SwiftUI copy for login and
 AutoFill onboarding, plus a protocol-shaped Mac pairing contract that parses QR
-payloads, rejects malformed or expired payloads, builds a target-device
-identity claim, posts the claim to the Mac pairing endpoint without a bridge
-bearer token, parses Mac handoff response envelopes, and rejects invalid,
-expired, status-failed, or target-mismatched handoff responses. They do not
-prove native primitive mapping, visual parity, accessibility behavior, camera
-QR scanning, real LAN discovery, local decrypt/import, physical iPhone receipt,
-or a shipped iPhone vault workflow.
+payloads and invite envelopes, rejects malformed, expired, or unsupported
+endpoint payloads, builds a target-device identity claim, posts the claim to
+the invite-provided Mac pairing endpoint without a bridge bearer token, parses
+Mac handoff response envelopes, and rejects invalid, expired, status-failed, or
+target-mismatched handoff responses. They do not prove native primitive mapping,
+visual parity, accessibility behavior, camera QR scanning, real LAN discovery,
+local decrypt/import, physical iPhone receipt, or a shipped iPhone vault
+workflow.
 
 ## Claim Boundary
 

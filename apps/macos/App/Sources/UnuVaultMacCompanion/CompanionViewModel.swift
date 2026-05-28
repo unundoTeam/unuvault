@@ -15,6 +15,7 @@ final class CompanionViewModel: ObservableObject {
     @Published var credentialPassword = ""
     @Published var credentialUsername = ""
     @Published var lastDecisionText = L10n.string("decision.idle")
+    @Published var pairingInviteText: String?
     @Published var pairingPayload: CompanionPairingQRCodePayload?
     @Published var pendingApproval: CompanionApprovalRequest?
     @Published var route: CompanionMenuRoute = .overview
@@ -24,6 +25,7 @@ final class CompanionViewModel: ObservableObject {
     private let accessToken: String
     private let addLoginDraftCredential: CompanionCredential?
     private let bridgePort: UInt16
+    private let pairingBaseURL: URL
     private let pairingSourceDeviceDisplayName: String
     private let pairingSourceDeviceId: String
     private let pairingTransferKeyData: Data
@@ -42,6 +44,7 @@ final class CompanionViewModel: ObservableObject {
         accessToken: String = "local-dev-bridge-token",
         addLoginDraftCredential: CompanionCredential? = nil,
         bridgePort: UInt16 = 17666,
+        pairingBaseURL: URL? = nil,
         pairingSourceDeviceDisplayName: String = Host.current().localizedName ?? "This Mac",
         pairingSourceDeviceId: String = "mac-companion-local",
         pairingTransferKeyData: Data = CompanionViewModel.makePairingTransferKeyData(),
@@ -51,6 +54,9 @@ final class CompanionViewModel: ObservableObject {
         self.accessToken = accessToken
         self.addLoginDraftCredential = addLoginDraftCredential
         self.bridgePort = bridgePort
+        self.pairingBaseURL = pairingBaseURL ?? CompanionViewModel.defaultPairingBaseURL(
+            bridgePort: bridgePort
+        )
         self.pairingSourceDeviceDisplayName = pairingSourceDeviceDisplayName
         self.pairingSourceDeviceId = pairingSourceDeviceId
         self.pairingTransferKeyData = pairingTransferKeyData
@@ -131,6 +137,10 @@ final class CompanionViewModel: ObservableObject {
         SymmetricKey(size: .bits256).withUnsafeBytes { bytes in
             Data(bytes)
         }
+    }
+
+    private static func defaultPairingBaseURL(bridgePort: UInt16) -> URL {
+        URL(string: "http://127.0.0.1:\(bridgePort)")!
     }
 
     func stop() {
@@ -264,6 +274,7 @@ final class CompanionViewModel: ObservableObject {
     func lock() {
         session.lock()
         bridgeService.clearPendingApproval()
+        pairingInviteText = nil
         pairingPayload = nil
         pendingApproval = nil
         route = .overview
@@ -272,21 +283,38 @@ final class CompanionViewModel: ObservableObject {
 
     func pairIPhone() {
         guard isUnlocked else {
+            pairingInviteText = nil
             pairingPayload = nil
             lastDecisionText = L10n.string("decision.pairing_locked")
             return
         }
 
         do {
-            pairingPayload = try pairingCoordinator.startSession(
+            let payload = try pairingCoordinator.startSession(
                 sourceDeviceId: pairingSourceDeviceId,
                 sourceDeviceDisplayName: pairingSourceDeviceDisplayName
             )
+            pairingInviteText = try makePairingInviteText(pairing: payload)
+            pairingPayload = payload
             lastDecisionText = L10n.string("decision.pairing_ready")
         } catch {
+            pairingInviteText = nil
             pairingPayload = nil
             lastDecisionText = L10n.string("decision.pairing_locked")
         }
+    }
+
+    private func makePairingInviteText(
+        pairing: CompanionPairingQRCodePayload
+    ) throws -> String {
+        let invite = try CompanionPairingInviteBuilder().makeInvite(
+            pairing: pairing,
+            macBaseURL: pairingBaseURL
+        )
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        let data = try encoder.encode(invite)
+        return String(data: data, encoding: .utf8) ?? ""
     }
 
     func approvePendingFill() {

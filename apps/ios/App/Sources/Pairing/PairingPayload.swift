@@ -6,6 +6,12 @@ public enum PairingPayloadError: Error, Equatable {
     case invalidVersion
 }
 
+public enum PairingInviteError: Error, Equatable {
+    case invalidBaseURL
+    case invalidPayload
+    case invalidVersion
+}
+
 public enum PairingHandoffResponseError: Error, Equatable {
     case expired
     case invalidPayload
@@ -49,6 +55,62 @@ public struct MacPairingQRCodePayload: Equatable, Codable {
         self.sourceDeviceDisplayName = sourceDeviceDisplayName
         self.createdAt = createdAt
         self.expiresAt = expiresAt
+    }
+}
+
+public struct MacPairingInvite: Equatable, Codable {
+    public let version: Int
+    public let macBaseURL: URL
+    public let pairing: MacPairingQRCodePayload
+
+    public init(
+        version: Int,
+        macBaseURL: URL,
+        pairing: MacPairingQRCodePayload
+    ) {
+        self.version = version
+        self.macBaseURL = macBaseURL
+        self.pairing = pairing
+    }
+}
+
+public enum PairingInviteParser {
+    public static func parse(
+        _ data: Data,
+        now: Date = Date()
+    ) throws -> MacPairingInvite {
+        let invite: MacPairingInvite
+
+        do {
+            invite = try JSONDecoder().decode(MacPairingInvite.self, from: data)
+        } catch {
+            throw PairingInviteError.invalidPayload
+        }
+
+        guard invite.version == 1 else {
+            throw PairingInviteError.invalidVersion
+        }
+
+        guard isSupportedBaseURL(invite.macBaseURL) else {
+            throw PairingInviteError.invalidBaseURL
+        }
+
+        let payloadData = try JSONEncoder().encode(invite.pairing)
+        _ = try PairingPayloadParser.parse(payloadData, now: now)
+
+        return invite
+    }
+
+    private static func isSupportedBaseURL(_ url: URL) -> Bool {
+        guard let scheme = url.scheme?.lowercased(),
+              ["http", "https"].contains(scheme),
+              let host = url.host(),
+              !host.isEmpty
+        else {
+            return false
+        }
+
+        return true
     }
 }
 
@@ -268,6 +330,18 @@ public struct PairingExchangeClient {
         self.macBaseURL = macBaseURL
         self.now = now
         self.transport = transport ?? Self.defaultTransport
+    }
+
+    public init(
+        invite: MacPairingInvite,
+        now: @escaping () -> Date = Date.init,
+        transport: PairingExchangeTransport? = nil
+    ) {
+        self.init(
+            macBaseURL: invite.macBaseURL,
+            now: now,
+            transport: transport
+        )
     }
 
     public func exchange(

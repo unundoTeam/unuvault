@@ -133,16 +133,20 @@ trusted-status surface first, keeps credential entry behind an explicit
   the target claim, authenticated by the QR session nonce rather than the Web
   bridge bearer token, and the proof-mode Mac companion runtime wires that
   exchange into its real loopback server after `pairIPhone()` starts a session.
-  It does not claim a real LAN or physical iPhone pairing run.
+  The runtime also emits an invite envelope containing the Mac base URL plus
+  the pairing payload, so the next QR/copy handoff can carry the endpoint
+  without exposing credential or vault plaintext. It does not claim a real LAN
+  or physical iPhone pairing run.
 - `bash scripts/testing/run-ios.sh` proves the iPhone package can parse the Mac
-  pairing QR payload, reject expired, invalid-version, or malformed payloads,
-  and build a target-device identity claim with `deviceId`, `displayName`, and
-  `publicKeyFingerprint` without encoding credential, password, or vault
-  material. It also posts the claim to the Mac pairing endpoint without a
-  bridge bearer token, parses Mac handoff response envelopes, and rejects
-  invalid, expired, status-failed, or target-mismatched responses. It does not
-  claim camera QR scanning, real LAN discovery, local decrypt/import, or
-  physical iPhone receipt.
+  pairing invite envelope and QR payload, reject expired, invalid-version,
+  malformed, or unsupported-endpoint payloads, and build a target-device
+  identity claim with `deviceId`, `displayName`, and `publicKeyFingerprint`
+  without encoding credential, password, or vault material. It also posts the
+  claim to the invite-provided Mac pairing endpoint without a bridge bearer
+  token, parses Mac handoff response envelopes, and rejects invalid, expired,
+  status-failed, or target-mismatched responses. It does not claim camera QR
+  scanning, real LAN discovery, local decrypt/import, or physical iPhone
+  receipt.
 - `pnpm test:macos:recovery-boundary` proves encrypted local vault backup data
   contains only an AES-GCM envelope, does not contain the credential id,
   username, or password as plaintext, cannot be opened with account-only or

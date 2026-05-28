@@ -125,6 +125,67 @@ final class PairingPayloadTests: XCTestCase {
         XCTAssertFalse(encodedClaim?.contains("password") ?? true)
     }
 
+    func testParsesMacPairingInviteWithEndpointWithoutVaultSecrets() throws {
+        let payload = MacPairingQRCodePayload(
+            version: 1,
+            sessionId: "pairing-session-1",
+            sessionNonce: "pairing-nonce-1",
+            sourceDeviceId: "mac-device-1",
+            sourceDeviceDisplayName: "Yuchen Mac",
+            createdAt: Date(timeIntervalSince1970: 1_000),
+            expiresAt: Date(timeIntervalSince1970: 1_120)
+        )
+        let invite = MacPairingInvite(
+            version: 1,
+            macBaseURL: URL(string: "http://192.168.1.42:17666")!,
+            pairing: payload
+        )
+        let data = try JSONEncoder().encode(invite)
+
+        let parsed = try PairingInviteParser.parse(
+            data,
+            now: Date(timeIntervalSince1970: 1_060)
+        )
+        let encodedInvite = String(data: data, encoding: .utf8)
+
+        XCTAssertEqual(parsed, invite)
+        XCTAssertEqual(parsed.macBaseURL.absoluteString, "http://192.168.1.42:17666")
+        XCTAssertFalse(encodedInvite?.contains("credentials") ?? true)
+        XCTAssertFalse(encodedInvite?.contains("github-login") ?? true)
+        XCTAssertFalse(encodedInvite?.contains("secret-github") ?? true)
+        XCTAssertFalse(encodedInvite?.contains("password") ?? true)
+        XCTAssertFalse(encodedInvite?.contains("vault") ?? true)
+    }
+
+    func testRejectsInvalidPairingInviteEndpoint() throws {
+        let invalidInvite = Data(
+            """
+            {
+              "version": 1,
+              "macBaseURL": "file:///tmp/unuvault",
+              "pairing": {
+                "version": 1,
+                "sessionId": "pairing-session-1",
+                "sessionNonce": "pairing-nonce-1",
+                "sourceDeviceId": "mac-device-1",
+                "sourceDeviceDisplayName": "Yuchen Mac",
+                "createdAt": 1000,
+                "expiresAt": 1120
+              }
+            }
+            """.utf8
+        )
+
+        XCTAssertThrowsError(
+            try PairingInviteParser.parse(
+                invalidInvite,
+                now: Date(timeIntervalSince1970: 1_060)
+            )
+        ) { error in
+            XCTAssertEqual(error as? PairingInviteError, .invalidBaseURL)
+        }
+    }
+
     func testParsesMacPairingHandoffResponseWithoutVaultSecrets() throws {
         let response = MacPairingHandoffResponse(
             handoff: MacPairingHandoff(
@@ -315,6 +376,76 @@ final class PairingPayloadTests: XCTestCase {
         XCTAssertFalse(requestBody?.contains("secret-github") ?? true)
         XCTAssertFalse(requestBody?.contains("password") ?? true)
         XCTAssertFalse(requestBody?.contains("vault") ?? true)
+    }
+
+    func testPairingExchangeClientCanUseParsedInviteEndpoint() async throws {
+        let payload = MacPairingQRCodePayload(
+            version: 1,
+            sessionId: "pairing-session-1",
+            sessionNonce: "pairing-nonce-1",
+            sourceDeviceId: "mac-device-1",
+            sourceDeviceDisplayName: "Yuchen Mac",
+            createdAt: Date(timeIntervalSince1970: 1_000),
+            expiresAt: Date(timeIntervalSince1970: 1_120)
+        )
+        let invite = MacPairingInvite(
+            version: 1,
+            macBaseURL: URL(string: "http://192.168.1.42:17666")!,
+            pairing: payload
+        )
+        let target = PairingTargetIdentity(
+            deviceId: "ios-device-1",
+            displayName: "Yuchen iPhone",
+            publicKeyFingerprint: "ios-public-key-fingerprint"
+        )
+        let response = MacPairingHandoffResponse(
+            handoff: MacPairingHandoff(
+                handoffId: payload.sessionId,
+                version: 1,
+                sourceDeviceId: payload.sourceDeviceId,
+                targetDeviceId: target.deviceId,
+                targetDeviceDisplayName: target.displayName,
+                targetPublicKeyFingerprint: target.publicKeyFingerprint,
+                createdAt: Date(timeIntervalSince1970: 1_000),
+                expiresAt: Date(timeIntervalSince1970: 1_120),
+                material: MacPairingHandoffMaterial(
+                    algorithm: "AES-GCM-256",
+                    nonce: "nonce-base64",
+                    ciphertext: "wrapped-ciphertext-base64",
+                    tag: "tag-base64"
+                )
+            )
+        )
+        let responseData = try JSONEncoder().encode(response)
+        var capturedRequest: URLRequest?
+        let client = PairingExchangeClient(
+            invite: invite,
+            now: { Date(timeIntervalSince1970: 1_060) },
+            transport: { request in
+                capturedRequest = request
+                return (
+                    responseData,
+                    HTTPURLResponse(
+                        url: request.url!,
+                        statusCode: 200,
+                        httpVersion: "HTTP/1.1",
+                        headerFields: ["content-type": "application/json"]
+                    )!
+                )
+            }
+        )
+
+        let handoff = try await client.exchange(
+            payload: invite.pairing,
+            targetIdentity: target
+        )
+
+        XCTAssertEqual(handoff, response.handoff)
+        XCTAssertEqual(
+            capturedRequest?.url?.absoluteString,
+            "http://192.168.1.42:17666/v1/pairing/claim"
+        )
+        XCTAssertNil(capturedRequest?.value(forHTTPHeaderField: "authorization"))
     }
 
     func testPairingExchangeClientRejectsNonSuccessStatus() async throws {

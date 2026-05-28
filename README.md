@@ -269,21 +269,23 @@ For the native Mac companion proof:
   AES-GCM wrapped vault material for a named target device, exposes a
   `/v1/pairing/claim` exchange that accepts a target claim without the Web
   bridge bearer token, wires that exchange into the proof-mode Mac companion
-  runtime, cannot be opened with the wrong transfer material, rejects expired
-  handoffs, rejects target public-key fingerprint mismatch, and rejects replay
-  of already consumed sessions or handoffs. It does not claim real LAN or
-  physical iPhone pairing yet.
+  runtime, emits an invite envelope with the Mac base URL plus the pairing
+  payload for copy/QR handoff, cannot be opened with the wrong transfer
+  material, rejects expired handoffs, rejects target public-key fingerprint
+  mismatch, and rejects replay of already consumed sessions or handoffs. It
+  does not claim real LAN or physical iPhone pairing yet.
 - iOS Mac pairing payload contract proof is available through:
   `bash scripts/testing/run-ios.sh`
-  This proves the iPhone app can parse the Mac QR payload, reject expired,
-  invalid-version, or malformed payloads, and build a target-device identity
-  claim with `deviceId`, `displayName`, and `publicKeyFingerprint`. It also
-  posts that claim to the Mac pairing endpoint with no bridge bearer token,
-  parses the Mac handoff response envelope, rejects invalid, expired, status
-  failed, or target-mismatched responses, and keeps credential, password, and
-  vault plaintext out of the claim/response contract. It does not claim camera
-  QR scanning, real LAN discovery, local decrypt/import, or physical iPhone
-  receipt yet.
+  This proves the iPhone app can parse the Mac pairing invite envelope and QR
+  payload, reject expired, invalid-version, malformed, or unsupported-endpoint
+  payloads, and build a target-device identity claim with `deviceId`,
+  `displayName`, and `publicKeyFingerprint`. It also posts that claim to the
+  invite-provided Mac pairing endpoint with no bridge bearer token, parses the
+  Mac handoff response envelope, rejects invalid, expired, status failed, or
+  target-mismatched responses, and keeps credential, password, and vault
+  plaintext out of the claim/response contract. It does not claim camera QR
+  scanning, real LAN discovery, local decrypt/import, or physical iPhone receipt
+  yet.
 - current implementation evidence is recorded in
   `docs/design/mac-companion-mvp-evidence.md`
 

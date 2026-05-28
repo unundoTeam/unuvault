@@ -18,6 +18,7 @@ final class CompanionRuntimePairingTests: XCTestCase {
             environment: [
                 "UNUVAULT_MAC_COMPANION_PROOF": "1",
                 "UNUVAULT_MAC_COMPANION_PROOF_PORT": "\(port)",
+                "UNUVAULT_MAC_COMPANION_PROOF_PAIRING_BASE_URL": "http://192.168.1.42:\(port)",
                 "UNUVAULT_MAC_COMPANION_PROOF_VAULT_DIR": vaultDirectory.path,
                 "UNUVAULT_MAC_COMPANION_PROOF_ORIGIN": "https://github.com",
                 "UNUVAULT_MAC_COMPANION_PROOF_CREDENTIAL_ID": "github-login",
@@ -38,6 +39,17 @@ final class CompanionRuntimePairingTests: XCTestCase {
         guard let payload = viewModel.pairingPayload else {
             return XCTFail("Expected pairIPhone() to create a QR pairing payload")
         }
+        let inviteText = try XCTUnwrap(viewModel.pairingInviteText)
+        let invite = try JSONDecoder().decode(
+            RuntimePairingInviteEnvelope.self,
+            from: Data(inviteText.utf8)
+        )
+        XCTAssertEqual(invite.macBaseURL.absoluteString, "http://192.168.1.42:\(port)")
+        XCTAssertEqual(invite.pairing.sessionId, payload.sessionId)
+        XCTAssertEqual(invite.pairing.sessionNonce, payload.sessionNonce)
+        XCTAssertFalse(inviteText.contains("github-login"))
+        XCTAssertFalse(inviteText.contains("yuchen"))
+        XCTAssertFalse(inviteText.contains("secret-github"))
 
         let claim = try await postJSON(
             url: URL(string: "http://127.0.0.1:\(port)/v1/pairing/claim")!,
@@ -106,4 +118,9 @@ final class CompanionRuntimePairingTests: XCTestCase {
 
 private struct RuntimePairingClaimEnvelope: Decodable {
     let handoff: CompanionPairingHandoff
+}
+
+private struct RuntimePairingInviteEnvelope: Decodable {
+    let macBaseURL: URL
+    let pairing: CompanionPairingQRCodePayload
 }
