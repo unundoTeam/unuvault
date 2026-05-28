@@ -1,0 +1,34 @@
+name: UnuVaultIOSHost
+options:
+  minimumXcodeGenVersion: 2.45.0
+settings:
+  base:
+    CODE_SIGN_STYLE: Automatic
+    CURRENT_PROJECT_VERSION: "1"
+    GENERATE_INFOPLIST_FILE: YES
+    MARKETING_VERSION: "1.0"
+targets:
+  UnuVaultIOSHost:
+    type: application
+    platform: iOS
+    deploymentTarget: "18.0"
+    sources:
+      - path: Sources
+      - path: ../App/Sources/Features/Pairing/PairingInviteReceiveView.swift
+      - path: ../App/Sources/Pairing/PairingPayload.swift
+    settings:
+      base:
+        ASSETCATALOG_COMPILER_APPICON_NAME: ""
+        INFOPLIST_KEY_CFBundleDisplayName: UnuVault
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        PRODUCT_BUNDLE_IDENTIFIER: com.unuvault.ioshost
+        PRODUCT_NAME: UnuVaultIOSHost
+        SWIFT_VERSION: "6.0"
+        TARGETED_DEVICE_FAMILY: "1"
+schemes:
+  UnuVaultIOSHost:
+    build:
+      targets:
+        UnuVaultIOSHost: all
+    run:
+      config: Debug

@@ -149,6 +149,7 @@ for the current first-layer entrypoint.
   - `pnpm lint`
   - `pnpm test`
   - `bash scripts/testing/run-ios.sh`
+  - `bash scripts/testing/run-ios-ui-host.sh`
   - `bash scripts/testing/run-macos.sh`
   - `python3 scripts/ci/tests/test_unuforge_package_consumer_smoke.py`
   - `python3 scripts/ci/tests/test_unuforge_ios_package_consumer_smoke.py`
@@ -291,6 +292,15 @@ For the native Mac companion proof:
   plaintext out of the claim/response contract. It does not claim camera QR
   scanning, real LAN discovery, local decrypt/import, or physical iPhone receipt
   yet.
+- iOS receive-invite visual proof is available through:
+  `bash scripts/testing/run-ios-ui-host.sh`
+  This uses XcodeGen to build a simulator host app for
+  `current/unuvault/ios-pairing-invite-receive-v1`, launches the SwiftUI screen
+  with deterministic sample invite data, and writes
+  `docs/design/evidence/2026-05-29-ios-ui-host/ios-pairing-invite-host.png`.
+  It proves simulator launch and screenshot capture for the receive-invite
+  surface, but it still does not claim physical iPhone receipt, camera QR
+  scanning, local decrypt/import, or full mobile adapter adoption.
 - current implementation evidence is recorded in
   `docs/design/mac-companion-mvp-evidence.md`
 

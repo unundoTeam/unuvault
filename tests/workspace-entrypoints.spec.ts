@@ -67,6 +67,33 @@ describe("workspace entrypoints", () => {
     expect(workflow).toContain("bash scripts/testing/run-ios.sh");
   });
 
+  it("adds a simulator host for iOS visual proof", () => {
+    const rootPackage = readJson<PackageManifest>("package.json");
+    const hostSpecPath = "apps/ios/HostApp/project.yml";
+    const hostAppPath = "apps/ios/HostApp/Sources/UnuVaultIOSHostApp.swift";
+    const hostWrapperPath = "scripts/testing/run-ios-ui-host.sh";
+
+    expect(existsSync(resolve(repoRoot, hostSpecPath))).toBe(true);
+    expect(existsSync(resolve(repoRoot, hostAppPath))).toBe(true);
+    expect(existsSync(resolve(repoRoot, hostWrapperPath))).toBe(true);
+    expect(rootPackage.scripts?.["test:ios:ui-host"]).toBe(
+      "bash scripts/testing/run-ios-ui-host.sh",
+    );
+
+    const hostSpec = readText(hostSpecPath);
+    const hostApp = readText(hostAppPath);
+    const wrapper = readText(hostWrapperPath);
+
+    expect(hostSpec).toContain("name: UnuVaultIOSHost");
+    expect(hostSpec).toContain(
+      "../App/Sources/Features/Pairing/PairingInviteReceiveView.swift",
+    );
+    expect(hostSpec).toContain("../App/Sources/Pairing/PairingPayload.swift");
+    expect(hostApp).toContain("PairingInviteReceiveView");
+    expect(wrapper).toContain("xcodegen");
+    expect(wrapper).toContain("ios-pairing-invite-host.png");
+  });
+
   it("adds a stable macOS companion test wrapper", () => {
     const rootPackage = readJson<PackageManifest>("package.json");
     const macosWrapperPath = "scripts/testing/run-macos.sh";
@@ -161,13 +188,15 @@ describe("workspace entrypoints", () => {
     const evidence = readText(evidencePath);
 
     expect(evidence).toContain("Adapter lane: mobile/non-SwiftUI native adapter");
-    expect(evidence).toContain("Status: `blocked-needs-evidence`");
+    expect(evidence).toContain("Status: `partial-native-proof`");
     expect(evidence).toContain("apps/ios/App/Sources/Features/Auth/LoginView.swift");
     expect(evidence).toContain("apps/ios/App/Sources/Features/Vault/VaultListView.swift");
     expect(evidence).toContain(
       "apps/ios/App/Sources/Features/Autofill/AutofillOnboardingView.swift",
     );
+    expect(evidence).toContain("apps/ios/App/Sources/Features/Pairing/PairingInviteReceiveView.swift");
     expect(evidence).toContain("bash scripts/testing/run-ios.sh");
+    expect(evidence).toContain("bash scripts/testing/run-ios-ui-host.sh");
     expect(evidence).toContain("No `adapter-mapped` or `adopted` claim");
     expect(evidence).toContain("Dynamic Type");
     expect(evidence).toContain("VoiceOver");

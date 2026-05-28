@@ -2,12 +2,14 @@
 .env.local
 .next/
 .pnpm-store/
+.derived-data/
 __pycache__/
 *.pyc
 node_modules
 node_modules/
 apps/browser-extension/dist/
 apps/ios/App/.build/
+apps/ios/HostApp/UnuVaultIOSHost.xcodeproj/
 apps/macos/App/.build/
 .worktrees/
 worktrees/

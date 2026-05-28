@@ -19,3 +19,13 @@ Run:
 ```bash
 bash scripts/testing/run-ios.sh
 ```
+
+For simulator visual proof of the promoted receive-invite screen, run:
+
+```bash
+bash scripts/testing/run-ios-ui-host.sh
+```
+
+The UI host uses XcodeGen to build `apps/ios/HostApp`, launches
+`PairingInviteReceiveView` with a deterministic sample Mac invite, and writes
+`docs/design/evidence/2026-05-29-ios-ui-host/ios-pairing-invite-host.png`.
