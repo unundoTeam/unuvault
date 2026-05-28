@@ -165,6 +165,142 @@ final class PairingHandoffTests: XCTestCase {
         }
     }
 
+    func testPairingSessionQRCodePayloadContainsNoVaultSecrets() throws {
+        let now = Date(timeIntervalSince1970: 1_000)
+        let coordinator = CompanionPairingSessionCoordinator(
+            session: makeUnlockedSession(now: now),
+            now: { now },
+            makeSessionId: { "pairing-session-1" },
+            makeSessionNonce: { "pairing-nonce-1" }
+        )
+
+        let payload = try coordinator.startSession(
+            sourceDeviceId: "mac-device-1",
+            sourceDeviceDisplayName: "Yuchen Mac",
+            ttl: 120
+        )
+        let encodedPayload = try String(
+            data: JSONEncoder().encode(payload),
+            encoding: .utf8
+        )
+
+        XCTAssertEqual(payload.version, 1)
+        XCTAssertEqual(payload.sessionId, "pairing-session-1")
+        XCTAssertEqual(payload.sessionNonce, "pairing-nonce-1")
+        XCTAssertEqual(payload.sourceDeviceId, "mac-device-1")
+        XCTAssertEqual(payload.sourceDeviceDisplayName, "Yuchen Mac")
+        XCTAssertEqual(payload.expiresAt, Date(timeIntervalSince1970: 1_120))
+        XCTAssertFalse(encodedPayload?.contains("credentials") ?? true)
+        XCTAssertFalse(encodedPayload?.contains("github-login") ?? true)
+        XCTAssertFalse(encodedPayload?.contains("yuchen") ?? true)
+        XCTAssertFalse(encodedPayload?.contains("secret-github") ?? true)
+    }
+
+    func testPairingSessionRequiresUnlockedVault() {
+        let coordinator = CompanionPairingSessionCoordinator(
+            session: CompanionVaultSession(),
+            now: { Date(timeIntervalSince1970: 1_000) },
+            makeSessionId: { "pairing-session-1" },
+            makeSessionNonce: { "pairing-nonce-1" }
+        )
+
+        XCTAssertThrowsError(
+            try coordinator.startSession(
+                sourceDeviceId: "mac-device-1",
+                sourceDeviceDisplayName: "Yuchen Mac",
+                ttl: 120
+            )
+        ) { error in
+            XCTAssertEqual(error as? CompanionPairingSessionError, .locked)
+        }
+    }
+
+    func testPairingSessionCompletesOneTimeHandoffForClaimedTarget() throws {
+        let now = Date(timeIntervalSince1970: 1_000)
+        let coordinator = CompanionPairingSessionCoordinator(
+            session: makeUnlockedSession(now: now),
+            now: { now },
+            makeSessionId: { "pairing-session-1" },
+            makeSessionNonce: { "pairing-nonce-1" }
+        )
+        let payload = try coordinator.startSession(
+            sourceDeviceId: "mac-device-1",
+            sourceDeviceDisplayName: "Yuchen Mac",
+            ttl: 120
+        )
+        let target = makeTarget()
+
+        let handoff = try coordinator.completeSession(
+            sessionId: payload.sessionId,
+            sessionNonce: payload.sessionNonce,
+            target: target,
+            transferKeyData: Data(repeating: 23, count: 32)
+        )
+
+        XCTAssertEqual(handoff.handoffId, payload.sessionId)
+        XCTAssertEqual(handoff.sourceDeviceId, payload.sourceDeviceId)
+        XCTAssertEqual(handoff.targetDeviceId, target.deviceId)
+        XCTAssertEqual(handoff.targetPublicKeyFingerprint, target.publicKeyFingerprint)
+
+        let restored = try CompanionPairingHandoffVerifier().openHandoff(
+            handoff,
+            transferKeyData: Data(repeating: 23, count: 32),
+            expectedTarget: target,
+            now: now
+        )
+        XCTAssertEqual(restored, [makeCredential()])
+
+        XCTAssertThrowsError(
+            try coordinator.completeSession(
+                sessionId: payload.sessionId,
+                sessionNonce: payload.sessionNonce,
+                target: target,
+                transferKeyData: Data(repeating: 23, count: 32)
+            )
+        ) { error in
+            XCTAssertEqual(error as? CompanionPairingSessionError, .replayed)
+        }
+    }
+
+    func testPairingSessionRejectsExpiredOrMismatchedClaims() throws {
+        var currentTime = Date(timeIntervalSince1970: 1_000)
+        let coordinator = CompanionPairingSessionCoordinator(
+            session: makeUnlockedSession(now: currentTime),
+            now: { currentTime },
+            makeSessionId: { "pairing-session-1" },
+            makeSessionNonce: { "pairing-nonce-1" }
+        )
+        let payload = try coordinator.startSession(
+            sourceDeviceId: "mac-device-1",
+            sourceDeviceDisplayName: "Yuchen Mac",
+            ttl: 120
+        )
+
+        XCTAssertThrowsError(
+            try coordinator.completeSession(
+                sessionId: payload.sessionId,
+                sessionNonce: "wrong-nonce",
+                target: makeTarget(),
+                transferKeyData: Data(repeating: 23, count: 32)
+            )
+        ) { error in
+            XCTAssertEqual(error as? CompanionPairingSessionError, .invalidRequest)
+        }
+
+        currentTime = Date(timeIntervalSince1970: 1_121)
+
+        XCTAssertThrowsError(
+            try coordinator.completeSession(
+                sessionId: payload.sessionId,
+                sessionNonce: payload.sessionNonce,
+                target: makeTarget(),
+                transferKeyData: Data(repeating: 23, count: 32)
+            )
+        ) { error in
+            XCTAssertEqual(error as? CompanionPairingSessionError, .expired)
+        }
+    }
+
     private func makeCredential() -> CompanionCredential {
         CompanionCredential(
             id: "github-login",
@@ -182,5 +318,11 @@ final class PairingHandoffTests: XCTestCase {
             displayName: "Yuchen iPhone",
             publicKeyFingerprint: "ios-public-key-fingerprint"
         )
+    }
+
+    private func makeUnlockedSession(now: Date) -> CompanionVaultSession {
+        let session = CompanionVaultSession(now: { now })
+        session.unlock(credentials: [makeCredential()], ttl: 300)
+        return session
     }
 }

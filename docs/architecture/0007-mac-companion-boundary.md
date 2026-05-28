@@ -156,11 +156,14 @@ The Mac companion is the preferred first trusted device for iOS pairing.
 Expected pairing posture:
 
 - pair over QR code, local network, or another explicit device-to-device channel
+- keep QR or pairing-code payloads free of plaintext credentials and transfer
+  material
 - require the Mac vault to be unlocked before approving a new iOS device
 - show the target device identity before approval
 - transfer encrypted vault material or wrapped key material, not bulk plaintext
 - require primary password or fresh strong unlock for approving the transfer
-- bind the handoff to target-device key identity and reject replayed handoffs
+- bind the handoff to target-device key identity and reject replayed sessions
+  or handoffs
 - make failed or expired pairing attempts fail closed
 
 When real iOS device interaction is in scope, verification should prefer a

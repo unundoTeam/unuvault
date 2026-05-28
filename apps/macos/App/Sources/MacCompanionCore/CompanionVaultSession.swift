@@ -116,6 +116,17 @@ public final class CompanionVaultSession: @unchecked Sendable {
         }
     }
 
+    public func credentialsForPairing() -> [CompanionCredential]? {
+        stateLock.lock()
+        defer { stateLock.unlock() }
+
+        guard case .unlocked = currentLockState() else {
+            return nil
+        }
+
+        return credentials
+    }
+
     private func currentLockState() -> CompanionLockState {
         if let attentionReason {
             return .attentionNeeded(reason: attentionReason)

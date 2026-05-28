@@ -262,11 +262,14 @@ For the native Mac companion proof:
   revoked device state clears pending release ability.
 - Mac companion iOS pairing-boundary protocol proof is available through:
   `pnpm test:macos:pairing-boundary`
-  This proves the first pairing handoff skeleton transfers only AES-GCM wrapped
-  vault material for a named target device, cannot be opened with the wrong
-  transfer material, rejects expired handoffs, rejects target public-key
-  fingerprint mismatch, and rejects replay of an already consumed handoff. It
-  does not claim real LAN or physical iPhone pairing yet.
+  This proves the first pairing session and handoff skeleton requires an
+  unlocked Mac vault before issuing a QR payload, keeps the QR payload free of
+  credential ids, usernames, passwords, and transfer material, transfers only
+  AES-GCM wrapped vault material for a named target device, cannot be opened
+  with the wrong transfer material, rejects expired handoffs, rejects target
+  public-key fingerprint mismatch, and rejects replay of already consumed
+  sessions or handoffs. It does not claim real LAN or physical iPhone pairing
+  yet.
 - current implementation evidence is recorded in
   `docs/design/mac-companion-mvp-evidence.md`
 

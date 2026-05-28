@@ -122,13 +122,14 @@ trusted-status surface first, keeps credential entry behind an explicit
   extension popup context, and verifies the real login page DOM receives the
   Mac-approved username and password.
 - `pnpm test:macos:pairing-boundary` proves the first iOS pairing handoff
-  protocol skeleton emits target-device metadata plus AES-GCM wrapped vault
-  material only, does not encode credential ids, usernames, or passwords as
-  plaintext, restores only with the same transfer material, and fails closed
-  with the wrong transfer material. It also proves handoffs expire, target
-  public-key fingerprint mismatch is rejected, and replay of an already
-  consumed handoff fails closed. It does not claim a real LAN or physical
-  iPhone pairing run.
+  protocol skeleton requires an unlocked Mac vault before issuing a QR payload,
+  keeps that QR payload free of credential ids, usernames, passwords, and
+  transfer material, emits target-device metadata plus AES-GCM wrapped vault
+  material only, restores only with the same transfer material, and fails
+  closed with the wrong transfer material. It also proves sessions and handoffs
+  expire, QR nonce mismatch is rejected, target public-key fingerprint mismatch
+  is rejected, and replay of an already consumed session or handoff fails
+  closed. It does not claim a real LAN or physical iPhone pairing run.
 - `pnpm test:macos:recovery-boundary` proves encrypted local vault backup data
   contains only an AES-GCM envelope, does not contain the credential id,
   username, or password as plaintext, cannot be opened with account-only or
@@ -155,8 +156,8 @@ trusted-status surface first, keeps credential entry behind an explicit
 - Touch ID is not claimed until LocalAuthentication proof exists.
 - Physical iPhone pairing is not claimed until a real LAN pairing run is captured.
 - The current iOS pairing proof is protocol-shape only; LAN discovery, QR code
-  exchange, physical target-device identity proof, and physical iPhone receipt
-  remain unclaimed.
+  rendering/scanning, physical target-device identity proof, and physical
+  iPhone receipt remain unclaimed.
 - Account/Web sync into the Mac local vault is not claimed yet; direct native
   menu local-save and manual menu field entry into the encrypted Mac vault are
   covered by the current proof.
