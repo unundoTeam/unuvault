@@ -26,15 +26,18 @@ evidence backlog, but it does not claim mobile/native adapter adoption.
 - Vault list shell: `apps/ios/App/Sources/Features/Vault/VaultListView.swift`
 - AutoFill onboarding shell:
   `apps/ios/App/Sources/Features/Autofill/AutofillOnboardingView.swift`
+- Mac pairing payload contract:
+  `apps/ios/App/Sources/Pairing/PairingPayload.swift`
 - Login smoke test: `apps/ios/App/Tests/LoginViewTests.swift`
 - AutoFill smoke test: `apps/ios/App/Tests/AutofillOnboardingViewTests.swift`
+- Pairing payload contract test: `apps/ios/App/Tests/PairingPayloadTests.swift`
 - iOS verification wrapper: `bash scripts/testing/run-ios.sh`
 
 ## Current Implementation Evidence
 
 | Requirement | Current evidence | Status |
 | --- | --- | --- |
-| Native implementation path | Minimal SwiftUI views and an iOS Swift package exist. | partial |
+| Native implementation path | Minimal SwiftUI views, an iOS Swift package, and a Mac pairing payload parser/claim model exist. | partial |
 | Platform token mapping | No iOS token, spacing, radius, typography, color, or component mapping is recorded yet. | missing |
 | Safe-area and touch target behavior | No screen-level layout, safe-area rule, or 44pt target proof is recorded yet. | missing |
 | Auth or vault action review/recovery mapping | Current views have no unlock form, vault actions, disabled/loading states, confirmation, audit trail, or recovery flow. | missing |
@@ -54,8 +57,11 @@ bash scripts/testing/run-ios.sh
 
 Current proof from this lane is limited to the iOS package and smoke-test
 entrypoint. The existing tests assert minimal SwiftUI copy for login and
-AutoFill onboarding. They do not prove native primitive mapping, visual parity,
-accessibility behavior, or a shipped iPhone vault workflow.
+AutoFill onboarding, plus a protocol-shaped Mac pairing payload contract that
+parses QR payloads, rejects malformed or expired payloads, and builds a
+target-device identity claim. They do not prove native primitive mapping,
+visual parity, accessibility behavior, camera QR scanning, LAN transport,
+physical iPhone receipt, or a shipped iPhone vault workflow.
 
 ## Claim Boundary
 

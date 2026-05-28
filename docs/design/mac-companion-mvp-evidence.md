@@ -130,6 +130,12 @@ trusted-status surface first, keeps credential entry behind an explicit
   expire, QR nonce mismatch is rejected, target public-key fingerprint mismatch
   is rejected, and replay of an already consumed session or handoff fails
   closed. It does not claim a real LAN or physical iPhone pairing run.
+- `bash scripts/testing/run-ios.sh` proves the iPhone package can parse the Mac
+  pairing QR payload, reject expired, invalid-version, or malformed payloads,
+  and build a target-device identity claim with `deviceId`, `displayName`, and
+  `publicKeyFingerprint` without encoding credential, password, or vault
+  material. It does not claim camera QR scanning, LAN transport, or physical
+  iPhone receipt.
 - `pnpm test:macos:recovery-boundary` proves encrypted local vault backup data
   contains only an AES-GCM envelope, does not contain the credential id,
   username, or password as plaintext, cannot be opened with account-only or
@@ -156,8 +162,8 @@ trusted-status surface first, keeps credential entry behind an explicit
 - Touch ID is not claimed until LocalAuthentication proof exists.
 - Physical iPhone pairing is not claimed until a real LAN pairing run is captured.
 - The current iOS pairing proof is protocol-shape only; LAN discovery, QR code
-  rendering/scanning, physical target-device identity proof, and physical
-  iPhone receipt remain unclaimed.
+  rendering/scanning, physical target-device identity proof, wrapped vault
+  material receipt, and physical iPhone receipt remain unclaimed.
 - Account/Web sync into the Mac local vault is not claimed yet; direct native
   menu local-save and manual menu field entry into the encrypted Mac vault are
   covered by the current proof.

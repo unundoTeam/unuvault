@@ -160,6 +160,8 @@ Expected pairing posture:
   material
 - require the Mac vault to be unlocked before approving a new iOS device
 - show the target device identity before approval
+- require the target device claim to include its device id, display name, and
+  public-key fingerprint before handoff
 - transfer encrypted vault material or wrapped key material, not bulk plaintext
 - require primary password or fresh strong unlock for approving the transfer
 - bind the handoff to target-device key identity and reject replayed sessions

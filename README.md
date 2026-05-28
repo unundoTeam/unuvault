@@ -127,7 +127,8 @@ for the current first-layer entrypoint.
 - `apps/api/` - account, vault, devices, imports, and activity APIs
 - `apps/web/` - onboarding, vault management, and trust-center flows
 - `apps/browser-extension/` - popup, autofill, and extension auth surfaces
-- `apps/ios/` - SwiftUI iPhone app and AutoFill onboarding
+- `apps/ios/` - SwiftUI iPhone app, AutoFill onboarding, and Mac pairing
+  payload contract
 - `apps/macos/` - native Mac companion proof for local unlock, loopback
   credential release, and future device pairing
 - `packages/domain/` - shared schemas and typed data contracts
@@ -270,6 +271,13 @@ For the native Mac companion proof:
   public-key fingerprint mismatch, and rejects replay of already consumed
   sessions or handoffs. It does not claim real LAN or physical iPhone pairing
   yet.
+- iOS Mac pairing payload contract proof is available through:
+  `bash scripts/testing/run-ios.sh`
+  This proves the iPhone app can parse the Mac QR payload, reject expired,
+  invalid-version, or malformed payloads, and build a target-device identity
+  claim with `deviceId`, `displayName`, and `publicKeyFingerprint` without
+  encoding credential, password, or vault material. It does not claim camera QR
+  scanning, LAN transport, or physical iPhone receipt yet.
 - current implementation evidence is recorded in
   `docs/design/mac-companion-mvp-evidence.md`
 
