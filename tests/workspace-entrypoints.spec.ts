@@ -206,7 +206,7 @@ describe("workspace entrypoints", () => {
     const evidence = readText("docs/design/mac-companion-mvp-evidence.md");
 
     expect(rootPackage.scripts?.["test:macos:pairing-boundary"]).toBe(
-      "swift test --package-path apps/macos/App --filter PairingHandoffTests",
+      "swift test --package-path apps/macos/App --filter Pairing",
     );
     expect(readme).toContain("pnpm test:macos:pairing-boundary");
     expect(evidence).toContain("pnpm test:macos:pairing-boundary");

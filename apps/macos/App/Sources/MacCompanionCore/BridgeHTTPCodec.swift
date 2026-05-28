@@ -13,10 +13,19 @@ public struct BridgeHTTPResponse: Equatable {
 public final class BridgeHTTPCodec: @unchecked Sendable {
     private let service: CompanionBridgeService
     private let accessToken: String
+    private let pairingCoordinator: CompanionPairingSessionCoordinator?
+    private let pairingTransferKeyData: Data?
 
-    public init(service: CompanionBridgeService, accessToken: String) {
+    public init(
+        service: CompanionBridgeService,
+        accessToken: String,
+        pairingCoordinator: CompanionPairingSessionCoordinator? = nil,
+        pairingTransferKeyData: Data? = nil
+    ) {
         self.service = service
         self.accessToken = accessToken
+        self.pairingCoordinator = pairingCoordinator
+        self.pairingTransferKeyData = pairingTransferKeyData
     }
 
     public func handle(
@@ -36,17 +45,21 @@ public final class BridgeHTTPCodec: @unchecked Sendable {
             return statusResponse()
         }
 
+        guard let components = URLComponents(
+            string: "http://127.0.0.1\(path)"
+        ) else {
+            return invalidRequest()
+        }
+
+        if normalizedMethod == "POST", components.path == "/v1/pairing/claim" {
+            return pairingClaimResponse(body: body)
+        }
+
         guard normalizedHeaders["authorization"] == "Bearer \(accessToken)" else {
             return json(
                 statusCode: 401,
                 payload: ["ok": false, "error": "invalid_bridge_token"]
             )
-        }
-
-        guard let components = URLComponents(
-            string: "http://127.0.0.1\(path)"
-        ) else {
-            return invalidRequest()
         }
 
         switch (normalizedMethod, components.path) {
@@ -60,6 +73,74 @@ public final class BridgeHTTPCodec: @unchecked Sendable {
             return json(
                 statusCode: 404,
                 payload: ["ok": false, "error": "not_found"]
+            )
+        }
+    }
+
+    private func pairingClaimResponse(body: Data) -> BridgeHTTPResponse {
+        guard let pairingCoordinator,
+              let pairingTransferKeyData,
+              let request = decode(PairingClaimRequest.self, from: body),
+              !request.sessionId.isEmpty,
+              !request.sessionNonce.isEmpty,
+              !request.target.deviceId.isEmpty,
+              !request.target.displayName.isEmpty,
+              !request.target.publicKeyFingerprint.isEmpty
+        else {
+            return invalidRequest()
+        }
+
+        let target = CompanionPairingTarget(
+            deviceId: request.target.deviceId,
+            displayName: request.target.displayName,
+            publicKeyFingerprint: request.target.publicKeyFingerprint
+        )
+
+        do {
+            let handoff = try pairingCoordinator.completeSession(
+                sessionId: request.sessionId,
+                sessionNonce: request.sessionNonce,
+                target: target,
+                transferKeyData: pairingTransferKeyData
+            )
+
+            return jsonEncodable(
+                statusCode: 200,
+                payload: PairingClaimResponse(handoff: handoff)
+            )
+        } catch let error as CompanionPairingSessionError {
+            return pairingSessionErrorResponse(error)
+        } catch {
+            return json(
+                statusCode: 500,
+                payload: ["ok": false, "error": "pairing_exchange_failed"]
+            )
+        }
+    }
+
+    private func pairingSessionErrorResponse(
+        _ error: CompanionPairingSessionError
+    ) -> BridgeHTTPResponse {
+        switch error {
+        case .expired:
+            return json(
+                statusCode: 410,
+                payload: ["ok": false, "error": "pairing_session_expired"]
+            )
+        case .invalidRequest:
+            return json(
+                statusCode: 400,
+                payload: ["ok": false, "error": "invalid_pairing_claim"]
+            )
+        case .locked:
+            return json(
+                statusCode: 423,
+                payload: ["ok": false, "error": "vault_locked"]
+            )
+        case .replayed:
+            return json(
+                statusCode: 409,
+                payload: ["ok": false, "error": "pairing_session_replayed"]
             )
         }
     }
@@ -218,6 +299,26 @@ public final class BridgeHTTPCodec: @unchecked Sendable {
         )
     }
 
+    private func jsonEncodable<T: Encodable>(
+        statusCode: Int,
+        payload: T
+    ) -> BridgeHTTPResponse {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        let data = (try? encoder.encode(payload)) ?? Data("{}".utf8)
+
+        return BridgeHTTPResponse(
+            statusCode: statusCode,
+            headers: [
+                "access-control-allow-headers": "authorization, content-type",
+                "access-control-allow-methods": "GET, POST, OPTIONS",
+                "access-control-allow-origin": "http://127.0.0.1:3001",
+                "content-type": "application/json"
+            ],
+            body: data
+        )
+    }
+
     private func normalized(_ headers: [String: String]) -> [String: String] {
         var result: [String: String] = [:]
 
@@ -240,6 +341,22 @@ private struct ClaimRequest: Decodable {
     let id: String
     let origin: String
     let profileId: String
+}
+
+private struct PairingClaimRequest: Decodable {
+    let sessionId: String
+    let sessionNonce: String
+    let target: PairingClaimTarget
+}
+
+private struct PairingClaimTarget: Decodable {
+    let deviceId: String
+    let displayName: String
+    let publicKeyFingerprint: String
+}
+
+private struct PairingClaimResponse: Encodable {
+    let handoff: CompanionPairingHandoff
 }
 
 private extension [URLQueryItem] {
