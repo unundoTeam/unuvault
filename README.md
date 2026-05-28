@@ -235,6 +235,13 @@ For the native Mac companion proof:
   This launches `UnuVaultMacCompanion`, captures the native pending-approval
   menu, clicks the Mac-local approval button through macOS UI scripting,
   verifies DOM fill, and verifies the approved release cannot be claimed twice.
+- real SwiftUI menu bar local-save plus approval proof is available through:
+  `pnpm smoke:menu-app-local-save-mac-companion`
+  This launches `UnuVaultMacCompanion` with an isolated temporary vault,
+  pre-fills the `Add login` form only in proof mode, saves through the real
+  native menu button into the encrypted local vault file, unlocks that saved
+  vault, then verifies the packaged browser extension can fill the active page
+  only after Mac-local approval.
 - current implementation evidence is recorded in
   `docs/design/mac-companion-mvp-evidence.md`
 

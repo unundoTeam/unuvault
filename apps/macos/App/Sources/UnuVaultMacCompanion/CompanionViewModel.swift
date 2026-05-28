@@ -20,6 +20,7 @@ final class CompanionViewModel: ObservableObject {
     @Published var statusText = L10n.string("status.locked")
 
     private let accessToken: String
+    private let addLoginDraftCredential: CompanionCredential?
     private let bridgePort: UInt16
     private let session = CompanionVaultSession()
     private let startupCredential: CompanionCredential?
@@ -33,11 +34,13 @@ final class CompanionViewModel: ObservableObject {
     init(
         vaultStore: LocalCompanionVaultStore? = try? LocalCompanionVaultStore.defaultStore(),
         accessToken: String = "local-dev-bridge-token",
+        addLoginDraftCredential: CompanionCredential? = nil,
         bridgePort: UInt16 = 17666,
         startupCredential: CompanionCredential? = nil,
         unlockOnStart: Bool = false
     ) {
         self.accessToken = accessToken
+        self.addLoginDraftCredential = addLoginDraftCredential
         self.bridgePort = bridgePort
         self.startupCredential = startupCredential
         self.unlockOnStart = unlockOnStart
@@ -132,6 +135,20 @@ final class CompanionViewModel: ObservableObject {
 
     func showAddLogin() {
         route = .addLogin
+
+        guard let addLoginDraftCredential,
+              credentialOrigin.isEmpty,
+              credentialLabel.isEmpty,
+              credentialUsername.isEmpty,
+              credentialPassword.isEmpty
+        else {
+            return
+        }
+
+        credentialOrigin = addLoginDraftCredential.websiteOrigin
+        credentialLabel = addLoginDraftCredential.label
+        credentialUsername = addLoginDraftCredential.username
+        credentialPassword = addLoginDraftCredential.password
     }
 
     func cancelAddLogin() {

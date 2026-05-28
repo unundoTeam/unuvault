@@ -20,17 +20,25 @@ const bridgeToken = "local-dev-bridge-token";
 const profileId = "personal";
 const bridgePort = 17666;
 const credentialId = "github-login";
+const saveThroughMenu = process.argv.includes("--save-through-menu");
 const proofDate = new Date().toISOString().slice(0, 10);
 const exportRoot =
   process.env.UNUVAULT_PROOF_EXPORT_DIR ??
   "/Users/yuchen/Design/unu/unuvault/exports";
+const screenshotStem = saveThroughMenu
+  ? "mac-companion-local-save"
+  : "mac-companion-menu-approval";
 const approvalScreenshot = join(
   exportRoot,
-  `${proofDate}-mac-companion-menu-approval-real-app-full.png`,
+  `${proofDate}-${screenshotStem}-real-app-full.png`,
 );
 const filledPageScreenshot = join(
   exportRoot,
-  `${proofDate}-mac-companion-filled-page-real-app.png`,
+  `${proofDate}-${screenshotStem}-filled-page-real-app.png`,
+);
+const localSaveScreenshot = join(
+  exportRoot,
+  `${proofDate}-mac-companion-local-save-form-real-app-full.png`,
 );
 
 function assert(condition, message) {
@@ -268,6 +276,40 @@ end tell
 `);
 }
 
+function openPrefilledNativeLoginForm() {
+  return runAppleScript(`
+tell application "System Events"
+  tell process "UnuVaultMacCompanion"
+    if not (exists window 1) then click menu bar item 1 of menu bar 2
+    delay 0.2
+    tell group 1 of window 1
+      click button 2
+      delay 0.6
+      set focused of text field 1 to true
+    end tell
+  end tell
+end tell
+`);
+}
+
+function commitNativeLoginSaveAndUnlock() {
+  return runAppleScript(`
+tell application "System Events"
+  tell process "UnuVaultMacCompanion"
+    if not (exists window 1) then click menu bar item 1 of menu bar 2
+    delay 0.2
+    tell group 1 of window 1
+      click button 2
+    end tell
+    delay 0.4
+    tell group 1 of window 1
+      click button 1
+    end tell
+  end tell
+end tell
+`);
+}
+
 function clickNativeApprovalButton() {
   return runAppleScript(`
 tell application "System Events"
@@ -286,7 +328,7 @@ end tell
 `);
 }
 
-async function waitForMacCompanionReady() {
+async function waitForMacCompanionReady(expectedState) {
   const url = `http://127.0.0.1:${bridgePort}/status`;
 
   for (let attempt = 0; attempt < 100; attempt += 1) {
@@ -294,7 +336,11 @@ async function waitForMacCompanionReady() {
       const response = await fetch(url);
       const payload = await response.json();
 
-      if (response.ok && payload.ok === true && payload.state === "unlocked") {
+      if (
+        response.ok &&
+        payload.ok === true &&
+        (!expectedState || payload.state === expectedState)
+      ) {
         return payload;
       }
     } catch {
@@ -304,7 +350,9 @@ async function waitForMacCompanionReady() {
     await delay(150);
   }
 
-  throw new Error("UnuVaultMacCompanion loopback bridge did not become ready.");
+  throw new Error(
+    `UnuVaultMacCompanion loopback bridge did not become ready for state ${expectedState ?? "any"}.`,
+  );
 }
 
 async function claimAgain(origin) {
@@ -380,11 +428,12 @@ async function main() {
     env: {
       ...process.env,
       UNUVAULT_MAC_COMPANION_PROOF: "1",
-      UNUVAULT_MAC_COMPANION_PROOF_AUTOUNLOCK: "1",
+      UNUVAULT_MAC_COMPANION_PROOF_AUTOUNLOCK: saveThroughMenu ? "0" : "1",
       UNUVAULT_MAC_COMPANION_PROOF_CREDENTIAL_ID: credentialId,
       UNUVAULT_MAC_COMPANION_PROOF_LABEL: "github.com",
       UNUVAULT_MAC_COMPANION_PROOF_ORIGIN: loginPage.origin,
       UNUVAULT_MAC_COMPANION_PROOF_PASSWORD: "mac-menu-password",
+      UNUVAULT_MAC_COMPANION_PROOF_PREFILL_ADD_LOGIN: saveThroughMenu ? "1" : "0",
       UNUVAULT_MAC_COMPANION_PROOF_PORT: String(bridgePort),
       UNUVAULT_MAC_COMPANION_PROOF_PROFILE_ID: profileId,
       UNUVAULT_MAC_COMPANION_PROOF_TOKEN: bridgeToken,
@@ -394,27 +443,41 @@ async function main() {
     stdio: ["ignore", "pipe", "pipe"],
   });
 
-  const chrome = spawn(
-    chromePath,
-    [
-      `--user-data-dir=${chromeProfile}`,
-      "--remote-debugging-pipe",
-      "--enable-unsafe-extension-debugging",
-      "--no-default-browser-check",
-      "--no-first-run",
-      "--window-size=900,700",
-      "about:blank",
-    ],
-    {
-      cwd: repoRoot,
-      stdio: ["ignore", "ignore", "pipe", "pipe", "pipe"],
-    },
-  );
-
-  const cdp = new CdpPipeClient(chrome);
+  let chrome = null;
+  let cdp = null;
 
   try {
-    await waitForMacCompanionReady();
+    await waitForMacCompanionReady(saveThroughMenu ? "locked" : "unlocked");
+
+    if (saveThroughMenu) {
+      openPrefilledNativeLoginForm();
+      await delay(300);
+      execFileSync("screencapture", ["-x", localSaveScreenshot], {
+        cwd: repoRoot,
+        stdio: "inherit",
+      });
+      commitNativeLoginSaveAndUnlock();
+      await waitForMacCompanionReady("unlocked");
+    }
+
+    chrome = spawn(
+      chromePath,
+      [
+        `--user-data-dir=${chromeProfile}`,
+        "--remote-debugging-pipe",
+        "--enable-unsafe-extension-debugging",
+        "--no-default-browser-check",
+        "--no-first-run",
+        "--window-size=900,700",
+        "about:blank",
+      ],
+      {
+        cwd: repoRoot,
+        stdio: ["ignore", "ignore", "pipe", "pipe", "pipe"],
+      },
+    );
+    cdp = new CdpPipeClient(chrome);
+
     await waitForCdp(cdp);
 
     const { id: extensionId } = await cdp.send("Extensions.loadUnpacked", {
@@ -493,6 +556,7 @@ async function main() {
           ok: true,
           approvalScreenshot,
           filledPageScreenshot,
+          ...(saveThroughMenu ? { localSaveScreenshot } : {}),
           clickedButtonIndex,
           extensionId,
           extensionKey: stableExtensionKey(),
@@ -505,11 +569,11 @@ async function main() {
       ),
     );
   } finally {
-    chrome.kill("SIGTERM");
+    chrome?.kill("SIGTERM");
     macApp.kill("SIGTERM");
     await loginPage.close();
     await delay(500);
-    chrome.kill("SIGKILL");
+    chrome?.kill("SIGKILL");
     macApp.kill("SIGKILL");
 
     try {

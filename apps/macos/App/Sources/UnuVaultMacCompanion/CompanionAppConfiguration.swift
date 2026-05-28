@@ -27,16 +27,18 @@ enum CompanionAppConfiguration {
             ),
             vaultURL: vaultDirectory.appendingPathComponent("vault.json")
         )
-        let startupCredential = makeStartupCredential(
+        let proofCredential = makeStartupCredential(
             environment: environment,
             profileId: profileId
         )
+        let prefillAddLogin = environment["UNUVAULT_MAC_COMPANION_PROOF_PREFILL_ADD_LOGIN"] == "1"
 
         return CompanionViewModel(
             vaultStore: vaultStore,
             accessToken: accessToken,
+            addLoginDraftCredential: prefillAddLogin ? proofCredential : nil,
             bridgePort: bridgePort,
-            startupCredential: startupCredential,
+            startupCredential: prefillAddLogin ? nil : proofCredential,
             unlockOnStart: environment["UNUVAULT_MAC_COMPANION_PROOF_AUTOUNLOCK"] != "0"
         )
     }

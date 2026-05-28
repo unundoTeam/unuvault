@@ -31,6 +31,7 @@ swift test --package-path apps/macos/App --filter LoopbackHTTPServerTests/testLo
 bash scripts/testing/run-macos.sh
 pnpm smoke:packaged-extension-mac-companion
 pnpm smoke:menu-app-extension-mac-companion
+pnpm smoke:menu-app-local-save-mac-companion
 pnpm --filter @unuvault/browser-extension exec vitest --run tests/autofill.spec.ts tests/background-unlocked-vault.spec.ts
 pnpm --filter @unuvault/browser-extension lint
 pnpm --filter @unuvault/web exec vitest --run tests/mac-companion-client.spec.ts tests/vault-page.spec.tsx
@@ -76,7 +77,17 @@ trusted-status surface first, keeps credential entry behind an explicit
   `credential_not_found`. Captured 2026-05-28 evidence:
   - `/Users/yuchen/Design/unu/unuvault/exports/2026-05-28-mac-companion-menu-approval-real-app-full.png`
   - `/Users/yuchen/Design/unu/unuvault/exports/2026-05-28-mac-companion-menu-approval-real-app.png`
-  - `/Users/yuchen/Design/unu/unuvault/exports/2026-05-28-mac-companion-filled-page-real-app.png`
+  - `/Users/yuchen/Design/unu/unuvault/exports/2026-05-28-mac-companion-menu-approval-filled-page-real-app.png`
+- `pnpm smoke:menu-app-local-save-mac-companion` builds the packaged browser
+  extension, starts the real `UnuVaultMacCompanion` SwiftUI menu bar app with
+  an isolated temporary encrypted vault, opens the native `Add login` menu
+  surface, pre-fills the form only in proof mode, saves through the real native
+  `Save` button into the encrypted local vault file, unlocks the saved local
+  vault through the native menu, then verifies extension autofill and one-time
+  claim behavior after Mac-local approval. Captured 2026-05-28 evidence:
+  - `/Users/yuchen/Design/unu/unuvault/exports/2026-05-28-mac-companion-local-save-form-real-app-full.png`
+  - `/Users/yuchen/Design/unu/unuvault/exports/2026-05-28-mac-companion-local-save-real-app-full.png`
+  - `/Users/yuchen/Design/unu/unuvault/exports/2026-05-28-mac-companion-local-save-filled-page-real-app.png`
 - `pnpm smoke:packaged-extension-mac-companion` builds
   `apps/browser-extension/dist`, loads it into Chrome through the CDP
   `Extensions.loadUnpacked` path, starts a separate Swift
@@ -103,7 +114,7 @@ trusted-status surface first, keeps credential entry behind an explicit
 - Native app notarization and macOS login-item behavior are not claimed.
 - Touch ID is not claimed until LocalAuthentication proof exists.
 - Physical iPhone pairing is not claimed until a real LAN pairing run is captured.
-- Full product sync into the Mac local vault is not claimed yet; the current
-  menu bar proof can save local login items directly.
+- Account/Web sync into the Mac local vault is not claimed yet; direct native
+  menu local-save into the encrypted Mac vault is covered by the current proof.
 - Server-backed account recovery is not claimed to recover plaintext without
   trusted user-held or device-held material.

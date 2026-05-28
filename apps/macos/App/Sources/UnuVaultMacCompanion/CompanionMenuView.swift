@@ -1,7 +1,9 @@
+import Foundation
 import SwiftUI
 
 struct CompanionMenuView: View {
     @ObservedObject var viewModel: CompanionViewModel
+    @FocusState private var focusedCredentialField: CredentialField?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 11) {
@@ -155,29 +157,58 @@ struct CompanionMenuView: View {
                 .keyboardShortcut(.defaultAction)
             }
         }
+        .onAppear {
+            focusedCredentialField = .origin
+            DispatchQueue.main.async {
+                focusedCredentialField = .origin
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                focusedCredentialField = .origin
+            }
+        }
     }
 
     private var localLoginForm: some View {
         VStack(alignment: .leading, spacing: 8) {
             CompanionTextField(
+                focusedField: $focusedCredentialField,
+                focusValue: .origin,
+                identifier: "credential-origin",
                 title: L10n.string("field.website_origin"),
                 text: $viewModel.credentialOrigin
-            )
+            ) {
+                focusedCredentialField = .label
+            }
             CompanionTextField(
+                focusedField: $focusedCredentialField,
+                focusValue: .label,
+                identifier: "credential-label",
                 title: L10n.string("field.label"),
                 text: $viewModel.credentialLabel
-            )
+            ) {
+                focusedCredentialField = .username
+            }
 
             HStack(spacing: 8) {
                 CompanionTextField(
+                    focusedField: $focusedCredentialField,
+                    focusValue: .username,
+                    identifier: "credential-username",
                     title: L10n.string("field.username"),
                     text: $viewModel.credentialUsername
-                )
+                ) {
+                    focusedCredentialField = .password
+                }
                 CompanionTextField(
+                    focusedField: $focusedCredentialField,
+                    focusValue: .password,
+                    identifier: "credential-password",
                     title: L10n.string("field.password"),
                     text: $viewModel.credentialPassword,
                     isSecure: true
-                )
+                ) {
+                    viewModel.saveLocalCredential()
+                }
             }
 
             VStack(alignment: .leading, spacing: 3) {
@@ -270,6 +301,13 @@ struct CompanionMenuView: View {
     }
 }
 
+private enum CredentialField: Hashable {
+    case origin
+    case label
+    case username
+    case password
+}
+
 private enum CompanionMenuStyle {
     static let canvas = Color(red: 0.96, green: 0.96, blue: 0.96)
     static let panel = Color(red: 0.98, green: 0.98, blue: 0.98)
@@ -283,29 +321,35 @@ private enum CompanionMenuStyle {
 }
 
 private struct CompanionTextField: View {
+    let focusedField: FocusState<CredentialField?>.Binding
+    let focusValue: CredentialField
+    let identifier: String
     let title: String
     @Binding var text: String
     var isSecure = false
+    var onSubmit: () -> Void = {}
 
     var body: some View {
-        ZStack(alignment: .leading) {
-            if text.isEmpty {
-                Text(title)
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(CompanionMenuStyle.muted)
-                    .padding(.horizontal, 10)
-                    .allowsHitTesting(false)
-            }
-
+        Group {
             if isSecure {
-                SecureField("", text: $text)
+                SecureField(
+                    title,
+                    text: $text,
+                    prompt: Text(title).foregroundStyle(CompanionMenuStyle.muted)
+                )
             } else {
-                TextField("", text: $text)
+                TextField(
+                    title,
+                    text: $text,
+                    prompt: Text(title).foregroundStyle(CompanionMenuStyle.muted)
+                )
             }
         }
         .textFieldStyle(.plain)
         .font(.system(size: 12, weight: .medium))
         .foregroundStyle(CompanionMenuStyle.ink)
+        .focused(focusedField, equals: focusValue)
+        .onSubmit(onSubmit)
         .padding(.horizontal, 10)
         .frame(height: 34)
         .background(CompanionMenuStyle.panel)
@@ -315,6 +359,7 @@ private struct CompanionTextField: View {
                 .stroke(CompanionMenuStyle.border, lineWidth: 1)
         )
         .accessibilityLabel(title)
+        .accessibilityIdentifier(identifier)
     }
 }
 
