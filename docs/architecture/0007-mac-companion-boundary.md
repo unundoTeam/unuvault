@@ -160,6 +160,7 @@ Expected pairing posture:
 - show the target device identity before approval
 - transfer encrypted vault material or wrapped key material, not bulk plaintext
 - require primary password or fresh strong unlock for approving the transfer
+- bind the handoff to target-device key identity and reject replayed handoffs
 - make failed or expired pairing attempts fail closed
 
 When real iOS device interaction is in scope, verification should prefer a

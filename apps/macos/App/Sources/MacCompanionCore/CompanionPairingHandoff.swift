@@ -2,8 +2,11 @@ import CryptoKit
 import Foundation
 
 public enum CompanionPairingHandoffError: Error, Equatable {
+    case expired
     case invalidKey
     case openFailed
+    case replayed
+    case targetMismatch
 }
 
 public struct CompanionPairingTarget: Equatable, Codable {
@@ -42,27 +45,70 @@ public struct CompanionPairingHandoffMaterial: Equatable, Codable {
 }
 
 public struct CompanionPairingHandoff: Equatable, Codable {
+    public let handoffId: String
     public let version: Int
     public let sourceDeviceId: String
     public let targetDeviceId: String
     public let targetDeviceDisplayName: String
     public let targetPublicKeyFingerprint: String
+    public let createdAt: Date
+    public let expiresAt: Date
     public let material: CompanionPairingHandoffMaterial
 
     public init(
+        handoffId: String,
         version: Int,
         sourceDeviceId: String,
         targetDeviceId: String,
         targetDeviceDisplayName: String,
         targetPublicKeyFingerprint: String,
+        createdAt: Date,
+        expiresAt: Date,
         material: CompanionPairingHandoffMaterial
     ) {
+        self.handoffId = handoffId
         self.version = version
         self.sourceDeviceId = sourceDeviceId
         self.targetDeviceId = targetDeviceId
         self.targetDeviceDisplayName = targetDeviceDisplayName
         self.targetPublicKeyFingerprint = targetPublicKeyFingerprint
+        self.createdAt = createdAt
+        self.expiresAt = expiresAt
         self.material = material
+    }
+}
+
+public final class CompanionPairingHandoffVerifier {
+    private var consumedHandoffIds: Set<String> = []
+    private let builder: CompanionPairingHandoffBuilder
+
+    public init(builder: CompanionPairingHandoffBuilder = CompanionPairingHandoffBuilder()) {
+        self.builder = builder
+    }
+
+    public func openHandoff(
+        _ handoff: CompanionPairingHandoff,
+        transferKeyData: Data,
+        expectedTarget: CompanionPairingTarget,
+        now: Date = Date()
+    ) throws -> [CompanionCredential] {
+        guard now <= handoff.expiresAt else {
+            throw CompanionPairingHandoffError.expired
+        }
+
+        guard handoff.targetDeviceId == expectedTarget.deviceId,
+              handoff.targetPublicKeyFingerprint == expectedTarget.publicKeyFingerprint
+        else {
+            throw CompanionPairingHandoffError.targetMismatch
+        }
+
+        guard consumedHandoffIds.contains(handoff.handoffId) == false else {
+            throw CompanionPairingHandoffError.replayed
+        }
+
+        let credentials = try builder.openHandoff(handoff, transferKeyData: transferKeyData)
+        consumedHandoffIds.insert(handoff.handoffId)
+        return credentials
     }
 }
 
@@ -73,7 +119,10 @@ public struct CompanionPairingHandoffBuilder {
         credentials: [CompanionCredential],
         sourceDeviceId: String,
         target: CompanionPairingTarget,
-        transferKeyData: Data
+        transferKeyData: Data,
+        now: Date = Date(),
+        ttl: TimeInterval = 300,
+        handoffId: String = UUID().uuidString
     ) throws -> CompanionPairingHandoff {
         let payload = try JSONEncoder().encode(
             PairingVaultPayload(items: credentials)
@@ -82,11 +131,14 @@ public struct CompanionPairingHandoffBuilder {
         let nonce = sealedBox.nonce.withUnsafeBytes { Data($0) }
 
         return CompanionPairingHandoff(
+            handoffId: handoffId,
             version: 1,
             sourceDeviceId: sourceDeviceId,
             targetDeviceId: target.deviceId,
             targetDeviceDisplayName: target.displayName,
             targetPublicKeyFingerprint: target.publicKeyFingerprint,
+            createdAt: now,
+            expiresAt: now.addingTimeInterval(ttl),
             material: CompanionPairingHandoffMaterial(
                 algorithm: "AES-GCM-256",
                 nonce: nonce.base64EncodedString(),
