@@ -19,13 +19,28 @@ final class CompanionViewModel: ObservableObject {
     @Published var savedCredentialCountText = L10n.format("status.saved_count", 0)
     @Published var statusText = L10n.string("status.locked")
 
+    private let accessToken: String
+    private let bridgePort: UInt16
     private let session = CompanionVaultSession()
+    private let startupCredential: CompanionCredential?
+    private let unlockOnStart: Bool
     private let vaultStore: LocalCompanionVaultStore?
     private lazy var bridgeService = CompanionBridgeService(session: session)
+    private var didApplyStartupState = false
     private var refreshTimer: Timer?
     private var server: LoopbackHTTPServer?
 
-    init(vaultStore: LocalCompanionVaultStore? = try? LocalCompanionVaultStore.defaultStore()) {
+    init(
+        vaultStore: LocalCompanionVaultStore? = try? LocalCompanionVaultStore.defaultStore(),
+        accessToken: String = "local-dev-bridge-token",
+        bridgePort: UInt16 = 17666,
+        startupCredential: CompanionCredential? = nil,
+        unlockOnStart: Bool = false
+    ) {
+        self.accessToken = accessToken
+        self.bridgePort = bridgePort
+        self.startupCredential = startupCredential
+        self.unlockOnStart = unlockOnStart
         self.vaultStore = vaultStore
     }
 
@@ -68,12 +83,14 @@ final class CompanionViewModel: ObservableObject {
     }
 
     func start() {
+        applyStartupStateIfNeeded()
+
         if server == nil {
             let codec = BridgeHTTPCodec(
                 service: bridgeService,
-                accessToken: "local-dev-bridge-token"
+                accessToken: accessToken
             )
-            server = LoopbackHTTPServer(codec: codec)
+            server = LoopbackHTTPServer(codec: codec, port: bridgePort)
 
             do {
                 try server?.start()
@@ -91,6 +108,26 @@ final class CompanionViewModel: ObservableObject {
         }
 
         refresh()
+    }
+
+    private func applyStartupStateIfNeeded() {
+        guard !didApplyStartupState else {
+            return
+        }
+
+        didApplyStartupState = true
+
+        if let startupCredential, let vaultStore {
+            do {
+                try vaultStore.save(credentials: [startupCredential])
+            } catch {
+                lastDecisionText = L10n.string("decision.save_failed")
+            }
+        }
+
+        if unlockOnStart {
+            unlockLocalVault()
+        }
     }
 
     func showAddLogin() {

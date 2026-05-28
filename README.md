@@ -230,6 +230,11 @@ For the native Mac companion proof:
   `pnpm smoke:packaged-extension-mac-companion`
   The smoke host writes and reloads an encrypted local vault file before
   unlocking the bridge session.
+- packaged extension plus real SwiftUI menu bar approval proof is available
+  through: `pnpm smoke:menu-app-extension-mac-companion`
+  This launches `UnuVaultMacCompanion`, captures the native pending-approval
+  menu, clicks the Mac-local approval button through macOS UI scripting,
+  verifies DOM fill, and verifies the approved release cannot be claimed twice.
 - current implementation evidence is recorded in
   `docs/design/mac-companion-mvp-evidence.md`
 
@@ -283,6 +288,8 @@ For the private env-secrets bridge:
     scope
   - `pnpm smoke:packaged-extension-mac-companion` when the packaged browser
     extension plus Mac companion fill boundary is in scope
+  - `pnpm smoke:menu-app-extension-mac-companion` when the real SwiftUI menu
+    bar approval interaction is in scope
   - `python3 scripts/ci/tests/test_unuforge_ios_package_consumer_smoke.py` for
     the repo-owned installed-package iOS path
 
