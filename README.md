@@ -255,6 +255,11 @@ For the native Mac companion proof:
   verifies locked release returns `vault_locked`, clicks native `Deny` and
   proves the page stays empty, then proves a Mac-approved release cannot be
   claimed from the wrong origin.
+- Mac companion recovery-boundary proof is available through:
+  `pnpm test:macos:recovery-boundary`
+  This proves an encrypted local vault backup does not contain plaintext and
+  can be restored only with the same user/device-held key material; lost or
+  revoked device state clears pending release ability.
 - current implementation evidence is recorded in
   `docs/design/mac-companion-mvp-evidence.md`
 

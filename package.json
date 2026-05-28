@@ -15,6 +15,7 @@
     "smoke:local-credential-bridge-server": "tsx scripts/smoke/local-credential-bridge-server.ts",
     "test": "bash scripts/testing/test-runner.sh",
     "test:macos": "bash scripts/testing/run-macos.sh",
+    "test:macos:recovery-boundary": "swift test --package-path apps/macos/App --filter RecoveryBoundaryTests",
     "lint": "bash scripts/testing/lint-runner.sh"
   },
   "devDependencies": {

@@ -187,4 +187,16 @@ describe("workspace entrypoints", () => {
     expect(readme).toContain("pnpm smoke:menu-app-security-boundaries-mac-companion");
     expect(evidence).toContain("pnpm smoke:menu-app-security-boundaries-mac-companion");
   });
+
+  it("records the Mac companion recovery-boundary proof entrypoint", () => {
+    const rootPackage = readJson<PackageManifest>("package.json");
+    const readme = readText("README.md");
+    const evidence = readText("docs/design/mac-companion-mvp-evidence.md");
+
+    expect(rootPackage.scripts?.["test:macos:recovery-boundary"]).toBe(
+      "swift test --package-path apps/macos/App --filter RecoveryBoundaryTests",
+    );
+    expect(readme).toContain("pnpm test:macos:recovery-boundary");
+    expect(evidence).toContain("pnpm test:macos:recovery-boundary");
+  });
 });

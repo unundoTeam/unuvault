@@ -29,6 +29,7 @@
 ```bash
 swift test --package-path apps/macos/App --filter LoopbackHTTPServerTests/testLoopbackReleaseRequiresNativeApprovalBeforeOneTimeClaim
 bash scripts/testing/run-macos.sh
+pnpm test:macos:recovery-boundary
 pnpm smoke:packaged-extension-mac-companion
 pnpm smoke:menu-app-extension-mac-companion
 pnpm smoke:menu-app-local-save-mac-companion
@@ -119,6 +120,12 @@ trusted-status surface first, keeps credential entry behind an explicit
   encrypted local vault file, triggers the packaged content script from the
   extension popup context, and verifies the real login page DOM receives the
   Mac-approved username and password.
+- `pnpm test:macos:recovery-boundary` proves encrypted local vault backup data
+  contains only an AES-GCM envelope, does not contain the credential id,
+  username, or password as plaintext, cannot be opened with account-only or
+  wrong device material, and can be restored only with the same user/device-held
+  key material. It also proves lost or revoked device state clears pending
+  release ability and rejects subsequent release or claim attempts.
 - `LocalCompanionVaultStoreTests` prove local credential files do not contain
   the saved username or password as plaintext and cannot be opened with the
   wrong local key.
@@ -142,4 +149,5 @@ trusted-status surface first, keeps credential entry behind an explicit
   menu local-save and manual menu field entry into the encrypted Mac vault are
   covered by the current proof.
 - Server-backed account recovery is not claimed to recover plaintext without
-  trusted user-held or device-held material.
+  trusted user-held or device-held material; the recovery-boundary proof now
+  pins that constraint for the Mac companion encrypted local vault.
