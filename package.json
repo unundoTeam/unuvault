@@ -10,6 +10,7 @@
     "smoke:packaged-extension-mac-companion": "node scripts/smoke/packaged-extension-mac-companion.mjs",
     "smoke:menu-app-extension-mac-companion": "node scripts/smoke/menu-app-extension-mac-companion.mjs",
     "smoke:menu-app-local-save-mac-companion": "node scripts/smoke/menu-app-extension-mac-companion.mjs --save-through-menu",
+    "smoke:menu-app-manual-input-mac-companion": "node scripts/smoke/menu-app-extension-mac-companion.mjs --manual-input-menu",
     "smoke:local-credential-bridge-server": "tsx scripts/smoke/local-credential-bridge-server.ts",
     "test": "bash scripts/testing/test-runner.sh",
     "test:macos": "bash scripts/testing/run-macos.sh",

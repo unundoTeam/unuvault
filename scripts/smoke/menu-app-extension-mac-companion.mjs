@@ -20,13 +20,17 @@ const bridgeToken = "local-dev-bridge-token";
 const profileId = "personal";
 const bridgePort = 17666;
 const credentialId = "github-login";
-const saveThroughMenu = process.argv.includes("--save-through-menu");
+const manualInputMenu = process.argv.includes("--manual-input-menu");
+const saveThroughMenu =
+  manualInputMenu || process.argv.includes("--save-through-menu");
 const proofDate = new Date().toISOString().slice(0, 10);
 const exportRoot =
   process.env.UNUVAULT_PROOF_EXPORT_DIR ??
   "/Users/yuchen/Design/unu/unuvault/exports";
 const screenshotStem = saveThroughMenu
-  ? "mac-companion-local-save"
+  ? manualInputMenu
+    ? "mac-companion-manual-input"
+    : "mac-companion-local-save"
   : "mac-companion-menu-approval";
 const approvalScreenshot = join(
   exportRoot,
@@ -38,8 +42,32 @@ const filledPageScreenshot = join(
 );
 const localSaveScreenshot = join(
   exportRoot,
-  `${proofDate}-mac-companion-local-save-form-real-app-full.png`,
+  `${proofDate}-${screenshotStem}-form-real-app-full.png`,
 );
+
+const swiftClickSource = `
+import CoreGraphics
+import Foundation
+
+let x = Double(CommandLine.arguments[1])!
+let y = Double(CommandLine.arguments[2])!
+let point = CGPoint(x: x, y: y)
+let down = CGEvent(
+    mouseEventSource: nil,
+    mouseType: .leftMouseDown,
+    mouseCursorPosition: point,
+    mouseButton: .left
+)
+let up = CGEvent(
+    mouseEventSource: nil,
+    mouseType: .leftMouseUp,
+    mouseCursorPosition: point,
+    mouseButton: .left
+)
+down?.post(tap: .cghidEventTap)
+Thread.sleep(forTimeInterval: 0.05)
+up?.post(tap: .cghidEventTap)
+`;
 
 function assert(condition, message) {
   if (!condition) {
@@ -266,6 +294,55 @@ function runAppleScript(source) {
   return result.stdout.trim();
 }
 
+function clickScreenPoint(x, y) {
+  const result = spawnSync("swift", ["-", String(x), String(y)], {
+    encoding: "utf8",
+    input: swiftClickSource,
+  });
+
+  if (result.status !== 0) {
+    throw new Error(
+      `swift click helper failed:\n${result.stdout}\n${result.stderr}`,
+    );
+  }
+}
+
+function nativeTextFieldCenter(fieldIndex) {
+  const center = runAppleScript(`
+tell application "System Events"
+  tell process "UnuVaultMacCompanion"
+    tell group 1 of window 1
+      set fieldPosition to position of text field ${fieldIndex}
+      set fieldSize to size of text field ${fieldIndex}
+      set centerX to ((item 1 of fieldPosition) + ((item 1 of fieldSize) / 2)) as integer
+      set centerY to ((item 2 of fieldPosition) + ((item 2 of fieldSize) / 2)) as integer
+      return (centerX as text) & tab & (centerY as text)
+    end tell
+  end tell
+end tell
+`);
+  const [x, y] = center.split(/\s+/).map(Number);
+
+  assert(
+    Number.isFinite(x) && Number.isFinite(y),
+    `Invalid native text field center: ${center}`,
+  );
+
+  return { x, y };
+}
+
+function pasteIntoFocusedNativeField(value) {
+  runAppleScript(`
+set the clipboard to ${JSON.stringify(value)}
+tell application "System Events"
+  keystroke "a" using command down
+  delay 0.05
+  keystroke "v" using command down
+  delay 0.15
+end tell
+`);
+}
+
 function openNativeMenu() {
   runAppleScript(`
 tell application "System Events"
@@ -276,7 +353,7 @@ end tell
 `);
 }
 
-function openPrefilledNativeLoginForm() {
+function openNativeLoginForm() {
   return runAppleScript(`
 tell application "System Events"
   tell process "UnuVaultMacCompanion"
@@ -290,6 +367,19 @@ tell application "System Events"
   end tell
 end tell
 `);
+}
+
+function fillNativeLoginFormByMouse(origin) {
+  for (const [fieldIndex, value] of [
+    [1, origin],
+    [2, "github.com"],
+    [3, "mac-menu-user"],
+    [4, "mac-menu-password"],
+  ]) {
+    const { x, y } = nativeTextFieldCenter(fieldIndex);
+    clickScreenPoint(x, y);
+    pasteIntoFocusedNativeField(value);
+  }
 }
 
 function commitNativeLoginSaveAndUnlock() {
@@ -431,9 +521,12 @@ async function main() {
       UNUVAULT_MAC_COMPANION_PROOF_AUTOUNLOCK: saveThroughMenu ? "0" : "1",
       UNUVAULT_MAC_COMPANION_PROOF_CREDENTIAL_ID: credentialId,
       UNUVAULT_MAC_COMPANION_PROOF_LABEL: "github.com",
-      UNUVAULT_MAC_COMPANION_PROOF_ORIGIN: loginPage.origin,
+      ...(manualInputMenu
+        ? {}
+        : { UNUVAULT_MAC_COMPANION_PROOF_ORIGIN: loginPage.origin }),
       UNUVAULT_MAC_COMPANION_PROOF_PASSWORD: "mac-menu-password",
-      UNUVAULT_MAC_COMPANION_PROOF_PREFILL_ADD_LOGIN: saveThroughMenu ? "1" : "0",
+      UNUVAULT_MAC_COMPANION_PROOF_PREFILL_ADD_LOGIN:
+        saveThroughMenu && !manualInputMenu ? "1" : "0",
       UNUVAULT_MAC_COMPANION_PROOF_PORT: String(bridgePort),
       UNUVAULT_MAC_COMPANION_PROOF_PROFILE_ID: profileId,
       UNUVAULT_MAC_COMPANION_PROOF_TOKEN: bridgeToken,
@@ -450,7 +543,10 @@ async function main() {
     await waitForMacCompanionReady(saveThroughMenu ? "locked" : "unlocked");
 
     if (saveThroughMenu) {
-      openPrefilledNativeLoginForm();
+      openNativeLoginForm();
+      if (manualInputMenu) {
+        fillNativeLoginFormByMouse(loginPage.origin);
+      }
       await delay(300);
       execFileSync("screencapture", ["-x", localSaveScreenshot], {
         cwd: repoRoot,

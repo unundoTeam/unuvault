@@ -32,6 +32,7 @@ bash scripts/testing/run-macos.sh
 pnpm smoke:packaged-extension-mac-companion
 pnpm smoke:menu-app-extension-mac-companion
 pnpm smoke:menu-app-local-save-mac-companion
+pnpm smoke:menu-app-manual-input-mac-companion
 pnpm --filter @unuvault/browser-extension exec vitest --run tests/autofill.spec.ts tests/background-unlocked-vault.spec.ts
 pnpm --filter @unuvault/browser-extension lint
 pnpm --filter @unuvault/web exec vitest --run tests/mac-companion-client.spec.ts tests/vault-page.spec.tsx
@@ -88,6 +89,17 @@ trusted-status surface first, keeps credential entry behind an explicit
   - `/Users/yuchen/Design/unu/unuvault/exports/2026-05-28-mac-companion-local-save-form-real-app-full.png`
   - `/Users/yuchen/Design/unu/unuvault/exports/2026-05-28-mac-companion-local-save-real-app-full.png`
   - `/Users/yuchen/Design/unu/unuvault/exports/2026-05-28-mac-companion-local-save-filled-page-real-app.png`
+- `pnpm smoke:menu-app-manual-input-mac-companion` builds the packaged browser
+  extension, starts the real `UnuVaultMacCompanion` SwiftUI menu bar app with
+  an isolated temporary encrypted vault, opens the native `Add login` menu
+  surface without proof prefill, clicks each native field with a real mouse
+  event, enters origin, label, username, and password through the focused menu
+  fields, saves through the real native `Save` button, unlocks the saved local
+  vault through the native menu, then verifies extension autofill and one-time
+  claim behavior after Mac-local approval. Captured 2026-05-28 evidence:
+  - `/Users/yuchen/Design/unu/unuvault/exports/2026-05-28-mac-companion-manual-input-form-real-app-full.png`
+  - `/Users/yuchen/Design/unu/unuvault/exports/2026-05-28-mac-companion-manual-input-real-app-full.png`
+  - `/Users/yuchen/Design/unu/unuvault/exports/2026-05-28-mac-companion-manual-input-filled-page-real-app.png`
 - `pnpm smoke:packaged-extension-mac-companion` builds
   `apps/browser-extension/dist`, loads it into Chrome through the CDP
   `Extensions.loadUnpacked` path, starts a separate Swift
@@ -115,6 +127,7 @@ trusted-status surface first, keeps credential entry behind an explicit
 - Touch ID is not claimed until LocalAuthentication proof exists.
 - Physical iPhone pairing is not claimed until a real LAN pairing run is captured.
 - Account/Web sync into the Mac local vault is not claimed yet; direct native
-  menu local-save into the encrypted Mac vault is covered by the current proof.
+  menu local-save and manual menu field entry into the encrypted Mac vault are
+  covered by the current proof.
 - Server-backed account recovery is not claimed to recover plaintext without
   trusted user-held or device-held material.

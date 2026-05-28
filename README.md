@@ -242,6 +242,13 @@ For the native Mac companion proof:
   native menu button into the encrypted local vault file, unlocks that saved
   vault, then verifies the packaged browser extension can fill the active page
   only after Mac-local approval.
+- real SwiftUI menu bar manual-entry plus approval proof is available through:
+  `pnpm smoke:menu-app-manual-input-mac-companion`
+  This launches the same isolated native companion, opens the real `Add login`
+  menu surface without proof prefill, clicks each native field with a real
+  mouse event, enters origin, label, username, and password through the focused
+  menu fields, saves through the real native menu button, and then verifies
+  unlock, Mac-local approval, extension fill, and one-time claim behavior.
 - current implementation evidence is recorded in
   `docs/design/mac-companion-mvp-evidence.md`
 
