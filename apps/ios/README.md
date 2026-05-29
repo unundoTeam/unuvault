@@ -4,15 +4,16 @@ This directory holds the SwiftUI iPhone app, AutoFill onboarding flows, and the
 repo-owned Mac pairing receive flow for unuvault.
 
 Current pairing proof is receive-side only. The iOS package exposes a SwiftUI
-paste-invite flow from `current/unuvault/ios-pairing-invite-receive-v1`, parses
+paste-invite flow from `current/unuvault/ios-pairing-invite-receive-v2`, parses
 the Mac companion invite envelope and QR payload, rejects expired, malformed, or
-unsupported-endpoint payloads, shows the recognized Mac, builds a target-device
-identity claim with `deviceId`, `displayName`, and `publicKeyFingerprint`, posts
-that claim to the invite-provided Mac pairing endpoint without a bridge bearer
-token, and parses the Mac handoff response envelope while rejecting invalid,
-expired, status-failed, or target-mismatched responses. It does not claim camera
-QR scanning, real LAN discovery, local decrypt/import, or physical iPhone
-receipt yet.
+unsupported-endpoint payloads, shows the recognized Mac, hides raw invite session
+details after recognition, shows invite expiry instead of a raw endpoint URL,
+builds a target-device identity claim with `deviceId`, `displayName`, and
+`publicKeyFingerprint`, posts that claim to the invite-provided Mac pairing
+endpoint without a bridge bearer token, and parses the Mac handoff response
+envelope while rejecting invalid, expired, status-failed, or target-mismatched
+responses. It does not claim camera QR scanning, real LAN discovery, local
+decrypt/import, or physical iPhone receipt yet.
 
 Run:
 

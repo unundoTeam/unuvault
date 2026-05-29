@@ -19,7 +19,7 @@ evidence backlog, but it does not claim mobile/native adapter adoption.
 - Design-system frame: `current/unuvault/design-system-v1`
 - iOS Pencil source frames:
   `current/unuvault/ios-vault-home-native-locked-v1`,
-  `current/unuvault/ios-pairing-invite-receive-v1`
+  `current/unuvault/ios-pairing-invite-receive-v2`
 
 ## Adapter Implementation Paths
 
@@ -52,7 +52,7 @@ evidence backlog, but it does not claim mobile/native adapter adoption.
 | Safe-area and touch target behavior | The approved receive-invite frame and SwiftUI view use a single scrollable safe-area stack and a 48pt primary Pair control; `bash scripts/testing/run-ios-ui-host.sh` launches the screen in an iPhone simulator and captures screenshot evidence for visual review. | partial |
 | Auth or vault action review/recovery mapping | The receive-invite flow disables pairing until invite validation, fails closed on expired invites, and records error copy; vault unlock/import/recovery actions remain out of scope. | partial |
 | Repo-owned iOS verification command | `bash scripts/testing/run-ios.sh` runs the Swift package tests on an available iPhone simulator; `bash scripts/testing/run-ios-ui-host.sh` builds and launches the receive-invite host app for screenshot proof. | available |
-| Visual/accessibility proof | `current/unuvault/ios-pairing-invite-receive-v1` is promoted, the SwiftUI receive flow exposes labels for the invite field, recognized Mac summary, Pair button, and status panel, and the UI host captures simulator screenshot evidence; no VoiceOver rotor run is recorded yet. | partial |
+| Visual/accessibility proof | `current/unuvault/ios-pairing-invite-receive-v2` is promoted, the SwiftUI receive flow exposes labels for the invite field, recognized Mac summary, Pair button, and status panel, hides raw invite session details after recognition, shows invite expiry instead of a raw endpoint URL, and the UI host captures simulator screenshot evidence; no VoiceOver rotor run is recorded yet. | partial |
 | Dynamic Type | No Dynamic Type behavior, truncation, or layout proof is recorded yet. | missing |
 | VoiceOver | Static accessibility labels exist for the receive-invite field, recognized Mac summary, Pair button, and status panel; rotor path proof is not recorded yet. | partial |
 | 44pt targets | The primary Pair button is 48pt high; full target audit for every control is not recorded yet. | partial |
@@ -72,13 +72,15 @@ simulator UI host screenshot. The tests assert
 minimal SwiftUI copy for login and AutoFill onboarding, plus a Mac pairing
 receive flow that parses QR payloads and invite envelopes, rejects malformed,
 expired, or unsupported endpoint payloads, shows the recognized Mac, disables
-pairing until the invite is valid, builds a target-device identity claim, posts
-the claim to the invite-provided Mac pairing endpoint without a bridge bearer
-token, parses Mac handoff response envelopes, rejects invalid, expired,
-status-failed, or target-mismatched handoff responses, and keeps credential,
-password, and vault plaintext out of UI status copy and the claim/response
-contract. The UI host launches `PairingInviteReceiveView` with deterministic
-sample invite data and records the simulator screenshot path above. It does not
+pairing until the invite is valid, hides raw invite session details after
+recognition, shows invite expiry instead of a raw endpoint URL, builds a
+target-device identity claim, posts the claim to the invite-provided Mac pairing
+endpoint without a bridge bearer token, parses Mac handoff response envelopes,
+rejects invalid, expired, status-failed, or target-mismatched handoff responses,
+and keeps credential, password, and vault plaintext out of UI status copy and
+the claim/response contract. The UI host
+launches `PairingInviteReceiveView` with deterministic sample invite data and
+records the simulator screenshot path above. It does not
 prove native primitive adoption, camera QR scanning, real LAN discovery, local
 decrypt/import, physical iPhone receipt, or a shipped iPhone vault workflow.
 
@@ -98,8 +100,12 @@ This lane stays below `adapter-mapped` until future iOS UI slices supply:
 Current Pencil sync label for this lane:
 `current matches implementation`.
 
-Draft cleanup label for `draft/unuvault/ios-pairing-invite-receive-v1`:
+Draft cleanup label for `draft/unuvault/ios-pairing-invite-receive-v2`:
 `promoted -> delete-candidate` after user-approved cleanup.
+
+Superseded current frame `retained/unuvault/ios-pairing-invite-receive-v1-superseded-by-v2`
+is retained temporarily as implementation history, not current implementation
+source.
 
 Intentionally local values that must not be promoted into the shared library:
 

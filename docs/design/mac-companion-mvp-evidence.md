@@ -142,12 +142,14 @@ trusted-status surface first, keeps credential entry behind an explicit
   malformed, or unsupported-endpoint payloads, and build a target-device
   identity claim with `deviceId`, `displayName`, and `publicKeyFingerprint`
   without encoding credential, password, or vault material. It also proves the
-  approved `current/unuvault/ios-pairing-invite-receive-v1` SwiftUI receive
-  flow accepts pasted invite JSON, shows the recognized Mac, disables pairing
-  until invite validation, fails closed on expired invites, posts the claim to
-  the invite-provided Mac pairing endpoint without a bridge bearer token, parses
-  Mac handoff response envelopes, and rejects invalid, expired, status-failed,
-  or target-mismatched responses. It does not claim camera QR scanning, real LAN
+  approved `current/unuvault/ios-pairing-invite-receive-v2` SwiftUI receive
+  flow accepts invite text before validation, shows the recognized Mac, hides raw
+  invite session details after recognition, shows invite expiry instead of a raw
+  endpoint URL, disables pairing until invite validation, fails closed on expired
+  invites, posts the claim to the
+  invite-provided Mac pairing endpoint without a bridge bearer token, parses Mac
+  handoff response envelopes, and rejects invalid, expired, status-failed, or
+  target-mismatched responses. It does not claim camera QR scanning, real LAN
   discovery, local decrypt/import, or physical iPhone receipt.
 - `pnpm test:macos:recovery-boundary` proves encrypted local vault backup data
   contains only an AES-GCM envelope, does not contain the credential id,

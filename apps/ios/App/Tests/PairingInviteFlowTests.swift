@@ -16,10 +16,11 @@ final class PairingInviteFlowTests: XCTestCase {
         XCTAssertEqual(viewModel.state, .ready)
         XCTAssertEqual(viewModel.macDisplayName, "Yuchen Mac")
         XCTAssertEqual(viewModel.macEndpointText, "http://192.168.1.42:17666")
+        XCTAssertEqual(viewModel.macInviteDetailText, "Local network • invite expires in 1 min")
         XCTAssertTrue(viewModel.canPair)
         XCTAssertEqual(
             viewModel.statusMessage,
-            "Invite recognized. Pair only if this Mac is unlocked and trusted."
+            "Invite recognized. No vault items move until this iPhone sends a scoped pairing claim."
         )
     }
 
@@ -84,9 +85,32 @@ final class PairingInviteFlowTests: XCTestCase {
         )
         let renderedBody = String(describing: view.body)
 
-        XCTAssertTrue(renderedBody.contains("Pair this iPhone"))
-        XCTAssertTrue(renderedBody.contains("Mac invite"))
+        XCTAssertTrue(renderedBody.contains("Pair with your Mac"))
+        XCTAssertTrue(renderedBody.contains("Receive invite"))
+        XCTAssertTrue(renderedBody.contains("Paste invite"))
+        XCTAssertFalse(renderedBody.contains("Pair this iPhone"))
+        XCTAssertFalse(renderedBody.contains("Mac invite"))
         XCTAssertTrue(renderedBody.contains("Pair"))
+    }
+
+    func testPairingViewHidesRawInviteAfterRecognition() throws {
+        let invite = makeInvite()
+        let viewModel = PairingInviteViewModel(
+            now: { Date(timeIntervalSince1970: 1_060) },
+            targetIdentity: makeTarget(),
+            exchange: { _, _ in throw PairingInviteFlowError.exchangeUnavailable }
+        )
+        viewModel.replaceInviteText(try inviteJSON(invite))
+
+        let renderedBody = String(describing: PairingInviteReceiveView(viewModel: viewModel).body)
+
+        XCTAssertTrue(renderedBody.contains("Raw invite text stays hidden after it is recognized."))
+        XCTAssertTrue(renderedBody.contains("Invite recognized"))
+        XCTAssertTrue(renderedBody.contains("Local network • invite expires in 1 min"))
+        XCTAssertFalse(renderedBody.contains("pairing-session-1"))
+        XCTAssertFalse(renderedBody.contains("pairing-nonce-1"))
+        XCTAssertFalse(renderedBody.contains("mac-device-1"))
+        XCTAssertFalse(renderedBody.contains("192.168.1.42"))
     }
 
     private func makeInvite() -> MacPairingInvite {

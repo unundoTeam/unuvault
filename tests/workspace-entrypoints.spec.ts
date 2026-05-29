@@ -195,6 +195,9 @@ describe("workspace entrypoints", () => {
       "apps/ios/App/Sources/Features/Autofill/AutofillOnboardingView.swift",
     );
     expect(evidence).toContain("apps/ios/App/Sources/Features/Pairing/PairingInviteReceiveView.swift");
+    expect(evidence).toContain("current/unuvault/ios-pairing-invite-receive-v2");
+    expect(evidence).toContain("hides raw invite session details after recognition");
+    expect(evidence).toContain("shows invite expiry instead of a raw endpoint URL");
     expect(evidence).toContain("bash scripts/testing/run-ios.sh");
     expect(evidence).toContain("bash scripts/testing/run-ios-ui-host.sh");
     expect(evidence).toContain("No `adapter-mapped` or `adopted` claim");

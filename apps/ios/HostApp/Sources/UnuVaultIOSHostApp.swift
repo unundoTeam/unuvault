@@ -51,7 +51,7 @@ private struct PairingInviteHostRootView: View {
                 sourceDeviceId: "mac-host-device",
                 sourceDeviceDisplayName: "Yuchen MacBook Pro",
                 createdAt: Date(timeInterval: -60, since: now),
-                expiresAt: Date(timeInterval: 3_600, since: now)
+                expiresAt: Date(timeInterval: 540, since: now)
             )
         )
 

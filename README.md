@@ -94,7 +94,7 @@ recovery flows; vault unlock remains the secret-release boundary.
 - Current Mac companion source frame:
   `current/unuvault/mac-companion-core-flows-v1.2`.
 - Current iOS source frames: `current/unuvault/ios-vault-home-native-locked-v1`
-  and `current/unuvault/ios-pairing-invite-receive-v1`.
+  and `current/unuvault/ios-pairing-invite-receive-v2`.
 - Small UI copy or polish uses the `Lightweight UI Path` in the portfolio
   Pencil gate.
 - Historical design specs are planning context only unless the operating index
@@ -283,11 +283,13 @@ For the native Mac companion proof:
   payload, reject expired, invalid-version, malformed, or unsupported-endpoint
   payloads, and build a target-device identity claim with `deviceId`,
   `displayName`, and `publicKeyFingerprint`. It also proves the approved
-  `current/unuvault/ios-pairing-invite-receive-v1` SwiftUI receive flow can
-  accept pasted invite JSON, surface the recognized Mac, disable pairing until
-  an invite is valid, fail closed on expired invites, post the target claim to
-  the invite-provided Mac pairing endpoint with no bridge bearer token, parse
-  the Mac handoff response envelope, reject invalid, expired, status failed, or
+  `current/unuvault/ios-pairing-invite-receive-v2` SwiftUI receive flow can
+  accept invite text before validation, surface the recognized Mac, hide raw
+  invite session details after recognition, show invite expiry instead of a raw
+  endpoint URL, disable pairing until an invite is valid, fail closed on expired
+  invites, post the target claim to the invite-provided Mac pairing endpoint
+  with no bridge bearer token, parse the Mac handoff response envelope, reject
+  invalid, expired, status failed, or
   target-mismatched responses, and keep credential, password, and vault
   plaintext out of the claim/response contract. It does not claim camera QR
   scanning, real LAN discovery, local decrypt/import, or physical iPhone receipt
@@ -295,7 +297,7 @@ For the native Mac companion proof:
 - iOS receive-invite visual proof is available through:
   `bash scripts/testing/run-ios-ui-host.sh`
   This uses XcodeGen to build a simulator host app for
-  `current/unuvault/ios-pairing-invite-receive-v1`, launches the SwiftUI screen
+  `current/unuvault/ios-pairing-invite-receive-v2`, launches the SwiftUI screen
   with deterministic sample invite data, and writes
   `docs/design/evidence/2026-05-29-ios-ui-host/ios-pairing-invite-host.png`.
   It proves simulator launch and screenshot capture for the receive-invite

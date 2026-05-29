@@ -21,6 +21,7 @@ final class PairingInviteViewModel: ObservableObject {
     @Published private(set) var inviteText = ""
     @Published private(set) var macDisplayName = ""
     @Published private(set) var macEndpointText = ""
+    @Published private(set) var macInviteDetailText = ""
     @Published private(set) var state: PairingInviteFlowState = .empty
     @Published private(set) var statusMessage = "Paste the invite from your Mac."
 
@@ -63,8 +64,9 @@ final class PairingInviteViewModel: ObservableObject {
             invite = parsedInvite
             macDisplayName = parsedInvite.pairing.sourceDeviceDisplayName
             macEndpointText = parsedInvite.macBaseURL.absoluteString
+            macInviteDetailText = Self.inviteDetailText(for: parsedInvite, now: now())
             state = .ready
-            statusMessage = "Invite recognized. Pair only if this Mac is unlocked and trusted."
+            statusMessage = "Invite recognized. No vault items move until this iPhone sends a scoped pairing claim."
         } catch PairingPayloadError.expired {
             markInvalid(message: "Invite expired. Generate a fresh invite on your Mac.")
         } catch {
@@ -99,6 +101,7 @@ final class PairingInviteViewModel: ObservableObject {
         invite = nil
         macDisplayName = ""
         macEndpointText = ""
+        macInviteDetailText = ""
         state = .empty
         statusMessage = "Paste the invite from your Mac."
     }
@@ -107,6 +110,7 @@ final class PairingInviteViewModel: ObservableObject {
         invite = nil
         macDisplayName = ""
         macEndpointText = ""
+        macInviteDetailText = ""
         state = .invalid
         statusMessage = message
     }
@@ -130,6 +134,24 @@ final class PairingInviteViewModel: ObservableObject {
             )
         }
     }
+
+    private static func inviteDetailText(for invite: MacPairingInvite, now: Date) -> String {
+        let secondsRemaining = max(0, invite.pairing.expiresAt.timeIntervalSince(now))
+        let minutesRemaining = max(1, Int(ceil(secondsRemaining / 60)))
+
+        return "Local network • invite expires in \(minutesRemaining) min"
+    }
+}
+
+private extension PairingInviteViewModel {
+    var hidesRawInviteText: Bool {
+        switch state {
+        case .ready, .pairing, .paired:
+            true
+        case .empty, .invalid, .failed:
+            false
+        }
+    }
 }
 
 struct PairingInviteReceiveView: View {
@@ -142,10 +164,10 @@ struct PairingInviteReceiveView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                Text("Pair this iPhone")
+                Text("Pair with your Mac")
                     .font(.system(size: 30, weight: .bold))
                     .foregroundStyle(PairingInviteStyle.ink)
-                Text("Paste the invite from your Mac to request a one-time encrypted handoff.")
+                Text("Use a one-time invite from an unlocked Mac. The invite is session data, not your passwords.")
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(PairingInviteStyle.body)
                     .fixedSize(horizontal: false, vertical: true)
@@ -162,26 +184,62 @@ struct PairingInviteReceiveView: View {
 
     private var inviteInput: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Mac invite")
+            Text("Receive invite")
                 .font(.system(size: 14, weight: .bold))
                 .foregroundStyle(PairingInviteStyle.ink)
-            TextEditor(
-                text: Binding(
-                    get: { viewModel.inviteText },
-                    set: { viewModel.replaceInviteText($0) }
+            Text(viewModel.hidesRawInviteText
+                ? "Raw invite text stays hidden after it is recognized."
+                : "Paste the invite copied from UnuVault on this Mac. Raw invite text stays hidden after it is recognized."
+            )
+            .font(.system(size: 13, weight: .semibold))
+            .foregroundStyle(PairingInviteStyle.body)
+            .fixedSize(horizontal: false, vertical: true)
+
+            if viewModel.hidesRawInviteText {
+                Text("Invite recognized")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(PairingInviteStyle.ink)
+                    .frame(maxWidth: .infinity)
+                    .frame(minHeight: 48)
+                    .background(PairingInviteStyle.input)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(PairingInviteStyle.border, lineWidth: 1)
+                    )
+                    .accessibilityLabel("Invite recognized")
+            } else {
+                Text("Paste invite")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(PairingInviteStyle.ink)
+                    .frame(maxWidth: .infinity)
+                    .frame(minHeight: 48)
+                    .background(PairingInviteStyle.input)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(PairingInviteStyle.border, lineWidth: 1)
+                    )
+                    .accessibilityLabel("Paste invite")
+
+                TextEditor(
+                    text: Binding(
+                        get: { viewModel.inviteText },
+                        set: { viewModel.replaceInviteText($0) }
+                    )
                 )
-            )
-            .font(.system(size: 14, weight: .semibold))
-            .foregroundStyle(PairingInviteStyle.ink)
-            .frame(minHeight: 104)
-            .padding(8)
-            .background(PairingInviteStyle.input)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(PairingInviteStyle.border, lineWidth: 1)
-            )
-            .accessibilityLabel("Mac invite")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(PairingInviteStyle.ink)
+                .frame(minHeight: 104)
+                .padding(8)
+                .background(PairingInviteStyle.input)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(PairingInviteStyle.border, lineWidth: 1)
+                )
+                .accessibilityLabel("Invite text")
+            }
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -198,11 +256,11 @@ struct PairingInviteReceiveView: View {
             Text(viewModel.canPair ? "Ready to pair" : "Waiting for invite")
                 .font(.system(size: 12, weight: .bold))
                 .foregroundStyle(viewModel.canPair ? PairingInviteStyle.secure : PairingInviteStyle.body)
-            Text(viewModel.macDisplayName.isEmpty ? "Paste a Mac invite" : viewModel.macDisplayName)
+            Text(viewModel.macDisplayName.isEmpty ? "Paste invite from Mac" : viewModel.macDisplayName)
                 .font(.system(size: 18, weight: .bold))
                 .foregroundStyle(PairingInviteStyle.ink)
-            if !viewModel.macEndpointText.isEmpty {
-                Text(viewModel.macEndpointText)
+            if !viewModel.macInviteDetailText.isEmpty {
+                Text(viewModel.macInviteDetailText)
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(PairingInviteStyle.body)
                     .fixedSize(horizontal: false, vertical: true)
