@@ -2,27 +2,33 @@ import Foundation
 import Network
 
 public enum LoopbackHTTPServerError: Error, Equatable {
-    case invalidLoopbackAddress
+    case invalidBindAddress(String)
 }
 
 public final class LoopbackHTTPServer {
+    private let bindHost: String
     private let codec: BridgeHTTPCodec
     private let port: NWEndpoint.Port
     private var listener: NWListener?
 
-    public init(codec: BridgeHTTPCodec, port: UInt16 = 17666) {
+    public init(
+        codec: BridgeHTTPCodec,
+        port: UInt16 = 17666,
+        bindHost: String = "127.0.0.1"
+    ) {
+        self.bindHost = bindHost
         self.codec = codec
         self.port = NWEndpoint.Port(rawValue: port) ?? 17666
     }
 
     public func start() throws {
-        guard let loopbackAddress = IPv4Address("127.0.0.1") else {
-            throw LoopbackHTTPServerError.invalidLoopbackAddress
+        guard let bindAddress = IPv4Address(bindHost) else {
+            throw LoopbackHTTPServerError.invalidBindAddress(bindHost)
         }
 
         let parameters = NWParameters.tcp
         parameters.requiredLocalEndpoint = .hostPort(
-            host: .ipv4(loopbackAddress),
+            host: .ipv4(bindAddress),
             port: port
         )
 

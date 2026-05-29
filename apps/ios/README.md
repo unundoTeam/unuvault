@@ -13,7 +13,10 @@ builds a target-device identity claim with `deviceId`, `displayName`, and
 endpoint without a bridge bearer token, and parses the Mac handoff response
 envelope while rejecting invalid, expired, status-failed, or target-mismatched
 responses. It does not claim camera QR scanning, real LAN discovery, local
-decrypt/import, or physical iPhone receipt yet.
+decrypt/import, or physical iPhone receipt yet. Repo-level
+`pnpm test:pairing-lan-smoke` now proves the Mac runtime can accept the target
+claim through a non-loopback LAN IPv4 base URL, but that command is still not a
+physical iPhone receipt or camera QR scan proof.
 
 Run:
 

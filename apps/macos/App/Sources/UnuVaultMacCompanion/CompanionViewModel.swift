@@ -24,6 +24,7 @@ final class CompanionViewModel: ObservableObject {
 
     private let accessToken: String
     private let addLoginDraftCredential: CompanionCredential?
+    private let bridgeBindHost: String
     private let bridgePort: UInt16
     private let pairingBaseURL: URL
     private let pairingSourceDeviceDisplayName: String
@@ -43,6 +44,7 @@ final class CompanionViewModel: ObservableObject {
         vaultStore: LocalCompanionVaultStore? = try? LocalCompanionVaultStore.defaultStore(),
         accessToken: String = "local-dev-bridge-token",
         addLoginDraftCredential: CompanionCredential? = nil,
+        bridgeBindHost: String = "127.0.0.1",
         bridgePort: UInt16 = 17666,
         pairingBaseURL: URL? = nil,
         pairingSourceDeviceDisplayName: String = Host.current().localizedName ?? "This Mac",
@@ -53,6 +55,7 @@ final class CompanionViewModel: ObservableObject {
     ) {
         self.accessToken = accessToken
         self.addLoginDraftCredential = addLoginDraftCredential
+        self.bridgeBindHost = bridgeBindHost
         self.bridgePort = bridgePort
         self.pairingBaseURL = pairingBaseURL ?? CompanionViewModel.defaultPairingBaseURL(
             bridgePort: bridgePort
@@ -113,7 +116,11 @@ final class CompanionViewModel: ObservableObject {
                 pairingCoordinator: pairingCoordinator,
                 pairingTransferKeyData: pairingTransferKeyData
             )
-            server = LoopbackHTTPServer(codec: codec, port: bridgePort)
+            server = LoopbackHTTPServer(
+                codec: codec,
+                port: bridgePort,
+                bindHost: bridgeBindHost
+            )
 
             do {
                 try server?.start()

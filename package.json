@@ -19,6 +19,7 @@
     "test:macos:pairing-boundary": "swift test --package-path apps/macos/App --filter Pairing",
     "test:macos:recovery-boundary": "swift test --package-path apps/macos/App --filter RecoveryBoundaryTests",
     "test:pairing-boundary": "bash scripts/testing/run-pairing-boundary.sh",
+    "test:pairing-lan-smoke": "bash scripts/testing/run-pairing-lan-smoke.sh",
     "lint": "bash scripts/testing/lint-runner.sh"
   },
   "devDependencies": {

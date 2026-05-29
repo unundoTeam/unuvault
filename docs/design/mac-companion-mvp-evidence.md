@@ -30,6 +30,7 @@
 swift test --package-path apps/macos/App --filter LoopbackHTTPServerTests/testLoopbackReleaseRequiresNativeApprovalBeforeOneTimeClaim
 bash scripts/testing/run-macos.sh
 pnpm test:pairing-boundary
+pnpm test:pairing-lan-smoke
 pnpm test:macos:pairing-boundary
 pnpm test:macos:recovery-boundary
 pnpm smoke:packaged-extension-mac-companion
@@ -144,6 +145,15 @@ trusted-status surface first, keeps credential entry behind an explicit
   contract, while still avoiding claims for real LAN discovery, camera QR
   scanning, physical iPhone receipt, local decrypt/import, or full mobile
   adapter adoption.
+- `pnpm test:pairing-lan-smoke` resolves or accepts
+  `UNUVAULT_PAIRING_LAN_HOST`, starts the proof-mode Mac companion bridge on
+  `0.0.0.0`, emits an invite with the non-loopback LAN IPv4 base URL, posts a
+  target-device claim over real HTTP to `/v1/pairing/claim`, receives only
+  AES-GCM wrapped handoff material, and proves replay fails without exposing
+  credential ids, usernames, passwords, bridge bearer tokens, or vault
+  plaintext. This is LAN-address transport proof only; it still does not claim
+  camera QR scanning, physical iPhone receipt, local decrypt/import, or full
+  mobile adapter adoption.
 - `bash scripts/testing/run-ios.sh` proves the iPhone package can parse the Mac
   pairing invite envelope and QR payload, reject expired, invalid-version,
   malformed, or unsupported-endpoint payloads, and build a target-device
@@ -182,7 +192,8 @@ trusted-status surface first, keeps credential entry behind an explicit
 
 - Native app notarization and macOS login-item behavior are not claimed.
 - Touch ID is not claimed until LocalAuthentication proof exists.
-- Physical iPhone pairing is not claimed until a real LAN pairing run is captured.
+- Physical iPhone pairing is not claimed until a real physical-iPhone LAN run is
+  captured.
 - The current iOS pairing proof is receive-side only; LAN discovery, QR code
   rendering/scanning, physical target-device identity proof, local decrypt or
   import, simulator/device visual parity, and physical iPhone receipt remain

@@ -284,6 +284,16 @@ For the native Mac companion proof:
   to the Mac runtime `/v1/pairing/claim` contract, while still stopping short of
   claiming real LAN discovery, camera QR scanning, physical iPhone receipt,
   local decrypt/import, or full mobile adapter adoption.
+- LAN-address pairing smoke proof is available through:
+  `pnpm test:pairing-lan-smoke`
+  This resolves or accepts `UNUVAULT_PAIRING_LAN_HOST`, starts the proof-mode
+  Mac companion bridge on `0.0.0.0`, emits an invite whose Mac base URL uses
+  that non-loopback LAN IPv4 address, posts a target-device claim over real
+  HTTP to `/v1/pairing/claim`, receives only AES-GCM wrapped handoff material,
+  and proves replay fails without exposing credential ids, usernames, passwords,
+  bridge bearer tokens, or vault plaintext. It still does not claim camera QR
+  scanning, physical iPhone receipt, local decrypt/import, or full mobile
+  adapter adoption.
 - iOS Mac pairing receive proof is available through:
   `bash scripts/testing/run-ios.sh`
   This proves the iPhone app can parse the Mac pairing invite envelope and QR

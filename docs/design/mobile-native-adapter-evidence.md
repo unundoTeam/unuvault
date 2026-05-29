@@ -40,6 +40,8 @@ evidence backlog, but it does not claim mobile/native adapter adoption.
 - iOS verification wrapper: `bash scripts/testing/run-ios.sh`
 - Cross-surface iOS/Mac pairing-boundary wrapper:
   `bash scripts/testing/run-pairing-boundary.sh`
+- LAN-address pairing smoke wrapper:
+  `bash scripts/testing/run-pairing-lan-smoke.sh`
 - iOS simulator UI host wrapper: `bash scripts/testing/run-ios-ui-host.sh`
 - iOS simulator UI host project: `apps/ios/HostApp/project.yml`
 - iOS simulator UI host screenshot:
@@ -53,7 +55,7 @@ evidence backlog, but it does not claim mobile/native adapter adoption.
 | Platform token mapping | The receive-invite view uses repo-local neutral gray, secure green, danger red, radius, and typography constants aligned with the approved source frame; formal mobile primitive mapping is not claimed. | partial |
 | Safe-area and touch target behavior | The approved receive-invite frame and SwiftUI view use a single scrollable safe-area stack and a 48pt primary Pair control; `bash scripts/testing/run-ios-ui-host.sh` launches the screen in an iPhone simulator and captures screenshot evidence for visual review. | partial |
 | Auth or vault action review/recovery mapping | The receive-invite flow disables pairing until invite validation, fails closed on expired invites, and records error copy; vault unlock/import/recovery actions remain out of scope. | partial |
-| Repo-owned iOS verification command | `bash scripts/testing/run-ios.sh` runs the Swift package tests on an available iPhone simulator; `pnpm test:pairing-boundary` runs that iOS receive/client proof with the Mac companion pairing-boundary proof as one repo-level gate; `bash scripts/testing/run-ios-ui-host.sh` builds and launches the receive-invite host app for screenshot proof. | available |
+| Repo-owned iOS verification command | `bash scripts/testing/run-ios.sh` runs the Swift package tests on an available iPhone simulator; `pnpm test:pairing-boundary` runs that iOS receive/client proof with the Mac companion pairing-boundary proof as one repo-level gate; `pnpm test:pairing-lan-smoke` proves the Mac runtime can accept a target claim through a non-loopback LAN IPv4 base URL while still avoiding physical iPhone receipt claims; `bash scripts/testing/run-ios-ui-host.sh` builds and launches the receive-invite host app for screenshot proof. | available |
 | Visual/accessibility proof | `current/unuvault/ios-pairing-invite-receive-v2` is promoted, the SwiftUI receive flow exposes labels for the invite field, recognized Mac summary, Pair button, and status panel, hides raw invite session details after recognition, shows invite expiry instead of a raw endpoint URL, and the UI host captures simulator screenshot evidence; no VoiceOver rotor run is recorded yet. | partial |
 | Dynamic Type | No Dynamic Type behavior, truncation, or layout proof is recorded yet. | missing |
 | VoiceOver | Static accessibility labels exist for the receive-invite field, recognized Mac summary, Pair button, and status panel; rotor path proof is not recorded yet. | partial |
@@ -66,6 +68,7 @@ Run:
 ```bash
 bash scripts/testing/run-ios.sh
 pnpm test:pairing-boundary
+pnpm test:pairing-lan-smoke
 bash scripts/testing/run-ios-ui-host.sh
 ```
 
@@ -90,6 +93,12 @@ decrypt/import, physical iPhone receipt, or a shipped iPhone vault workflow.
 target-claim client tests and the Mac runtime `/v1/pairing/claim` tests in one
 gate, so the two sides cannot silently drift while still avoiding a physical
 device or LAN claim.
+`pnpm test:pairing-lan-smoke` is the LAN-address transport proof: it starts the
+proof-mode Mac companion bridge on `0.0.0.0`, uses a non-loopback LAN IPv4 base
+URL in the invite, sends the target claim over real HTTP, receives only wrapped
+handoff material, and proves replay fails. It still does not prove camera QR
+scanning, physical iPhone receipt, local decrypt/import, or a shipped iPhone
+vault workflow.
 
 ## Claim Boundary
 

@@ -264,4 +264,25 @@ describe("workspace entrypoints", () => {
     expect(mobileEvidence).toContain("pnpm test:pairing-boundary");
     expect(macEvidence).toContain("pnpm test:pairing-boundary");
   });
+
+  it("records the LAN-address pairing smoke proof entrypoint", () => {
+    const rootPackage = readJson<PackageManifest>("package.json");
+    const wrapperPath = "scripts/testing/run-pairing-lan-smoke.sh";
+    const readme = readText("README.md");
+    const mobileEvidence = readText("docs/design/mobile-native-adapter-evidence.md");
+    const macEvidence = readText("docs/design/mac-companion-mvp-evidence.md");
+
+    expect(existsSync(resolve(repoRoot, wrapperPath))).toBe(true);
+    expect(rootPackage.scripts?.["test:pairing-lan-smoke"]).toBe(
+      "bash scripts/testing/run-pairing-lan-smoke.sh",
+    );
+
+    const wrapper = readText(wrapperPath);
+
+    expect(wrapper).toContain("UNUVAULT_PAIRING_LAN_HOST");
+    expect(wrapper).toContain("RuntimeLANPairingSmokeTests");
+    expect(readme).toContain("pnpm test:pairing-lan-smoke");
+    expect(mobileEvidence).toContain("pnpm test:pairing-lan-smoke");
+    expect(macEvidence).toContain("pnpm test:pairing-lan-smoke");
+  });
 });
