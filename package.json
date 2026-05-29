@@ -18,6 +18,7 @@
     "test:macos": "bash scripts/testing/run-macos.sh",
     "test:macos:pairing-boundary": "swift test --package-path apps/macos/App --filter Pairing",
     "test:macos:recovery-boundary": "swift test --package-path apps/macos/App --filter RecoveryBoundaryTests",
+    "test:pairing-boundary": "bash scripts/testing/run-pairing-boundary.sh",
     "lint": "bash scripts/testing/lint-runner.sh"
   },
   "devDependencies": {

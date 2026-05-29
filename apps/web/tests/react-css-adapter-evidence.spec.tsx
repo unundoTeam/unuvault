@@ -146,11 +146,7 @@ async function unlockVault(passphrase: string = "correct horse") {
 
 async function unlockAndOpenCreatePanel(passphrase?: string) {
   await unlockVault(passphrase);
-  const newLoginButton = screen.queryByRole("button", { name: "New login" });
-
-  if (newLoginButton) {
-    fireEvent.click(newLoginButton);
-  }
+  fireEvent.click(await screen.findByRole("button", { name: "New login" }));
 
   return await screen.findByRole("form", { name: "Save vault item" });
 }

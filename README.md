@@ -277,6 +277,13 @@ For the native Mac companion proof:
   material, rejects expired handoffs, rejects target public-key fingerprint
   mismatch, and rejects replay of already consumed sessions or handoffs. It
   does not claim real LAN or physical iPhone pairing yet.
+- Cross-surface iOS/Mac pairing-boundary proof is available through:
+  `pnpm test:pairing-boundary`
+  This runs the iOS receive/client proof and the Mac companion pairing-boundary
+  proof as one repo-level gate. It ties the iPhone target-claim client contract
+  to the Mac runtime `/v1/pairing/claim` contract, while still stopping short of
+  claiming real LAN discovery, camera QR scanning, physical iPhone receipt,
+  local decrypt/import, or full mobile adapter adoption.
 - iOS Mac pairing receive proof is available through:
   `bash scripts/testing/run-ios.sh`
   This proves the iPhone app can parse the Mac pairing invite envelope and QR

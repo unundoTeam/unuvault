@@ -243,4 +243,25 @@ describe("workspace entrypoints", () => {
     expect(readme).toContain("pnpm test:macos:pairing-boundary");
     expect(evidence).toContain("pnpm test:macos:pairing-boundary");
   });
+
+  it("records the cross-surface iOS and Mac pairing-boundary proof entrypoint", () => {
+    const rootPackage = readJson<PackageManifest>("package.json");
+    const wrapperPath = "scripts/testing/run-pairing-boundary.sh";
+    const readme = readText("README.md");
+    const mobileEvidence = readText("docs/design/mobile-native-adapter-evidence.md");
+    const macEvidence = readText("docs/design/mac-companion-mvp-evidence.md");
+
+    expect(existsSync(resolve(repoRoot, wrapperPath))).toBe(true);
+    expect(rootPackage.scripts?.["test:pairing-boundary"]).toBe(
+      "bash scripts/testing/run-pairing-boundary.sh",
+    );
+
+    const wrapper = readText(wrapperPath);
+
+    expect(wrapper).toContain("bash scripts/testing/run-ios.sh");
+    expect(wrapper).toContain("swift test --package-path apps/macos/App --filter Pairing");
+    expect(readme).toContain("pnpm test:pairing-boundary");
+    expect(mobileEvidence).toContain("pnpm test:pairing-boundary");
+    expect(macEvidence).toContain("pnpm test:pairing-boundary");
+  });
 });

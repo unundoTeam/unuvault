@@ -29,6 +29,7 @@
 ```bash
 swift test --package-path apps/macos/App --filter LoopbackHTTPServerTests/testLoopbackReleaseRequiresNativeApprovalBeforeOneTimeClaim
 bash scripts/testing/run-macos.sh
+pnpm test:pairing-boundary
 pnpm test:macos:pairing-boundary
 pnpm test:macos:recovery-boundary
 pnpm smoke:packaged-extension-mac-companion
@@ -137,6 +138,12 @@ trusted-status surface first, keeps credential entry behind an explicit
   the pairing payload, so the next QR/copy handoff can carry the endpoint
   without exposing credential or vault plaintext. It does not claim a real LAN
   or physical iPhone pairing run.
+- `pnpm test:pairing-boundary` runs both the iOS receive/client proof and the
+  Mac companion pairing-boundary proof as one repo-level gate. This ties the
+  iPhone target-claim client contract to the Mac runtime `/v1/pairing/claim`
+  contract, while still avoiding claims for real LAN discovery, camera QR
+  scanning, physical iPhone receipt, local decrypt/import, or full mobile
+  adapter adoption.
 - `bash scripts/testing/run-ios.sh` proves the iPhone package can parse the Mac
   pairing invite envelope and QR payload, reject expired, invalid-version,
   malformed, or unsupported-endpoint payloads, and build a target-device
