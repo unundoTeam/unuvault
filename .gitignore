@@ -9,6 +9,7 @@ node_modules
 node_modules/
 apps/browser-extension/dist/
 apps/ios/App/.build/
+apps/ios/HostApp/Generated/
 apps/ios/HostApp/UnuVaultIOSHost.xcodeproj/
 apps/macos/App/.build/
 .worktrees/

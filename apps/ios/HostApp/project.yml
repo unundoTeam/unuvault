@@ -12,6 +12,18 @@ targets:
     type: application
     platform: iOS
     deploymentTarget: "18.0"
+    info:
+      path: Generated/Info.plist
+      properties:
+        CFBundleDisplayName: UnuVault
+        CFBundleURLTypes:
+          - CFBundleURLName: com.unuvault.ioshost.pairing
+            CFBundleURLSchemes:
+              - unuvault-ioshost
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+        NSLocalNetworkUsageDescription: UnuVault uses your local network to pair this iPhone with your trusted Mac.
+        UILaunchScreen: {}
     sources:
       - path: Sources
       - path: ../App/Sources/Features/Pairing/PairingInviteReceiveView.swift
@@ -19,8 +31,6 @@ targets:
     settings:
       base:
         ASSETCATALOG_COMPILER_APPICON_NAME: ""
-        INFOPLIST_KEY_CFBundleDisplayName: UnuVault
-        INFOPLIST_KEY_UILaunchScreen_Generation: YES
         PRODUCT_BUNDLE_IDENTIFIER: com.unuvault.ioshost
         PRODUCT_NAME: UnuVaultIOSHost
         SWIFT_VERSION: "6.0"

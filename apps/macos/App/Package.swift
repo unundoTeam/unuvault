@@ -14,6 +14,10 @@ let package = Package(
         .executable(
             name: "MacCompanionSmokeHost",
             targets: ["MacCompanionSmokeHost"]
+        ),
+        .executable(
+            name: "MacPairingReceiptHost",
+            targets: ["MacPairingReceiptHost"]
         )
     ],
     targets: [
@@ -33,6 +37,11 @@ let package = Package(
             name: "MacCompanionSmokeHost",
             dependencies: ["MacCompanionCore"],
             path: "Sources/MacCompanionSmokeHost"
+        ),
+        .executableTarget(
+            name: "MacPairingReceiptHost",
+            dependencies: ["MacCompanionCore"],
+            path: "Sources/MacPairingReceiptHost"
         ),
         .testTarget(
             name: "MacCompanionCoreTests",

@@ -18,6 +18,18 @@ decrypt/import, or physical iPhone receipt yet. Repo-level
 claim through a non-loopback LAN IPv4 base URL, but that command is still not a
 physical iPhone receipt or camera QR scan proof.
 
+Physical receipt proof is available only when a real trusted iPhone is
+connected:
+
+```bash
+pnpm test:pairing-physical-receipt
+```
+
+That wrapper starts the Mac receipt host, installs `UnuVaultIOSHost` on the
+device, launches it with a `unuvault-ioshost://pair` payload URL, and waits for
+`UNUVAULT_IOS_PAIRING_RECEIPT paired` in the iPhone console. It still does not
+claim camera QR scanning or local decrypt/import.
+
 Run:
 
 ```bash

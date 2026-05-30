@@ -285,4 +285,47 @@ describe("workspace entrypoints", () => {
     expect(mobileEvidence).toContain("pnpm test:pairing-lan-smoke");
     expect(macEvidence).toContain("pnpm test:pairing-lan-smoke");
   });
+
+  it("records the physical iPhone pairing receipt proof harness", () => {
+    const rootPackage = readJson<PackageManifest>("package.json");
+    const wrapperPath = "scripts/testing/run-pairing-physical-receipt.sh";
+    const hostSpecPath = "apps/ios/HostApp/project.yml";
+    const hostAppPath = "apps/ios/HostApp/Sources/UnuVaultIOSHostApp.swift";
+    const macPackagePath = "apps/macos/App/Package.swift";
+    const macHostPath = "apps/macos/App/Sources/MacPairingReceiptHost/main.swift";
+    const readme = readText("README.md");
+    const iosReadme = readText("apps/ios/README.md");
+    const mobileEvidence = readText("docs/design/mobile-native-adapter-evidence.md");
+    const macEvidence = readText("docs/design/mac-companion-mvp-evidence.md");
+
+    expect(existsSync(resolve(repoRoot, wrapperPath))).toBe(true);
+    expect(existsSync(resolve(repoRoot, macHostPath))).toBe(true);
+    expect(rootPackage.scripts?.["test:pairing-physical-receipt"]).toBe(
+      "bash scripts/testing/run-pairing-physical-receipt.sh",
+    );
+
+    const wrapper = readText(wrapperPath);
+    const hostSpec = readText(hostSpecPath);
+    const hostApp = readText(hostAppPath);
+    const macPackage = readText(macPackagePath);
+    const macHost = readText(macHostPath);
+
+    expect(wrapper).toContain("xcrun devicectl");
+    expect(wrapper).toContain("MacPairingReceiptHost");
+    expect(wrapper).toContain("UNUVAULT_IOS_PAIRING_RECEIPT");
+    expect(wrapper).toContain("--payload-url");
+    expect(hostSpec).toContain("NSLocalNetworkUsageDescription");
+    expect(hostSpec).toContain("NSAllowsLocalNetworking");
+    expect(hostSpec).toContain("unuvault-ioshost");
+    expect(hostApp).toContain(".onOpenURL");
+    expect(hostApp).toContain("UNUVAULT_IOS_PAIRING_RECEIPT");
+    expect(hostApp).toContain("base64URL");
+    expect(macPackage).toContain("MacPairingReceiptHost");
+    expect(macHost).toContain("UNUVAULT_PAIRING_RECEIPT_DEEPLINK");
+    expect(macHost).toContain("UNUVAULT_PAIRING_RECEIPT_INVITE_BASE64URL");
+    expect(readme).toContain("pnpm test:pairing-physical-receipt");
+    expect(iosReadme).toContain("pnpm test:pairing-physical-receipt");
+    expect(mobileEvidence).toContain("pnpm test:pairing-physical-receipt");
+    expect(macEvidence).toContain("pnpm test:pairing-physical-receipt");
+  });
 });

@@ -15,21 +15,18 @@ private struct PairingInviteHostRootView: View {
 
     @MainActor
     init() {
-        let now = Date(timeIntervalSince1970: 1_060)
+        let sampleNow = Date()
         let targetIdentity = PairingTargetIdentity(
             deviceId: "ios-host-device",
             displayName: "Yuchen iPhone",
             publicKeyFingerprint: "ios-host-public-key-fingerprint"
         )
         let model = PairingInviteViewModel(
-            now: { now },
-            targetIdentity: targetIdentity,
-            exchange: { _, _ in
-                throw HostPairingError.exchangeUnavailable
-            }
+            now: Date.init,
+            targetIdentity: targetIdentity
         )
 
-        if let inviteText = Self.makeInviteText(now: now) {
+        if let inviteText = Self.makeInviteText(now: sampleNow) {
             model.replaceInviteText(inviteText)
         }
 
@@ -38,6 +35,51 @@ private struct PairingInviteHostRootView: View {
 
     var body: some View {
         PairingInviteReceiveView(viewModel: viewModel)
+            .onOpenURL { url in
+                handlePairingURL(url)
+            }
+    }
+
+    private func handlePairingURL(_ url: URL) {
+        guard let inviteText = Self.inviteText(from: url) else {
+            print("UNUVAULT_IOS_PAIRING_RECEIPT failed reason=invalid_deeplink")
+            return
+        }
+
+        viewModel.replaceInviteText(inviteText)
+
+        Task {
+            await viewModel.pair()
+            reportPairingReceipt()
+        }
+    }
+
+    private func reportPairingReceipt() {
+        guard let handoff = viewModel.handoff else {
+            print("UNUVAULT_IOS_PAIRING_RECEIPT failed state=\(viewModel.state)")
+            return
+        }
+
+        print(
+            "UNUVAULT_IOS_PAIRING_RECEIPT paired " +
+            "handoffId=\(handoff.handoffId) " +
+            "sourceDeviceId=\(handoff.sourceDeviceId) " +
+            "targetDeviceId=\(handoff.targetDeviceId) " +
+            "material=\(handoff.material.algorithm)"
+        )
+    }
+
+    private static func inviteText(from url: URL) -> String? {
+        guard url.scheme == "unuvault-ioshost",
+              url.host == "pair",
+              let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              let invite = components.queryItems?.first(where: { $0.name == "invite" })?.value,
+              let data = Data(base64URLEncoded: invite)
+        else {
+            return nil
+        }
+
+        return String(data: data, encoding: .utf8)
     }
 
     private static func makeInviteText(now: Date) -> String? {
@@ -63,6 +105,17 @@ private struct PairingInviteHostRootView: View {
     }
 }
 
-private enum HostPairingError: Error {
-    case exchangeUnavailable
+private extension Data {
+    init?(base64URLEncoded value: String) {
+        var base64URL = value
+            .replacingOccurrences(of: "-", with: "+")
+            .replacingOccurrences(of: "_", with: "/")
+
+        let padding = base64URL.count % 4
+        if padding > 0 {
+            base64URL.append(String(repeating: "=", count: 4 - padding))
+        }
+
+        self.init(base64Encoded: base64URL)
+    }
 }

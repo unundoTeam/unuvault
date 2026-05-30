@@ -294,6 +294,15 @@ For the native Mac companion proof:
   bridge bearer tokens, or vault plaintext. It still does not claim camera QR
   scanning, physical iPhone receipt, local decrypt/import, or full mobile
   adapter adoption.
+- Physical iPhone pairing receipt harness is available through:
+  `pnpm test:pairing-physical-receipt`
+  This requires a connected, unlocked, trusted physical iPhone plus local iOS
+  signing. It starts `MacPairingReceiptHost` on the Mac LAN address, installs
+  `UnuVaultIOSHost`, launches it through a `unuvault-ioshost://pair` payload
+  URL with a base64URL invite, and waits for
+  `UNUVAULT_IOS_PAIRING_RECEIPT paired` in the device console. This is a
+  physical receipt harness only; camera QR scanning, local decrypt/import, and
+  full mobile adapter adoption remain separate claims.
 - iOS Mac pairing receive proof is available through:
   `bash scripts/testing/run-ios.sh`
   This proves the iPhone app can parse the Mac pairing invite envelope and QR
