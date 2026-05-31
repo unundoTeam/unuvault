@@ -27,6 +27,7 @@
 ## Verification Commands
 
 ```bash
+pnpm test:macos:security-preflight
 swift test --package-path apps/macos/App --filter LoopbackHTTPServerTests/testLoopbackReleaseRequiresNativeApprovalBeforeOneTimeClaim
 bash scripts/testing/run-macos.sh
 pnpm test:pairing-boundary
@@ -74,6 +75,13 @@ trusted-status surface first, keeps credential entry behind an explicit
 
 ## Automated Fill Proof
 
+- `pnpm test:macos:security-preflight` checks the local Mac runtime before
+  heavier native proof. It verifies macOS/Swift package readability, Keychain
+  CLI access, LocalAuthentication framework linkage, default local vault
+  directory writability, and the checked-in `LocalCompanionVaultStore` contract
+  for Keychain-backed this-device-only AES-GCM storage. It does not launch the
+  companion app, unlock a vault, prompt Touch ID, notarize the app, or claim Web
+  fill release proof.
 - `pnpm smoke:menu-app-extension-mac-companion` builds the packaged browser
   extension, starts the real `UnuVaultMacCompanion` SwiftUI menu bar app with
   an isolated temporary encrypted vault, triggers the packaged content script,

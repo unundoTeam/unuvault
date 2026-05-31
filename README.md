@@ -230,6 +230,14 @@ For the native Mac companion proof:
 - the browser extension can use the same Mac companion boundary to fill the
   current page after native approval, while keeping page URL context trusted by
   the extension background
+- Mac companion security preflight is available through:
+  `pnpm test:macos:security-preflight`
+  This checks the local macOS runtime before heavier native proof: Swift package
+  readability, Keychain CLI access, LocalAuthentication framework linkage,
+  default local vault directory writability, and the checked-in local vault
+  store contract for Keychain-backed this-device-only AES-GCM storage. It does
+  not launch the companion app, unlock a vault, prompt Touch ID, notarize the
+  app, or claim Web fill release proof.
 - packaged extension and live native-process fill proof is available through:
   `pnpm smoke:packaged-extension-mac-companion`
   The smoke host writes and reloads an encrypted local vault file before

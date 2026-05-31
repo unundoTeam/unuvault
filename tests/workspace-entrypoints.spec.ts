@@ -220,6 +220,26 @@ describe("workspace entrypoints", () => {
     expect(evidence).toContain("pnpm smoke:menu-app-security-boundaries-mac-companion");
   });
 
+  it("records the Mac companion security preflight entrypoint", () => {
+    const rootPackage = readJson<PackageManifest>("package.json");
+    const readme = readText("README.md");
+    const evidence = readText("docs/design/mac-companion-mvp-evidence.md");
+    const wrapperPath = "scripts/testing/run-mac-security-preflight.sh";
+    const wrapper = readText(wrapperPath);
+
+    expect(existsSync(resolve(repoRoot, wrapperPath))).toBe(true);
+    expect(rootPackage.scripts?.["test:macos:security-preflight"]).toBe(
+      "bash scripts/testing/run-mac-security-preflight.sh",
+    );
+    expect(wrapper).toContain("UNUVAULT_MAC_SECURITY_PREFLIGHT");
+    expect(wrapper).toContain("KeychainCompanionVaultKeyProvider");
+    expect(wrapper).toContain("kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly");
+    expect(wrapper).toContain("AES-GCM-256");
+    expect(wrapper).toContain("LocalAuthentication");
+    expect(readme).toContain("pnpm test:macos:security-preflight");
+    expect(evidence).toContain("pnpm test:macos:security-preflight");
+  });
+
   it("records the Mac companion recovery-boundary proof entrypoint", () => {
     const rootPackage = readJson<PackageManifest>("package.json");
     const readme = readText("README.md");

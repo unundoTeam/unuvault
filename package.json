@@ -16,6 +16,7 @@
     "test": "bash scripts/testing/test-runner.sh",
     "test:ios:ui-host": "bash scripts/testing/run-ios-ui-host.sh",
     "test:macos": "bash scripts/testing/run-macos.sh",
+    "test:macos:security-preflight": "bash scripts/testing/run-mac-security-preflight.sh",
     "test:macos:pairing-boundary": "swift test --package-path apps/macos/App --filter Pairing",
     "test:macos:recovery-boundary": "swift test --package-path apps/macos/App --filter RecoveryBoundaryTests",
     "test:pairing-boundary": "bash scripts/testing/run-pairing-boundary.sh",
