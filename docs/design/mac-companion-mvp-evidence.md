@@ -155,6 +155,10 @@ trusted-status surface first, keeps credential entry behind an explicit
   plaintext. This is LAN-address transport proof only; it still does not claim
   camera QR scanning, physical iPhone receipt, local decrypt/import, or full
   mobile adapter adoption.
+- `pnpm test:pairing-physical-preflight` checks local LAN address resolution,
+  port availability, Xcode tools, `xcodegen`, visible trusted iPhone detection,
+  and signing hints before a real device run. It does not build, install,
+  launch, wait for a receipt, or claim physical iPhone proof.
 - `pnpm test:pairing-physical-receipt` starts `MacPairingReceiptHost` on the
   Mac LAN address, installs the XcodeGen-backed `UnuVaultIOSHost` on a
   connected trusted iPhone, launches it through `xcrun devicectl` with a

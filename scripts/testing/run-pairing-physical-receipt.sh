@@ -12,6 +12,10 @@ derived_data="${UNUVAULT_IOS_PHYSICAL_RECEIPT_DERIVED_DATA:-$repo_root/.derived-
 bundle_id="${UNUVAULT_IOS_HOST_BUNDLE_ID:-com.unuvault.ioshost}"
 mac_pid=""
 launch_pid=""
+preflight_only=0
+lan_host=""
+device_id=""
+preflight_reasons=()
 
 cleanup() {
   if [[ -n "$launch_pid" ]]; then
@@ -23,6 +27,34 @@ cleanup() {
   rm -f "$mac_log" "$device_json" "$console_log"
 }
 trap cleanup EXIT
+
+usage() {
+  cat <<'EOF'
+Usage: bash scripts/testing/run-pairing-physical-receipt.sh [--preflight]
+
+Options:
+  --preflight   Check local prerequisites and report the first blocker without
+                building, installing, launching, or waiting for a receipt.
+  --help        Show this help.
+EOF
+}
+
+for arg in "$@"; do
+  case "$arg" in
+    --preflight)
+      preflight_only=1
+      ;;
+    --help|-h)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "Unknown argument: $arg" >&2
+      usage >&2
+      exit 2
+      ;;
+  esac
+done
 
 resolve_lan_host() {
   if [[ -n "${UNUVAULT_PAIRING_LAN_HOST:-}" ]]; then
@@ -101,25 +133,101 @@ wait_for_log_line() {
   return 1
 }
 
-lan_host="$(resolve_lan_host)"
+record_preflight_blocker() {
+  local reason="$1"
+  shift
 
-if [[ -z "$lan_host" ]]; then
-  echo "Unable to resolve a non-loopback LAN IPv4 address. Set UNUVAULT_PAIRING_LAN_HOST." >&2
-  exit 1
-fi
+  preflight_reasons+=("$reason")
+  echo "UNUVAULT_PHYSICAL_RECEIPT_PREFLIGHT status=blocked reason=$reason $*"
+}
 
-case "$lan_host" in
-  127.*|localhost|::1)
-    echo "UNUVAULT_PAIRING_LAN_HOST must be a non-loopback LAN address, got $lan_host." >&2
+record_preflight_ok() {
+  echo "UNUVAULT_PHYSICAL_RECEIPT_PREFLIGHT status=ok $*"
+}
+
+check_required_command() {
+  local command_name="$1"
+  local help_text="$2"
+
+  if command -v "$command_name" >/dev/null 2>&1; then
+    record_preflight_ok "check=$command_name path=$(command -v "$command_name")"
+    return 0
+  fi
+
+  record_preflight_blocker "missing_$command_name" "$help_text"
+  return 1
+}
+
+check_port_available() {
+  local port="$1"
+
+  if ! command -v lsof >/dev/null 2>&1; then
+    record_preflight_ok "check=port_available port=$port note=lsof_unavailable"
+    return 0
+  fi
+
+  if lsof -nP -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1; then
+    record_preflight_blocker "port_in_use" "port=$port help=\"Choose another port with UNUVAULT_PAIRING_LAN_PORT.\""
+    return 1
+  fi
+
+  record_preflight_ok "check=port_available port=$port"
+}
+
+run_preflight() {
+  preflight_reasons=()
+
+  check_required_command "node" "help=\"Install Node.js so the device JSON can be parsed.\"" || true
+  check_required_command "xcrun" "help=\"Install Xcode command line tools and open Xcode once.\"" || true
+  check_required_command "xcodegen" "help=\"Install xcodegen before building the iOS host app.\"" || true
+  check_required_command "xcodebuild" "help=\"Install Xcode before building the physical iPhone host app.\"" || true
+
+  lan_host="$(resolve_lan_host)"
+
+  if [[ -z "$lan_host" ]]; then
+    record_preflight_blocker "no_lan_host" "help=\"Set UNUVAULT_PAIRING_LAN_HOST to this Mac's non-loopback LAN IPv4 address.\""
+  else
+    case "$lan_host" in
+      127.*|localhost|::1)
+        record_preflight_blocker "loopback_lan_host" "lan_host=$lan_host help=\"Use a non-loopback LAN IPv4 address for the iPhone to reach this Mac.\""
+        ;;
+      *)
+        record_preflight_ok "check=lan_host lan_host=$lan_host"
+        ;;
+    esac
+  fi
+
+  lan_port="${UNUVAULT_PAIRING_LAN_PORT:-17670}"
+  check_port_available "$lan_port" || true
+
+  if command -v xcrun >/dev/null 2>&1 && command -v node >/dev/null 2>&1; then
+    device_id="$(resolve_device_id)"
+  fi
+
+  if [[ -z "$device_id" ]]; then
+    record_preflight_blocker "no_physical_iphone" "help=\"Connect, unlock, and trust an iPhone, or set UNUVAULT_IOS_DEVICE_ID.\""
+  else
+    record_preflight_ok "check=physical_iphone device_id=$device_id"
+  fi
+
+  if [[ -n "${UNUVAULT_IOS_DEVELOPMENT_TEAM:-}" ]]; then
+    record_preflight_ok "check=ios_signing team=configured allow_provisioning_updates=${UNUVAULT_IOS_ALLOW_PROVISIONING_UPDATES:-0}"
+  else
+    record_preflight_ok "check=ios_signing team=default allow_provisioning_updates=${UNUVAULT_IOS_ALLOW_PROVISIONING_UPDATES:-0} note=\"Set UNUVAULT_IOS_DEVELOPMENT_TEAM if Xcode cannot infer signing.\""
+  fi
+
+  if [[ "${#preflight_reasons[@]}" -gt 0 ]]; then
+    echo "UNUVAULT_PHYSICAL_RECEIPT_PREFLIGHT status=blocked reason=${preflight_reasons[0]} lan_host=${lan_host:-unset} lan_port=$lan_port device_id=${device_id:-unset}"
     exit 1
-    ;;
-esac
+  fi
 
-device_id="$(resolve_device_id)"
+  echo "UNUVAULT_PHYSICAL_RECEIPT_PREFLIGHT status=ready lan_host=$lan_host lan_port=$lan_port device_id=$device_id"
+}
 
-if [[ -z "$device_id" ]]; then
-  echo "No physical iPhone found. Connect, unlock, and trust an iPhone, or set UNUVAULT_IOS_DEVICE_ID." >&2
-  exit 1
+run_preflight
+
+if [[ "$preflight_only" == "1" ]]; then
+  exit 0
 fi
 
 lan_port="${UNUVAULT_PAIRING_LAN_PORT:-17670}"

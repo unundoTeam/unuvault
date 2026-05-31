@@ -42,6 +42,8 @@ evidence backlog, but it does not claim mobile/native adapter adoption.
   `bash scripts/testing/run-pairing-boundary.sh`
 - LAN-address pairing smoke wrapper:
   `bash scripts/testing/run-pairing-lan-smoke.sh`
+- Physical iPhone pairing preflight wrapper:
+  `bash scripts/testing/run-pairing-physical-receipt.sh --preflight`
 - Physical iPhone pairing receipt wrapper:
   `bash scripts/testing/run-pairing-physical-receipt.sh`
 - iOS simulator UI host wrapper: `bash scripts/testing/run-ios-ui-host.sh`
@@ -106,10 +108,14 @@ URL in the invite, sends the target claim over real HTTP, receives only wrapped
 handoff material, and proves replay fails. It still does not prove camera QR
 scanning, physical iPhone receipt, local decrypt/import, or a shipped iPhone
 vault workflow.
-`pnpm test:pairing-physical-receipt` is the physical-device receipt harness:
-it starts `MacPairingReceiptHost`, installs `UnuVaultIOSHost` on a connected
-trusted iPhone, launches it with a `unuvault-ioshost://pair` payload URL
-containing a base64URL invite, and waits for
+`pnpm test:pairing-physical-preflight` is the physical-device readiness check:
+it validates local LAN address resolution, port availability, Xcode tools,
+`xcodegen`, visible trusted iPhone detection, and signing hints without
+building, installing, launching, waiting for a receipt, or claiming device
+proof. `pnpm test:pairing-physical-receipt` is the physical-device receipt
+harness: it starts `MacPairingReceiptHost`, installs `UnuVaultIOSHost` on a
+connected trusted iPhone, launches it with a `unuvault-ioshost://pair` payload
+URL containing a base64URL invite, and waits for
 `UNUVAULT_IOS_PAIRING_RECEIPT paired` in the device console. A local run still
 requires connected hardware and signing; camera QR scanning, local
 decrypt/import, and a shipped iPhone vault workflow remain unclaimed.

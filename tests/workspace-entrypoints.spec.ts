@@ -303,6 +303,9 @@ describe("workspace entrypoints", () => {
     expect(rootPackage.scripts?.["test:pairing-physical-receipt"]).toBe(
       "bash scripts/testing/run-pairing-physical-receipt.sh",
     );
+    expect(rootPackage.scripts?.["test:pairing-physical-preflight"]).toBe(
+      "bash scripts/testing/run-pairing-physical-receipt.sh --preflight",
+    );
 
     const wrapper = readText(wrapperPath);
     const hostSpec = readText(hostSpecPath);
@@ -313,7 +316,9 @@ describe("workspace entrypoints", () => {
     expect(wrapper).toContain("xcrun devicectl");
     expect(wrapper).toContain("MacPairingReceiptHost");
     expect(wrapper).toContain("UNUVAULT_IOS_PAIRING_RECEIPT");
+    expect(wrapper).toContain("UNUVAULT_PHYSICAL_RECEIPT_PREFLIGHT");
     expect(wrapper).toContain("--payload-url");
+    expect(wrapper).toContain("--preflight");
     expect(hostSpec).toContain("NSLocalNetworkUsageDescription");
     expect(hostSpec).toContain("NSAllowsLocalNetworking");
     expect(hostSpec).toContain("unuvault-ioshost");
@@ -324,8 +329,12 @@ describe("workspace entrypoints", () => {
     expect(macHost).toContain("UNUVAULT_PAIRING_RECEIPT_DEEPLINK");
     expect(macHost).toContain("UNUVAULT_PAIRING_RECEIPT_INVITE_BASE64URL");
     expect(readme).toContain("pnpm test:pairing-physical-receipt");
+    expect(readme).toContain("pnpm test:pairing-physical-preflight");
     expect(iosReadme).toContain("pnpm test:pairing-physical-receipt");
+    expect(iosReadme).toContain("pnpm test:pairing-physical-preflight");
     expect(mobileEvidence).toContain("pnpm test:pairing-physical-receipt");
+    expect(mobileEvidence).toContain("pnpm test:pairing-physical-preflight");
     expect(macEvidence).toContain("pnpm test:pairing-physical-receipt");
+    expect(macEvidence).toContain("pnpm test:pairing-physical-preflight");
   });
 });

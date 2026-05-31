@@ -295,6 +295,13 @@ For the native Mac companion proof:
   scanning, physical iPhone receipt, local decrypt/import, or full mobile
   adapter adoption.
 - Physical iPhone pairing receipt harness is available through:
+  `pnpm test:pairing-physical-preflight`
+  Use this preflight first when the iPhone is not connected yet or when signing
+  is uncertain. It checks the local LAN address, port availability, Xcode
+  command-line tools, `xcodegen`, visible trusted iPhone, and signing hints,
+  then prints `UNUVAULT_PHYSICAL_RECEIPT_PREFLIGHT status=ready` or the first
+  precise blocker. It does not build, install, launch, wait for a receipt, or
+  claim physical iPhone proof.
   `pnpm test:pairing-physical-receipt`
   This requires a connected, unlocked, trusted physical iPhone plus local iOS
   signing. It starts `MacPairingReceiptHost` on the Mac LAN address, installs

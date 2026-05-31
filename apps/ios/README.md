@@ -22,11 +22,15 @@ Physical receipt proof is available only when a real trusted iPhone is
 connected:
 
 ```bash
+pnpm test:pairing-physical-preflight
 pnpm test:pairing-physical-receipt
 ```
 
-That wrapper starts the Mac receipt host, installs `UnuVaultIOSHost` on the
-device, launches it with a `unuvault-ioshost://pair` payload URL, and waits for
+Run the preflight first to check LAN address, port availability, Xcode tools,
+`xcodegen`, visible trusted iPhone, and signing hints without building,
+installing, or launching the app. The receipt wrapper starts the Mac receipt
+host, installs `UnuVaultIOSHost` on the device, launches it with a
+`unuvault-ioshost://pair` payload URL, and waits for
 `UNUVAULT_IOS_PAIRING_RECEIPT paired` in the iPhone console. It still does not
 claim camera QR scanning or local decrypt/import.
 
