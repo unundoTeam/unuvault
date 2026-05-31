@@ -1,3 +1,4 @@
+import SwiftUI
 import XCTest
 @testable import App
 
@@ -91,6 +92,47 @@ final class PairingInviteFlowTests: XCTestCase {
         XCTAssertFalse(renderedBody.contains("Pair this iPhone"))
         XCTAssertFalse(renderedBody.contains("Mac invite"))
         XCTAssertTrue(renderedBody.contains("Pair"))
+    }
+
+    func testPairingViewAccessibilityContractCoversDynamicTypeVoiceOverAndTargets() {
+        XCTAssertGreaterThanOrEqual(
+            PairingInviteAccessibilityContract.minimumTouchTargetPoints,
+            44
+        )
+        XCTAssertGreaterThanOrEqual(
+            PairingInviteAccessibilityContract.primaryActionMinHeightPoints,
+            PairingInviteAccessibilityContract.minimumTouchTargetPoints
+        )
+        XCTAssertGreaterThanOrEqual(
+            PairingInviteAccessibilityContract.textEditorMinHeightPoints,
+            PairingInviteAccessibilityContract.minimumTouchTargetPoints
+        )
+        XCTAssertTrue(
+            PairingInviteAccessibilityContract.dynamicTypeProofSizes.contains(
+                PairingInviteAccessibilityContract.dynamicTypeProofSize
+            )
+        )
+        XCTAssertEqual(
+            PairingInviteAccessibilityContract.dynamicTypeProofSize,
+            .accessibility3
+        )
+        XCTAssertEqual(
+            PairingInviteAccessibilityContract.dynamicTypeProofSizeName,
+            "accessibility3"
+        )
+        XCTAssertEqual(PairingInviteAccessibilityContract.title, "Pair with your Mac")
+        XCTAssertEqual(PairingInviteAccessibilityContract.inviteRecognized, "Invite recognized")
+        XCTAssertEqual(PairingInviteAccessibilityContract.pasteInvite, "Paste invite")
+        XCTAssertEqual(PairingInviteAccessibilityContract.inviteText, "Invite text")
+        XCTAssertEqual(PairingInviteAccessibilityContract.pair, "Pair")
+        XCTAssertEqual(
+            PairingInviteAccessibilityContract.recognizedMacLabel("Yuchen Mac"),
+            "Recognized Mac Yuchen Mac"
+        )
+        XCTAssertEqual(
+            PairingInviteAccessibilityContract.recognizedMacLabel(""),
+            "Recognized Mac waiting for invite"
+        )
     }
 
     func testPairingViewHidesRawInviteAfterRecognition() throws {

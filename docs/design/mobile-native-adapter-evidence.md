@@ -48,6 +48,8 @@ evidence backlog, but it does not claim mobile/native adapter adoption.
 - iOS simulator UI host project: `apps/ios/HostApp/project.yml`
 - iOS simulator UI host screenshot:
   `docs/design/evidence/2026-05-29-ios-ui-host/ios-pairing-invite-host.png`
+- iOS simulator UI host Dynamic Type screenshot:
+  `docs/design/evidence/2026-05-29-ios-ui-host/ios-pairing-invite-host-accessibility3.png`
 
 ## Current Implementation Evidence
 
@@ -55,13 +57,13 @@ evidence backlog, but it does not claim mobile/native adapter adoption.
 | --- | --- | --- |
 | Native implementation path | Minimal SwiftUI views, an iOS Swift package, a Mac pairing invite/payload parser, a target-claim model, a Mac handoff response parser, an iOS pairing exchange client, and a receive-invite ViewModel/View exist. | partial |
 | Platform token mapping | The receive-invite view uses repo-local neutral gray, secure green, danger red, radius, and typography constants aligned with the approved source frame; formal mobile primitive mapping is not claimed. | partial |
-| Safe-area and touch target behavior | The approved receive-invite frame and SwiftUI view use a single scrollable safe-area stack and a 48pt primary Pair control; `bash scripts/testing/run-ios-ui-host.sh` launches the screen in an iPhone simulator and captures screenshot evidence for visual review. | partial |
+| Safe-area and touch target behavior | The approved receive-invite frame and SwiftUI view use a single scrollable safe-area stack. `PairingInviteAccessibilityContract` pins a 44pt minimum touch target, a 48pt primary action minimum, and a 104pt invite editor minimum; `bash scripts/testing/run-ios-ui-host.sh` launches the screen in an iPhone simulator and captures screenshot evidence for visual review. | partial |
 | Auth or vault action review/recovery mapping | The receive-invite flow disables pairing until invite validation, fails closed on expired invites, and records error copy; vault unlock/import/recovery actions remain out of scope. | partial |
 | Repo-owned iOS verification command | `bash scripts/testing/run-ios.sh` runs the Swift package tests on an available iPhone simulator; `pnpm test:pairing-boundary` runs that iOS receive/client proof with the Mac companion pairing-boundary proof as one repo-level gate; `pnpm test:pairing-lan-smoke` proves the Mac runtime can accept a target claim through a non-loopback LAN IPv4 base URL; `pnpm test:pairing-physical-receipt` is the connected-device receipt harness; `bash scripts/testing/run-ios-ui-host.sh` builds and launches the receive-invite host app for screenshot proof. | available |
-| Visual/accessibility proof | `current/unuvault/ios-pairing-invite-receive-v2` is promoted, the SwiftUI receive flow exposes labels for the invite field, recognized Mac summary, Pair button, and status panel, hides raw invite session details after recognition, shows invite expiry instead of a raw endpoint URL, and the UI host captures simulator screenshot evidence; no VoiceOver rotor run is recorded yet. | partial |
-| Dynamic Type | No Dynamic Type behavior, truncation, or layout proof is recorded yet. | missing |
-| VoiceOver | Static accessibility labels exist for the receive-invite field, recognized Mac summary, Pair button, and status panel; rotor path proof is not recorded yet. | partial |
-| 44pt targets | The primary Pair button is 48pt high; full target audit for every control is not recorded yet. | partial |
+| Visual/accessibility proof | `current/unuvault/ios-pairing-invite-receive-v2` is promoted, the SwiftUI receive flow exposes labels for the invite field, recognized Mac summary, Pair button, and status panel, hides raw invite session details after recognition, shows invite expiry instead of a raw endpoint URL, uses `@ScaledMetric` font and target metrics, and the UI host captures normal and `accessibility3` simulator screenshot evidence; no manual VoiceOver rotor run is recorded yet. | partial |
+| Dynamic Type | The receive-invite view keeps the current-frame base font sizes while scaling them through `@ScaledMetric`, scales touch/editor heights, wraps text, and the host script captures an `accessibility3` screenshot. `PairingInviteFlowTests.testPairingViewAccessibilityContractCoversDynamicTypeVoiceOverAndTargets` locks the proof size. | partial |
+| VoiceOver | Static accessibility labels exist for the invite field, recognized Mac summary, Pair button, and status panel. The labels are centralized in `PairingInviteAccessibilityContract` and covered by unit tests; manual rotor path proof is not recorded yet. | partial |
+| 44pt targets | `PairingInviteAccessibilityContract` pins a 44pt minimum target, a 48pt primary Pair action, and a 104pt invite editor; the receive view uses scaled metrics for those controls and the contract is covered by unit tests. | partial |
 
 ## Verification
 
@@ -76,8 +78,8 @@ bash scripts/testing/run-ios-ui-host.sh
 ```
 
 Current proof from this lane is limited to the iOS package, the promoted
-receive-invite Pencil source frame, Swift package tests, and an XcodeGen-backed
-simulator UI host screenshot. The tests assert
+receive-invite Pencil source frame, Swift package tests, and XcodeGen-backed
+normal plus `accessibility3` simulator UI host screenshots. The tests assert
 minimal SwiftUI copy for login and AutoFill onboarding, plus a Mac pairing
 receive flow that parses QR payloads and invite envelopes, rejects malformed,
 expired, or unsupported endpoint payloads, shows the recognized Mac, disables
@@ -86,10 +88,12 @@ recognition, shows invite expiry instead of a raw endpoint URL, builds a
 target-device identity claim, posts the claim to the invite-provided Mac pairing
 endpoint without a bridge bearer token, parses Mac handoff response envelopes,
 rejects invalid, expired, status-failed, or target-mismatched handoff responses,
-and keeps credential, password, and vault plaintext out of UI status copy and
-the claim/response contract. The UI host
+keeps credential, password, and vault plaintext out of UI status copy and
+the claim/response contract, and locks the receive flow's Dynamic Type proof
+size, VoiceOver labels, and 44pt-plus target metrics in
+`PairingInviteAccessibilityContract`. The UI host
 launches `PairingInviteReceiveView` with deterministic sample invite data and
-records the simulator screenshot path above. It does not
+records the normal and `accessibility3` simulator screenshot paths above. It does not
 prove native primitive adoption, camera QR scanning, real LAN discovery, local
 decrypt/import, physical iPhone receipt, or a shipped iPhone vault workflow.
 `pnpm test:pairing-boundary` is the combined contract proof that runs the iOS

@@ -6,7 +6,8 @@ host_root="$repo_root/apps/ios/HostApp"
 derived_data="$repo_root/.derived-data/ios-ui-host"
 bundle_id="com.unuvault.ioshost"
 output_dir="$repo_root/docs/design/evidence/2026-05-29-ios-ui-host"
-output_path="$output_dir/ios-pairing-invite-host.png"
+normal_output_path="$output_dir/ios-pairing-invite-host.png"
+dynamic_type_output_path="$output_dir/ios-pairing-invite-host-accessibility3.png"
 
 run_with_timeout() {
   local timeout_seconds="$1"
@@ -28,6 +29,30 @@ run_with_timeout() {
   done
 
   wait "$command_pid"
+}
+
+launch_and_capture() {
+  local output_path="$1"
+  shift
+
+  run_with_timeout 10 xcrun simctl terminate "$simulator_id" "$bundle_id" >/dev/null 2>&1 || true
+
+  local launched=0
+  for _ in {1..5}; do
+    if run_with_timeout 20 xcrun simctl launch "$simulator_id" "$bundle_id" "$@"; then
+      launched=1
+      break
+    fi
+    sleep 1
+  done
+
+  if [[ "$launched" != "1" ]]; then
+    echo "Unable to launch UnuVaultIOSHost on $simulator_name." >&2
+    exit 1
+  fi
+
+  sleep 2
+  run_with_timeout 20 xcrun simctl io "$simulator_id" screenshot "$output_path"
 }
 
 if ! command -v xcodegen >/dev/null 2>&1; then
@@ -125,23 +150,8 @@ if [[ "$installed" != "1" ]]; then
   exit 1
 fi
 
-run_with_timeout 10 xcrun simctl terminate "$simulator_id" "$bundle_id" >/dev/null 2>&1 || true
+launch_and_capture "$normal_output_path" --unuvault-dynamic-type large
+launch_and_capture "$dynamic_type_output_path" --unuvault-dynamic-type accessibility3
 
-launched=0
-for _ in {1..5}; do
-  if run_with_timeout 20 xcrun simctl launch "$simulator_id" "$bundle_id"; then
-    launched=1
-    break
-  fi
-  sleep 1
-done
-
-if [[ "$launched" != "1" ]]; then
-  echo "Unable to launch UnuVaultIOSHost on $simulator_name." >&2
-  exit 1
-fi
-
-sleep 2
-run_with_timeout 20 xcrun simctl io "$simulator_id" screenshot "$output_path"
-
-echo "iOS UI host screenshot: $output_path"
+echo "iOS UI host screenshot: $normal_output_path"
+echo "iOS UI host Dynamic Type screenshot: $dynamic_type_output_path"

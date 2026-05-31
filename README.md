@@ -324,11 +324,13 @@ For the native Mac companion proof:
   `bash scripts/testing/run-ios-ui-host.sh`
   This uses XcodeGen to build a simulator host app for
   `current/unuvault/ios-pairing-invite-receive-v2`, launches the SwiftUI screen
-  with deterministic sample invite data, and writes
-  `docs/design/evidence/2026-05-29-ios-ui-host/ios-pairing-invite-host.png`.
-  It proves simulator launch and screenshot capture for the receive-invite
+  with deterministic sample invite data, and writes normal plus `accessibility3`
+  screenshots under
+  `docs/design/evidence/2026-05-29-ios-ui-host/`. It proves simulator launch,
+  screenshot capture, and Dynamic Type visual evidence for the receive-invite
   surface, but it still does not claim physical iPhone receipt, camera QR
-  scanning, local decrypt/import, or full mobile adapter adoption.
+  scanning, manual VoiceOver rotor proof, local decrypt/import, or full mobile
+  adapter adoption.
 - current implementation evidence is recorded in
   `docs/design/mac-companion-mvp-evidence.md`
 

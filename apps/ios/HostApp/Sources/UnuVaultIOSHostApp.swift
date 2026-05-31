@@ -35,6 +35,7 @@ private struct PairingInviteHostRootView: View {
 
     var body: some View {
         PairingInviteReceiveView(viewModel: viewModel)
+            .environment(\.dynamicTypeSize, Self.dynamicTypeSizeFromLaunchArguments())
             .onOpenURL { url in
                 handlePairingURL(url)
             }
@@ -102,6 +103,27 @@ private struct PairingInviteHostRootView: View {
         }
 
         return String(data: data, encoding: .utf8)
+    }
+
+    private static func dynamicTypeSizeFromLaunchArguments() -> DynamicTypeSize {
+        let arguments = ProcessInfo.processInfo.arguments
+        guard let flagIndex = arguments.firstIndex(of: "--unuvault-dynamic-type") else {
+            return .large
+        }
+
+        let valueIndex = arguments.index(after: flagIndex)
+        guard arguments.indices.contains(valueIndex) else {
+            return .large
+        }
+
+        switch arguments[valueIndex] {
+        case "large":
+            return .large
+        case PairingInviteAccessibilityContract.dynamicTypeProofSizeName:
+            return PairingInviteAccessibilityContract.dynamicTypeProofSize
+        default:
+            return .large
+        }
     }
 }
 
