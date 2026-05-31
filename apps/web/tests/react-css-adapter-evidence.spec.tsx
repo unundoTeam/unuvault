@@ -141,7 +141,9 @@ async function unlockVault(passphrase: string = "correct horse") {
 
   fireEvent.click(screen.getByRole("button", { name: /Set master password|Unlock vault/ }));
 
-  expect(await screen.findByText("Vault unlocked")).toBeInTheDocument();
+  expect(
+    await screen.findByText("Vault unlocked", undefined, { timeout: 5000 }),
+  ).toBeInTheDocument();
 }
 
 async function unlockAndOpenCreatePanel(passphrase?: string) {

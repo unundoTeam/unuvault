@@ -238,6 +238,12 @@ For the native Mac companion proof:
   store contract for Keychain-backed this-device-only AES-GCM storage. It does
   not launch the companion app, unlock a vault, prompt Touch ID, notarize the
   app, or claim Web fill release proof.
+- Mac companion local vault receipt is available through:
+  `pnpm test:macos:local-vault-receipt`
+  This runs focused Swift proof for encrypted local save/load without plaintext,
+  wrong-key failure, short-lived local unlock sessions, recovery/lost-device
+  boundaries, and native-approval one-time release. It does not claim Touch ID
+  or physical iPhone proof.
 - packaged extension and live native-process fill proof is available through:
   `pnpm smoke:packaged-extension-mac-companion`
   The smoke host writes and reloads an encrypted local vault file before

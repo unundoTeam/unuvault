@@ -28,6 +28,7 @@
 
 ```bash
 pnpm test:macos:security-preflight
+pnpm test:macos:local-vault-receipt
 swift test --package-path apps/macos/App --filter LoopbackHTTPServerTests/testLoopbackReleaseRequiresNativeApprovalBeforeOneTimeClaim
 bash scripts/testing/run-macos.sh
 pnpm test:pairing-boundary
@@ -82,6 +83,12 @@ trusted-status surface first, keeps credential entry behind an explicit
   for Keychain-backed this-device-only AES-GCM storage. It does not launch the
   companion app, unlock a vault, prompt Touch ID, notarize the app, or claim Web
   fill release proof.
+- `pnpm test:macos:local-vault-receipt` runs the focused Swift receipt for the
+  local vault chain that does not need a physical iPhone: encrypted local
+  save/load without plaintext, wrong-key failure, short-lived unlock session
+  behavior, recovery/lost-device release clearing, and native-approval
+  one-time claim. It still does not claim Touch ID, notarization, camera QR
+  scanning, or physical iPhone receipt.
 - `pnpm smoke:menu-app-extension-mac-companion` builds the packaged browser
   extension, starts the real `UnuVaultMacCompanion` SwiftUI menu bar app with
   an isolated temporary encrypted vault, triggers the packaged content script,

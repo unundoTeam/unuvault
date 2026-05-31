@@ -950,9 +950,12 @@ describe("VaultPage", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "New login" }));
 
-    expect(screen.getByLabelText("Password")).toHaveValue("");
-    expect(screen.getByLabelText("Password")).toHaveAttribute("type", "password");
-    expect(screen.getByRole("button", { name: "Show password" })).toBeInTheDocument();
+    const passwordField = await screen.findByLabelText("Password");
+    expect(passwordField).toHaveValue("");
+    expect(passwordField).toHaveAttribute("type", "password");
+    expect(
+      await screen.findByRole("button", { name: "Show password" }),
+    ).toBeInTheDocument();
   });
 
   it("blocks blank titles before sending sync", async () => {
