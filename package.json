@@ -18,6 +18,7 @@
     "test:macos": "bash scripts/testing/run-macos.sh",
     "test:macos:security-preflight": "bash scripts/testing/run-mac-security-preflight.sh",
     "test:macos:local-vault-receipt": "bash scripts/testing/run-mac-local-vault-receipt.sh",
+    "test:macos:local-user-presence": "bash scripts/testing/run-mac-local-user-presence.sh",
     "test:macos:pairing-boundary": "swift test --package-path apps/macos/App --filter Pairing",
     "test:macos:recovery-boundary": "swift test --package-path apps/macos/App --filter RecoveryBoundaryTests",
     "test:pairing-boundary": "bash scripts/testing/run-pairing-boundary.sh",

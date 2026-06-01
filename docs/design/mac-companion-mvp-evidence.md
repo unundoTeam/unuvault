@@ -29,6 +29,7 @@
 ```bash
 pnpm test:macos:security-preflight
 pnpm test:macos:local-vault-receipt
+pnpm test:macos:local-user-presence
 swift test --package-path apps/macos/App --filter LoopbackHTTPServerTests/testLoopbackReleaseRequiresNativeApprovalBeforeOneTimeClaim
 bash scripts/testing/run-macos.sh
 pnpm test:pairing-boundary
@@ -89,6 +90,12 @@ trusted-status surface first, keeps credential entry behind an explicit
   behavior, recovery/lost-device release clearing, and native-approval
   one-time claim. It still does not claim Touch ID, notarization, camera QR
   scanning, or physical iPhone receipt.
+- `pnpm test:macos:local-user-presence` runs the focused `LocalAuthentication`
+  code-boundary proof for Mac local save and unlock paths. It proves denied or
+  unavailable local user presence prevents local vault reads, blocks local
+  credential saves, and keeps the session locked, while proof mode can inject a
+  deterministic allow authorizer. It still does not claim full Touch ID prompt
+  screenshot, notarization, camera QR scanning, or physical iPhone receipt.
 - `pnpm smoke:menu-app-extension-mac-companion` builds the packaged browser
   extension, starts the real `UnuVaultMacCompanion` SwiftUI menu bar app with
   an isolated temporary encrypted vault, triggers the packaged content script,
@@ -219,7 +226,9 @@ trusted-status surface first, keeps credential entry behind an explicit
 ## Remaining Proof Gaps
 
 - Native app notarization and macOS login-item behavior are not claimed.
-- Touch ID is not claimed until LocalAuthentication proof exists.
+- Full Touch ID prompt screenshot UX is not claimed; the current proof covers
+  the `LocalAuthentication` code boundary before local save and unlock paths
+  read the encrypted local vault.
 - Physical iPhone pairing receipt is claimed only after
   `pnpm test:pairing-physical-receipt` runs against a connected trusted iPhone
   and captures `UNUVAULT_IOS_PAIRING_RECEIPT paired`.

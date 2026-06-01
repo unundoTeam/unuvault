@@ -152,7 +152,9 @@ struct CompanionMenuView: View {
                     title: L10n.string("action.save"),
                     style: .primary
                 ) {
-                    viewModel.saveLocalCredential()
+                    Task { @MainActor in
+                        await viewModel.saveLocalCredential()
+                    }
                 }
                 .keyboardShortcut(.defaultAction)
             }
@@ -207,7 +209,9 @@ struct CompanionMenuView: View {
                     text: $viewModel.credentialPassword,
                     isSecure: true
                 ) {
-                    viewModel.saveLocalCredential()
+                    Task { @MainActor in
+                        await viewModel.saveLocalCredential()
+                    }
                 }
             }
 

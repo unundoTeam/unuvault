@@ -35,6 +35,10 @@
 "approval.meta" = "凭据：%@ · 密码已隐藏 · 仅填充一次";
 "decision.idle" = "暂无填充请求。浏览器请求会在这里等待批准。";
 "decision.bridge_unavailable" = "本机桥接不可用。";
+"local_auth.unlock_reason" = "解锁这台 Mac 上的 UnuVault 本机保险库";
+"local_auth.save_reason" = "将此登录保存到这台 Mac 上的 UnuVault 本机保险库";
+"decision.local_auth_failed" = "本机授权已取消或被拒绝。";
+"decision.local_auth_unavailable" = "这台 Mac 暂时无法进行本机授权。";
 "decision.vault_unavailable" = "本机保险库不可用。";
 "decision.complete_fields" = "请填写网站地址、标签、用户名和密码。";
 "decision.saved" = "已在本机保存 %@。";

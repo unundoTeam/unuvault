@@ -244,6 +244,13 @@ For the native Mac companion proof:
   wrong-key failure, short-lived local unlock sessions, recovery/lost-device
   boundaries, and native-approval one-time release. It does not claim Touch ID
   or physical iPhone proof.
+- Mac companion local user-presence proof is available through:
+  `pnpm test:macos:local-user-presence`
+  This proves the `LocalAuthentication` code-boundary for local save and unlock
+  paths: the menu app must receive successful local user presence before reading
+  the encrypted local vault, saving through the read/append path, or opening an
+  unlock session. It does not claim full Touch ID prompt screenshot,
+  notarization, or physical iPhone proof.
 - packaged extension and live native-process fill proof is available through:
   `pnpm smoke:packaged-extension-mac-companion`
   The smoke host writes and reloads an encrypted local vault file before

@@ -26,6 +26,7 @@ final class CompanionViewModel: ObservableObject {
     private let addLoginDraftCredential: CompanionCredential?
     private let bridgeBindHost: String
     private let bridgePort: UInt16
+    private let localUserPresenceAuthorizer: LocalUserPresenceAuthorizing
     private let pairingBaseURL: URL
     private let pairingSourceDeviceDisplayName: String
     private let pairingSourceDeviceId: String
@@ -33,7 +34,7 @@ final class CompanionViewModel: ObservableObject {
     private let session = CompanionVaultSession()
     private let startupCredential: CompanionCredential?
     private let unlockOnStart: Bool
-    private let vaultStore: LocalCompanionVaultStore?
+    private let vaultStore: CompanionVaultStoring?
     private lazy var bridgeService = CompanionBridgeService(session: session)
     private lazy var pairingCoordinator = CompanionPairingSessionCoordinator(session: session)
     private var didApplyStartupState = false
@@ -41,7 +42,9 @@ final class CompanionViewModel: ObservableObject {
     private var server: LoopbackHTTPServer?
 
     init(
-        vaultStore: LocalCompanionVaultStore? = try? LocalCompanionVaultStore.defaultStore(),
+        vaultStore: CompanionVaultStoring? = try? LocalCompanionVaultStore.defaultStore(),
+        localUserPresenceAuthorizer: LocalUserPresenceAuthorizing =
+            LocalAuthenticationUserPresenceAuthorizer(),
         accessToken: String = "local-dev-bridge-token",
         addLoginDraftCredential: CompanionCredential? = nil,
         bridgeBindHost: String = "127.0.0.1",
@@ -57,6 +60,7 @@ final class CompanionViewModel: ObservableObject {
         self.addLoginDraftCredential = addLoginDraftCredential
         self.bridgeBindHost = bridgeBindHost
         self.bridgePort = bridgePort
+        self.localUserPresenceAuthorizer = localUserPresenceAuthorizer
         self.pairingBaseURL = pairingBaseURL ?? CompanionViewModel.defaultPairingBaseURL(
             bridgePort: bridgePort
         )
@@ -173,7 +177,9 @@ final class CompanionViewModel: ObservableObject {
         }
 
         if unlockOnStart {
-            unlockLocalVault()
+            Task { @MainActor in
+                await unlockLocalVault()
+            }
         }
     }
 
@@ -200,7 +206,7 @@ final class CompanionViewModel: ObservableObject {
     }
 
     @discardableResult
-    func saveLocalCredential() -> Bool {
+    func saveLocalCredential() async -> Bool {
         guard let vaultStore else {
             lastDecisionText = L10n.string("decision.vault_unavailable")
             return false
@@ -216,6 +222,12 @@ final class CompanionViewModel: ObservableObject {
               !credentialPassword.isEmpty
         else {
             lastDecisionText = L10n.string("decision.complete_fields")
+            return false
+        }
+
+        guard await authorizeLocalUserPresence(
+            reason: L10n.string("local_auth.save_reason")
+        ) else {
             return false
         }
 
@@ -237,6 +249,7 @@ final class CompanionViewModel: ObservableObject {
             credentialPassword = ""
             credentialUsername = ""
             route = .overview
+            savedCredentialCountText = L10n.format("status.saved_count", credentials.count)
             lastDecisionText = L10n.format("decision.saved", trimmedLabel)
             refresh()
             return true
@@ -250,11 +263,19 @@ final class CompanionViewModel: ObservableObject {
         if isUnlocked {
             lock()
         } else {
-            unlockLocalVault()
+            Task { @MainActor in
+                await unlockLocalVault()
+            }
         }
     }
 
-    func unlockLocalVault() {
+    func unlockLocalVault() async {
+        guard await authorizeLocalUserPresence(
+            reason: L10n.string("local_auth.unlock_reason")
+        ) else {
+            return
+        }
+
         guard let vaultStore else {
             lastDecisionText = L10n.string("decision.vault_unavailable")
             return
@@ -276,6 +297,19 @@ final class CompanionViewModel: ObservableObject {
         }
 
         refresh()
+    }
+
+    private func authorizeLocalUserPresence(reason: String) async -> Bool {
+        let authorization = await localUserPresenceAuthorizer.authorize(reason: reason)
+
+        guard authorization == .authorized else {
+            lastDecisionText = authorization == .unavailable
+                ? L10n.string("decision.local_auth_unavailable")
+                : L10n.string("decision.local_auth_failed")
+            return false
+        }
+
+        return true
     }
 
     func lock() {
@@ -361,6 +395,10 @@ final class CompanionViewModel: ObservableObject {
     }
 
     private func updateSavedCredentialCountText() {
+        guard isUnlocked else {
+            return
+        }
+
         guard let count = try? vaultStore?.loadCredentials().count else {
             savedCredentialCountText = L10n.string("status.unavailable")
             return

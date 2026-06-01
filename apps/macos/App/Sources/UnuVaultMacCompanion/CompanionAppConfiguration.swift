@@ -39,6 +39,9 @@ enum CompanionAppConfiguration {
 
         return CompanionViewModel(
             vaultStore: vaultStore,
+            localUserPresenceAuthorizer: StaticLocalUserPresenceAuthorizer(
+                result: .authorized
+            ),
             accessToken: accessToken,
             addLoginDraftCredential: prefillAddLogin ? proofCredential : nil,
             bridgeBindHost: bridgeBindHost,

@@ -35,6 +35,10 @@
 "approval.meta" = "Credential: %@ · password hidden · fill once";
 "decision.idle" = "No fill requests. Browser requests appear here for approval.";
 "decision.bridge_unavailable" = "Local bridge unavailable.";
+"local_auth.unlock_reason" = "Unlock UnuVault local vault on this Mac";
+"local_auth.save_reason" = "Save this login to the UnuVault local vault on this Mac";
+"decision.local_auth_failed" = "Local authorization was canceled or denied.";
+"decision.local_auth_unavailable" = "Local authorization is unavailable on this Mac.";
 "decision.vault_unavailable" = "Local vault unavailable.";
 "decision.complete_fields" = "Complete origin, label, username, and password.";
 "decision.saved" = "Saved %@ locally.";

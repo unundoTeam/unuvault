@@ -12,6 +12,11 @@ public protocol CompanionVaultKeyProvider {
     func readOrCreateKeyData() throws -> Data
 }
 
+public protocol CompanionVaultStoring {
+    func save(credentials: [CompanionCredential]) throws
+    func loadCredentials() throws -> [CompanionCredential]
+}
+
 public struct StaticCompanionVaultKeyProvider: CompanionVaultKeyProvider {
     private let keyData: Data
 
@@ -99,7 +104,7 @@ public final class KeychainCompanionVaultKeyProvider: CompanionVaultKeyProvider 
     }
 }
 
-public final class LocalCompanionVaultStore {
+public final class LocalCompanionVaultStore: CompanionVaultStoring {
     private let keyProvider: CompanionVaultKeyProvider
     private let vaultURL: URL
 
