@@ -117,6 +117,12 @@ final class CompanionViewModel: ObservableObject {
             let codec = BridgeHTTPCodec(
                 service: bridgeService,
                 accessToken: accessToken,
+                localVaultImporter: vaultStore.map { vaultStore in
+                    CompanionLocalVaultImporter(
+                        session: session,
+                        vaultStore: vaultStore
+                    )
+                },
                 pairingCoordinator: pairingCoordinator,
                 pairingTransferKeyData: pairingTransferKeyData
             )

@@ -23,6 +23,21 @@ type RequestReleaseOptions = {
 
 type ClaimReleaseOptions = RequestReleaseOptions;
 
+export type MacCompanionWebAccountVaultCredential = {
+  id: string;
+  title: string;
+  username: string;
+  websiteUrl: string;
+  profileId: string;
+  password: string;
+};
+
+type ImportWebAccountVaultOptions = {
+  accessToken: string;
+  credentials: MacCompanionWebAccountVaultCredential[];
+  fetcher?: CompanionFetcher;
+};
+
 type StatusOptions = {
   fetcher?: CompanionFetcher;
 };
@@ -43,6 +58,18 @@ type MacCompanionReleaseResult =
         username: string;
         password: string;
       };
+    };
+
+type MacCompanionLocalVaultImportResult =
+  | {
+      ok: true;
+      source: "web-account-unlocked-vault";
+      importedCredentialIds: string[];
+      credentialCount: number;
+    }
+  | {
+      ok: false;
+      error: string;
     };
 
 async function readJson<T>(
@@ -106,4 +133,30 @@ export async function claimMacCompanionCredentialRelease(
   });
 
   return readJson<MacCompanionReleaseResult>(response);
+}
+
+export async function importWebAccountVaultItemsToMacCompanion(
+  options: ImportWebAccountVaultOptions,
+): Promise<MacCompanionLocalVaultImportResult> {
+  const fetcher = options.fetcher ?? fetch;
+  const response = await fetcher("http://127.0.0.1:17666/v1/local-vault/import", {
+    body: JSON.stringify({
+      source: "web-account-unlocked-vault",
+      credentials: options.credentials.map((credential) => ({
+        id: credential.id,
+        title: credential.title,
+        username: credential.username,
+        website_url: credential.websiteUrl,
+        profile_id: credential.profileId,
+        password: credential.password,
+      })),
+    }),
+    headers: {
+      authorization: `Bearer ${options.accessToken}`,
+      "content-type": "application/json",
+    },
+    method: "POST",
+  });
+
+  return readJson<MacCompanionLocalVaultImportResult>(response);
 }

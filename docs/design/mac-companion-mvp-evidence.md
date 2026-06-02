@@ -30,6 +30,7 @@
 pnpm test:macos:security-preflight
 pnpm test:macos:local-vault-receipt
 pnpm test:macos:local-user-presence
+pnpm test:macos:account-import-receipt
 swift test --package-path apps/macos/App --filter LoopbackHTTPServerTests/testLoopbackReleaseRequiresNativeApprovalBeforeOneTimeClaim
 bash scripts/testing/run-macos.sh
 pnpm test:pairing-boundary
@@ -96,6 +97,14 @@ trusted-status surface first, keeps credential entry behind an explicit
   credential saves, and keeps the session locked, while proof mode can inject a
   deterministic allow authorizer. It still does not claim full Touch ID prompt
   screenshot, notarization, camera QR scanning, or physical iPhone receipt.
+- `pnpm test:macos:account-import-receipt` runs the focused Web/account to Mac
+  local vault receipt. It proves a Web/account unlocked vault payload can be
+  posted through the bearer-protected Mac loopback bridge only while the local
+  vault session is already unlocked, persisted into the encrypted local vault
+  without plaintext at rest, then released only through the existing Mac-local
+  approval and one-time claim flow. The cloud sync daemon is not claimed, and
+  this still does not claim server-side plaintext recovery, Touch ID prompt
+  screenshot UX, notarization, camera QR scanning, or physical iPhone receipt.
 - `pnpm smoke:menu-app-extension-mac-companion` builds the packaged browser
   extension, starts the real `UnuVaultMacCompanion` SwiftUI menu bar app with
   an isolated temporary encrypted vault, triggers the packaged content script,
@@ -236,9 +245,10 @@ trusted-status surface first, keeps credential entry behind an explicit
   rendering/scanning, physical target-device identity proof, local decrypt or
   import, simulator/device visual parity, and physical iPhone receipt remain
   unclaimed.
-- Account/Web sync into the Mac local vault is not claimed yet; direct native
-  menu local-save and manual menu field entry into the encrypted Mac vault are
-  covered by the current proof.
+- Automatic Account/Web sync into the Mac local vault is not claimed yet; the
+  current proof covers a Web/account unlocked vault payload import receipt into
+  the encrypted Mac vault, plus direct native menu local-save and manual menu
+  field entry.
 - Server-backed account recovery is not claimed to recover plaintext without
   trusted user-held or device-held material; the recovery-boundary proof now
   pins that constraint for the Mac companion encrypted local vault.

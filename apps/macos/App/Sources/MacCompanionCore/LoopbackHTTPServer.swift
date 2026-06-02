@@ -172,6 +172,8 @@ public final class LoopbackHTTPServer {
             return "Conflict"
         case 423:
             return "Locked"
+        case 500:
+            return "Internal Server Error"
         default:
             return "OK"
         }

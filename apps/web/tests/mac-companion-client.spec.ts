@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   claimMacCompanionCredentialRelease,
   getMacCompanionStatus,
+  importWebAccountVaultItemsToMacCompanion,
   requestMacCompanionCredentialRelease,
 } from "../src/lib/mac-companion/client";
 
@@ -118,6 +119,64 @@ describe("mac companion client", () => {
           id: "github-login",
           origin: "https://github.com/login",
           profileId: "personal",
+        }),
+        headers: {
+          authorization: "Bearer local-dev-bridge-token",
+          "content-type": "application/json",
+        },
+        method: "POST",
+      },
+    );
+  });
+
+  it("imports unlocked Web account vault items into the Mac local vault", async () => {
+    const fetcher = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ok: true,
+        source: "web-account-unlocked-vault",
+        importedCredentialIds: ["web-github"],
+        credentialCount: 1,
+      }),
+    });
+
+    await expect(
+      importWebAccountVaultItemsToMacCompanion({
+        accessToken: "local-dev-bridge-token",
+        credentials: [
+          {
+            id: "web-github",
+            title: "github.com",
+            username: "web-user",
+            websiteUrl: "https://github.com/login",
+            profileId: "personal",
+            password: "web-secret",
+          },
+        ],
+        fetcher,
+      }),
+    ).resolves.toEqual({
+      ok: true,
+      source: "web-account-unlocked-vault",
+      importedCredentialIds: ["web-github"],
+      credentialCount: 1,
+    });
+
+    expect(fetcher).toHaveBeenCalledWith(
+      "http://127.0.0.1:17666/v1/local-vault/import",
+      {
+        body: JSON.stringify({
+          source: "web-account-unlocked-vault",
+          credentials: [
+            {
+              id: "web-github",
+              title: "github.com",
+              username: "web-user",
+              website_url: "https://github.com/login",
+              profile_id: "personal",
+              password: "web-secret",
+            },
+          ],
         }),
         headers: {
           authorization: "Bearer local-dev-bridge-token",

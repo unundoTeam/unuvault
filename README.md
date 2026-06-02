@@ -251,6 +251,13 @@ For the native Mac companion proof:
   the encrypted local vault, saving through the read/append path, or opening an
   unlock session. It does not claim full Touch ID prompt screenshot,
   notarization, or physical iPhone proof.
+- Mac companion Web/account import receipt is available through:
+  `pnpm test:macos:account-import-receipt`
+  This proves a Web/account unlocked vault payload can be sent through the
+  bearer-protected Mac loopback bridge into the encrypted local vault, then
+  released only through the existing Mac-local approval flow. It does not claim
+  an automatic cloud sync daemon, server-side plaintext recovery, or physical
+  iPhone proof.
 - packaged extension and live native-process fill proof is available through:
   `pnpm smoke:packaged-extension-mac-companion`
   The smoke host writes and reloads an encrypted local vault file before

@@ -13,17 +13,20 @@ public struct BridgeHTTPResponse: Equatable {
 public final class BridgeHTTPCodec: @unchecked Sendable {
     private let service: CompanionBridgeService
     private let accessToken: String
+    private let localVaultImporter: CompanionLocalVaultImporter?
     private let pairingCoordinator: CompanionPairingSessionCoordinator?
     private let pairingTransferKeyData: Data?
 
     public init(
         service: CompanionBridgeService,
         accessToken: String,
+        localVaultImporter: CompanionLocalVaultImporter? = nil,
         pairingCoordinator: CompanionPairingSessionCoordinator? = nil,
         pairingTransferKeyData: Data? = nil
     ) {
         self.service = service
         self.accessToken = accessToken
+        self.localVaultImporter = localVaultImporter
         self.pairingCoordinator = pairingCoordinator
         self.pairingTransferKeyData = pairingTransferKeyData
     }
@@ -65,6 +68,8 @@ public final class BridgeHTTPCodec: @unchecked Sendable {
         switch (normalizedMethod, components.path) {
         case ("GET", "/v1/credentials"):
             return metadataResponse(queryItems: components.queryItems ?? [])
+        case ("POST", "/v1/local-vault/import"):
+            return localVaultImportResponse(body: body)
         case ("POST", "/v1/credentials/release"):
             return releaseResponse(body: body)
         case ("POST", "/v1/credentials/claim"):
@@ -73,6 +78,42 @@ public final class BridgeHTTPCodec: @unchecked Sendable {
             return json(
                 statusCode: 404,
                 payload: ["ok": false, "error": "not_found"]
+            )
+        }
+    }
+
+    private func localVaultImportResponse(body: Data) -> BridgeHTTPResponse {
+        guard let localVaultImporter,
+              let request = decode(LocalVaultImportRequest.self, from: body)
+        else {
+            return invalidRequest()
+        }
+
+        switch localVaultImporter.importUnlockedWebAccountCredentials(
+            source: request.source,
+            credentials: request.credentials
+        ) {
+        case .imported(let receipt):
+            return jsonEncodable(
+                statusCode: 200,
+                payload: LocalVaultImportResponse(
+                    ok: true,
+                    source: receipt.source,
+                    importedCredentialIds: receipt.importedCredentialIds,
+                    credentialCount: receipt.credentialCount
+                )
+            )
+        case .invalidRequest:
+            return invalidRequest()
+        case .locked:
+            return json(
+                statusCode: 423,
+                payload: ["ok": false, "error": "vault_locked"]
+            )
+        case .saveFailed:
+            return json(
+                statusCode: 500,
+                payload: ["ok": false, "error": "local_vault_import_failed"]
             )
         }
     }
@@ -341,6 +382,18 @@ private struct ClaimRequest: Decodable {
     let id: String
     let origin: String
     let profileId: String
+}
+
+private struct LocalVaultImportRequest: Decodable {
+    let source: String
+    let credentials: [CompanionWebAccountVaultImportCredential]
+}
+
+private struct LocalVaultImportResponse: Encodable {
+    let ok: Bool
+    let source: String
+    let importedCredentialIds: [String]
+    let credentialCount: Int
 }
 
 private struct PairingClaimRequest: Decodable {
