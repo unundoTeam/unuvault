@@ -442,6 +442,14 @@ textarea:disabled {
   gap: 16px;
 }
 
+.vault-companion-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
 .vault-companion-copy {
   display: flex;
   flex-direction: column;
@@ -463,6 +471,20 @@ textarea:disabled {
   padding: 7px 10px;
   font-size: 13px;
   font-weight: 800;
+}
+
+.vault-companion-pill--checking,
+.vault-companion-pill--locked,
+.vault-companion-pill--unavailable,
+.vault-companion-pill--attention {
+  background: var(--color-state-bg);
+  color: var(--color-ink);
+}
+
+.vault-companion-pill--unlocked {
+  border-color: rgba(63, 118, 102, 0.32);
+  background: var(--color-secure-bg);
+  color: var(--color-secure);
 }
 
 .vault-helper-text {
@@ -726,6 +748,11 @@ textarea:disabled {
   .vault-toolbar {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .vault-companion-actions {
+    align-items: stretch;
+    width: 100%;
   }
 
   .vault-search-field,

@@ -9,8 +9,9 @@ backlog, but it does not claim broad shared primitive adoption by itself.
 - Adapter lane: React/CSS web adapter
 - Repo: `unuvault`
 - Surface: Web vault management
-- Status: browser visual proof, Pencil current promotion, keyboard tab order,
-  and focus-visible proof recorded for this Web vault React/CSS surface
+- Status: React/CSS semantic proof, keyboard tab order, and focus-visible proof
+  recorded for this Web vault React/CSS surface; browser visual proof and Pencil
+  current promotion need refresh after the Mac companion status layer
 - Pencil current:
   `/Users/yuchen/Design/unu/unuvault/unuvault.current.pen`
 - Pencil source frame: `current/unuvault/web-vault-management-v1`
@@ -36,9 +37,9 @@ backlog, but it does not claim broad shared primitive adoption by itself.
 | --- | --- | --- |
 | Surface / panel | Vault management section | `section[aria-labelledby="vault-heading"][data-unu-primitive="vault-surface"]` |
 | Form / input | Unlock and save-item forms | Accessible named forms, visible labels, password/text inputs, and disabled password input while locked |
-| Button | Unlock, save, copy, show, edit, delete, lock | Real `<button>` elements with accessible names and disabled states where required |
+| Button | Unlock, save, Mac import, copy, show, edit, delete, lock | Real `<button>` elements with accessible names and disabled states where required |
 | Row / list | Vault item list and item rows | Real `<ul>` / `<li>` structure with `data-unu-primitive="row/vault-item"` |
-| State | Sync, validation, error, empty | `role="status"` for sync state, `role="alert"` for validation/error state, visible empty copy |
+| State | Sync, Mac companion availability/lock, validation, error, empty | `role="status"` for sync and Mac companion state, `role="alert"` for validation/error state, visible empty copy |
 | Review / approval boundary | Copy/show/delete actions | Credential-revealing and destructive actions stay explicit and disabled when unavailable |
 | Foundation variables | Web CSS token layer | `globals.css` exposes shared spacing, radius, shadow, and motion variables |
 | Visual workspace | Web vault page shell | `.vault-page`, `.vault-shell`, `.vault-header`, `.vault-workspace`, `.vault-panel`, `.vault-card`, `.vault-items-list`, and `.vault-item-row` map the approved Pencil workspace into durable React/CSS selectors |
@@ -56,17 +57,22 @@ Current proof from this lane:
 - semantic HTML surfaces are real controls, not `div`-only controls
 - accessible form, input, and button names are queryable by role or label
 - locked password actions are disabled until the vault is unlocked
+- Mac companion availability and locked/unlocked states gate the Web-to-Mac
+  import button before plaintext import can be attempted
 - natural keyboard order covers the enabled form, search, and row-action
   controls while disabled password actions stay out of the enabled path
 - `.vault-input:focus-visible`, `.vault-button:focus-visible`, and
   `.vault-action-danger:focus-visible` provide visible focus rings for the
   mapped React/CSS controls
 - sync and validation states use semantic live-region roles
+- Mac companion status uses a semantic live-region role and neutral/secure
+  state styling instead of danger styling for non-destructive unavailable states
 - shared foundation variables exist in the Web CSS layer
-- browser visual evidence records the authenticated vault surface with the
+- previous browser visual evidence records the authenticated vault surface with the
   header, master-password panel, save-login card, item panel, search control,
   review-state banner, item rows, disabled password actions, and destructive
-  delete affordance
+  delete affordance; it predates the Mac companion status layer and should be
+  refreshed before claiming current visual parity
 
 ## Visual Evidence
 
@@ -96,7 +102,7 @@ that the Web vault surface does not expose, such as navigation, dialogs, or
 toast-style notifications.
 
 Current Pencil sync label for this lane:
-`current matches implementation`.
+`current needs promotion`.
 
 Intentionally local values that must not be promoted into the shared library:
 

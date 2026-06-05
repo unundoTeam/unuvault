@@ -17,6 +17,8 @@ function readWebText(pathFromWebRoot: string): string {
 afterEach(() => {
   cleanup();
   mocks.getSession.mockReset();
+  mocks.getMacCompanionStatus.mockReset();
+  mocks.importWebAccountVaultItemsToMacCompanion.mockReset();
   mocks.syncVault.mockReset();
   mocks.publishLocalCredentialBridgeSession.mockReset();
   mocks.clearLocalCredentialBridgeSession.mockReset();
@@ -26,11 +28,23 @@ afterEach(() => {
 const {
   clearLocalCredentialBridgeSession,
   getSession,
+  getMacCompanionStatus,
+  importWebAccountVaultItemsToMacCompanion,
   publishLocalCredentialBridgeSession,
   syncVault,
 } = vi.hoisted(() => ({
   clearLocalCredentialBridgeSession: vi.fn().mockResolvedValue({ ok: true }),
   getSession: vi.fn(),
+  getMacCompanionStatus: vi.fn().mockResolvedValue({
+    ok: true,
+    state: "unlocked",
+  }),
+  importWebAccountVaultItemsToMacCompanion: vi.fn().mockResolvedValue({
+    ok: true,
+    source: "web-account-unlocked-vault",
+    importedCredentialIds: ["item-github"],
+    credentialCount: 1,
+  }),
   publishLocalCredentialBridgeSession: vi.fn().mockResolvedValue({ ok: true }),
   syncVault: vi.fn(),
 }));
@@ -38,12 +52,24 @@ const {
 const mocks = {
   clearLocalCredentialBridgeSession,
   getSession,
+  getMacCompanionStatus,
+  importWebAccountVaultItemsToMacCompanion,
   publishLocalCredentialBridgeSession,
   syncVault,
 };
 
 beforeEach(() => {
   mocks.clearLocalCredentialBridgeSession.mockResolvedValue({ ok: true });
+  mocks.getMacCompanionStatus.mockResolvedValue({
+    ok: true,
+    state: "unlocked",
+  });
+  mocks.importWebAccountVaultItemsToMacCompanion.mockResolvedValue({
+    ok: true,
+    source: "web-account-unlocked-vault",
+    importedCredentialIds: ["item-github"],
+    credentialCount: 1,
+  });
   mocks.publishLocalCredentialBridgeSession.mockResolvedValue({ ok: true });
   mocks.getSession.mockResolvedValue({
     data: {
@@ -70,6 +96,11 @@ vi.mock("../../../packages/api-client/src/vault", () => ({
 vi.mock("../src/lib/local-credential-bridge/bridge-session", () => ({
   clearLocalCredentialBridgeSession,
   publishLocalCredentialBridgeSession,
+}));
+
+vi.mock("../src/lib/mac-companion/client", () => ({
+  getMacCompanionStatus,
+  importWebAccountVaultItemsToMacCompanion,
 }));
 
 function mockVaultItems() {
@@ -341,8 +372,11 @@ describe("React/CSS adapter evidence for the vault surface", () => {
     render(<VaultPage />);
 
     await waitFor(() => {
-      expect(screen.getByRole("status")).toHaveTextContent("Vault synced");
+      expect(screen.getAllByRole("status").map((status) => status.textContent)).toContain(
+        "Vault synced",
+      );
     });
+    expect(await screen.findByText("Mac companion unlocked")).toBeInTheDocument();
     expect(screen.getByText("No vault items yet.")).toBeInTheDocument();
 
     await unlockAndOpenCreatePanel();

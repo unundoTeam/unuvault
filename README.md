@@ -261,10 +261,11 @@ For the native Mac companion proof:
 - Web vault visible import control is covered by:
   `pnpm --filter @unuvault/web exec vitest --run tests/vault-page.spec.tsx`
   This proves the unlocked Web vault exposes `Save to this Mac`, decrypts only
-  saved-password items in page memory, and calls the Mac companion import client
-  with the current account token. It does not claim the Mac app was running
-  during that browser test or that import happens automatically in the
-  background.
+  saved-password items in page memory, checks the local Mac companion status,
+  disables import while the Mac app is unavailable or locked, and calls the Mac
+  companion import client with the current account token only after the Web and
+  Mac vault states are ready. It does not claim the Mac app was running during
+  that browser test or that import happens automatically in the background.
 - real native-process Web import proof is available through:
   `pnpm smoke:web-save-to-mac-companion`
   This opens a local Web harness at `127.0.0.1:3001`, clicks `Save to this Mac`

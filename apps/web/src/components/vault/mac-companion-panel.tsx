@@ -1,8 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { VaultSyncItem } from "../../../../../packages/api-client/src/vault";
-import { importWebAccountVaultItemsToMacCompanion } from "../../lib/mac-companion/client";
+import {
+  getMacCompanionStatus,
+  importWebAccountVaultItemsToMacCompanion,
+} from "../../lib/mac-companion/client";
 import {
   hasSavedPassword,
   normalizeVaultLoginPayload,
@@ -17,9 +20,55 @@ type MacCompanionPanelProps = {
 };
 
 type ImportState = "idle" | "importing" | "success" | "error";
+type CompanionStatusState =
+  | "attention"
+  | "checking"
+  | "locked"
+  | "unavailable"
+  | "unlocked";
 
 function formatImportReceipt(count: number): string {
   return `Saved ${count} ${count === 1 ? "item" : "items"} to this Mac.`;
+}
+
+function companionStatusLabel(status: CompanionStatusState): string {
+  switch (status) {
+    case "attention":
+      return "Mac companion attention";
+    case "checking":
+      return "Checking Mac companion";
+    case "locked":
+      return "Mac companion locked";
+    case "unavailable":
+      return "Mac companion unavailable";
+    case "unlocked":
+      return "Mac companion unlocked";
+  }
+}
+
+function companionStatusHelper(status: CompanionStatusState): string {
+  switch (status) {
+    case "attention":
+      return "Review the Mac app before saving Web items locally.";
+    case "checking":
+      return "Checking whether the Mac app is running and unlocked.";
+    case "locked":
+      return "Unlock the Mac vault before saving Web items locally.";
+    case "unavailable":
+      return "Open the Mac app on this Mac, then unlock its local vault.";
+    case "unlocked":
+      return "Mac companion is ready. Saved items stay encrypted on this Mac.";
+  }
+}
+
+async function readCompanionStatus(): Promise<CompanionStatusState> {
+  const result = await getMacCompanionStatus();
+
+  if (!result.ok) {
+    return "unavailable";
+  }
+
+  return result.state;
 }
 
 export function MacCompanionPanel({
@@ -30,8 +79,19 @@ export function MacCompanionPanel({
 }: MacCompanionPanelProps) {
   const [importState, setImportState] = useState<ImportState>("idle");
   const [importMessage, setImportMessage] = useState<string | null>(null);
+  const [companionStatus, setCompanionStatus] =
+    useState<CompanionStatusState>("checking");
   const isImporting = importState === "importing";
-  const canImport = Boolean(accessToken && isUnlocked && unlockPassphrase) && !isImporting;
+  const canImport =
+    Boolean(accessToken && isUnlocked && unlockPassphrase) &&
+    companionStatus === "unlocked" &&
+    !isImporting;
+
+  const refreshCompanionStatus = useCallback(async () => {
+    const nextStatus = await readCompanionStatus();
+    setCompanionStatus(nextStatus);
+    return nextStatus;
+  }, []);
 
   useEffect(() => {
     if (!isUnlocked) {
@@ -40,10 +100,43 @@ export function MacCompanionPanel({
     }
   }, [isUnlocked]);
 
+  useEffect(() => {
+    let isActive = true;
+
+    async function refresh() {
+      const nextStatus = await readCompanionStatus();
+
+      if (!isActive) {
+        return;
+      }
+
+      setCompanionStatus(nextStatus);
+    }
+
+    void refresh();
+
+    const intervalId = window.setInterval(() => {
+      void refresh();
+    }, 5000);
+
+    return () => {
+      isActive = false;
+      window.clearInterval(intervalId);
+    };
+  }, []);
+
   async function saveToMac() {
     if (!accessToken || !isUnlocked || !unlockPassphrase) {
       setImportState("idle");
       setImportMessage("Unlock the Web vault before saving to this Mac.");
+      return;
+    }
+
+    const freshCompanionStatus = await refreshCompanionStatus();
+
+    if (freshCompanionStatus !== "unlocked") {
+      setImportState("idle");
+      setImportMessage(companionStatusHelper(freshCompanionStatus));
       return;
     }
 
@@ -93,18 +186,32 @@ export function MacCompanionPanel({
       }
 
       setImportState("error");
-      setImportMessage("Mac companion could not import the vault. Unlock the Mac vault and try again.");
+      if (result.error === "vault_locked") {
+        setCompanionStatus("locked");
+        setImportMessage("Unlock the Mac vault before saving Web items locally.");
+        return;
+      }
+
+      setImportMessage(
+        "Mac companion could not import the vault. Unlock the Mac vault and try again.",
+      );
     } catch {
       setImportState("error");
+      setCompanionStatus("unavailable");
       setImportMessage("Mac companion is not available. Start or unlock the Mac app, then try again.");
     }
   }
 
   const helperText =
     importMessage ??
-    (isUnlocked
-      ? "Mac app must be running with its local vault unlocked before import."
-      : "Unlock the Web vault before saving to this Mac.");
+    (companionStatus === "attention" ||
+    companionStatus === "locked" ||
+    companionStatus === "unavailable"
+      ? companionStatusHelper(companionStatus)
+      : isUnlocked
+        ? companionStatusHelper(companionStatus)
+        : "Unlock the Web vault before saving to this Mac.");
+  const statusLabel = companionStatusLabel(companionStatus);
   const helperTextClassName = [
     "vault-helper-text",
     importState === "success" ? "vault-helper-text--success" : "",
@@ -133,16 +240,24 @@ export function MacCompanionPanel({
             must be running and unlocked.
           </p>
         </div>
-        <button
-          className="vault-button vault-button--primary vault-companion-import-button"
-          type="button"
-          disabled={!canImport}
-          onClick={() => {
-            void saveToMac();
-          }}
-        >
-          {isImporting ? "Saving..." : "Save to this Mac"}
-        </button>
+        <div className="vault-companion-actions">
+          <p
+            className={`vault-companion-pill vault-companion-pill--${companionStatus}`}
+            role="status"
+          >
+            {statusLabel}
+          </p>
+          <button
+            className="vault-button vault-button--primary vault-companion-import-button"
+            type="button"
+            disabled={!canImport}
+            onClick={() => {
+              void saveToMac();
+            }}
+          >
+            {isImporting ? "Saving..." : "Save to this Mac"}
+          </button>
+        </div>
       </div>
       <p
         className={helperTextClassName}

@@ -24,12 +24,17 @@ afterEach(() => {
 const {
   clearLocalCredentialBridgeSession,
   getSession,
+  getMacCompanionStatus,
   importWebAccountVaultItemsToMacCompanion,
   publishLocalCredentialBridgeSession,
   syncVault,
 } = vi.hoisted(() => ({
   clearLocalCredentialBridgeSession: vi.fn().mockResolvedValue({ ok: true }),
   getSession: vi.fn(),
+  getMacCompanionStatus: vi.fn().mockResolvedValue({
+    ok: true,
+    state: "unlocked",
+  }),
   importWebAccountVaultItemsToMacCompanion: vi.fn().mockResolvedValue({
     ok: true,
     source: "web-account-unlocked-vault",
@@ -46,6 +51,7 @@ const {
 const mocks = {
   clearLocalCredentialBridgeSession,
   getSession,
+  getMacCompanionStatus,
   importWebAccountVaultItemsToMacCompanion,
   publishLocalCredentialBridgeSession,
   syncVault,
@@ -53,6 +59,10 @@ const mocks = {
 
 beforeEach(() => {
   mocks.clearLocalCredentialBridgeSession.mockResolvedValue({ ok: true });
+  mocks.getMacCompanionStatus.mockResolvedValue({
+    ok: true,
+    state: "unlocked",
+  });
   mocks.importWebAccountVaultItemsToMacCompanion.mockResolvedValue({
     ok: true,
     source: "web-account-unlocked-vault",
@@ -183,6 +193,7 @@ vi.mock("../src/lib/local-credential-bridge/bridge-session", () => ({
 }));
 
 vi.mock("../src/lib/mac-companion/client", () => ({
+  getMacCompanionStatus,
   importWebAccountVaultItemsToMacCompanion,
 }));
 
@@ -292,6 +303,88 @@ describe("VaultPage", () => {
     expect(screen.getByRole("button", { name: "Save to this Mac" })).toBeDisabled();
   });
 
+  it("shows Mac companion availability before allowing local import", async () => {
+    mocks.getMacCompanionStatus.mockResolvedValue({
+      ok: false,
+      error: "mac_companion_unavailable",
+    });
+    mocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: "jwt-token",
+        },
+      },
+      error: null,
+    });
+    mocks.syncVault.mockResolvedValue({
+      server_time: "2026-06-06T00:00:00.000Z",
+      updated_items: [],
+      deleted_item_ids: [],
+      conflicts: [],
+    });
+
+    render(<VaultPage />);
+
+    expect(
+      await screen.findByText("Mac companion unavailable"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Open the Mac app on this Mac, then unlock its local vault."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save to this Mac" })).toBeDisabled();
+  });
+
+  it("keeps Save to this Mac disabled while the Mac companion vault is locked", async () => {
+    mocks.getMacCompanionStatus.mockResolvedValue({
+      ok: true,
+      state: "locked",
+    });
+    mocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: "jwt-token",
+        },
+      },
+      error: null,
+    });
+    mocks.syncVault.mockResolvedValue({
+      server_time: "2026-06-06T00:00:00.000Z",
+      updated_items: [
+        {
+          id: "item-1",
+          item_type: "login",
+          title: "GitHub",
+          encrypted_payload: {
+            schema_version: 1,
+            username: "alice@example.com",
+            password_ciphertext: await storedPassword("hunter2", "correct horse"),
+            notes: "",
+            website_url: "https://github.com/login",
+          },
+          favorite: false,
+          source: "manual",
+          last_used_at: null,
+          created_at: "2026-06-06T00:00:00.000Z",
+          updated_at: "2026-06-06T00:00:00.000Z",
+        },
+      ],
+      deleted_item_ids: [],
+      conflicts: [],
+    });
+
+    render(<VaultPage />);
+
+    expect(await screen.findByText("GitHub")).toBeInTheDocument();
+    await unlockVaultSuccessfully("correct horse");
+
+    expect(await screen.findByText("Mac companion locked")).toBeInTheDocument();
+    expect(
+      screen.getByText("Unlock the Mac vault before saving Web items locally."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save to this Mac" })).toBeDisabled();
+    expect(mocks.importWebAccountVaultItemsToMacCompanion).not.toHaveBeenCalled();
+  });
+
   it("imports unlocked web vault items into the Mac companion", async () => {
     mocks.getSession.mockResolvedValue({
       data: {
@@ -330,6 +423,9 @@ describe("VaultPage", () => {
 
     expect(await screen.findByText("GitHub")).toBeInTheDocument();
     await unlockVaultSuccessfully("correct horse");
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Save to this Mac" })).toBeEnabled();
+    });
 
     fireEvent.click(screen.getByRole("button", { name: "Save to this Mac" }));
 

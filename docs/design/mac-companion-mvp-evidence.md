@@ -109,10 +109,12 @@ trusted-status surface first, keeps credential entry behind an explicit
   covers the visible Web vault import entrypoint aligned to
   `current/unuvault/web-vault-management-v1`: `Save to this Mac` is disabled
   while the Web vault is locked, decrypts only saved-password items after Web
-  unlock, sends those credentials through the Mac companion import client with
-  the current account token, and shows a success receipt. This is a Web UI
-  behavior proof; it does not claim the native Mac process was running during
-  the browser test or automatic background sync into the Mac vault.
+  unlock, reads Mac companion status, keeps import disabled while the Mac app is
+  unavailable or locked, sends those credentials through the Mac companion
+  import client with the current account token only after both vault states are
+  ready, and shows a success receipt. This is a Web UI behavior proof; it does
+  not claim the native Mac process was running during the browser test or
+  automatic background sync into the Mac vault.
 - `pnpm smoke:web-save-to-mac-companion` runs the real native-process Web import
   proof. It starts a local Web harness on `127.0.0.1:3001`, clicks
   `Save to this Mac` in Chrome, posts the unlocked Web vault payload through the
