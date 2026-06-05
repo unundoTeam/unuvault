@@ -265,6 +265,15 @@ For the native Mac companion proof:
   with the current account token. It does not claim the Mac app was running
   during that browser test or that import happens automatically in the
   background.
+- real native-process Web import proof is available through:
+  `pnpm smoke:web-save-to-mac-companion`
+  This opens a local Web harness at `127.0.0.1:3001`, clicks `Save to this Mac`
+  in Chrome, posts the unlocked Web vault payload through the real Swift
+  `MacCompanionSmokeHost` loopback bridge, verifies a locked Mac returns
+  `vault_locked` without plaintext leakage, then verifies the unlocked Mac
+  encrypted local vault can release the imported credential only through the
+  existing approval and one-time claim flow. It does not claim automatic
+  background sync, physical iPhone proof, notarization, or Touch ID prompt UX.
 - packaged extension and live native-process fill proof is available through:
   `pnpm smoke:packaged-extension-mac-companion`
   The smoke host writes and reloads an encrypted local vault file before

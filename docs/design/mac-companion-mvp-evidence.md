@@ -113,6 +113,15 @@ trusted-status surface first, keeps credential entry behind an explicit
   the current account token, and shows a success receipt. This is a Web UI
   behavior proof; it does not claim the native Mac process was running during
   the browser test or automatic background sync into the Mac vault.
+- `pnpm smoke:web-save-to-mac-companion` runs the real native-process Web import
+  proof. It starts a local Web harness on `127.0.0.1:3001`, clicks
+  `Save to this Mac` in Chrome, posts the unlocked Web vault payload through the
+  real Swift `MacCompanionSmokeHost` loopback bridge, verifies a locked Mac
+  returns `vault_locked` without plaintext leakage, then verifies the unlocked
+  Mac encrypted local vault can release the imported credential only through
+  the existing approval and one-time claim flow. This does not claim automatic background sync,
+  server-side plaintext recovery, Touch ID prompt screenshot UX, notarization,
+  camera QR scanning, or physical iPhone receipt.
 - `pnpm smoke:menu-app-extension-mac-companion` builds the packaged browser
   extension, starts the real `UnuVaultMacCompanion` SwiftUI menu bar app with
   an isolated temporary encrypted vault, triggers the packaged content script,
