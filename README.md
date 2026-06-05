@@ -258,6 +258,13 @@ For the native Mac companion proof:
   released only through the existing Mac-local approval flow. It does not claim
   an automatic cloud sync daemon, server-side plaintext recovery, or physical
   iPhone proof.
+- Web vault visible import control is covered by:
+  `pnpm --filter @unuvault/web exec vitest --run tests/vault-page.spec.tsx`
+  This proves the unlocked Web vault exposes `Save to this Mac`, decrypts only
+  saved-password items in page memory, and calls the Mac companion import client
+  with the current account token. It does not claim the Mac app was running
+  during that browser test or that import happens automatically in the
+  background.
 - packaged extension and live native-process fill proof is available through:
   `pnpm smoke:packaged-extension-mac-companion`
   The smoke host writes and reloads an encrypted local vault file before

@@ -105,6 +105,14 @@ trusted-status surface first, keeps credential entry behind an explicit
   approval and one-time claim flow. The cloud sync daemon is not claimed, and
   this still does not claim server-side plaintext recovery, Touch ID prompt
   screenshot UX, notarization, camera QR scanning, or physical iPhone receipt.
+- `pnpm --filter @unuvault/web exec vitest --run tests/vault-page.spec.tsx`
+  covers the visible Web vault import entrypoint aligned to
+  `current/unuvault/web-vault-management-v1`: `Save to this Mac` is disabled
+  while the Web vault is locked, decrypts only saved-password items after Web
+  unlock, sends those credentials through the Mac companion import client with
+  the current account token, and shows a success receipt. This is a Web UI
+  behavior proof; it does not claim the native Mac process was running during
+  the browser test or automatic background sync into the Mac vault.
 - `pnpm smoke:menu-app-extension-mac-companion` builds the packaged browser
   extension, starts the real `UnuVaultMacCompanion` SwiftUI menu bar app with
   an isolated temporary encrypted vault, triggers the packaged content script,

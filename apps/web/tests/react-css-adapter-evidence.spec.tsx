@@ -385,6 +385,7 @@ describe("React/CSS adapter evidence for the vault surface", () => {
       screen.getByRole("button", { name: "Lock vault" }),
       screen.getByLabelText("Search vault"),
       screen.getByRole("button", { name: "New login" }),
+      screen.getByRole("button", { name: "Save to this Mac" }),
       screen.getByRole("button", { name: "Copy username GitHub" }),
       screen.getByRole("button", { name: "Copy password GitHub" }),
       screen.getByRole("button", { name: "Show password GitHub" }),

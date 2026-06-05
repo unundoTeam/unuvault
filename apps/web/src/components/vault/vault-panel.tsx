@@ -552,7 +552,12 @@ export function VaultPanel() {
                 : "Save, copy, reveal, edit, and delete remain unavailable while locked."}
             </p>
 
-            <MacCompanionPanel />
+            <MacCompanionPanel
+              accessToken={accessToken}
+              isUnlocked={isUnlocked}
+              items={items}
+              unlockPassphrase={unlockPassphrase}
+            />
 
             {visibleItems.length > 0 ? (
               <ul className="vault-items-list" data-unu-primitive="list/vault-items">

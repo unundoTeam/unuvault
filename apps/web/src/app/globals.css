@@ -446,6 +446,7 @@ textarea:disabled {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  min-width: 0;
 }
 
 .vault-companion-panel h2 {
@@ -466,6 +467,37 @@ textarea:disabled {
 
 .vault-helper-text {
   font-size: 14px;
+}
+
+.vault-helper-text--success,
+.vault-helper-text--error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+}
+
+.vault-helper-text--success {
+  color: var(--color-secure);
+}
+
+.vault-helper-text--success span {
+  flex: 0 0 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--color-secure);
+}
+
+.vault-helper-text--error {
+  border-radius: var(--radius-input);
+  background: var(--color-state-bg);
+  color: var(--color-ink);
+  padding: 10px 12px;
+}
+
+.vault-companion-import-button {
+  flex: 0 0 auto;
 }
 
 .vault-items-list {
@@ -697,7 +729,8 @@ textarea:disabled {
   }
 
   .vault-search-field,
-  .vault-new-login-button {
+  .vault-new-login-button,
+  .vault-companion-import-button {
     width: 100%;
   }
 
