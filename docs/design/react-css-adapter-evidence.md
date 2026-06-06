@@ -10,8 +10,9 @@ backlog, but it does not claim broad shared primitive adoption by itself.
 - Repo: `unuvault`
 - Surface: Web vault management
 - Status: React/CSS semantic proof, keyboard tab order, and focus-visible proof
-  recorded for this Web vault React/CSS surface; browser visual proof and Pencil
-  current promotion need refresh after the Mac companion status layer
+  recorded for this Web vault React/CSS surface; Pencil current now reflects the
+  Mac companion status layer, and browser visual proof still needs a fresh
+  post-status-layer capture before claiming browser visual parity
 - Pencil current:
   `/Users/yuchen/Design/unu/unuvault/unuvault.current.pen`
 - Pencil source frame: `current/unuvault/web-vault-management-v1`
@@ -29,7 +30,7 @@ backlog, but it does not claim broad shared primitive adoption by itself.
 - Browser visual evidence:
   `docs/design/evidence/2026-05-23-react-css-visual-parity/web-vault-browser.png`
 - Pencil source export:
-  `docs/design/evidence/2026-05-23-react-css-visual-parity/pencil-current-web-vault.png`
+  `docs/design/evidence/2026-06-06-mac-companion-status/BnvkE.png`
 
 ## Primitive Mapping
 
@@ -72,13 +73,17 @@ Current proof from this lane:
   header, master-password panel, save-login card, item panel, search control,
   review-state banner, item rows, disabled password actions, and destructive
   delete affordance; it predates the Mac companion status layer and should be
-  refreshed before claiming current visual parity
+  refreshed before claiming browser visual parity
+- latest Pencil current export records the Mac companion status pill, neutral
+  unavailable/locked boundary copy, and explicit disabled-until-ready import
+  rule in `current/unuvault/web-vault-management-v1`
 
 ## Visual Evidence
 
 | Evidence | Path | Notes |
 | --- | --- | --- |
-| Pencil current export | `docs/design/evidence/2026-05-23-react-css-visual-parity/pencil-current-web-vault.png` | Export of `current/unuvault/web-vault-management-v1` from `/Users/yuchen/Design/unu/unuvault/unuvault.current.pen`. |
+| Pencil current export | `docs/design/evidence/2026-06-06-mac-companion-status/BnvkE.png` | Export of `current/unuvault/web-vault-management-v1` from `/Users/yuchen/Design/unu/unuvault/unuvault.current.pen` after Mac companion status-layer sync. |
+| Previous Pencil current export | `docs/design/evidence/2026-05-23-react-css-visual-parity/pencil-current-web-vault.png` | Earlier export retained as historical visual-parity evidence before the Mac companion status layer. |
 | Browser DOM capture | `docs/design/evidence/2026-05-23-react-css-visual-parity/web-vault-browser-dom.html` | Captured from a real authenticated local Next.js `/vault` DOM after seeding a local Supabase session and mock `POST /vault/sync` response. |
 | Browser visual capture | `docs/design/evidence/2026-05-23-react-css-visual-parity/web-vault-browser.png` | Rendered from the captured authenticated browser DOM with the repo CSS at a `1440x920` viewport. |
 
@@ -102,7 +107,7 @@ that the Web vault surface does not expose, such as navigation, dialogs, or
 toast-style notifications.
 
 Current Pencil sync label for this lane:
-`current needs promotion`.
+`current matches implementation`.
 
 Intentionally local values that must not be promoted into the shared library:
 
