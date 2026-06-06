@@ -28,6 +28,7 @@
 
 ```bash
 pnpm test:macos:security-preflight
+pnpm test:macos:install-readiness
 pnpm test:macos:local-vault-receipt
 pnpm test:macos:local-user-presence
 pnpm test:macos:account-import-receipt
@@ -97,6 +98,15 @@ trusted-status surface first, keeps credential entry behind an explicit
   credential saves, and keeps the session locked, while proof mode can inject a
   deterministic allow authorizer. It still does not claim full Touch ID prompt
   screenshot, notarization, camera QR scanning, or physical iPhone receipt.
+- `pnpm test:macos:install-readiness` runs the focused install-readiness proof
+  for the Mac companion startup boundary. It links `ServiceManagement`, reads
+  `SMAppService.mainApp.status`, and verifies the view model can use an
+  injectable launch-at-login controller to report enabled, disabled,
+  approval-required, or unavailable states and route enable/disable requests
+  without touching the encrypted vault. It still does not claim notarization,
+  Apple Developer signing, real login-item persistence, a login-item UI toggle,
+  full Touch ID prompt screenshot UX, camera QR scanning, or physical iPhone
+  receipt.
 - `pnpm test:macos:account-import-receipt` runs the focused Web/account to Mac
   local vault receipt. It proves a Web/account unlocked vault payload can be
   posted through the bearer-protected Mac loopback bridge only while the local
@@ -253,7 +263,9 @@ trusted-status surface first, keeps credential entry behind an explicit
 
 ## Remaining Proof Gaps
 
-- Native app notarization and macOS login-item behavior are not claimed.
+- Native app notarization and real login-item persistence are not claimed; the
+  current install-readiness proof covers the `ServiceManagement` code boundary
+  and launch-at-login controller behavior only.
 - Full Touch ID prompt screenshot UX is not claimed; the current proof covers
   the `LocalAuthentication` code boundary before local save and unlock paths
   read the encrypted local vault.

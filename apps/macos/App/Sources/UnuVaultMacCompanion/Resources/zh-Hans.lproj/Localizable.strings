@@ -50,3 +50,7 @@
 "decision.denied" = "已拒绝 %@ 的填充请求。";
 "decision.pairing_locked" = "请先解锁，再配对 iPhone。";
 "decision.pairing_ready" = "配对需要新的本机批准。";
+"install.login_item.enabled" = "已启用登录时打开。";
+"install.login_item.disabled" = "未启用登录时打开。";
+"install.login_item.requires_approval" = "登录时打开需要 macOS 批准。";
+"install.login_item.unavailable" = "当前运行环境无法配置登录时打开。";

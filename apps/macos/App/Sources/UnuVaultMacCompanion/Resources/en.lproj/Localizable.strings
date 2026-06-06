@@ -50,3 +50,7 @@
 "decision.denied" = "Denied fill for %@.";
 "decision.pairing_locked" = "Unlock before pairing an iPhone.";
 "decision.pairing_ready" = "Pairing will require fresh approval.";
+"install.login_item.enabled" = "Open at login enabled.";
+"install.login_item.disabled" = "Open at login disabled.";
+"install.login_item.requires_approval" = "Open at login requires macOS approval.";
+"install.login_item.unavailable" = "Open at login unavailable in this runtime.";

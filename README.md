@@ -251,6 +251,15 @@ For the native Mac companion proof:
   the encrypted local vault, saving through the read/append path, or opening an
   unlock session. It does not claim full Touch ID prompt screenshot,
   notarization, or physical iPhone proof.
+- Mac companion install-readiness proof is available through:
+  `pnpm test:macos:install-readiness`
+  This proves the native app links the macOS `ServiceManagement` launch-at-login
+  API, exposes an injectable launch-at-login controller, maps enabled,
+  disabled, approval-required, and unavailable states, and routes enable/disable
+  requests through that controller without reading the encrypted local vault. It
+  does not claim notarization, Apple Developer signing, real login-item
+  persistence, a login-item UI toggle, Touch ID prompt screenshot UX, or
+  physical iPhone proof.
 - Mac companion Web/account import receipt is available through:
   `pnpm test:macos:account-import-receipt`
   This proves a Web/account unlocked vault payload can be sent through the

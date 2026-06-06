@@ -15,6 +15,7 @@ final class CompanionViewModel: ObservableObject {
     @Published var credentialPassword = ""
     @Published var credentialUsername = ""
     @Published var lastDecisionText = L10n.string("decision.idle")
+    @Published private(set) var launchAtLoginStatus: LaunchAtLoginStatus
     @Published var pairingInviteText: String?
     @Published var pairingPayload: CompanionPairingQRCodePayload?
     @Published var pendingApproval: CompanionApprovalRequest?
@@ -27,6 +28,7 @@ final class CompanionViewModel: ObservableObject {
     private let bridgeBindHost: String
     private let bridgePort: UInt16
     private let localUserPresenceAuthorizer: LocalUserPresenceAuthorizing
+    private let launchAtLoginController: LaunchAtLoginControlling
     private let pairingBaseURL: URL
     private let pairingSourceDeviceDisplayName: String
     private let pairingSourceDeviceId: String
@@ -45,6 +47,8 @@ final class CompanionViewModel: ObservableObject {
         vaultStore: CompanionVaultStoring? = try? LocalCompanionVaultStore.defaultStore(),
         localUserPresenceAuthorizer: LocalUserPresenceAuthorizing =
             LocalAuthenticationUserPresenceAuthorizer(),
+        launchAtLoginController: LaunchAtLoginControlling =
+            ServiceManagementLaunchAtLoginController(),
         accessToken: String = "local-dev-bridge-token",
         addLoginDraftCredential: CompanionCredential? = nil,
         bridgeBindHost: String = "127.0.0.1",
@@ -61,6 +65,8 @@ final class CompanionViewModel: ObservableObject {
         self.bridgeBindHost = bridgeBindHost
         self.bridgePort = bridgePort
         self.localUserPresenceAuthorizer = localUserPresenceAuthorizer
+        self.launchAtLoginController = launchAtLoginController
+        self.launchAtLoginStatus = launchAtLoginController.status
         self.pairingBaseURL = pairingBaseURL ?? CompanionViewModel.defaultPairingBaseURL(
             bridgePort: bridgePort
         )
@@ -86,6 +92,19 @@ final class CompanionViewModel: ObservableObject {
 
     var statusBadgeText: String {
         L10n.format("status.badge", statusText, savedCredentialCountText)
+    }
+
+    var launchAtLoginStatusText: String {
+        switch launchAtLoginStatus {
+        case .enabled:
+            L10n.string("install.login_item.enabled")
+        case .disabled:
+            L10n.string("install.login_item.disabled")
+        case .requiresApproval:
+            L10n.string("install.login_item.requires_approval")
+        case .unavailable:
+            L10n.string("install.login_item.unavailable")
+        }
     }
 
     var statusPanelTitle: String {
@@ -165,6 +184,15 @@ final class CompanionViewModel: ObservableObject {
         refreshTimer = nil
         server?.stop()
         server = nil
+    }
+
+    func setLaunchAtLoginEnabled(_ enabled: Bool) {
+        do {
+            try launchAtLoginController.setEnabled(enabled)
+            launchAtLoginStatus = launchAtLoginController.status
+        } catch {
+            launchAtLoginStatus = .unavailable
+        }
     }
 
     private func applyStartupStateIfNeeded() {

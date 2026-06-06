@@ -252,6 +252,26 @@ describe("workspace entrypoints", () => {
     expect(evidence).toContain("pnpm test:macos:recovery-boundary");
   });
 
+  it("records the Mac companion install-readiness proof entrypoint", () => {
+    const rootPackage = readJson<PackageManifest>("package.json");
+    const wrapperPath = "scripts/testing/run-mac-install-readiness.sh";
+    const readme = readText("README.md");
+    const evidence = readText("docs/design/mac-companion-mvp-evidence.md");
+
+    expect(existsSync(resolve(repoRoot, wrapperPath))).toBe(true);
+    expect(rootPackage.scripts?.["test:macos:install-readiness"]).toBe(
+      "bash scripts/testing/run-mac-install-readiness.sh",
+    );
+
+    const wrapper = readText(wrapperPath);
+
+    expect(wrapper).toContain("UNUVAULT_MAC_INSTALL_READINESS");
+    expect(wrapper).toContain("CompanionLaunchAtLoginTests");
+    expect(wrapper).toContain("ServiceManagement");
+    expect(readme).toContain("pnpm test:macos:install-readiness");
+    expect(evidence).toContain("pnpm test:macos:install-readiness");
+  });
+
   it("records the Mac companion pairing-boundary proof entrypoint", () => {
     const rootPackage = readJson<PackageManifest>("package.json");
     const readme = readText("README.md");
