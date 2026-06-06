@@ -10,9 +10,8 @@ backlog, but it does not claim broad shared primitive adoption by itself.
 - Repo: `unuvault`
 - Surface: Web vault management
 - Status: React/CSS semantic proof, keyboard tab order, and focus-visible proof
-  recorded for this Web vault React/CSS surface; Pencil current now reflects the
-  Mac companion status layer, and browser visual proof still needs a fresh
-  post-status-layer capture before claiming browser visual parity
+  recorded for this Web vault React/CSS surface; Pencil current and browser
+  visual proof now reflect the Mac companion status layer
 - Pencil current:
   `/Users/yuchen/Design/unu/unuvault/unuvault.current.pen`
 - Pencil source frame: `current/unuvault/web-vault-management-v1`
@@ -28,9 +27,9 @@ backlog, but it does not claim broad shared primitive adoption by itself.
 - Foundation variable test:
   `apps/web/tests/design-foundation-contract.spec.ts`
 - Browser visual evidence:
-  `docs/design/evidence/2026-05-23-react-css-visual-parity/web-vault-browser.png`
+  `docs/design/evidence/2026-06-06-mac-companion-status/web-vault-browser.png`
 - Pencil source export:
-  `docs/design/evidence/2026-06-06-mac-companion-status/BnvkE.png`
+  `docs/design/evidence/2026-06-06-mac-companion-status/4qsK6.png`
 
 ## Primitive Mapping
 
@@ -69,34 +68,35 @@ Current proof from this lane:
 - Mac companion status uses a semantic live-region role and neutral/secure
   state styling instead of danger styling for non-destructive unavailable states
 - shared foundation variables exist in the Web CSS layer
-- previous browser visual evidence records the authenticated vault surface with the
-  header, master-password panel, save-login card, item panel, search control,
-  review-state banner, item rows, disabled password actions, and destructive
-  delete affordance; it predates the Mac companion status layer and should be
-  refreshed before claiming browser visual parity
+- latest browser visual evidence records the authenticated unlocked vault
+  surface with the Mac companion unlocked pill, explicit Save to this Mac
+  action, item rows, selected-item detail panel, secure feedback, and
+  destructive delete boundary at a `1440x920` viewport
 - latest Pencil current export records the Mac companion status pill, neutral
   unavailable/locked boundary copy, and explicit disabled-until-ready import
-  rule in `current/unuvault/web-vault-management-v1`
+  rule in `current/unuvault/web-vault-management-state-model-v2`
 
 ## Visual Evidence
 
 | Evidence | Path | Notes |
 | --- | --- | --- |
-| Pencil current export | `docs/design/evidence/2026-06-06-mac-companion-status/BnvkE.png` | Export of `current/unuvault/web-vault-management-v1` from `/Users/yuchen/Design/unu/unuvault/unuvault.current.pen` after Mac companion status-layer sync. |
+| Pencil state-model current export | `docs/design/evidence/2026-06-06-mac-companion-status/4qsK6.png` | Export of `current/unuvault/web-vault-management-state-model-v2` from `/Users/yuchen/Design/unu/unuvault/unuvault.current.pen` after Mac companion status-layer sync. |
+| Pencil legacy implementation export | `docs/design/evidence/2026-06-06-mac-companion-status/BnvkE.png` | Export of retained `current/unuvault/web-vault-management-v1` after Mac companion status-layer sync. |
+| Browser DOM capture | `docs/design/evidence/2026-06-06-mac-companion-status/web-vault-browser-dom.html` | Captured from a real local Next.js `/vault` browser render after seeding a Supabase SSR cookie, intercepting `POST /vault/sync`, and returning local Mac companion `unlocked` status. |
+| Browser visual capture | `docs/design/evidence/2026-06-06-mac-companion-status/web-vault-browser.png` | Rendered from the authenticated unlocked browser state with the repo CSS at a `1440x920` viewport. |
 | Previous Pencil current export | `docs/design/evidence/2026-05-23-react-css-visual-parity/pencil-current-web-vault.png` | Earlier export retained as historical visual-parity evidence before the Mac companion status layer. |
-| Browser DOM capture | `docs/design/evidence/2026-05-23-react-css-visual-parity/web-vault-browser-dom.html` | Captured from a real authenticated local Next.js `/vault` DOM after seeding a local Supabase session and mock `POST /vault/sync` response. |
-| Browser visual capture | `docs/design/evidence/2026-05-23-react-css-visual-parity/web-vault-browser.png` | Rendered from the captured authenticated browser DOM with the repo CSS at a `1440x920` viewport. |
+| Previous browser visual capture | `docs/design/evidence/2026-05-23-react-css-visual-parity/web-vault-browser.png` | Historical authenticated browser capture before the Mac companion status layer. |
 
 Capture route used for this evidence:
 
 1. Run the Web app with `pnpm --filter @unuvault/web dev`.
-2. Run a local proxy/mock on `127.0.0.1:3000` that seeds
-   `sb-127-auth-token`, proxies the Next.js Web app from `127.0.0.1:3001`,
-   and returns two vault rows from `POST /vault/sync`.
-3. Open `http://127.0.0.1:3000/seed-session`, which redirects to
-   `http://127.0.0.1:3000/vault`.
-4. Confirm the live DOM contains `Vault items`, `Search vault`, and
-   `github.com`, then render the captured DOM for the screenshot artifact.
+2. Use headless Chrome through Playwright with a Supabase SSR auth cookie for
+   `http://localhost:3001`.
+3. Intercept `POST /vault/sync` with two deterministic vault rows and intercept
+   `http://127.0.0.1:17666/status` with `{ ok: true, state: "unlocked" }`.
+4. Open `http://localhost:3001/vault`, set a master password to enter the
+   unlocked state, confirm `Vault unlocked` and `Mac companion unlocked`, then
+   capture the DOM and PNG artifacts.
 
 ## Claim Boundary
 
