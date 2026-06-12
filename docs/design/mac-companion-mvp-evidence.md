@@ -33,6 +33,7 @@ pnpm test:macos:distribution-readiness
 pnpm test:macos:login-item-receipt
 pnpm test:macos:local-vault-receipt
 pnpm test:macos:local-user-presence
+pnpm test:macos:touch-id-prompt-receipt
 pnpm test:macos:account-import-receipt
 swift test --package-path apps/macos/App --filter LoopbackHTTPServerTests/testLoopbackReleaseRequiresNativeApprovalBeforeOneTimeClaim
 bash scripts/testing/run-macos.sh
@@ -111,6 +112,15 @@ boundaries. Local screenshot:
   credential saves, and keeps the session locked, while proof mode can inject a
   deterministic allow authorizer. It still does not claim full Touch ID prompt
   screenshot, notarization, camera QR scanning, or physical iPhone receipt.
+- `pnpm test:macos:touch-id-prompt-receipt` runs the Touch ID prompt UX receipt
+  gate. Default mode builds a focused `LocalAuthentication` prompt host and
+  performs a non-prompting readiness check so routine verification does not
+  interrupt the operator. Passing `-- --capture` starts the real macOS
+  owner-authentication prompt, waits briefly, saves
+  `docs/design/evidence/<date>-mac-touch-id-prompt/touch-id-prompt.png`, and
+  lets the prompt host cancel itself after the timeout. This can record a real
+  local screenshot receipt for the Touch ID/system authentication UX, but still
+  does not claim notarization, camera QR scanning, or physical iPhone receipt.
 - `pnpm test:macos:install-readiness` runs the focused install-readiness proof
   for the Mac companion startup boundary. It links `ServiceManagement`, reads
   `SMAppService.mainApp.status`, and verifies the view model can use an
@@ -307,9 +317,9 @@ local packaged-app receipt: initial status `not_found`, after register
 can register and clean up a macOS login item on this Mac. It still does not
 claim notarization, Apple Developer signing, or persistence for a user-installed
 production app bundle.
-- Full Touch ID prompt screenshot UX is not claimed; the current proof covers
-  the `LocalAuthentication` code boundary before local save and unlock paths
-  read the encrypted local vault.
+- Full Touch ID prompt screenshot UX is claimed only after
+  `pnpm test:macos:touch-id-prompt-receipt -- --capture` records a local
+  screenshot receipt. The default receipt gate remains non-prompting.
 - Physical iPhone pairing receipt is claimed only after
   `pnpm test:pairing-physical-receipt` runs against a connected trusted iPhone
   and captures `UNUVAULT_IOS_PAIRING_RECEIPT paired`.

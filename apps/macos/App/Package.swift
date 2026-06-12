@@ -22,6 +22,10 @@ let package = Package(
         .executable(
             name: "MacLoginItemReceiptHost",
             targets: ["MacLoginItemReceiptHost"]
+        ),
+        .executable(
+            name: "MacLocalAuthenticationPromptReceiptHost",
+            targets: ["MacLocalAuthenticationPromptReceiptHost"]
         )
     ],
     targets: [
@@ -50,6 +54,10 @@ let package = Package(
         .executableTarget(
             name: "MacLoginItemReceiptHost",
             path: "Sources/MacLoginItemReceiptHost"
+        ),
+        .executableTarget(
+            name: "MacLocalAuthenticationPromptReceiptHost",
+            path: "Sources/MacLocalAuthenticationPromptReceiptHost"
         ),
         .testTarget(
             name: "MacCompanionCoreTests",

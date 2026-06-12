@@ -251,6 +251,14 @@ For the native Mac companion proof:
   the encrypted local vault, saving through the read/append path, or opening an
   unlock session. It does not claim full Touch ID prompt screenshot,
   notarization, or physical iPhone proof.
+- Mac companion Touch ID prompt UX receipt is available through:
+  `pnpm test:macos:touch-id-prompt-receipt`
+  Default mode builds a focused `LocalAuthentication` prompt host and runs a
+  non-prompting readiness check. Add `-- --capture` only when an interactive
+  local UX receipt is intended; that path triggers the real macOS
+  owner-authentication prompt, captures `touch-id-prompt.png`, and lets the host
+  cancel itself after a timeout. It does not claim notarization or physical
+  iPhone proof.
 - Mac companion install-readiness proof is available through:
   `pnpm test:macos:install-readiness`
   This proves the native app links the macOS `ServiceManagement` launch-at-login

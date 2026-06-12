@@ -23,6 +23,7 @@
     "test:macos:login-item-receipt": "bash scripts/testing/run-mac-login-item-receipt.sh",
     "test:macos:local-vault-receipt": "bash scripts/testing/run-mac-local-vault-receipt.sh",
     "test:macos:local-user-presence": "bash scripts/testing/run-mac-local-user-presence.sh",
+    "test:macos:touch-id-prompt-receipt": "bash scripts/testing/run-mac-touch-id-prompt-receipt.sh",
     "test:macos:account-import-receipt": "bash scripts/testing/run-mac-account-import-receipt.sh",
     "test:macos:pairing-boundary": "swift test --package-path apps/macos/App --filter Pairing",
     "test:macos:recovery-boundary": "swift test --package-path apps/macos/App --filter RecoveryBoundaryTests",
