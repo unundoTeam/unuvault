@@ -260,6 +260,15 @@ For the native Mac companion proof:
   does not claim notarization, Apple Developer signing, real login-item
   persistence on a packaged build, Touch ID prompt screenshot UX, or physical
   iPhone proof.
+- Mac companion distribution-readiness receipt is available through:
+  `pnpm test:macos:distribution-readiness`
+  This builds a temporary `UnuVaultMacCompanion.app`, validates its generated
+  `Info.plist`, applies a local ad-hoc hardened-runtime signature with checked
+  entitlements input, verifies the bundle seal, and reports Developer ID and
+  `notarytool` credential blockers. It does not submit to Apple, staple a
+  ticket, claim notarization, or claim Apple Developer-signed distribution.
+  Add `-- --require-notarization` only when release credentials are expected and
+  a missing certificate or notary credential should fail the gate.
 - Mac companion packaged-app login item receipt is available through:
   `pnpm test:macos:login-item-receipt`
   This builds a temporary packaged `.app` receipt host and reads

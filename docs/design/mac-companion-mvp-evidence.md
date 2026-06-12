@@ -29,6 +29,7 @@
 ```bash
 pnpm test:macos:security-preflight
 pnpm test:macos:install-readiness
+pnpm test:macos:distribution-readiness
 pnpm test:macos:login-item-receipt
 pnpm test:macos:local-vault-receipt
 pnpm test:macos:local-user-presence
@@ -120,6 +121,16 @@ boundaries. Local screenshot:
   coverage. It still does not claim notarization, Apple Developer signing, real
   login-item persistence on a packaged build, full Touch ID prompt screenshot
   UX, camera QR scanning, or physical iPhone receipt.
+- `pnpm test:macos:distribution-readiness` runs the native Mac companion
+  distribution-readiness receipt. It builds a temporary
+  `UnuVaultMacCompanion.app`, validates the generated `Info.plist`, signs it
+  locally with an ad-hoc hardened-runtime signature and checked entitlements
+  input, verifies the bundle seal, and reports whether Developer ID certificate
+  and `notarytool` credential prerequisites are blocked. Default mode records a
+  blocked receipt without failing when release credentials are absent; use
+  `-- --require-notarization` only for a real release-preflight gate. This does
+  not claim notarization, a stapled ticket, App Store distribution, or an Apple
+  Developer-signed release.
 - `pnpm test:macos:login-item-receipt` runs the packaged-app login item receipt.
   It builds a temporary `.app` wrapper for `MacLoginItemReceiptHost` and reads
   `SMAppService.mainApp.status` from inside the bundled executable, proving the
