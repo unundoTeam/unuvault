@@ -121,6 +121,15 @@ boundaries. Local screenshot:
   lets the prompt host cancel itself after the timeout. This can record a real
   local screenshot receipt for the Touch ID/system authentication UX, but still
   does not claim notarization, camera QR scanning, or physical iPhone receipt.
+  On 2026-06-12, a local capture produced:
+  `docs/design/evidence/2026-06-12-mac-touch-id-prompt/touch-id-prompt.png`.
+  The receipt recorded
+  `UNUVAULT_MAC_TOUCH_ID_PROMPT_RECEIPT status=prompt_requested`,
+  `biometry=touch_id can_biometrics=true`, and
+  `result=denied error_domain=com.apple.LocalAuthentication error_code=-9`
+  after the prompt host timed out and cancelled the prompt. The checked-in
+  screenshot is cropped from the full-screen temporary capture so only the
+  macOS owner-authentication prompt is retained.
 - `pnpm test:macos:install-readiness` runs the focused install-readiness proof
   for the Mac companion startup boundary. It links `ServiceManagement`, reads
   `SMAppService.mainApp.status`, and verifies the view model can use an
@@ -317,9 +326,10 @@ local packaged-app receipt: initial status `not_found`, after register
 can register and clean up a macOS login item on this Mac. It still does not
 claim notarization, Apple Developer signing, or persistence for a user-installed
 production app bundle.
-- Full Touch ID prompt screenshot UX is claimed only after
-  `pnpm test:macos:touch-id-prompt-receipt -- --capture` records a local
-  screenshot receipt. The default receipt gate remains non-prompting.
+- Full Touch ID prompt screenshot UX is now backed by the 2026-06-12 local
+  capture above. Future prompt wording, app bundle naming, or macOS
+  authentication UI changes should refresh that receipt. The default receipt
+  gate remains non-prompting.
 - Physical iPhone pairing receipt is claimed only after
   `pnpm test:pairing-physical-receipt` runs against a connected trusted iPhone
   and captures `UNUVAULT_IOS_PAIRING_RECEIPT paired`.

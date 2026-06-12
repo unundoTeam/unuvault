@@ -38,4 +38,15 @@ describe("Mac Touch ID prompt receipt", () => {
     expect(evidence).toContain("pnpm test:macos:touch-id-prompt-receipt");
     expect(evidence).toContain("Touch ID prompt UX receipt");
   });
+
+  it("records the local Touch ID prompt screenshot receipt once captured", () => {
+    const screenshotPath =
+      "docs/design/evidence/2026-06-12-mac-touch-id-prompt/touch-id-prompt.png";
+    const evidence = readText("docs/design/mac-companion-mvp-evidence.md");
+
+    expect(existsSync(resolve(repoRoot, screenshotPath))).toBe(true);
+    expect(evidence).toContain(screenshotPath);
+    expect(evidence).toContain("UNUVAULT_MAC_TOUCH_ID_PROMPT_RECEIPT status=prompt_requested");
+    expect(evidence).toContain("result=denied error_domain=com.apple.LocalAuthentication error_code=-9");
+  });
 });
