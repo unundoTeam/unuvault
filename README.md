@@ -260,6 +260,12 @@ For the native Mac companion proof:
   does not claim notarization, Apple Developer signing, real login-item
   persistence on a packaged build, Touch ID prompt screenshot UX, or physical
   iPhone proof.
+- Mac companion packaged-app login item receipt is available through:
+  `pnpm test:macos:login-item-receipt`
+  This builds a temporary packaged `.app` receipt host and reads
+  `SMAppService.mainApp.status` from inside that bundle. Add `-- --mutate` only
+  for a reversible local register/cleanup receipt that touches this Mac's login
+  items. It still does not claim notarization or Apple Developer signing.
 - Mac companion Web/account import receipt is available through:
   `pnpm test:macos:account-import-receipt`
   This proves a Web/account unlocked vault payload can be sent through the

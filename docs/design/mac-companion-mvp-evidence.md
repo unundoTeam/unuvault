@@ -29,6 +29,7 @@
 ```bash
 pnpm test:macos:security-preflight
 pnpm test:macos:install-readiness
+pnpm test:macos:login-item-receipt
 pnpm test:macos:local-vault-receipt
 pnpm test:macos:local-user-presence
 pnpm test:macos:account-import-receipt
@@ -119,6 +120,14 @@ boundaries. Local screenshot:
   coverage. It still does not claim notarization, Apple Developer signing, real
   login-item persistence on a packaged build, full Touch ID prompt screenshot
   UX, camera QR scanning, or physical iPhone receipt.
+- `pnpm test:macos:login-item-receipt` runs the packaged-app login item receipt.
+  It builds a temporary `.app` wrapper for `MacLoginItemReceiptHost` and reads
+  `SMAppService.mainApp.status` from inside the bundled executable, proving the
+  login item code path is no longer only a raw CLI status check. By default it
+  is read-only. Passing `-- --mutate` attempts a reversible local
+  register/cleanup receipt for this Mac's login items, and should be used only
+  when that local mutation is intentionally approved. It still does not claim
+  notarization or Apple Developer signing.
 - `pnpm test:macos:account-import-receipt` runs the focused Web/account to Mac
   local vault receipt. It proves a Web/account unlocked vault payload can be
   posted through the bearer-protected Mac loopback bridge only while the local
@@ -275,9 +284,18 @@ boundaries. Local screenshot:
 
 ## Remaining Proof Gaps
 
-- Native app notarization and real login-item persistence are not claimed; the
-  current install-readiness proof covers the `ServiceManagement` code boundary
-  and launch-at-login controller behavior only.
+- Native app notarization and Apple Developer signing are not claimed. The
+  current install-readiness proof covers the `ServiceManagement` code boundary,
+  and the packaged login-item receipt covers bundled `SMAppService.mainApp`
+  status. Real login-item register/cleanup persistence requires the explicit
+  `pnpm test:macos:login-item-receipt -- --mutate` path.
+
+On 2026-06-12, `pnpm test:macos:login-item-receipt -- --mutate` produced a
+local packaged-app receipt: initial status `not_found`, after register
+`enabled`, and after cleanup `disabled`. That proves the temporary bundled app
+can register and clean up a macOS login item on this Mac. It still does not
+claim notarization, Apple Developer signing, or persistence for a user-installed
+production app bundle.
 - Full Touch ID prompt screenshot UX is not claimed; the current proof covers
   the `LocalAuthentication` code boundary before local save and unlock paths
   read the encrypted local vault.
