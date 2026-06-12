@@ -13,7 +13,7 @@
 - Pencil draft: `/Users/yuchen/Design/unu/unuvault/unuvault.draft.pen`.
 - Current design-system frame: `current/unuvault/design-system-v1`.
 - Current web source frame: `current/unuvault/web-vault-management-v1`.
-- Current Mac companion source frame: `current/unuvault/mac-companion-core-flows-v1.2`.
+- Current Mac companion source frame: `current/unuvault/mac-companion-core-flows-v1.3`.
 - Current iOS source frames: `current/unuvault/ios-vault-home-native-locked-v1`
   and `current/unuvault/ios-pairing-invite-receive-v2`.
 - Small UI copy or polish uses the `Lightweight UI Path` in the portfolio Pencil gate.

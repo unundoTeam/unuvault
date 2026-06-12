@@ -94,6 +94,14 @@ final class CompanionViewModel: ObservableObject {
         L10n.format("status.badge", statusText, savedCredentialCountText)
     }
 
+    var isLaunchAtLoginEnabled: Bool {
+        launchAtLoginStatus == .enabled
+    }
+
+    var isLaunchAtLoginControlDisabled: Bool {
+        launchAtLoginStatus == .unavailable
+    }
+
     var launchAtLoginStatusText: String {
         switch launchAtLoginStatus {
         case .enabled:

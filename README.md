@@ -92,7 +92,7 @@ recovery flows; vault unlock remains the secret-release boundary.
 - Current design-system frame: `current/unuvault/design-system-v1`.
 - Current web source frame: `current/unuvault/web-vault-management-v1`.
 - Current Mac companion source frame:
-  `current/unuvault/mac-companion-core-flows-v1.2`.
+  `current/unuvault/mac-companion-core-flows-v1.3`.
 - Current iOS source frames: `current/unuvault/ios-vault-home-native-locked-v1`
   and `current/unuvault/ios-pairing-invite-receive-v2`.
 - Small UI copy or polish uses the `Lightweight UI Path` in the portfolio
@@ -258,8 +258,8 @@ For the native Mac companion proof:
   disabled, approval-required, and unavailable states, and routes enable/disable
   requests through that controller without reading the encrypted local vault. It
   does not claim notarization, Apple Developer signing, real login-item
-  persistence, a login-item UI toggle, Touch ID prompt screenshot UX, or
-  physical iPhone proof.
+  persistence on a packaged build, Touch ID prompt screenshot UX, or physical
+  iPhone proof.
 - Mac companion Web/account import receipt is available through:
   `pnpm test:macos:account-import-receipt`
   This proves a Web/account unlocked vault payload can be sent through the

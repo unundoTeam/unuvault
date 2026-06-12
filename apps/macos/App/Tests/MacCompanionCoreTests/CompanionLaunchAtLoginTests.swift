@@ -26,6 +26,28 @@ final class CompanionLaunchAtLoginTests: XCTestCase {
         XCTAssertEqual(viewModel.launchAtLoginStatusText, L10n.string("install.login_item.disabled"))
     }
 
+    func testLaunchAtLoginToggleStateFollowsStatus() {
+        let enabledController = RecordingLaunchAtLoginController(status: .enabled)
+        let enabledViewModel = CompanionViewModel(
+            vaultStore: nil,
+            launchAtLoginController: enabledController
+        )
+        let disabledController = RecordingLaunchAtLoginController(status: .disabled)
+        let disabledViewModel = CompanionViewModel(
+            vaultStore: nil,
+            launchAtLoginController: disabledController
+        )
+        let approvalController = RecordingLaunchAtLoginController(status: .requiresApproval)
+        let approvalViewModel = CompanionViewModel(
+            vaultStore: nil,
+            launchAtLoginController: approvalController
+        )
+
+        XCTAssertTrue(enabledViewModel.isLaunchAtLoginEnabled)
+        XCTAssertFalse(disabledViewModel.isLaunchAtLoginEnabled)
+        XCTAssertFalse(approvalViewModel.isLaunchAtLoginEnabled)
+    }
+
     func testEnablingLaunchAtLoginCallsControllerAndRefreshesStatus() {
         let controller = RecordingLaunchAtLoginController(status: .disabled)
         let viewModel = CompanionViewModel(

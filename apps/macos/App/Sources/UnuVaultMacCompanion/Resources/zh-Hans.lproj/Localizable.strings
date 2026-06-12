@@ -54,3 +54,5 @@
 "install.login_item.disabled" = "未启用登录时打开。";
 "install.login_item.requires_approval" = "登录时打开需要 macOS 批准。";
 "install.login_item.unavailable" = "当前运行环境无法配置登录时打开。";
+"install.login_item.title" = "登录时打开";
+"install.login_item.hint" = "登录这台 Mac 后，让本机伴侣保持可用。";

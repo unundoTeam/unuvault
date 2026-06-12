@@ -54,3 +54,5 @@
 "install.login_item.disabled" = "Open at login disabled.";
 "install.login_item.requires_approval" = "Open at login requires macOS approval.";
 "install.login_item.unavailable" = "Open at login unavailable in this runtime.";
+"install.login_item.title" = "Open at login";
+"install.login_item.hint" = "Keep the local companion ready after signing in to this Mac.";

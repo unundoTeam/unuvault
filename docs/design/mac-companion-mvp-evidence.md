@@ -3,7 +3,7 @@
 ## Design Source
 
 - Pencil current: `/Users/yuchen/Design/unu/unuvault/unuvault.current.pen`
-- Current frame: `current/unuvault/mac-companion-core-flows-v1.2`
+- Current frame: `current/unuvault/mac-companion-core-flows-v1.3`
 
 ## Boundary
 
@@ -67,15 +67,26 @@ captured as previous local visual evidence:
 
 - `/Users/yuchen/Design/unu/unuvault/exports/2026-05-27-mac-companion-menu-popover-light-polished-v2.png`
 
-On 2026-05-28, the native menu bar product was synced to the approved current
-source `current/unuvault/mac-companion-core-flows-v1.2`. The menu opens on a
-trusted-status surface first, keeps credential entry behind an explicit
-`Add login` action, and includes `zh-Hans` localized copy. Local screenshots:
+Earlier v1.2 evidence from 2026-05-28 showed the native menu bar product synced
+to `current/unuvault/mac-companion-core-flows-v1.2`. The menu opened on a
+trusted-status surface first, kept credential entry behind an explicit
+`Add login` action, and included `zh-Hans` localized copy. The current Mac
+companion source is now `current/unuvault/mac-companion-core-flows-v1.3`.
+Historical screenshots:
 
 - `/Users/yuchen/Design/unu/unuvault/exports/2026-05-28-mac-companion-menu-popover-v12-current.png`
 - `/Users/yuchen/Design/unu/unuvault/exports/2026-05-28-mac-companion-menu-add-login-v12-current.png`
 - `/Users/yuchen/Design/unu/unuvault/exports/2026-05-28-mac-companion-menu-popover-v12-zh-Hans.png`
 - `/Users/yuchen/Design/unu/unuvault/exports/2026-05-28-mac-companion-menu-add-login-v12-zh-Hans.png`
+
+On 2026-06-12, the current source was restored as
+`current/unuvault/mac-companion-core-flows-v1.3` after the native menu overview
+added a visible `Open at login` setting row. The v1.3 frame keeps the menu bar
+companion as the local trust root and maps the setting to a native SwiftUI
+`Toggle` without changing unlock, fill approval, or credential release
+boundaries. Local screenshot:
+
+- `/Users/yuchen/Design/unu/unuvault/exports/2026-06-12-mac-companion-v13-open-at-login/O1eT4.png`
 
 ## Automated Fill Proof
 
@@ -103,10 +114,11 @@ trusted-status surface first, keeps credential entry behind an explicit
   `SMAppService.mainApp.status`, and verifies the view model can use an
   injectable launch-at-login controller to report enabled, disabled,
   approval-required, or unavailable states and route enable/disable requests
-  without touching the encrypted vault. It still does not claim notarization,
-  Apple Developer signing, real login-item persistence, a login-item UI toggle,
-  full Touch ID prompt screenshot UX, camera QR scanning, or physical iPhone
-  receipt.
+  without touching the encrypted vault. The menu overview exposes those states
+  through a native SwiftUI `Toggle` with accessibility and localization
+  coverage. It still does not claim notarization, Apple Developer signing, real
+  login-item persistence on a packaged build, full Touch ID prompt screenshot
+  UX, camera QR scanning, or physical iPhone receipt.
 - `pnpm test:macos:account-import-receipt` runs the focused Web/account to Mac
   local vault receipt. It proves a Web/account unlocked vault payload can be
   posted through the bearer-protected Mac loopback bridge only while the local

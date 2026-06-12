@@ -67,6 +67,7 @@ struct CompanionMenuView: View {
     private var overviewContent: some View {
         VStack(alignment: .leading, spacing: 11) {
             statusPanel
+            launchAtLoginSetting
             primaryStateAction
             secondaryActionRow
             Divider()
@@ -95,6 +96,54 @@ struct CompanionMenuView: View {
         .clipShape(RoundedRectangle(cornerRadius: 10))
         .overlay(
             RoundedRectangle(cornerRadius: 10)
+                .stroke(CompanionMenuStyle.hairline, lineWidth: 1)
+        )
+    }
+
+    private var launchAtLoginBinding: Binding<Bool> {
+        Binding(
+            get: {
+                viewModel.isLaunchAtLoginEnabled
+            },
+            set: { isEnabled in
+                viewModel.setLaunchAtLoginEnabled(isEnabled)
+            }
+        )
+    }
+
+    private var launchAtLoginSetting: some View {
+        HStack(alignment: .center, spacing: 10) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(L10n.string("install.login_item.title"))
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(CompanionMenuStyle.ink)
+                Text(viewModel.launchAtLoginStatusText)
+                    .font(.system(size: 11, weight: .medium))
+                    .lineSpacing(2)
+                    .foregroundStyle(CompanionMenuStyle.body)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 10)
+
+            Toggle(
+                L10n.string("install.login_item.title"),
+                isOn: launchAtLoginBinding
+            )
+            .labelsHidden()
+            .toggleStyle(.switch)
+            .disabled(viewModel.isLaunchAtLoginControlDisabled)
+            .accessibilityLabel(L10n.string("install.login_item.title"))
+            .accessibilityValue(viewModel.launchAtLoginStatusText)
+            .accessibilityHint(L10n.string("install.login_item.hint"))
+            .accessibilityIdentifier("launch-at-login-toggle")
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(CompanionMenuStyle.neutralSurface)
+        .clipShape(RoundedRectangle(cornerRadius: 9))
+        .overlay(
+            RoundedRectangle(cornerRadius: 9)
                 .stroke(CompanionMenuStyle.hairline, lineWidth: 1)
         )
     }
