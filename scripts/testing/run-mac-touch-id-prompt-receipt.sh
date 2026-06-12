@@ -9,7 +9,9 @@ capture=0
 timeout_seconds="${UNUVAULT_TOUCH_ID_PROMPT_TIMEOUT_SECONDS:-12}"
 capture_delay_seconds="${UNUVAULT_TOUCH_ID_PROMPT_CAPTURE_DELAY_SECONDS:-2}"
 output_dir="${UNUVAULT_TOUCH_ID_PROMPT_OUTPUT_DIR:-$repo_root/docs/design/evidence/$(date +%F)-mac-touch-id-prompt}"
-prompt_reason="${UNUVAULT_TOUCH_ID_PROMPT_REASON:-Unlock UnuVault local vault on this Mac.}"
+prompt_app_name="UnuVault"
+prompt_bundle_id="com.unundo.unuvault.TouchIDPromptReceiptHost"
+prompt_reason="${UNUVAULT_TOUCH_ID_PROMPT_REASON:-解锁这台 Mac 上的本地保险库}"
 
 usage() {
   cat <<'USAGE'
@@ -96,7 +98,7 @@ for command_name in swift; do
   fi
 done
 
-record "status=running check=build_host product=MacLocalAuthenticationPromptReceiptHost"
+record "status=running check=build_host product=MacLocalAuthenticationPromptReceiptHost prompt_app_name=$prompt_app_name"
 swift build \
   --package-path "$mac_package" \
   --product MacLocalAuthenticationPromptReceiptHost
@@ -109,8 +111,54 @@ if [[ ! -x "$host_binary" ]]; then
   exit 1
 fi
 
+receipt_root="$(mktemp -d "${TMPDIR:-/tmp}/unuvault-touch-id-prompt-app.XXXXXX")"
+receipt_log=""
+
+cleanup() {
+  rm -rf "$receipt_root"
+  if [[ -n "$receipt_log" ]]; then
+    rm -f "$receipt_log"
+  fi
+}
+trap cleanup EXIT
+
+app_path="$receipt_root/UnuVault.app"
+contents_path="$app_path/Contents"
+macos_path="$contents_path/MacOS"
+mkdir -p "$macos_path"
+cp "$host_binary" "$macos_path/UnuVault"
+host_binary_for_prompt="$macos_path/UnuVault"
+
+cat > "$contents_path/Info.plist" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleDisplayName</key>
+  <string>UnuVault</string>
+  <key>CFBundleExecutable</key>
+  <string>UnuVault</string>
+  <key>CFBundleIdentifier</key>
+  <string>$prompt_bundle_id</string>
+  <key>CFBundleName</key>
+  <string>UnuVault</string>
+  <key>CFBundlePackageType</key>
+  <string>APPL</string>
+  <key>CFBundleShortVersionString</key>
+  <string>1.0</string>
+  <key>CFBundleVersion</key>
+  <string>1</string>
+  <key>LSMinimumSystemVersion</key>
+  <string>14.0</string>
+  <key>LSUIElement</key>
+  <true/>
+</dict>
+</plist>
+PLIST
+
 if [[ "$capture" == "0" ]]; then
-  "$host_binary"
+  "$host_binary_for_prompt"
   record "status=ready claim=local_auth_prompt_preflight unclaimed=touch_id_prompt_screenshot,notarization,physical_iphone"
   exit 0
 fi
@@ -124,14 +172,9 @@ mkdir -p "$output_dir"
 receipt_log="$(mktemp "${TMPDIR:-/tmp}/unuvault-touch-id-prompt.XXXXXX.log")"
 output_path="$output_dir/touch-id-prompt.png"
 
-cleanup() {
-  rm -f "$receipt_log"
-}
-trap cleanup EXIT
+record "status=running check=prompt_capture app_name=$prompt_app_name app_path=$app_path output=$output_path timeout_seconds=$timeout_seconds"
 
-record "status=running check=prompt_capture output=$output_path timeout_seconds=$timeout_seconds"
-
-"$host_binary" \
+"$host_binary_for_prompt" \
   --prompt \
   --reason "$prompt_reason" \
   --timeout-seconds "$timeout_seconds" >"$receipt_log" 2>&1 &

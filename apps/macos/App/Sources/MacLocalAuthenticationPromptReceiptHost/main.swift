@@ -7,7 +7,7 @@ struct MacLocalAuthenticationPromptReceiptHost {
     static func main() async {
         var shouldPrompt = false
         var timeoutSeconds: UInt64 = 12
-        var reason = "Unlock UnuVault local vault on this Mac."
+        var reason = "解锁这台 Mac 上的本地保险库"
 
         var iterator = CommandLine.arguments.dropFirst().makeIterator()
 
