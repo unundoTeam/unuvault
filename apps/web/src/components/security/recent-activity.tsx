@@ -1,8 +1,13 @@
-export function RecentActivity() {
+type SecuritySectionCopy = {
+  title: string;
+  body: string;
+};
+
+export function RecentActivity({ copy }: { copy: SecuritySectionCopy }) {
   return (
     <section>
-      <h2>Recent activity</h2>
-      <p>Important sign-ins, imports, and security actions will appear here.</p>
+      <h2>{copy.title}</h2>
+      <p>{copy.body}</p>
     </section>
   );
 }

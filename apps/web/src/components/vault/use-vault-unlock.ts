@@ -11,6 +11,7 @@ import {
   isPassphraseProtectedVaultPassword,
   openStoredVaultPassword,
 } from "../../../../../packages/security/src/vault-envelope";
+import { useWebCopy } from "../../lib/i18n/use-web-copy";
 import { hasSavedPassword, normalizeVaultLoginPayload } from "./login-payload";
 import {
   readMasterPasswordVerifier,
@@ -35,6 +36,7 @@ type VaultUnlockState = {
 };
 
 export function useVaultUnlock(items: VaultSyncItem[]): VaultUnlockState {
+  const copy = useWebCopy().vault.unlock;
   const [storedVerifier, setStoredVerifier] = useState<MasterPasswordVerifier | null>(() =>
     readMasterPasswordVerifier(),
   );
@@ -82,14 +84,14 @@ export function useVaultUnlock(items: VaultSyncItem[]): VaultUnlockState {
   async function submitUnlock(): Promise<boolean> {
     if (!draftPassphrase) {
       setUnlockPassphrase(null);
-      setUnlockError("Master password is required");
+      setUnlockError(copy.requiredError);
       return false;
     }
 
     if (mode === "needs_setup") {
       if (draftPassphrase !== draftConfirmPassphrase) {
         setUnlockPassphrase(null);
-        setUnlockError("Passwords do not match");
+        setUnlockError(copy.mismatchError);
         return false;
       }
 
@@ -98,7 +100,7 @@ export function useVaultUnlock(items: VaultSyncItem[]): VaultUnlockState {
         !(await canUnlockProtectedCiphertexts(draftPassphrase))
       ) {
         setUnlockPassphrase(null);
-        setUnlockError("Master password must unlock existing saved passwords");
+        setUnlockError(copy.existingPasswordError);
         return false;
       }
 
@@ -119,7 +121,7 @@ export function useVaultUnlock(items: VaultSyncItem[]): VaultUnlockState {
 
     if (!verificationResult.success) {
       setUnlockPassphrase(null);
-      setUnlockError("Wrong master password");
+      setUnlockError(copy.wrongPasswordError);
       return false;
     }
 
@@ -128,7 +130,7 @@ export function useVaultUnlock(items: VaultSyncItem[]): VaultUnlockState {
       !(await canUnlockProtectedCiphertexts(draftPassphrase))
     ) {
       setUnlockPassphrase(null);
-      setUnlockError("Wrong master password");
+      setUnlockError(copy.wrongPasswordError);
       return false;
     }
 
@@ -158,7 +160,8 @@ export function useVaultUnlock(items: VaultSyncItem[]): VaultUnlockState {
     isUnlocked: unlockPassphrase !== null,
     lock,
     mode,
-    submitLabel: mode === "needs_setup" ? "Set master password" : "Unlock vault",
+    submitLabel:
+      mode === "needs_setup" ? copy.setMasterPassword : copy.unlockVault,
     submitUnlock,
     setDraftConfirmPassphrase: updateDraftConfirmPassphrase,
     setDraftPassphrase: updateDraftPassphrase,

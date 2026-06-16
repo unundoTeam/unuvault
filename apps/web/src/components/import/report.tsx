@@ -1,8 +1,8 @@
-export function ImportReport() {
+export function ImportReport({ title, body }: { title: string; body: string }) {
   return (
     <section>
-      <h2>Import report</h2>
-      <p>Imported items, duplicates, and follow-up guidance will appear here.</p>
+      <h2>{title}</h2>
+      <p>{body}</p>
     </section>
   );
 }

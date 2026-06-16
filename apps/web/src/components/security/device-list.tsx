@@ -1,8 +1,13 @@
-export function DeviceList() {
+type SecuritySectionCopy = {
+  title: string;
+  body: string;
+};
+
+export function DeviceList({ copy }: { copy: SecuritySectionCopy }) {
   return (
     <section>
-      <h2>Devices</h2>
-      <p>See which browsers and phones can currently access your unuvault vault.</p>
+      <h2>{copy.title}</h2>
+      <p>{copy.body}</p>
     </section>
   );
 }

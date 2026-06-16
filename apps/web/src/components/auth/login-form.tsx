@@ -3,6 +3,7 @@
 import type { FormEvent } from "react";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useWebCopy } from "../../lib/i18n/use-web-copy";
 import { createIdentityBrowserClient } from "../../lib/identity/browser";
 import {
   buildAuthCallbackUrl,
@@ -17,6 +18,7 @@ export function LoginForm({
   nextPath?: string;
   autoProvider?: string;
 }) {
+  const copy = useWebCopy().auth;
   const router = useRouter();
   const autoStartedGoogle = useRef(false);
   const [email, setEmail] = useState("");
@@ -44,7 +46,7 @@ export function LoginForm({
       }
     } catch {
       setStatus("error");
-      setErrorMessage("We couldn't sign you in. Please try again.");
+      setErrorMessage(copy.loginError);
     }
   }
 
@@ -62,7 +64,7 @@ export function LoginForm({
 
     if (!email.trim() || !password.trim()) {
       setStatus("error");
-      setErrorMessage("Email and password are required.");
+      setErrorMessage(copy.emailPasswordRequired);
       return;
     }
 
@@ -83,7 +85,7 @@ export function LoginForm({
       router.push(resolveSafeAuthNextPath(nextPath));
     } catch {
       setStatus("error");
-      setErrorMessage("We couldn't sign you in. Please try again.");
+      setErrorMessage(copy.loginError);
     }
   }
 
@@ -102,7 +104,7 @@ export function LoginForm({
             gap: "calc(var(--space-input-padding) / 2)",
           }}
         >
-          <span style={{ fontWeight: 600 }}>Email</span>
+          <span style={{ fontWeight: 600 }}>{copy.emailLabel}</span>
           <input
             name="email"
             type="email"
@@ -124,7 +126,7 @@ export function LoginForm({
             gap: "calc(var(--space-input-padding) / 2)",
           }}
         >
-          <span style={{ fontWeight: 600 }}>Password</span>
+          <span style={{ fontWeight: 600 }}>{copy.passwordLabel}</span>
           <input
             name="password"
             type="password"
@@ -161,7 +163,7 @@ export function LoginForm({
           opacity: status === "submitting" || status === "redirecting" ? 0.82 : 1,
         }}
       >
-        {status === "submitting" ? "Signing in..." : "Sign in"}
+        {status === "submitting" ? copy.loginSubmitting : copy.loginSubmit}
       </button>
 
       <button
@@ -183,13 +185,13 @@ export function LoginForm({
               : "pointer",
         }}
       >
-        Continue with Google
+        {copy.googleSubmit}
       </button>
 
       <p style={{ margin: 0, color: "#475569", lineHeight: 1.6 }}>
-        Need a new account?{" "}
+        {copy.needAccount}{" "}
         <a href={buildRegisterHref(nextPath)} style={{ color: "#1d4ed8" }}>
-          Create account
+          {copy.createAccountLink}
         </a>
       </p>
 

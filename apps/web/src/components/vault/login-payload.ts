@@ -18,8 +18,11 @@ export function hasSavedPassword(payload: unknown): boolean {
   return normalizeVaultLoginPayload(payload).password_ciphertext.trim().length > 0;
 }
 
-export function getHiddenPasswordPlaceholder(payload: unknown): string {
-  return hasSavedPassword(payload) ? "••••••••" : "No password saved";
+export function getHiddenPasswordPlaceholder(
+  payload: unknown,
+  emptyLabel: string = "No password saved",
+): string {
+  return hasSavedPassword(payload) ? "••••••••" : emptyLabel;
 }
 
 export async function readDraftPassword(

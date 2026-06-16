@@ -6,8 +6,9 @@ import type {
   VaultSyncRequest,
 } from "../../../../../packages/api-client/src/vault";
 import { syncVault } from "../../../../../packages/api-client/src/vault";
-import { createIdentityBrowserClient } from "../../lib/identity/browser";
 import { createBrowserApiFetch } from "../../lib/api/browser-fetch";
+import { useWebCopy } from "../../lib/i18n/use-web-copy";
+import { createIdentityBrowserClient } from "../../lib/identity/browser";
 import {
   normalizeVaultLoginPayload,
   normalizeVaultWebsiteUrl,
@@ -51,6 +52,7 @@ function isProfileNotReadyError(error: unknown): boolean {
 }
 
 export function useVaultSync(): VaultSyncState {
+  const copy = useWebCopy().vault;
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [items, setItems] = useState<VaultSyncItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -83,7 +85,7 @@ export function useVaultSync(): VaultSyncState {
     } catch (error) {
       setErrorMessage(null);
       if (!isProfileNotReadyError(error)) {
-        setErrorMessage("We couldn't sync your vault. Please try again.");
+        setErrorMessage(copy.syncError);
       }
       setIsLoading(false);
       setIsSyncing(false);
@@ -93,7 +95,7 @@ export function useVaultSync(): VaultSyncState {
 
   async function createItem(input: VaultLoginFields): Promise<boolean> {
     if (!accessToken) {
-      setErrorMessage("Sign in from the register flow first.");
+      setErrorMessage(copy.authNote);
       return false;
     }
 
@@ -135,7 +137,7 @@ export function useVaultSync(): VaultSyncState {
 
   async function deleteItem(itemId: string): Promise<boolean> {
     if (!accessToken) {
-      setErrorMessage("Sign in from the register flow first.");
+      setErrorMessage(copy.authNote);
       return false;
     }
 
@@ -151,14 +153,14 @@ export function useVaultSync(): VaultSyncState {
 
   async function updateItem(itemId: string, input: VaultLoginFields): Promise<boolean> {
     if (!accessToken) {
-      setErrorMessage("Sign in from the register flow first.");
+      setErrorMessage(copy.authNote);
       return false;
     }
 
     const currentItem = items.find((item) => item.id === itemId);
 
     if (!currentItem) {
-      setErrorMessage("We couldn't find that vault item.");
+      setErrorMessage(copy.missingItem);
       return false;
     }
 
@@ -254,7 +256,7 @@ export function useVaultSync(): VaultSyncState {
           setIsAuthenticated(false);
           setErrorMessage(null);
           if (!isProfileNotReadyError(error)) {
-            setErrorMessage("We couldn't sync your vault. Please try again.");
+            setErrorMessage(copy.syncError);
           }
           setIsBootstrapping(false);
           setIsLoading(false);

@@ -1,9 +1,15 @@
+"use client";
+
+import { useWebCopy } from "../lib/i18n/use-web-copy";
+
 export default function HomePage() {
+  const copy = useWebCopy().home;
+
   return (
     <main>
-      <h1>Run unuvault locally</h1>
-      <p>Start the API on port 3000, open the web app on port 3001, then verify the register flow.</p>
-      <a href="/register">Open register flow</a>
+      <h1>{copy.title}</h1>
+      <p>{copy.body}</p>
+      <a href="/register">{copy.registerLink}</a>
     </main>
   );
 }

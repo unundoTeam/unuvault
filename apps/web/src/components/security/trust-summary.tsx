@@ -1,8 +1,13 @@
-export function TrustSummary() {
+type SecuritySectionCopy = {
+  title: string;
+  body: string;
+};
+
+export function TrustSummary({ copy }: { copy: SecuritySectionCopy }) {
   return (
     <section>
-      <h2>Trust summary</h2>
-      <p>unuvault keeps security explanations visible instead of hiding them behind support pages.</p>
+      <h2>{copy.title}</h2>
+      <p>{copy.body}</p>
     </section>
   );
 }

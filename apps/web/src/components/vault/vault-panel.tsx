@@ -15,6 +15,7 @@ import {
   clearLocalCredentialBridgeSession,
   publishLocalCredentialBridgeSession,
 } from "../../lib/local-credential-bridge/bridge-session";
+import { useWebCopy } from "../../lib/i18n/use-web-copy";
 import { MacCompanionPanel } from "./mac-companion-panel";
 
 function formatUtcSyncTime(timestamp: string): string {
@@ -47,6 +48,7 @@ function getVaultItemInitials(title: string): string {
 }
 
 export function VaultPanel() {
+  const copy = useWebCopy().vault;
   const {
     accessToken,
     createItem,
@@ -105,17 +107,17 @@ export function VaultPanel() {
     const nextWebsiteUrl = normalizeVaultWebsiteUrl(draftWebsite);
 
     if (!nextTitle) {
-      setValidationMessage("Title is required.");
+      setValidationMessage(copy.validation.titleRequired);
       return;
     }
 
     if (draftWebsite.trim() && !nextWebsiteUrl) {
-      setValidationMessage("Enter a valid website URL.");
+      setValidationMessage(copy.validation.validWebsite);
       return;
     }
 
     if (draftPassword && !isUnlocked) {
-      setValidationMessage("Unlock the vault before saving a password.");
+      setValidationMessage(copy.validation.unlockBeforePassword);
       return;
     }
 
@@ -269,17 +271,17 @@ export function VaultPanel() {
     const nextWebsiteUrl = normalizeVaultWebsiteUrl(editingWebsite);
 
     if (!nextTitle) {
-      setEditingValidationMessage("Edited title is required.");
+      setEditingValidationMessage(copy.validation.editTitleRequired);
       return;
     }
 
     if (editingWebsite.trim() && !nextWebsiteUrl) {
-      setEditingValidationMessage("Enter a valid website URL.");
+      setEditingValidationMessage(copy.validation.validWebsite);
       return;
     }
 
     if (editingPassword && !isUnlocked) {
-      setEditingValidationMessage("Unlock the vault before saving a password.");
+      setEditingValidationMessage(copy.validation.unlockBeforePassword);
       return;
     }
 
@@ -346,21 +348,21 @@ export function VaultPanel() {
   const statusMessage = errorMessage
     ? null
     : isBootstrapping
-      ? "Syncing vault..."
+      ? copy.status.bootstrapping
       : isSyncing && lastAction === "create"
-        ? "Saving item..."
+        ? copy.status.saving
         : isSyncing && lastAction === "update"
-          ? "Updating item..."
+          ? copy.status.updating
           : isSyncing && lastAction === "delete"
-            ? "Deleting item..."
+            ? copy.status.deleting
             : lastAction === "load"
-              ? "Vault synced"
+              ? copy.status.synced
               : lastAction === "create"
-                ? "Item saved"
+                ? copy.status.saved
                 : lastAction === "update"
-                  ? "Item updated"
+                  ? copy.status.updated
                   : lastAction === "delete"
-                    ? "Item deleted"
+                    ? copy.status.deleted
                     : null;
 
   const normalizedSearchQuery = searchQuery.trim().toLocaleLowerCase();
@@ -389,9 +391,15 @@ export function VaultPanel() {
   const selectedPasswordDisplayText =
     selectedItem && isSelectedPasswordRevealed
       ? revealedPasswords[selectedItem.id] ??
-        getHiddenPasswordPlaceholder(selectedItem.encrypted_payload)
+        getHiddenPasswordPlaceholder(
+          selectedItem.encrypted_payload,
+          copy.items.noPasswordSaved,
+        )
       : selectedItem
-        ? getHiddenPasswordPlaceholder(selectedItem.encrypted_payload)
+        ? getHiddenPasswordPlaceholder(
+            selectedItem.encrypted_payload,
+            copy.items.noPasswordSaved,
+          )
         : "";
 
   return (
@@ -402,8 +410,8 @@ export function VaultPanel() {
     >
       <div className="vault-header">
         <div className="vault-title-group">
-          <h1 id="vault-heading">Vault</h1>
-          <p>Keep your current unuvault items in sync across every trusted surface.</p>
+          <h1 id="vault-heading">{copy.title}</h1>
+          <p>{copy.subtitle}</p>
         </div>
 
         <div className="vault-header-meta">
@@ -418,13 +426,13 @@ export function VaultPanel() {
           ) : null}
           {lastSyncedAt ? (
             <p className="vault-sync-time">
-              Last synced at {formatUtcSyncTime(lastSyncedAt)}
+              {copy.status.lastSyncedAt(formatUtcSyncTime(lastSyncedAt))}
             </p>
           ) : null}
         </div>
       </div>
       {!isBootstrapping && !isAuthenticated ? (
-        <p className="vault-auth-note">Sign in from the register flow first.</p>
+        <p className="vault-auth-note">{copy.authNote}</p>
       ) : null}
       {errorMessage ? (
         <p className="vault-alert" data-unu-primitive="state/error" role="alert">
@@ -441,33 +449,33 @@ export function VaultPanel() {
             <div className="vault-panel-copy">
               <h2>
                 {isUnlocked
-                  ? "Unlocked session"
+                  ? copy.unlock.unlockedTitle
                   : mode === "needs_setup"
-                    ? "Create master password"
-                    : "Unlock vault"}
+                    ? copy.unlock.setupTitle
+                    : copy.unlock.lockedTitle}
               </h2>
               <p>
                 {isUnlocked
-                  ? "Sensitive fields and row actions are available until you lock again."
-                  : "Use your master password to reveal saved credentials and enable row actions."}
+                  ? copy.unlock.unlockedBody
+                  : copy.unlock.lockedBody}
               </p>
             </div>
             {isUnlocked ? (
               <div className="vault-session-actions">
                 <p className="vault-safe-pill" role="status">
-                  Vault unlocked
+                  {copy.unlock.unlockedBadge}
                 </p>
                 <button
                   className="vault-button vault-button--secondary"
                   type="button"
                   onClick={lock}
                 >
-                  Lock vault
+                  {copy.unlock.lockButton}
                 </button>
               </div>
             ) : (
               <form
-                aria-label="Unlock vault"
+                aria-label={copy.unlock.formLabel}
                 className="vault-form vault-form--unlock"
                 data-unu-primitive="form/unlock"
                 onSubmit={(event) => {
@@ -476,7 +484,7 @@ export function VaultPanel() {
                 }}
               >
                 <label className="vault-field">
-                  <span className="vault-label">Master password</span>
+                  <span className="vault-label">{copy.unlock.masterPassword}</span>
                   <input
                     className="vault-input"
                     name="master-password"
@@ -487,7 +495,9 @@ export function VaultPanel() {
                 </label>
                 {mode === "needs_setup" ? (
                   <label className="vault-field">
-                    <span className="vault-label">Confirm master password</span>
+                    <span className="vault-label">
+                      {copy.unlock.confirmMasterPassword}
+                    </span>
                     <input
                       className="vault-input"
                       name="confirm-master-password"
@@ -511,20 +521,24 @@ export function VaultPanel() {
           >
             <div className="vault-items-header">
               <div>
-                <h2 id="vault-items-heading">Vault items</h2>
+                <h2 id="vault-items-heading">{copy.items.title}</h2>
                 <p>
                   {isUnlocked
-                    ? "Search, copy, edit, and save actions are available."
-                    : "Passwords stay hidden until the vault is unlocked."}
+                    ? copy.items.unlockedBody
+                    : copy.items.lockedBody}
                 </p>
               </div>
               <div className="vault-toolbar">
                 <label className="vault-search-field">
-                  <span className="vault-visually-hidden">Search vault</span>
+                  <span className="vault-visually-hidden">{copy.items.searchLabel}</span>
                   <input
                     className="vault-input"
                     disabled={!isUnlocked}
-                    placeholder={isUnlocked ? "Search vault" : "Unlock to search"}
+                    placeholder={
+                      isUnlocked
+                        ? copy.items.searchPlaceholder
+                        : copy.items.lockedSearchPlaceholder
+                    }
                     type="search"
                     value={isUnlocked ? searchQuery : ""}
                     onChange={(event) => setSearchQuery(event.target.value)}
@@ -536,7 +550,7 @@ export function VaultPanel() {
                     type="button"
                     onClick={openCreatePanel}
                   >
-                    New login
+                    {copy.items.newLogin}
                   </button>
                 ) : null}
               </div>
@@ -544,12 +558,14 @@ export function VaultPanel() {
 
             <p className="vault-review-banner" role="note">
               <span className="vault-review-label">
-                {isUnlocked ? "Unlocked session" : "Locked state"}
+                {isUnlocked
+                  ? copy.items.unlockedReviewLabel
+                  : copy.items.lockedReviewLabel}
               </span>
               :{" "}
               {isUnlocked
-                ? "Secure green is state feedback only; danger red is reserved for destructive actions."
-                : "Save, copy, reveal, edit, and delete remain unavailable while locked."}
+                ? copy.items.unlockedReviewBody
+                : copy.items.lockedReviewBody}
             </p>
 
             <MacCompanionPanel
@@ -575,8 +591,14 @@ export function VaultPanel() {
                       const hasPassword = hasSavedPassword(item.encrypted_payload);
                       const passwordDisplayText = isPasswordRevealed
                         ? revealedPasswords[item.id] ??
-                          getHiddenPasswordPlaceholder(item.encrypted_payload)
-                        : getHiddenPasswordPlaceholder(item.encrypted_payload);
+                          getHiddenPasswordPlaceholder(
+                            item.encrypted_payload,
+                            copy.items.noPasswordSaved,
+                          )
+                        : getHiddenPasswordPlaceholder(
+                            item.encrypted_payload,
+                            copy.items.noPasswordSaved,
+                          );
 
                       return (
                         <>
@@ -593,7 +615,9 @@ export function VaultPanel() {
                                   </span>
                                 ) : null}
                                 {payload.notes.trim() ? (
-                                  <span className="vault-item-meta-part">Notes added</span>
+                                  <span className="vault-item-meta-part">
+                                    {copy.items.notesAdded}
+                                  </span>
                                 ) : null}
                                 {isUnlocked ? (
                                   <span className="vault-item-meta-part">
@@ -602,8 +626,8 @@ export function VaultPanel() {
                                 ) : (
                                   <span className="vault-item-meta-part">
                                     {hasPassword
-                                      ? "Username hidden - password hidden"
-                                      : "Credentials unavailable until unlock"}
+                                      ? copy.items.usernameAndPasswordHidden
+                                      : copy.items.credentialsLocked}
                                   </span>
                                 )}
                               </span>
@@ -613,11 +637,11 @@ export function VaultPanel() {
                             {!isUnlocked ? (
                               <button
                                 className="vault-button vault-button--locked"
-                                aria-label={`Locked ${item.title}`}
+                                aria-label={copy.aria.lockedItem(item.title)}
                                 type="button"
                                 disabled
                               >
-                                Locked
+                                {copy.items.lockedButton}
                               </button>
                             ) : null}
                             {isUnlocked && payload.username.trim() ? (
@@ -625,16 +649,16 @@ export function VaultPanel() {
                                 className="vault-button vault-button--soft"
                                 aria-label={
                                   copiedUsernameItemId === item.id
-                                    ? `Copied ${item.title}`
-                                    : `Copy username ${item.title}`
+                                    ? copy.aria.copied(item.title)
+                                    : copy.aria.copyUsername(item.title)
                                 }
                                 type="button"
                                 onClick={() => void copyUsername(item.id, payload.username)}
                                 disabled={isSyncing}
                               >
                                 {copiedUsernameItemId === item.id
-                                  ? "Copied"
-                                  : "Copy username"}
+                                  ? copy.items.copied
+                                  : copy.items.copyUsername}
                               </button>
                             ) : null}
                             {isUnlocked && hasPassword ? (
@@ -643,11 +667,11 @@ export function VaultPanel() {
                                 aria-label={
                                   copiedPasswordItemId === item.id
                                     ? selectedItem?.id === item.id
-                                      ? `Copied saved password ${item.title}`
-                                      : `Copied password ${item.title}`
+                                      ? copy.aria.copiedSavedPassword(item.title)
+                                      : copy.aria.copiedPassword(item.title)
                                     : selectedItem?.id === item.id
-                                      ? `Copy saved password ${item.title}`
-                                      : `Copy password ${item.title}`
+                                      ? copy.aria.copySavedPassword(item.title)
+                                      : copy.aria.copyPassword(item.title)
                                 }
                                 type="button"
                                 onClick={() =>
@@ -656,8 +680,8 @@ export function VaultPanel() {
                                 disabled={isSyncing || !isUnlocked}
                               >
                                 {copiedPasswordItemId === item.id
-                                  ? "Copied password"
-                                  : "Copy password"}
+                                  ? copy.items.copiedPassword
+                                  : copy.items.copyPassword}
                               </button>
                             ) : null}
                             {isUnlocked && hasPassword ? (
@@ -666,11 +690,11 @@ export function VaultPanel() {
                                 aria-label={
                                   isPasswordRevealed
                                     ? selectedItem?.id === item.id
-                                      ? `Hide row password ${item.title}`
-                                      : `Hide password ${item.title}`
+                                      ? copy.aria.hideRowPassword(item.title)
+                                      : copy.aria.hidePassword(item.title)
                                     : selectedItem?.id === item.id
-                                      ? `Show row password ${item.title}`
-                                      : `Show password ${item.title}`
+                                      ? copy.aria.showRowPassword(item.title)
+                                      : copy.aria.showPassword(item.title)
                                 }
                                 type="button"
                                 onClick={() =>
@@ -681,32 +705,32 @@ export function VaultPanel() {
                                 }
                                 disabled={isSyncing || !isUnlocked}
                               >
-                                {isPasswordRevealed ? "Hide" : "Show"}
+                                {isPasswordRevealed ? copy.items.hide : copy.items.show}
                               </button>
                             ) : null}
                             {isUnlocked ? (
                               <>
                                 <button
                                   className="vault-button vault-button--secondary"
-                                  aria-label={`Open details ${item.title}`}
+                                  aria-label={copy.aria.openDetails(item.title)}
                                   type="button"
                                   onClick={() => selectItem(item.id)}
                                   disabled={isSyncing}
                                 >
-                                  Details
+                                  {copy.items.details}
                                 </button>
                                 <button
                                   className="vault-button vault-button--secondary"
                                   aria-label={
                                     selectedItem?.id === item.id
-                                      ? `Edit row ${item.title}`
-                                      : `Edit ${item.title}`
+                                      ? copy.aria.editRow(item.title)
+                                      : copy.aria.edit(item.title)
                                   }
                                   type="button"
                                   onClick={() => void startEditing(item)}
                                   disabled={isSyncing}
                                 >
-                                  Edit
+                                  {copy.items.edit}
                                 </button>
                               </>
                             ) : null}
@@ -719,24 +743,24 @@ export function VaultPanel() {
               </ul>
             ) : (
               <p className="vault-empty-state">
-                {items.length > 0 ? "No matching vault items." : "No vault items yet."}
+                {items.length > 0 ? copy.items.noMatches : copy.items.empty}
               </p>
             )}
           </section>
 
           {isUnlocked ? (
-            <aside className="vault-panel vault-detail-panel" aria-label="Vault item detail">
+            <aside className="vault-panel vault-detail-panel" aria-label={copy.detail.panelLabel}>
               {detailMode === "create" ? (
                 <div className="vault-card vault-card--create">
-                  <h2>Save a login</h2>
+                  <h2>{copy.detail.saveLoginTitle}</h2>
                   <form
-                    aria-label="Save vault item"
+                    aria-label={copy.detail.saveFormLabel}
                     className="vault-form vault-form--create"
                     data-unu-primitive="form/save-item"
                     onSubmit={handleSubmit}
                   >
                     <label className="vault-field">
-                      <span className="vault-label">Title</span>
+                      <span className="vault-label">{copy.detail.title}</span>
                       <input
                         className="vault-input"
                         name="title"
@@ -746,7 +770,7 @@ export function VaultPanel() {
                       />
                     </label>
                     <label className="vault-field">
-                      <span className="vault-label">Username</span>
+                      <span className="vault-label">{copy.detail.username}</span>
                       <input
                         className="vault-input"
                         name="username"
@@ -759,7 +783,7 @@ export function VaultPanel() {
                       />
                     </label>
                     <label className="vault-field">
-                      <span className="vault-label">Website</span>
+                      <span className="vault-label">{copy.detail.website}</span>
                       <input
                         className="vault-input"
                         name="website"
@@ -772,7 +796,7 @@ export function VaultPanel() {
                       />
                     </label>
                     <label className="vault-field">
-                      <span className="vault-label">Password</span>
+                      <span className="vault-label">{copy.detail.password}</span>
                       <input
                         className="vault-input"
                         name="password"
@@ -790,10 +814,12 @@ export function VaultPanel() {
                       onClick={() => setIsCreatePasswordVisible((current) => !current)}
                       disabled={isSyncing}
                     >
-                      {isCreatePasswordVisible ? "Hide password" : "Show password"}
+                      {isCreatePasswordVisible
+                        ? copy.detail.hidePassword
+                        : copy.detail.showPassword}
                     </button>
                     <label className="vault-field">
-                      <span className="vault-label">Notes</span>
+                      <span className="vault-label">{copy.detail.notes}</span>
                       <textarea
                         className="vault-input vault-textarea"
                         name="notes"
@@ -809,7 +835,7 @@ export function VaultPanel() {
                       type="submit"
                       disabled={isSyncing}
                     >
-                      Save item
+                      {copy.detail.saveItem}
                     </button>
                   </form>
 
@@ -826,10 +852,10 @@ export function VaultPanel() {
               ) : selectedItem && selectedPayload ? (
                 editingItemId === selectedItem.id ? (
                   <div className="vault-edit-grid">
-                    <p className="vault-detail-kicker">EDIT ITEM</p>
+                    <p className="vault-detail-kicker">{copy.detail.editKicker}</p>
                     <h2>{selectedItem.title}</h2>
                     <label className="vault-field">
-                      <span className="vault-label">Edit title</span>
+                      <span className="vault-label">{copy.detail.editTitle}</span>
                       <input
                         className="vault-input"
                         name={`edit-title-${selectedItem.id}`}
@@ -842,7 +868,7 @@ export function VaultPanel() {
                       />
                     </label>
                     <label className="vault-field">
-                      <span className="vault-label">Edit username</span>
+                      <span className="vault-label">{copy.detail.editUsername}</span>
                       <input
                         className="vault-input"
                         name={`edit-username-${selectedItem.id}`}
@@ -855,7 +881,7 @@ export function VaultPanel() {
                       />
                     </label>
                     <label className="vault-field">
-                      <span className="vault-label">Edit website</span>
+                      <span className="vault-label">{copy.detail.editWebsite}</span>
                       <input
                         className="vault-input"
                         name={`edit-website-${selectedItem.id}`}
@@ -868,7 +894,7 @@ export function VaultPanel() {
                       />
                     </label>
                     <label className="vault-field">
-                      <span className="vault-label">Edit password</span>
+                      <span className="vault-label">{copy.detail.editPassword}</span>
                       <input
                         className="vault-input"
                         name={`edit-password-${selectedItem.id}`}
@@ -884,11 +910,11 @@ export function VaultPanel() {
                       disabled={isSyncing}
                     >
                       {isEditingPasswordVisible
-                        ? "Hide edit password"
-                        : "Show edit password"}
+                        ? copy.detail.hideEditPassword
+                        : copy.detail.showEditPassword}
                     </button>
                     <label className="vault-field">
-                      <span className="vault-label">Edit notes</span>
+                      <span className="vault-label">{copy.detail.editNotes}</span>
                       <textarea
                         className="vault-input vault-textarea"
                         name={`edit-notes-${selectedItem.id}`}
@@ -906,7 +932,7 @@ export function VaultPanel() {
                         onClick={() => void saveEditing()}
                         disabled={isSyncing}
                       >
-                        Save
+                        {copy.detail.save}
                       </button>
                       <button
                         className="vault-button vault-button--secondary"
@@ -914,7 +940,7 @@ export function VaultPanel() {
                         onClick={cancelEditing}
                         disabled={isSyncing}
                       >
-                        Cancel
+                        {copy.detail.cancel}
                       </button>
                     </div>
                     {editingValidationMessage ? (
@@ -923,22 +949,23 @@ export function VaultPanel() {
                   </div>
                 ) : (
                   <div className="vault-detail-stack">
-                    <p className="vault-detail-kicker">SELECTED ITEM</p>
+                    <p className="vault-detail-kicker">{copy.detail.selectedKicker}</p>
                     <h2>{selectedItem.title}</h2>
                     <p>
                       {selectedPayload.username.trim()
-                        ? `${selectedPayload.username} - updated today`
-                        : "No username saved"}
+                        ? copy.detail.updatedToday(selectedPayload.username)
+                        : copy.detail.noUsernameSaved}
                     </p>
                     <div className="vault-detail-fields">
                       <div className="vault-detail-field">
-                        <span className="vault-label">Username</span>
+                        <span className="vault-label">{copy.detail.username}</span>
                         <span className="vault-detail-value">
-                          {selectedPayload.username.trim() || "No username saved"}
+                          {selectedPayload.username.trim() ||
+                            copy.detail.noUsernameSaved}
                         </span>
                       </div>
                       <div className="vault-detail-field">
-                        <span className="vault-label">Password</span>
+                        <span className="vault-label">{copy.detail.password}</span>
                         <span className="vault-detail-value vault-detail-password">
                           <span>{selectedPasswordDisplayText}</span>
                           {selectedHasPassword ? (
@@ -946,8 +973,8 @@ export function VaultPanel() {
                               className="vault-button vault-button--icon"
                               aria-label={
                                 isSelectedPasswordRevealed
-                                  ? `Hide password ${selectedItem.title}`
-                                  : `Show password ${selectedItem.title}`
+                                  ? copy.aria.hidePassword(selectedItem.title)
+                                  : copy.aria.showPassword(selectedItem.title)
                               }
                               type="button"
                               onClick={() =>
@@ -958,7 +985,9 @@ export function VaultPanel() {
                               }
                               disabled={isSyncing}
                             >
-                              {isSelectedPasswordRevealed ? "Hide" : "Show"}
+                              {isSelectedPasswordRevealed
+                                ? copy.items.hide
+                                : copy.items.show}
                             </button>
                           ) : null}
                         </span>
@@ -970,8 +999,8 @@ export function VaultPanel() {
                           className="vault-button vault-button--primary"
                           aria-label={
                             copiedPasswordItemId === selectedItem.id
-                              ? `Copied password ${selectedItem.title}`
-                              : `Copy password ${selectedItem.title}`
+                              ? copy.aria.copiedPassword(selectedItem.title)
+                              : copy.aria.copyPassword(selectedItem.title)
                           }
                           type="button"
                           onClick={() =>
@@ -983,40 +1012,37 @@ export function VaultPanel() {
                           disabled={isSyncing}
                         >
                           {copiedPasswordItemId === selectedItem.id
-                            ? "Copied password"
-                            : "Copy password"}
+                            ? copy.items.copiedPassword
+                            : copy.items.copyPassword}
                         </button>
                       ) : null}
                       <button
                         className="vault-button vault-button--secondary"
-                        aria-label={`Edit ${selectedItem.title}`}
+                        aria-label={copy.aria.edit(selectedItem.title)}
                         type="button"
                         onClick={() => void startEditing(selectedItem)}
                         disabled={isSyncing}
                       >
-                        Edit item
+                        {copy.detail.editItem}
                       </button>
                     </div>
                     <div className="vault-danger-zone">
-                      <p className="vault-danger-title">Danger</p>
-                      <p>
-                        Delete remains visually separate from routine copy and edit
-                        actions.
-                      </p>
+                      <p className="vault-danger-title">{copy.detail.dangerTitle}</p>
+                      <p>{copy.detail.dangerBody}</p>
                       <button
                         className="vault-button vault-button--danger vault-action-danger"
-                        aria-label={`Delete ${selectedItem.title}`}
+                        aria-label={copy.aria.delete(selectedItem.title)}
                         type="button"
                         onClick={() => void deleteItem(selectedItem.id)}
                         disabled={isSyncing}
                       >
-                        Delete item
+                        {copy.detail.deleteItem}
                       </button>
                     </div>
                   </div>
                 )
               ) : (
-                <p className="vault-empty-state">Select or create a vault item.</p>
+                <p className="vault-empty-state">{copy.detail.selectOrCreate}</p>
               )}
             </aside>
           ) : null}

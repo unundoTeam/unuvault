@@ -2,9 +2,11 @@
 
 import type { FormEvent } from "react";
 import { useState } from "react";
+import { useWebCopy } from "../../lib/i18n/use-web-copy";
 import { createIdentityBrowserClient } from "../../lib/identity/browser";
 
 export function RegisterForm({ nextPath }: { nextPath?: string }) {
+  const copy = useWebCopy().auth;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [status, setStatus] = useState<
@@ -23,7 +25,7 @@ export function RegisterForm({ nextPath }: { nextPath?: string }) {
 
     if (!email.trim() || !password.trim()) {
       setStatus("error");
-      setErrorMessage("Email and password are required.");
+      setErrorMessage(copy.emailPasswordRequired);
       return;
     }
 
@@ -47,7 +49,7 @@ export function RegisterForm({ nextPath }: { nextPath?: string }) {
       setStatus("pending_confirmation");
     } catch {
       setStatus("error");
-      setErrorMessage("We couldn't create your account. Please try again.");
+      setErrorMessage(copy.registerError);
     }
   }
 
@@ -67,7 +69,7 @@ export function RegisterForm({ nextPath }: { nextPath?: string }) {
             gap: "calc(var(--space-input-padding) / 2)",
           }}
         >
-          <span style={{ fontWeight: 600 }}>Email</span>
+          <span style={{ fontWeight: 600 }}>{copy.emailLabel}</span>
           <input
             name="email"
             type="email"
@@ -92,7 +94,7 @@ export function RegisterForm({ nextPath }: { nextPath?: string }) {
             gap: "calc(var(--space-input-padding) / 2)",
           }}
         >
-          <span style={{ fontWeight: 600 }}>Password</span>
+          <span style={{ fontWeight: 600 }}>{copy.passwordLabel}</span>
           <input
             name="password"
             type="password"
@@ -129,7 +131,7 @@ export function RegisterForm({ nextPath }: { nextPath?: string }) {
           transitionTimingFunction: "var(--motion-ease-standard)",
         }}
       >
-        {status === "submitting" ? "Creating account..." : "Create account"}
+        {status === "submitting" ? copy.registerSubmitting : copy.registerSubmit}
       </button>
 
       {status === "pending_confirmation" ? (
@@ -143,7 +145,7 @@ export function RegisterForm({ nextPath }: { nextPath?: string }) {
             lineHeight: 1.6,
           }}
         >
-          Check your email to finish setting up unuvault.
+          {copy.registerSuccess}
         </p>
       ) : null}
       {errorMessage ? (

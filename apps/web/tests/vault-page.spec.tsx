@@ -14,6 +14,7 @@ afterEach(() => {
   cleanup();
   vi.useRealTimers();
   window.localStorage.clear();
+  setNavigatorLocale("en-US");
   mocks.getSession.mockReset();
   mocks.syncVault.mockReset();
   mocks.importWebAccountVaultItemsToMacCompanion.mockReset();
@@ -91,6 +92,17 @@ const storedPassword = async (
   passphrase
     ? await sealVaultPassword(password, passphrase)
     : createLegacyVaultEnvelope(password);
+
+function setNavigatorLocale(locale: string) {
+  Object.defineProperty(window.navigator, "languages", {
+    configurable: true,
+    value: [locale],
+  });
+  Object.defineProperty(window.navigator, "language", {
+    configurable: true,
+    value: locale,
+  });
+}
 
 async function setMasterPassword(
   password: string,
@@ -211,6 +223,22 @@ describe("VaultPage", () => {
     expect(
       await screen.findByText("Sign in from the register flow first."),
     ).toBeInTheDocument();
+    expect(mocks.syncVault).not.toHaveBeenCalled();
+  });
+
+  it("uses Simplified Chinese for the signed-out vault state when the browser language is Chinese", async () => {
+    setNavigatorLocale("zh-CN");
+    mocks.getSession.mockResolvedValue({
+      data: {
+        session: null,
+      },
+      error: null,
+    });
+
+    render(<VaultPage />);
+
+    expect(await screen.findByText("保险库")).toBeInTheDocument();
+    expect(await screen.findByText("请先通过注册流程登录。")).toBeInTheDocument();
     expect(mocks.syncVault).not.toHaveBeenCalled();
   });
 

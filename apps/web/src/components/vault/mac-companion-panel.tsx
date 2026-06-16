@@ -6,6 +6,7 @@ import {
   getMacCompanionStatus,
   importWebAccountVaultItemsToMacCompanion,
 } from "../../lib/mac-companion/client";
+import { useWebCopy } from "../../lib/i18n/use-web-copy";
 import {
   hasSavedPassword,
   normalizeVaultLoginPayload,
@@ -27,40 +28,6 @@ type CompanionStatusState =
   | "unavailable"
   | "unlocked";
 
-function formatImportReceipt(count: number): string {
-  return `Saved ${count} ${count === 1 ? "item" : "items"} to this Mac.`;
-}
-
-function companionStatusLabel(status: CompanionStatusState): string {
-  switch (status) {
-    case "attention":
-      return "Mac companion attention";
-    case "checking":
-      return "Checking Mac companion";
-    case "locked":
-      return "Mac companion locked";
-    case "unavailable":
-      return "Mac companion unavailable";
-    case "unlocked":
-      return "Mac companion unlocked";
-  }
-}
-
-function companionStatusHelper(status: CompanionStatusState): string {
-  switch (status) {
-    case "attention":
-      return "Review the Mac app before saving Web items locally.";
-    case "checking":
-      return "Checking whether the Mac app is running and unlocked.";
-    case "locked":
-      return "Unlock the Mac vault before saving Web items locally.";
-    case "unavailable":
-      return "Open the Mac app on this Mac, then unlock its local vault.";
-    case "unlocked":
-      return "Mac companion is ready. Saved items stay encrypted on this Mac.";
-  }
-}
-
 async function readCompanionStatus(): Promise<CompanionStatusState> {
   const result = await getMacCompanionStatus();
 
@@ -77,6 +44,7 @@ export function MacCompanionPanel({
   items,
   unlockPassphrase,
 }: MacCompanionPanelProps) {
+  const copy = useWebCopy().vault.macCompanion;
   const [importState, setImportState] = useState<ImportState>("idle");
   const [importMessage, setImportMessage] = useState<string | null>(null);
   const [companionStatus, setCompanionStatus] =
@@ -128,7 +96,7 @@ export function MacCompanionPanel({
   async function saveToMac() {
     if (!accessToken || !isUnlocked || !unlockPassphrase) {
       setImportState("idle");
-      setImportMessage("Unlock the Web vault before saving to this Mac.");
+      setImportMessage(copy.unlockWebVault);
       return;
     }
 
@@ -136,12 +104,12 @@ export function MacCompanionPanel({
 
     if (freshCompanionStatus !== "unlocked") {
       setImportState("idle");
-      setImportMessage(companionStatusHelper(freshCompanionStatus));
+      setImportMessage(copy.statusHelper[freshCompanionStatus]);
       return;
     }
 
     setImportState("importing");
-    setImportMessage("Saving unlocked vault items to this Mac...");
+    setImportMessage(copy.savingMessage);
 
     try {
       const credentials = (
@@ -170,7 +138,7 @@ export function MacCompanionPanel({
 
       if (credentials.length === 0) {
         setImportState("idle");
-        setImportMessage("No saved passwords are available to send to this Mac.");
+        setImportMessage(copy.emptyMessage);
         return;
       }
 
@@ -181,24 +149,22 @@ export function MacCompanionPanel({
 
       if (result.ok) {
         setImportState("success");
-        setImportMessage(formatImportReceipt(result.credentialCount));
+        setImportMessage(copy.formatReceipt(result.credentialCount));
         return;
       }
 
       setImportState("error");
       if (result.error === "vault_locked") {
         setCompanionStatus("locked");
-        setImportMessage("Unlock the Mac vault before saving Web items locally.");
+        setImportMessage(copy.vaultLockedMessage);
         return;
       }
 
-      setImportMessage(
-        "Mac companion could not import the vault. Unlock the Mac vault and try again.",
-      );
+      setImportMessage(copy.importError);
     } catch {
       setImportState("error");
       setCompanionStatus("unavailable");
-      setImportMessage("Mac companion is not available. Start or unlock the Mac app, then try again.");
+      setImportMessage(copy.unavailableError);
     }
   }
 
@@ -207,11 +173,11 @@ export function MacCompanionPanel({
     (companionStatus === "attention" ||
     companionStatus === "locked" ||
     companionStatus === "unavailable"
-      ? companionStatusHelper(companionStatus)
+      ? copy.statusHelper[companionStatus]
       : isUnlocked
-        ? companionStatusHelper(companionStatus)
-        : "Unlock the Web vault before saving to this Mac.");
-  const statusLabel = companionStatusLabel(companionStatus);
+        ? copy.statusHelper[companionStatus]
+        : copy.unlockWebVault);
+  const statusLabel = copy.statusLabel[companionStatus];
   const helperTextClassName = [
     "vault-helper-text",
     importState === "success" ? "vault-helper-text--success" : "",
@@ -228,17 +194,14 @@ export function MacCompanionPanel({
 
   return (
     <section
-      aria-label="Mac companion"
+      aria-label={copy.label}
       className="vault-companion-panel"
       data-unu-primitive="state/mac-companion"
     >
       <div className="vault-companion-header">
         <div className="vault-companion-copy">
-          <h2>Save to this Mac</h2>
-          <p>
-            Send unlocked vault items to the trusted Mac companion. The Mac vault
-            must be running and unlocked.
-          </p>
+          <h2>{copy.title}</h2>
+          <p>{copy.body}</p>
         </div>
         <div className="vault-companion-actions">
           <p
@@ -255,7 +218,7 @@ export function MacCompanionPanel({
               void saveToMac();
             }}
           >
-            {isImporting ? "Saving..." : "Save to this Mac"}
+            {isImporting ? copy.savingButton : copy.saveButton}
           </button>
         </div>
       </div>
