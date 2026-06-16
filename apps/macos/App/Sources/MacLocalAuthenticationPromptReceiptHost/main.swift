@@ -8,6 +8,7 @@ struct MacLocalAuthenticationPromptReceiptHost {
         var shouldPrompt = false
         var timeoutSeconds: UInt64 = 12
         var reason = "解锁这台 Mac 上的本地保险库"
+        var cancelTitle = "取消"
 
         var iterator = CommandLine.arguments.dropFirst().makeIterator()
 
@@ -21,6 +22,12 @@ struct MacLocalAuthenticationPromptReceiptHost {
                     exit(2)
                 }
                 reason = value
+            case "--cancel-title":
+                guard let value = iterator.next() else {
+                    record("status=failed error=missing_cancel_title")
+                    exit(2)
+                }
+                cancelTitle = value
             case "--timeout-seconds":
                 guard
                     let value = iterator.next(),
@@ -33,7 +40,7 @@ struct MacLocalAuthenticationPromptReceiptHost {
                 timeoutSeconds = parsed
             case "--help", "-h":
                 print("""
-                Usage: MacLocalAuthenticationPromptReceiptHost [--prompt] [--reason <text>] [--timeout-seconds <seconds>]
+                Usage: MacLocalAuthenticationPromptReceiptHost [--prompt] [--reason <text>] [--cancel-title <text>] [--timeout-seconds <seconds>]
 
                 Default mode performs a non-prompting LocalAuthentication readiness check.
                 --prompt requests the real macOS owner-authentication prompt and cancels it after the timeout.
@@ -46,7 +53,7 @@ struct MacLocalAuthenticationPromptReceiptHost {
         }
 
         let context = LAContext()
-        context.localizedCancelTitle = "Cancel"
+        context.localizedCancelTitle = cancelTitle
         var authError: NSError?
 
         guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &authError) else {
@@ -71,7 +78,7 @@ struct MacLocalAuthenticationPromptReceiptHost {
         }
 
         record(
-            "status=prompt_requested claim=touch_id_prompt_ux reason=\"\(reason)\" timeout_seconds=\(timeoutSeconds) biometry=\(biometry) can_biometrics=\(canUseBiometrics)"
+            "status=prompt_requested claim=touch_id_prompt_ux reason=\"\(reason)\" cancel_title=\"\(cancelTitle)\" timeout_seconds=\(timeoutSeconds) biometry=\(biometry) can_biometrics=\(canUseBiometrics)"
         )
         fflush(stdout)
 

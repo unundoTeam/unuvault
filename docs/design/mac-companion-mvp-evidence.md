@@ -122,7 +122,17 @@ boundaries. Local screenshot:
   lets the prompt host cancel itself after the timeout. This can record a real
   local screenshot receipt for the Touch ID/system authentication UX, but still
   does not claim notarization, camera QR scanning, or physical iPhone receipt.
-  On 2026-06-13, a localized product-named local capture produced:
+  On 2026-06-16, a product-ready localized local capture produced:
+  `docs/design/evidence/2026-06-16-mac-touch-id-prompt-product-ready/touch-id-prompt.png`.
+  The receipt recorded
+  `UNUVAULT_MAC_TOUCH_ID_PROMPT_RECEIPT status=prompt_requested`,
+  `reason="解锁这台 Mac 上的本地保险库"`,
+  `cancel_title="取消"`,
+  `biometry=touch_id can_biometrics=true`, and `result=authorized`. The
+  checked-in screenshot is cropped from the full-screen temporary capture so
+  only the macOS owner-authentication prompt is retained. It shows the
+  product-named `UnuVault` prompt, localized reason copy, and localized cancel
+  copy. On 2026-06-13, the prior localized product-named local capture produced:
   `docs/design/evidence/2026-06-13-mac-touch-id-prompt-localized/touch-id-prompt.png`.
   The receipt recorded
   `UNUVAULT_MAC_TOUCH_ID_PROMPT_RECEIPT status=prompt_requested`,
@@ -133,7 +143,9 @@ boundaries. Local screenshot:
   screenshot is cropped from the full-screen temporary capture so only the
   macOS owner-authentication prompt is retained. This supersedes the earlier
   product-named English-reason capture for UX presentation because the system
-  dialog no longer mixes English reason copy into the Chinese macOS prompt.
+  dialog no longer mixes English reason copy into the Chinese macOS prompt. The
+  2026-06-16 receipt supersedes both 2026-06-13 captures for product readiness
+  because it also localizes the cancel action.
   The earlier product-named English-reason capture remains retained at:
   `docs/design/evidence/2026-06-13-mac-touch-id-prompt-product/touch-id-prompt.png`.
   That version already shows the product name `UnuVault`, but the reason copy
@@ -338,10 +350,10 @@ local packaged-app receipt: initial status `not_found`, after register
 can register and clean up a macOS login item on this Mac. It still does not
 claim notarization, Apple Developer signing, or persistence for a user-installed
 production app bundle.
-- Full Touch ID prompt screenshot UX is now backed by the 2026-06-13 localized
-  product-named local capture above. Future prompt wording, app bundle naming,
-  or macOS authentication UI changes should refresh that receipt. The default
-  receipt gate remains non-prompting.
+- Full Touch ID prompt screenshot UX is now backed by the 2026-06-16
+  product-ready localized product-named local capture above. Future prompt
+  wording, app bundle naming, cancel copy, or macOS authentication UI changes
+  should refresh that receipt. The default receipt gate remains non-prompting.
 - Physical iPhone pairing receipt is claimed only after
   `pnpm test:pairing-physical-receipt` runs against a connected trusted iPhone
   and captures `UNUVAULT_IOS_PAIRING_RECEIPT paired`.

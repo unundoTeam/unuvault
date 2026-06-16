@@ -257,9 +257,9 @@ For the native Mac companion proof:
   product-named `UnuVault.app`, and runs a non-prompting readiness check. Add
   `-- --capture` only when an interactive local UX receipt is intended; that
   path triggers the real macOS owner-authentication prompt with the UnuVault
-  bundle name and localized reason copy, captures `touch-id-prompt.png`, and
-  lets the host cancel itself after a timeout. It does not claim notarization or
-  physical iPhone proof.
+  bundle name plus localized reason and cancel copy, captures
+  `touch-id-prompt.png`, and lets the host cancel itself after a timeout. It
+  does not claim notarization or physical iPhone proof.
 - Mac companion install-readiness proof is available through:
   `pnpm test:macos:install-readiness`
   This proves the native app links the macOS `ServiceManagement` launch-at-login

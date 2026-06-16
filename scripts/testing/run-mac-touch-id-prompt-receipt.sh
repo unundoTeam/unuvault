@@ -12,6 +12,7 @@ output_dir="${UNUVAULT_TOUCH_ID_PROMPT_OUTPUT_DIR:-$repo_root/docs/design/eviden
 prompt_app_name="UnuVault"
 prompt_bundle_id="com.unundo.unuvault.TouchIDPromptReceiptHost"
 prompt_reason="${UNUVAULT_TOUCH_ID_PROMPT_REASON:-解锁这台 Mac 上的本地保险库}"
+prompt_cancel_title="${UNUVAULT_TOUCH_ID_PROMPT_CANCEL_TITLE:-取消}"
 
 usage() {
   cat <<'USAGE'
@@ -37,7 +38,7 @@ for arg in "$@"; do
     --capture)
       capture=1
       ;;
-    --output-dir|--timeout-seconds|--reason)
+    --output-dir|--timeout-seconds|--reason|--cancel-title)
       ;;
     --help|-h)
       usage
@@ -75,6 +76,14 @@ while [[ "$#" -gt 0 ]]; do
       prompt_reason="${2:-}"
       if [[ -z "$prompt_reason" ]]; then
         record "status=failed error=missing_reason" >&2
+        exit 2
+      fi
+      shift 2
+      ;;
+    --cancel-title)
+      prompt_cancel_title="${2:-}"
+      if [[ -z "$prompt_cancel_title" ]]; then
+        record "status=failed error=missing_cancel_title" >&2
         exit 2
       fi
       shift 2
@@ -172,11 +181,12 @@ mkdir -p "$output_dir"
 receipt_log="$(mktemp "${TMPDIR:-/tmp}/unuvault-touch-id-prompt.XXXXXX.log")"
 output_path="$output_dir/touch-id-prompt.png"
 
-record "status=running check=prompt_capture app_name=$prompt_app_name app_path=$app_path output=$output_path timeout_seconds=$timeout_seconds"
+record "status=running check=prompt_capture app_name=$prompt_app_name app_path=$app_path output=$output_path timeout_seconds=$timeout_seconds cancel_title=\"$prompt_cancel_title\""
 
 "$host_binary_for_prompt" \
   --prompt \
   --reason "$prompt_reason" \
+  --cancel-title "$prompt_cancel_title" \
   --timeout-seconds "$timeout_seconds" >"$receipt_log" 2>&1 &
 host_pid="$!"
 
