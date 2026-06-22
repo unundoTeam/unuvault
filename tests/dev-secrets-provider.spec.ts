@@ -59,6 +59,42 @@ describe("runDevSecretsProvider", () => {
     expect(readStderr()).toBe("");
   });
 
+  it("verifies a stored dotenv record without releasing plaintext", async () => {
+    const { io, readStdout, readStderr } = createCapturedIo();
+    const plaintext = "SUPABASE_URL=https://example.supabase.co\n";
+    const ciphertext = await sealDeveloperSecretBlob(
+      plaintext,
+      "correct horse",
+    );
+    const readRecord = vi.fn().mockResolvedValue({ ciphertext });
+    const writeRecord = vi.fn().mockResolvedValue({ ok: true as const });
+
+    const exitCode = await runDevSecretsProvider(
+      ["verify", "--app", "unundo", "--env", "local"],
+      {
+        io,
+        deps: {
+          getCliSessionToken: async () => "cli-session-token",
+          promptSecret: async () => "correct horse",
+          readRecord,
+          writeRecord,
+          readTextFile: async () => "",
+          confirm: async () => true,
+        },
+      },
+    );
+
+    expect(exitCode).toBe(0);
+    expect(readRecord).toHaveBeenCalledWith("cli-session-token", {
+      app: "unundo",
+      env: "local",
+    });
+    expect(writeRecord).not.toHaveBeenCalled();
+    expect(readStdout()).toBe("VERIFY_OK unundo/local/dotenv\n");
+    expect(readStdout()).not.toContain(plaintext);
+    expect(readStderr()).toBe("");
+  });
+
   it("accepts unuidentity/production as a supported read target", async () => {
     const { io, readStdout, readStderr } = createCapturedIo();
     const ciphertext = await sealDeveloperSecretBlob(
@@ -148,6 +184,37 @@ describe("runDevSecretsProvider", () => {
     expect(readStdout()).toBe("");
     expect(readStderr()).toContain("decrypt_failed");
     expect(readStderr()).not.toContain("SUPABASE_URL=");
+  });
+
+  it("keeps stdout empty when verify cannot decrypt", async () => {
+    const { io, readStdout, readStderr } = createCapturedIo();
+    const plaintext = "SUPABASE_URL=https://example.supabase.co\n";
+    const ciphertext = await sealDeveloperSecretBlob(
+      plaintext,
+      "correct horse",
+    );
+    const writeRecord = vi.fn().mockResolvedValue({ ok: true as const });
+
+    const exitCode = await runDevSecretsProvider(
+      ["verify", "--app", "unundo", "--env", "local"],
+      {
+        io,
+        deps: {
+          getCliSessionToken: async () => "cli-session-token",
+          promptSecret: async () => "wrong horse",
+          readRecord: async () => ({ ciphertext }),
+          writeRecord,
+          readTextFile: async () => "",
+          confirm: async () => true,
+        },
+      },
+    );
+
+    expect(exitCode).toBe(1);
+    expect(writeRecord).not.toHaveBeenCalled();
+    expect(readStdout()).toBe("");
+    expect(readStderr()).toContain("decrypt_failed");
+    expect(readStderr()).not.toContain(plaintext);
   });
 
   it("keeps stdout empty and reports decrypt_failed for malformed ciphertext", async () => {

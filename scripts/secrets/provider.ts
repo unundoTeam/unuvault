@@ -30,6 +30,10 @@ type ProviderCommand =
       target: ProviderTarget;
     }
   | {
+      kind: "verify";
+      target: ProviderTarget;
+    }
+  | {
       kind: "import";
       target: ProviderTarget;
       from: string;
@@ -70,6 +74,7 @@ export const DEV_SECRETS_PROVIDER_USAGE = [
   "  bash scripts/secrets/provider.sh read --app unundo --env local",
   "  bash scripts/secrets/provider.sh read --app unundo --env staging",
   "  bash scripts/secrets/provider.sh read --app unuidentity --env production",
+  "  bash scripts/secrets/provider.sh verify --app unundo --env local",
   "  bash scripts/secrets/provider.sh import --app unundo --env local --from /absolute/path/to/local.env",
   "  bash scripts/secrets/provider.sh import --app unundo --env production --from /absolute/path/to/production.env",
   "  bash scripts/secrets/provider.sh import --app unuidentity --env local --from /absolute/path/to/phase1.env",
@@ -123,7 +128,7 @@ function parseProviderCommand(argv: string[]): ProviderCommand {
 
   const [kind, ...rest] = argv;
 
-  if (kind !== "read" && kind !== "import") {
+  if (kind !== "read" && kind !== "verify" && kind !== "import") {
     throw createProviderError("invalid_command");
   }
 
@@ -158,7 +163,7 @@ function parseProviderCommand(argv: string[]): ProviderCommand {
 
   validateTarget(target);
 
-  if (kind === "read") {
+  if (kind === "read" || kind === "verify") {
     return {
       kind,
       target,
@@ -371,13 +376,12 @@ function createDefaultDeps(env: NodeJS.ProcessEnv): ProviderDeps {
   };
 }
 
-async function runReadCommand(
-  command: Extract<ProviderCommand, { kind: "read" }>,
-  io: ProviderIo,
+async function readDecryptedDotenv(
+  target: ProviderTarget,
   deps: ProviderDeps,
 ) {
-  const cliSessionToken = await deps.getCliSessionToken(command.target);
-  const record = await deps.readRecord(cliSessionToken, command.target);
+  const cliSessionToken = await deps.getCliSessionToken(target);
+  const record = await deps.readRecord(cliSessionToken, target);
   const masterPassword = await deps.promptSecret("Master password: ");
   let plaintext = "";
 
@@ -395,7 +399,27 @@ async function runReadCommand(
   }
 
   validateConservativeDotenv(plaintext);
+  return plaintext;
+}
+
+async function runReadCommand(
+  command: Extract<ProviderCommand, { kind: "read" }>,
+  io: ProviderIo,
+  deps: ProviderDeps,
+) {
+  const plaintext = await readDecryptedDotenv(command.target, deps);
   io.writeStdout(plaintext);
+}
+
+async function runVerifyCommand(
+  command: Extract<ProviderCommand, { kind: "verify" }>,
+  io: ProviderIo,
+  deps: ProviderDeps,
+) {
+  await readDecryptedDotenv(command.target, deps);
+  io.writeStdout(
+    `VERIFY_OK ${command.target.app}/${command.target.env}/dotenv\n`,
+  );
 }
 
 async function runImportCommand(
@@ -454,6 +478,11 @@ export async function runDevSecretsProvider(
 
     if (command.kind === "read") {
       await runReadCommand(command, io, deps);
+      return 0;
+    }
+
+    if (command.kind === "verify") {
+      await runVerifyCommand(command, io, deps);
       return 0;
     }
 
