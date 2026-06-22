@@ -424,6 +424,8 @@ For the private env-secrets bridge:
 - enable the API surface with `UNUVAULT_ENABLE_DEV_SECRETS=1`
 - the stable shell entrypoint is:
   `bash scripts/secrets/provider.sh read --app <app> --env <local|staging|production>`
+- verify a stored record without releasing dotenv plaintext:
+  `bash scripts/secrets/provider.sh verify --app <app> --env <local|staging|production>`
 - the matching import entrypoint is:
   `bash scripts/secrets/provider.sh import --app <app> --env <local|staging|production> --from /absolute/path/to/<env>.env`
 - the TypeScript command module is also exposed as:
@@ -436,6 +438,8 @@ For the private env-secrets bridge:
   - `unuidentity/staging/dotenv`
   - `unuidentity/production/dotenv`
 - `read` prints plaintext only to `stdout` on success
+- `verify` prints only `VERIFY_OK <app>/<env>/dotenv` after successful decrypt
+  and dotenv validation; it never prints the dotenv payload
 - `import` prints only a safe summary to `stderr` before confirmation and upload
 - this remains a developer-owned private record surface rather than a team-wide
   shared secrets platform
