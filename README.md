@@ -426,6 +426,9 @@ For the private env-secrets bridge:
   `bash scripts/secrets/provider.sh read --app <app> --env <local|staging|production>`
 - verify a stored record without releasing dotenv plaintext:
   `bash scripts/secrets/provider.sh verify --app <app> --env <local|staging|production>`
+- browser handoff preflights the local API and Web dev servers before opening
+  login; if either server is unavailable, start `corepack pnpm dev:api` and
+  `corepack pnpm dev:web` from this repo root
 - the matching import entrypoint is:
   `bash scripts/secrets/provider.sh import --app <app> --env <local|staging|production> --from /absolute/path/to/<env>.env`
 - the TypeScript command module is also exposed as:

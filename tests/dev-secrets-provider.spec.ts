@@ -1,3 +1,4 @@
+import { createServer, type Server } from "node:http";
 import { describe, expect, it, vi } from "vitest";
 import { sealDeveloperSecretBlob } from "../packages/security/src/developer-secret-envelope";
 import { runDevSecretsProvider } from "../scripts/secrets/provider";
@@ -22,6 +23,37 @@ function createCapturedIo() {
       return stderr.join("");
     },
   };
+}
+
+async function listenOnLocalhost(server: Server) {
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      server.off("error", reject);
+      resolve();
+    });
+  });
+
+  const address = server.address();
+
+  if (!address || typeof address === "string") {
+    throw new Error("test_server_bind_failed");
+  }
+
+  return `http://127.0.0.1:${address.port}`;
+}
+
+async function closeServer(server: Server) {
+  await new Promise<void>((resolve, reject) => {
+    server.close((error) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+
+      resolve();
+    });
+  });
 }
 
 describe("runDevSecretsProvider", () => {
@@ -93,6 +125,45 @@ describe("runDevSecretsProvider", () => {
     expect(readStdout()).toBe("VERIFY_OK unundo/local/dotenv\n");
     expect(readStdout()).not.toContain(plaintext);
     expect(readStderr()).toBe("");
+  });
+
+  it("checks the local browser handoff runtime before opening login", async () => {
+    const { io, readStdout, readStderr } = createCapturedIo();
+    const apiServer = createServer((_request, response) => {
+      response.statusCode = 503;
+      response.end("api unavailable");
+    });
+    const webServer = createServer((_request, response) => {
+      response.statusCode = 200;
+      response.end("web ready");
+    });
+
+    const apiBaseUrl = await listenOnLocalhost(apiServer);
+    const webBaseUrl = await listenOnLocalhost(webServer);
+
+    try {
+      const exitCode = await runDevSecretsProvider(
+        ["verify", "--app", "unuidentity", "--env", "local"],
+        {
+          io,
+          env: {
+            ...process.env,
+            UNUVAULT_API_BASE_URL: apiBaseUrl,
+            UNUVAULT_WEB_BASE_URL: webBaseUrl,
+          },
+        },
+      );
+
+      expect(exitCode).toBe(1);
+      expect(readStdout()).toBe("");
+      expect(readStderr()).toContain("browser_handoff_runtime_unavailable");
+      expect(readStderr()).toContain("corepack pnpm dev:api");
+      expect(readStderr()).toContain("corepack pnpm dev:web");
+      expect(readStderr()).not.toContain("Opening browser for unuvault login");
+    } finally {
+      await closeServer(apiServer);
+      await closeServer(webServer);
+    }
   });
 
   it("accepts unuidentity/production as a supported read target", async () => {

@@ -69,6 +69,7 @@ type RunOptions = {
 
 const DEFAULT_API_BASE_URL = "http://127.0.0.1:3000";
 const DEFAULT_WEB_BASE_URL = "http://127.0.0.1:3001";
+const BROWSER_HANDOFF_PREFLIGHT_TIMEOUT_MS = 1_500;
 export const DEV_SECRETS_PROVIDER_USAGE = [
   "Usage:",
   "  bash scripts/secrets/provider.sh read --app unundo --env local",
@@ -83,6 +84,24 @@ export const DEV_SECRETS_PROVIDER_USAGE = [
 
 function createProviderError(code: string) {
   return new Error(code);
+}
+
+function createBrowserHandoffRuntimeUnavailableError(
+  apiBaseUrl: string,
+  webBaseUrl: string,
+) {
+  const apiHealthUrl = new URL("/health", apiBaseUrl);
+
+  return createProviderError(
+    [
+      "browser_handoff_runtime_unavailable",
+      "Start unuvault local services before using browser handoff:",
+      "  corepack pnpm dev:api",
+      "  corepack pnpm dev:web",
+      `Checked API: ${apiHealthUrl.toString()}`,
+      `Checked Web: ${webBaseUrl}`,
+    ].join("\n"),
+  );
 }
 
 function validateTarget(target: ProviderTarget) {
@@ -202,6 +221,36 @@ function readWebBaseUrl(env: NodeJS.ProcessEnv) {
   return env.UNUVAULT_WEB_BASE_URL ?? DEFAULT_WEB_BASE_URL;
 }
 
+async function assertBrowserHandoffRuntimeReady(env: NodeJS.ProcessEnv) {
+  const apiBaseUrl = readApiBaseUrl(env);
+  const webBaseUrl = readWebBaseUrl(env);
+  const runtimeUnavailableError = createBrowserHandoffRuntimeUnavailableError(
+    apiBaseUrl,
+    webBaseUrl,
+  );
+
+  try {
+    const apiHealthUrl = new URL("/health", apiBaseUrl);
+    const apiResponse = await fetch(apiHealthUrl, {
+      signal: AbortSignal.timeout(BROWSER_HANDOFF_PREFLIGHT_TIMEOUT_MS),
+    });
+
+    if (!apiResponse.ok) {
+      throw runtimeUnavailableError;
+    }
+
+    const webResponse = await fetch(webBaseUrl, {
+      signal: AbortSignal.timeout(BROWSER_HANDOFF_PREFLIGHT_TIMEOUT_MS),
+    });
+
+    if (webResponse.status >= 500) {
+      throw runtimeUnavailableError;
+    }
+  } catch {
+    throw runtimeUnavailableError;
+  }
+}
+
 async function promptLine(prompt: string) {
   if (!stdin.isTTY || !stderr.isTTY) {
     throw createProviderError("not_interactive_tty");
@@ -248,6 +297,8 @@ async function openBrowser(url: string) {
 }
 
 async function waitForLoopbackCode(target: ProviderTarget, env: NodeJS.ProcessEnv) {
+  await assertBrowserHandoffRuntimeReady(env);
+
   if (!stdin.isTTY || !stdout.isTTY) {
     throw createProviderError("not_interactive_tty");
   }
