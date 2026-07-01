@@ -66,21 +66,17 @@ swift run --package-path apps/macos/App UnuVaultMacCompanion
 The command builds and starts the menu bar app product. On 2026-05-27, an
 earlier native menu bar item was opened through macOS UI scripting
 (`menu bar item 1 of menu bar 2` for process `UnuVaultMacCompanion`) and
-captured as previous local visual evidence:
-
-- `/Users/yuchen/Design/unu/unuvault/exports/2026-05-27-mac-companion-menu-popover-light-polished-v2.png`
+captured as previous local visual evidence. That local screenshot export was
+retired during the 2026-07-02 design hygiene cleanup; rerun the command when a
+fresh native menu screenshot is needed.
 
 Earlier v1.2 evidence from 2026-05-28 showed the native menu bar product synced
 to `current/unuvault/mac-companion-core-flows-v1.2`. The menu opened on a
 trusted-status surface first, kept credential entry behind an explicit
-`Add login` action, and included `zh-Hans` localized copy. The current Mac
-companion source is now `current/unuvault/mac-companion-core-flows-v1.3`.
-Historical screenshots:
-
-- `/Users/yuchen/Design/unu/unuvault/exports/2026-05-28-mac-companion-menu-popover-v12-current.png`
-- `/Users/yuchen/Design/unu/unuvault/exports/2026-05-28-mac-companion-menu-add-login-v12-current.png`
-- `/Users/yuchen/Design/unu/unuvault/exports/2026-05-28-mac-companion-menu-popover-v12-zh-Hans.png`
-- `/Users/yuchen/Design/unu/unuvault/exports/2026-05-28-mac-companion-menu-add-login-v12-zh-Hans.png`
+`Add login` action, and included `zh-Hans` localized copy. The historical
+v1.2 screenshot exports were retired during the 2026-07-02 design hygiene
+cleanup. The current Mac companion source is now
+`current/unuvault/mac-companion-core-flows-v1.3`.
 
 On 2026-06-12, the current source was restored as
 `current/unuvault/mac-companion-core-flows-v1.3` after the native menu overview
@@ -216,20 +212,18 @@ boundaries. Local screenshot:
   `Fill once` / `填充一次` approval through macOS UI scripting, verifies the
   real login page DOM receives the Mac-approved username and password, and
   verifies a second `/v1/credentials/claim` returns
-  `credential_not_found`. Captured 2026-05-28 evidence:
-  - `/Users/yuchen/Design/unu/unuvault/exports/2026-05-28-mac-companion-menu-approval-real-app-full.png`
-  - `/Users/yuchen/Design/unu/unuvault/exports/2026-05-28-mac-companion-menu-approval-real-app.png`
-  - `/Users/yuchen/Design/unu/unuvault/exports/2026-05-28-mac-companion-menu-approval-filled-page-real-app.png`
+  `credential_not_found`. The previous 2026-05-28 local screenshot exports for
+  this smoke were retired during the 2026-07-02 design hygiene cleanup; rerun
+  the smoke when fresh screenshot evidence is needed.
 - `pnpm smoke:menu-app-local-save-mac-companion` builds the packaged browser
   extension, starts the real `UnuVaultMacCompanion` SwiftUI menu bar app with
   an isolated temporary encrypted vault, opens the native `Add login` menu
   surface, pre-fills the form only in proof mode, saves through the real native
   `Save` button into the encrypted local vault file, unlocks the saved local
   vault through the native menu, then verifies extension autofill and one-time
-  claim behavior after Mac-local approval. Captured 2026-05-28 evidence:
-  - `/Users/yuchen/Design/unu/unuvault/exports/2026-05-28-mac-companion-local-save-form-real-app-full.png`
-  - `/Users/yuchen/Design/unu/unuvault/exports/2026-05-28-mac-companion-local-save-real-app-full.png`
-  - `/Users/yuchen/Design/unu/unuvault/exports/2026-05-28-mac-companion-local-save-filled-page-real-app.png`
+  claim behavior after Mac-local approval. The previous 2026-05-28 local
+  screenshot exports for this smoke were retired during the 2026-07-02 design
+  hygiene cleanup; rerun the smoke when fresh screenshot evidence is needed.
 - `pnpm smoke:menu-app-manual-input-mac-companion` builds the packaged browser
   extension, starts the real `UnuVaultMacCompanion` SwiftUI menu bar app with
   an isolated temporary encrypted vault, opens the native `Add login` menu
@@ -237,21 +231,18 @@ boundaries. Local screenshot:
   event, enters origin, label, username, and password through the focused menu
   fields, saves through the real native `Save` button, unlocks the saved local
   vault through the native menu, then verifies extension autofill and one-time
-  claim behavior after Mac-local approval. Captured 2026-05-28 evidence:
-  - `/Users/yuchen/Design/unu/unuvault/exports/2026-05-28-mac-companion-manual-input-form-real-app-full.png`
-  - `/Users/yuchen/Design/unu/unuvault/exports/2026-05-28-mac-companion-manual-input-real-app-full.png`
-  - `/Users/yuchen/Design/unu/unuvault/exports/2026-05-28-mac-companion-manual-input-filled-page-real-app.png`
+  claim behavior after Mac-local approval. The previous 2026-05-28 local
+  screenshot exports for this smoke were retired during the 2026-07-02 design
+  hygiene cleanup; rerun the smoke when fresh screenshot evidence is needed.
 - `pnpm smoke:menu-app-security-boundaries-mac-companion` builds the packaged
   browser extension, starts the real `UnuVaultMacCompanion` SwiftUI menu bar
   app with an isolated temporary encrypted vault, verifies the locked bridge
   returns `vault_locked` without filling the page, clicks native `Deny` and
   proves the page stays empty, then approves one pending release and proves a
   wrong-origin claim returns `credential_not_found` before the trusted origin
-  can claim it exactly once. Captured 2026-05-28 evidence:
-  - `/Users/yuchen/Design/unu/unuvault/exports/2026-05-28-mac-companion-security-boundaries-locked-page-real-app.png`
-  - `/Users/yuchen/Design/unu/unuvault/exports/2026-05-28-mac-companion-security-boundaries-deny-real-app-full.png`
-  - `/Users/yuchen/Design/unu/unuvault/exports/2026-05-28-mac-companion-security-boundaries-denied-page-real-app.png`
-  - `/Users/yuchen/Design/unu/unuvault/exports/2026-05-28-mac-companion-security-boundaries-wrong-origin-page-real-app.png`
+  can claim it exactly once. The previous 2026-05-28 local screenshot exports
+  for this smoke were retired during the 2026-07-02 design hygiene cleanup;
+  rerun the smoke when fresh screenshot evidence is needed.
 - `pnpm smoke:packaged-extension-mac-companion` builds
   `apps/browser-extension/dist`, loads it into Chrome through the CDP
   `Extensions.loadUnpacked` path, starts a separate Swift
