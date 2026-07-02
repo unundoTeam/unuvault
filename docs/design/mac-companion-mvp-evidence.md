@@ -83,9 +83,12 @@ On 2026-06-12, the current source was restored as
 added a visible `Open at login` setting row. The v1.3 frame keeps the menu bar
 companion as the local trust root and maps the setting to a native SwiftUI
 `Toggle` without changing unlock, fill approval, or credential release
-boundaries. Local screenshot:
+boundaries. Tracked Pencil export:
 
-- `/Users/yuchen/Design/unu/unuvault/exports/2026-06-12-mac-companion-v13-open-at-login/O1eT4.png`
+- `docs/design/evidence/2026-06-12-mac-companion-v13-open-at-login/O1eT4.png`
+
+The former local-only v1.3 export was retired during the 2026-07-02 design
+hygiene cleanup.
 
 ## Automated Fill Proof
 
