@@ -136,8 +136,9 @@ This lane stays below `adapter-mapped` until future iOS UI slices supply:
 Current Pencil sync label for this lane:
 `current matches implementation`.
 
-Draft cleanup label for `draft/unuvault/ios-pairing-invite-receive-v2`:
-`promoted -> delete-candidate` after user-approved cleanup.
+Draft cleanup label for `draft/unuvault/ios-pairing-invite-receive-v2`
+(`Uz6n3`): `deleted after approval` during the 2026-07-02 design hygiene
+cleanup.
 
 Superseded current frame `retained/unuvault/ios-pairing-invite-receive-v1-superseded-by-v2`
 is retained temporarily as implementation history, not current implementation
