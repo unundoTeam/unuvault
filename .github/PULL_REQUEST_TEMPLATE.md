@@ -7,6 +7,8 @@
 ## Verification Commands
 - Commands run:
 - Result:
+- Hosted runner status: `available` / `github-hosted runner unavailable; local maintainer gate used` / `not_applicable`
+- Local maintainer gate evidence:
 
 ## Docs Impact
 - [ ] None
