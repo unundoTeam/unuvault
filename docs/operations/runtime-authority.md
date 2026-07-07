@@ -51,16 +51,19 @@ the operator-reviewed cutover-preparation authority.
 authority page:
 
 - [Incident And Observability Authority](incident-observability-authority.md)
+- [Production-Ops And Observability Closeout](production-ops-observability-closeout.md)
 
 The honest status is still limited: the repo now has a first-layer authority
-page, but it does not yet claim a mature observability program, dedicated
-telemetry stack, on-call coverage, or automated alerting.
+page and a minimal phase-1 closeout layer, but it does not yet claim a mature
+observability program, dedicated telemetry stack, on-call coverage, or
+automated alerting.
 
 ## Production Readiness
 
 Current production-readiness authority is split across:
 
 - [Phase 1 Launch Checklist](../launch/phase1-launch-checklist.md)
+- [Production-Ops And Observability Closeout](production-ops-observability-closeout.md)
 - [Identity Production Cutover Rehearsal](identity-production-cutover-rehearsal.md)
 - [Identity Production Cutover Hosted Pass](identity-production-cutover-hosted-pass.md)
 - `unuidentity/docs/operations/unuvault-cutover-operator-signoff.md`
@@ -69,12 +72,15 @@ Current production-readiness authority is split across:
 - the `Verification` section in [README.md](../../README.md)
 
 Use those docs for launch checklist routing, cutover rehearsal, and
-scope-dependent verification. The repo-local hosted-pass record is narrower
-than live cutover completion, and the upstream sign-off records the first real
+scope-dependent verification. The closeout layer records the minimum signal
+set, first-response owner, launch-hold triggers, and escalation path for
+phase-1 or beta rehearsal. The repo-local hosted-pass record is narrower than
+live cutover completion, and the upstream sign-off records the first real
 operator-reviewed pass. The bounded production landing completion conclusion
-lives in the upstream `production-landing-completion.md` result-layer authority;
-the repo-local `unuvault` records still do not publish live hosted inventory,
-callback payloads, secret values, or live cutover execution evidence.
+lives in the upstream `production-landing-completion.md` result-layer
+authority; the repo-local `unuvault` records still do not publish live hosted
+inventory, callback payloads, secret values, or live cutover execution
+evidence.
 
 ## Current Hosted Identity Status
 
@@ -96,7 +102,8 @@ verification and rollback notes before that change is called complete.
 
 ## Current Gaps
 
-- no mature telemetry or observability program yet
+- no mature telemetry or observability program yet; the closeout is a minimal
+  phase-1 route, not a telemetry platform
 - no on-call or automated-alerting program claimed yet
 - no completed production-ops maturity statement yet
 - deeper docs still carry the operational detail, so this hub is only a route

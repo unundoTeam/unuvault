@@ -49,6 +49,12 @@ phase 1.
   `unuidentity/docs/operations/production-landing-completion.md`. This closes the
   checked-in production-landing route without publishing live hosted inventory,
   callback payloads, or secrets.
+- [x] Minimal production-ops / observability closeout was recorded on
+  2026-07-07 in
+  `docs/operations/production-ops-observability-closeout.md`, covering the
+  current phase-1 signal set, first-response owner, rehearsal checklist,
+  launch-hold triggers, and upstream escalation route without claiming mature
+  telemetry, formal on-call, automated alerting, or live secret publication.
 
 ## Pending Before Phase 1 Launch
 
@@ -91,6 +97,9 @@ phase 1.
   current checked-in completion authority lives upstream, while future
   live-target changes must be recorded through the upstream consumer cutover
   checklist and repo-local verification before being called complete.
+- Operational readiness for phase-1 or beta rehearsal now routes through
+  `docs/operations/production-ops-observability-closeout.md`; it is a minimal
+  closeout layer, not a mature telemetry or on-call program.
 - If any surface-specific check stays blocked, record the gap in
   `docs/operations/secure-crypto-pr-audit-handoff.md` instead of silently
   treating the launch packet as complete.

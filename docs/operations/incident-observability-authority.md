@@ -28,6 +28,10 @@ shared-identity authority only when the fault is common beyond one consumer.
 
 ## Current Signal Surfaces
 
+The minimum phase-1 signal set, first-response owner, rehearsal closeout
+checklist, and launch-hold triggers are recorded in
+[Production-Ops And Observability Closeout](production-ops-observability-closeout.md).
+
 ### Hosted auth bridge, callback, finalize, and bootstrap
 
 Current auth-path authority lives in:
@@ -124,6 +128,6 @@ Treat the following as incident-facing triggers for the current repo posture:
 - no mature telemetry stack claim
 - no on-call program claim
 - no automated alerting claim
-- current observability still depends on targeted verification, hosted-pass
-  review, Supabase project health, and user-visible trust surfaces instead of a
-  dedicated telemetry platform
+- current observability still depends on the minimal closeout signal set,
+  targeted verification, hosted-pass review, Supabase project health, and
+  user-visible trust surfaces instead of a dedicated telemetry platform
