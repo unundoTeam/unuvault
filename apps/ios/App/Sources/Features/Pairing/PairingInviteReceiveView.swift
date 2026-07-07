@@ -15,6 +15,8 @@ typealias PairingInviteExchange = (
     PairingTargetIdentity
 ) async throws -> MacPairingHandoff
 
+typealias PairingTargetIdentityProvider = () -> PairingTargetIdentity
+
 @MainActor
 final class PairingInviteViewModel: ObservableObject {
     @Published private(set) var handoff: MacPairingHandoff?
@@ -28,21 +30,33 @@ final class PairingInviteViewModel: ObservableObject {
 
     private let exchange: PairingInviteExchange
     private let now: @Sendable () -> Date
-    private let targetIdentity: PairingTargetIdentity
+    private let targetIdentityProvider: PairingTargetIdentityProvider
     private var invite: MacPairingInvite?
 
     var canPair: Bool {
         state == .ready
     }
 
-    init(
+    convenience init(
         now: @escaping @Sendable () -> Date = Date.init,
         targetIdentity: PairingTargetIdentity = PairingInviteViewModel.defaultTargetIdentity(),
         exchange: PairingInviteExchange? = nil
     ) {
+        self.init(
+            now: now,
+            targetIdentityProvider: { targetIdentity },
+            exchange: exchange
+        )
+    }
+
+    init(
+        now: @escaping @Sendable () -> Date = Date.init,
+        targetIdentityProvider: @escaping PairingTargetIdentityProvider,
+        exchange: PairingInviteExchange? = nil
+    ) {
         self.exchange = exchange ?? Self.defaultExchange(now: now)
         self.now = now
-        self.targetIdentity = targetIdentity
+        self.targetIdentityProvider = targetIdentityProvider
     }
 
     func replaceInviteText(_ text: String) {
@@ -86,6 +100,7 @@ final class PairingInviteViewModel: ObservableObject {
         statusMessage = "Requesting one-time encrypted handoff..."
 
         do {
+            let targetIdentity = targetIdentityProvider()
             handoff = try await exchange(invite, targetIdentity)
             pairingFailureDiagnostic = ""
             state = .paired

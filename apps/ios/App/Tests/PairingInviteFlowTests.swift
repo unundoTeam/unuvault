@@ -76,6 +76,40 @@ final class PairingInviteFlowTests: XCTestCase {
         XCTAssertFalse(viewModel.statusMessage.contains("password"))
     }
 
+    func testPairingUsesInjectedTargetIdentityProvider() async throws {
+        let invite = makeInvite()
+        let providerTarget = PairingTargetIdentity(
+            deviceId: "ios-provider-device",
+            displayName: "Provider iPhone",
+            publicKeyFingerprint: "ios-provider-public-key-fingerprint"
+        )
+        var providerCallCount = 0
+        var capturedTarget: PairingTargetIdentity?
+        let viewModel = PairingInviteViewModel(
+            now: { Date(timeIntervalSince1970: 1_060) },
+            targetIdentityProvider: {
+                providerCallCount += 1
+                return providerTarget
+            },
+            exchange: { _, target in
+                capturedTarget = target
+                return self.makeHandoff(invite: invite, target: target)
+            }
+        )
+        viewModel.replaceInviteText(try inviteJSON(invite))
+
+        await viewModel.pair()
+
+        XCTAssertEqual(providerCallCount, 1)
+        XCTAssertEqual(capturedTarget, providerTarget)
+        XCTAssertEqual(viewModel.handoff?.targetDeviceId, providerTarget.deviceId)
+        XCTAssertEqual(viewModel.handoff?.targetDeviceDisplayName, providerTarget.displayName)
+        XCTAssertEqual(
+            viewModel.handoff?.targetPublicKeyFingerprint,
+            providerTarget.publicKeyFingerprint
+        )
+    }
+
     func testPairingFailureKeepsDiagnosticForReceiptHarness() async throws {
         let invite = makeInvite()
         let viewModel = PairingInviteViewModel(
