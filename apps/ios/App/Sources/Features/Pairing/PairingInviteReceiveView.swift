@@ -15,7 +15,7 @@ typealias PairingInviteExchange = (
     PairingTargetIdentity
 ) async throws -> MacPairingHandoff
 
-typealias PairingTargetIdentityProvider = @MainActor () -> PairingTargetIdentity
+typealias PairingTargetIdentityProvider = @MainActor () throws -> PairingTargetIdentity
 
 @MainActor
 final class PairingInviteViewModel: ObservableObject {
@@ -52,7 +52,7 @@ final class PairingInviteViewModel: ObservableObject {
     init(
         now: @escaping @Sendable () -> Date = Date.init,
         targetIdentityProvider: @escaping PairingTargetIdentityProvider = {
-            DefaultPairingTargetIdentityProvider().makeIdentity()
+            try DefaultPairingTargetIdentityProvider().makeIdentity()
         },
         exchange: PairingInviteExchange? = nil
     ) {
@@ -102,7 +102,7 @@ final class PairingInviteViewModel: ObservableObject {
         statusMessage = "Requesting one-time encrypted handoff..."
 
         do {
-            let targetIdentity = targetIdentityProvider()
+            let targetIdentity = try targetIdentityProvider()
             handoff = try await exchange(invite, targetIdentity)
             pairingFailureDiagnostic = ""
             state = .paired
