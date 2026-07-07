@@ -27,6 +27,7 @@ targets:
     sources:
       - path: Sources
       - path: ../App/Sources/Features/Pairing/PairingInviteReceiveView.swift
+      - path: ../App/Sources/Pairing/DefaultPairingTargetIdentityProvider.swift
       - path: ../App/Sources/Pairing/PairingPayload.swift
     settings:
       base:

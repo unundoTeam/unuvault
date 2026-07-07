@@ -16,14 +16,11 @@ private struct PairingInviteHostRootView: View {
     @MainActor
     init() {
         let sampleNow = Date()
-        let targetIdentity = PairingTargetIdentity(
-            deviceId: "ios-host-device",
-            displayName: "Yuchen iPhone",
-            publicKeyFingerprint: "ios-host-public-key-fingerprint"
-        )
         let model = PairingInviteViewModel(
             now: Date.init,
-            targetIdentity: targetIdentity
+            targetIdentityProvider: {
+                try DefaultPairingTargetIdentityProvider().makeIdentity()
+            }
         )
 
         if let inviteText = Self.makeInviteText(now: sampleNow) {

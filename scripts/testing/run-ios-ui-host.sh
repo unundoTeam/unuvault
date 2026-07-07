@@ -51,7 +51,7 @@ launch_and_capture() {
     exit 1
   fi
 
-  sleep 2
+  sleep 6
   run_with_timeout 20 xcrun simctl io "$simulator_id" screenshot "$output_path"
 }
 
@@ -138,7 +138,7 @@ sleep 3
 
 installed=0
 for _ in {1..5}; do
-  if run_with_timeout 20 xcrun simctl install "$simulator_id" "$app_path"; then
+  if run_with_timeout 60 xcrun simctl install "$simulator_id" "$app_path"; then
     installed=1
     break
   fi
