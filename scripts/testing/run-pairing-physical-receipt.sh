@@ -92,11 +92,56 @@ resolve_device_id() {
     return
   fi
 
-  xcrun devicectl list devices --json-output "$device_json" >/dev/null
+  local timeout_seconds="${UNUVAULT_IOS_DEVICE_LIST_TIMEOUT_SECONDS:-15}"
+
+  case "$timeout_seconds" in
+    ''|*[!0-9]*)
+      timeout_seconds=15
+      ;;
+  esac
+
+  if [[ "$timeout_seconds" -lt 1 ]]; then
+    timeout_seconds=1
+  fi
+
+  xcrun devicectl list devices --json-output "$device_json" >/dev/null 2>&1 &
+  local device_list_pid="$!"
+
+  (
+    sleep "$timeout_seconds"
+    kill "$device_list_pid" >/dev/null 2>&1 || true
+  ) >/dev/null 2>&1 &
+  local watchdog_pid="$!"
+
+  if ! wait "$device_list_pid" >/dev/null 2>&1; then
+    kill "$watchdog_pid" >/dev/null 2>&1 || true
+    wait "$watchdog_pid" >/dev/null 2>&1 || true
+    return
+  fi
+
+  kill "$watchdog_pid" >/dev/null 2>&1 || true
+  wait "$watchdog_pid" >/dev/null 2>&1 || true
+
+  if [[ ! -s "$device_json" ]]; then
+    return
+  fi
 
   node - "$device_json" <<'NODE'
 const { readFileSync } = require("node:fs");
-const payload = JSON.parse(readFileSync(process.argv[2], "utf8"));
+const rawPayload = readFileSync(process.argv[2], "utf8").trim();
+
+if (!rawPayload) {
+  process.exit(0);
+}
+
+let payload;
+
+try {
+  payload = JSON.parse(rawPayload);
+} catch {
+  process.exit(0);
+}
+
 const devices = payload?.result?.devices ?? [];
 const device = devices.find((candidate) => {
   const platform = JSON.stringify(candidate.platform ?? candidate.deviceProperties?.platform ?? "");

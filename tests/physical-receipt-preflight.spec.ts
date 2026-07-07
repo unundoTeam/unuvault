@@ -12,7 +12,7 @@ function writeExecutable(path: string, content: string): void {
   writeFileSync(path, content, { mode: 0o755 });
 }
 
-function makeMockBin(options: { deviceJson: string }): string {
+function makeMockBin(options: { deviceJson?: string; xcrunScript?: string }): string {
   const directory = mkdtempSync(join(tmpdir(), "unuvault-physical-preflight-"));
 
   writeExecutable(
@@ -28,7 +28,8 @@ exit 1
 
   writeExecutable(
     join(directory, "xcrun"),
-    `#!/usr/bin/env bash
+    options.xcrunScript ??
+      `#!/usr/bin/env bash
 if [[ "$1" == "devicectl" && "$2" == "list" && "$3" == "devices" ]]; then
   output=""
   for ((i = 1; i <= $#; i++)); do
@@ -39,7 +40,7 @@ if [[ "$1" == "devicectl" && "$2" == "list" && "$3" == "devices" ]]; then
   done
   if [[ -n "$output" ]]; then
     cat >"$output" <<'JSON'
-${options.deviceJson}
+${options.deviceJson ?? ""}
 JSON
   fi
   exit 0
@@ -55,7 +56,11 @@ exit 1
   return directory;
 }
 
-function runPreflight(options: { deviceJson: string }) {
+function runPreflight(options: {
+  deviceJson?: string;
+  env?: Record<string, string>;
+  xcrunScript?: string;
+}) {
   const mockBin = makeMockBin(options);
 
   try {
@@ -64,6 +69,7 @@ function runPreflight(options: { deviceJson: string }) {
       encoding: "utf8",
       env: {
         ...process.env,
+        ...options.env,
         PATH: `${mockBin}:${process.env.PATH ?? ""}`,
       },
     });
@@ -84,6 +90,40 @@ describe("physical iPhone receipt preflight", () => {
     expect(result.stdout).toContain("reason=no_physical_iphone");
     expect(result.stdout).toContain("Connect, unlock, and trust an iPhone");
     expect(result.stdout).not.toContain("Building MacPairingReceiptHost");
+  });
+
+  it("reports a blocked state instead of crashing when device JSON is empty", () => {
+    const result = runPreflight({
+      deviceJson: "",
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain("UNUVAULT_PHYSICAL_RECEIPT_PREFLIGHT");
+    expect(result.stdout).toContain("status=blocked");
+    expect(result.stdout).toContain("reason=no_physical_iphone");
+    expect(result.stderr).not.toContain("SyntaxError");
+  });
+
+  it("reports a blocked state instead of hanging when device listing stalls", () => {
+    const result = runPreflight({
+      env: {
+        UNUVAULT_IOS_DEVICE_LIST_TIMEOUT_SECONDS: "1",
+      },
+      xcrunScript: `#!/usr/bin/env bash
+if [[ "$1" == "devicectl" && "$2" == "list" && "$3" == "devices" ]]; then
+  sleep 2
+  exit 0
+fi
+echo "unexpected xcrun invocation: $*" >&2
+exit 1
+`,
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain("UNUVAULT_PHYSICAL_RECEIPT_PREFLIGHT");
+    expect(result.stdout).toContain("status=blocked");
+    expect(result.stdout).toContain("reason=no_physical_iphone");
+    expect(result.stderr).not.toContain("SyntaxError");
   });
 
   it("passes preflight without launching the receipt harness when prerequisites are visible", () => {
