@@ -296,6 +296,13 @@ hygiene cleanup.
   harness is the first physical receipt gate; camera QR scanning,
   local decrypt/import, and full mobile adapter adoption remain separate
   claims.
+  On 2026-07-07, a local hardware run of
+  `corepack pnpm test:pairing-physical-receipt` passed against a connected,
+  unlocked, trusted iPhone and captured
+  `UNUVAULT_IOS_PAIRING_RECEIPT paired ... material=AES-GCM-256`. The
+  supporting pushed commit `7d26447`
+  (`test: surface iOS pairing receipt diagnostics`) also passed GitHub Actions
+  CI run `28855407199` (`js / Node Verify`) on `main`.
 - `bash scripts/testing/run-ios.sh` proves the iPhone package can parse the Mac
   pairing invite envelope and QR payload, reject expired, invalid-version,
   malformed, or unsupported-endpoint payloads, and build a target-device
@@ -348,13 +355,14 @@ production app bundle.
   product-ready localized product-named local capture above. Future prompt
   wording, app bundle naming, cancel copy, or macOS authentication UI changes
   should refresh that receipt. The default receipt gate remains non-prompting.
-- Physical iPhone pairing receipt is claimed only after
-  `pnpm test:pairing-physical-receipt` runs against a connected trusted iPhone
-  and captures `UNUVAULT_IOS_PAIRING_RECEIPT paired`.
-- The current iOS pairing proof is receive-side only; LAN discovery, QR code
-  rendering/scanning, physical target-device identity proof, local decrypt or
-  import, simulator/device visual parity, and physical iPhone receipt remain
-  unclaimed.
+- Physical iPhone pairing receipt harness proof is recorded for the 2026-07-07
+  local hardware run above. This does not claim camera QR scanning, local
+  decrypt/import, full mobile adapter adoption, or a shipped iPhone vault
+  workflow.
+- The current iOS pairing proof is still receive-side only outside the physical
+  receipt harness; LAN discovery, QR code rendering/scanning, physical
+  target-device identity proof, local decrypt or import, simulator/device visual
+  parity, and a shipped iPhone vault workflow remain unclaimed.
 - Automatic Account/Web sync into the Mac local vault is not claimed yet; the
   current proof covers a Web/account unlocked vault payload import receipt into
   the encrypted Mac vault, plus direct native menu local-save and manual menu

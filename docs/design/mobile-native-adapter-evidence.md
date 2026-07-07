@@ -62,6 +62,7 @@ evidence backlog, but it does not claim mobile/native adapter adoption.
 | Safe-area and touch target behavior | The approved receive-invite frame and SwiftUI view use a single scrollable safe-area stack. `PairingInviteAccessibilityContract` pins a 44pt minimum touch target, a 48pt primary action minimum, and a 104pt invite editor minimum; `bash scripts/testing/run-ios-ui-host.sh` launches the screen in an iPhone simulator and captures screenshot evidence for visual review. | partial |
 | Auth or vault action review/recovery mapping | The receive-invite flow disables pairing until invite validation, fails closed on expired invites, and records error copy; vault unlock/import/recovery actions remain out of scope. | partial |
 | Repo-owned iOS verification command | `bash scripts/testing/run-ios.sh` runs the Swift package tests on an available iPhone simulator; `pnpm test:pairing-boundary` runs that iOS receive/client proof with the Mac companion pairing-boundary proof as one repo-level gate; `pnpm test:pairing-lan-smoke` proves the Mac runtime can accept a target claim through a non-loopback LAN IPv4 base URL; `pnpm test:pairing-physical-receipt` is the connected-device receipt harness; `bash scripts/testing/run-ios-ui-host.sh` builds and launches the receive-invite host app for screenshot proof. | available |
+| Physical iPhone receipt evidence | On 2026-07-07, a local hardware run of `corepack pnpm test:pairing-physical-receipt` passed against a connected, unlocked, trusted iPhone and captured `UNUVAULT_IOS_PAIRING_RECEIPT paired ... material=AES-GCM-256`; pushed commit `7d26447` also passed GitHub Actions CI run `28855407199` (`js / Node Verify`) on `main`. | recorded |
 | Visual/accessibility proof | `current/unuvault/ios-pairing-invite-receive-v2` is promoted, the SwiftUI receive flow exposes labels for the invite field, recognized Mac summary, Pair button, and status panel, hides raw invite session details after recognition, shows invite expiry instead of a raw endpoint URL, uses `@ScaledMetric` font and target metrics, and the UI host captures normal and `accessibility3` simulator screenshot evidence; no manual VoiceOver rotor run is recorded yet. | partial |
 | Dynamic Type | The receive-invite view keeps the current-frame base font sizes while scaling them through `@ScaledMetric`, scales touch/editor heights, wraps text, and the host script captures an `accessibility3` screenshot. `PairingInviteFlowTests.testPairingViewAccessibilityContractCoversDynamicTypeVoiceOverAndTargets` locks the proof size. | partial |
 | VoiceOver | Static accessibility labels exist for the invite field, recognized Mac summary, Pair button, and status panel. The labels are centralized in `PairingInviteAccessibilityContract` and covered by unit tests; manual rotor path proof is not recorded yet. | partial |
@@ -95,9 +96,9 @@ the claim/response contract, and locks the receive flow's Dynamic Type proof
 size, VoiceOver labels, and 44pt-plus target metrics in
 `PairingInviteAccessibilityContract`. The UI host
 launches `PairingInviteReceiveView` with deterministic sample invite data and
-records the normal and `accessibility3` simulator screenshot paths above. It does not
-prove native primitive adoption, camera QR scanning, real LAN discovery, local
-decrypt/import, physical iPhone receipt, or a shipped iPhone vault workflow.
+records the normal and `accessibility3` simulator screenshot paths above. It
+does not prove native primitive adoption, camera QR scanning, real LAN
+discovery, local decrypt/import, or a shipped iPhone vault workflow.
 `pnpm test:pairing-boundary` is the combined contract proof that runs the iOS
 target-claim client tests and the Mac runtime `/v1/pairing/claim` tests in one
 gate, so the two sides cannot silently drift while still avoiding a physical
@@ -118,6 +119,14 @@ connected trusted iPhone, launches it with a `unuvault-ioshost://pair` payload
 URL containing a base64URL invite, and waits for
 `UNUVAULT_IOS_PAIRING_RECEIPT paired` in the device console. A local run still
 requires connected hardware and signing; camera QR scanning, local
+decrypt/import, and a shipped iPhone vault workflow remain unclaimed.
+Recorded local hardware evidence: on 2026-07-07,
+`corepack pnpm test:pairing-physical-receipt` passed against a connected,
+unlocked, trusted iPhone and captured
+`UNUVAULT_IOS_PAIRING_RECEIPT paired ... material=AES-GCM-256`. The supporting
+pushed commit `7d26447` (`test: surface iOS pairing receipt diagnostics`) also
+passed GitHub Actions CI run `28855407199` (`js / Node Verify`) on `main`. This
+records the physical receipt harness proof only; camera QR scanning, local
 decrypt/import, and a shipped iPhone vault workflow remain unclaimed.
 
 ## Claim Boundary
