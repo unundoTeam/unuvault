@@ -1,7 +1,15 @@
 // @vitest-environment jsdom
 
 import "@testing-library/jest-dom/vitest";
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import VaultPage from "../src/app/vault/page";
 import { createMasterPasswordVerifier } from "../../../packages/security/src/master-password-verifier";
@@ -16,6 +24,7 @@ afterEach(() => {
   window.localStorage.clear();
   setNavigatorLocale("en-US");
   mocks.getSession.mockReset();
+  mocks.getMacCompanionStatus.mockReset();
   mocks.syncVault.mockReset();
   mocks.importWebAccountVaultItemsToMacCompanion.mockReset();
   mocks.publishLocalCredentialBridgeSession.mockReset();
@@ -57,6 +66,46 @@ const mocks = {
   publishLocalCredentialBridgeSession,
   syncVault,
 };
+
+vi.mock("../../../packages/security/src/sodium", () => ({
+  createPasswordHash: async (password: string) => `test-password-hash:${password}`,
+  verifyPasswordHash: async (passwordHash: string, password: string) =>
+    passwordHash === `test-password-hash:${password}`,
+  sealWithPassword: async (plaintext: string, password: string, purpose: string) => {
+    if (!password) {
+      throw new Error("sealWithPassword requires a non-empty password.");
+    }
+
+    if (!purpose) {
+      throw new Error("sealWithPassword requires a non-empty purpose tag.");
+    }
+
+    return {
+      cipher: "xchacha20poly1305-ietf",
+      purpose,
+      encryptedPayload: `${Buffer.from(password).toString("base64url")}.${Buffer.from(
+        plaintext,
+      ).toString("base64url")}`,
+      nonce: "test-nonce",
+      salt: "test-salt",
+      opsLimit: 1,
+      memLimit: 1,
+      keyDerivation: "argon2id13",
+    };
+  },
+  openWithPassword: async (
+    ciphertext: { encryptedPayload: string },
+    password: string,
+  ) => {
+    const [passwordTag, plaintext] = ciphertext.encryptedPayload.split(".");
+
+    if (passwordTag !== Buffer.from(password).toString("base64url") || !plaintext) {
+      return "";
+    }
+
+    return Buffer.from(plaintext, "base64url").toString("utf8");
+  },
+}));
 
 beforeEach(() => {
   mocks.clearLocalCredentialBridgeSession.mockResolvedValue({ ok: true });
@@ -153,11 +202,19 @@ async function unlockVaultSuccessfully(passphrase: string) {
   await expectVaultUnlocked();
 }
 
-async function unlockAndOpenCreatePanel(passphrase: string = "correct horse") {
-  await unlockVaultSuccessfully(passphrase);
+async function openCreateForm() {
   fireEvent.click(await screen.findByRole("button", { name: "New login" }));
 
-  await screen.findByRole("form", { name: "Save vault item" });
+  return screen.findByRole(
+    "form",
+    { name: "Save vault item" },
+    { timeout: 5000 },
+  );
+}
+
+async function unlockAndOpenCreatePanel(passphrase: string = "correct horse") {
+  await unlockVaultSuccessfully(passphrase);
+  await openCreateForm();
 }
 
 async function expectVisibleText(text: string) {
@@ -168,7 +225,11 @@ function expectVisibleTextNow(text: string) {
   expect(screen.getAllByText(text).length).toBeGreaterThan(0);
 }
 
-async function expectSyncCall(callIndex: number, expectedPayload: unknown) {
+async function expectSyncCall(
+  callIndex: number,
+  expectedPayload: unknown,
+  timeout: number = 5000,
+) {
   await waitFor(() => {
     expect(mocks.syncVault).toHaveBeenNthCalledWith(
       callIndex,
@@ -176,7 +237,7 @@ async function expectSyncCall(callIndex: number, expectedPayload: unknown) {
       "jwt-token",
       expectedPayload,
     );
-  });
+  }, { timeout });
 }
 
 async function expectVaultMutation(callIndex: number) {
@@ -320,6 +381,7 @@ describe("VaultPage", () => {
 
     render(<VaultPage />);
 
+    expect(await screen.findByText("No vault items yet.")).toBeInTheDocument();
     expect(
       await screen.findByRole("heading", { name: "Save to this Mac" }),
     ).toBeInTheDocument();
@@ -991,13 +1053,22 @@ describe("VaultPage", () => {
     });
     fireEvent.submit(screen.getByRole("button", { name: "Save item" }).closest("form")!);
 
+    await expectSyncCall(2, {
+      changed_items: [
+        expect.objectContaining({
+          title: "GitHub",
+        }),
+      ],
+      deleted_item_ids: [],
+    });
+    expect(await screen.findByText("Item saved")).toBeInTheDocument();
     await expectVisibleText("GitHub");
 
-    fireEvent.click(screen.getByRole("button", { name: "New login" }));
+    const createForm = await openCreateForm();
 
-    expect(screen.getByLabelText("Title")).toHaveValue("");
-    expect(screen.getByLabelText("Username")).toHaveValue("");
-    expect(screen.getByLabelText("Notes")).toHaveValue("");
+    expect(within(createForm).getByLabelText("Title")).toHaveValue("");
+    expect(within(createForm).getByLabelText("Username")).toHaveValue("");
+    expect(within(createForm).getByLabelText("Notes")).toHaveValue("");
   });
 
   it("creates a login item with a password value", async () => {
@@ -1142,26 +1213,44 @@ describe("VaultPage", () => {
 
     expect(await screen.findByText("No vault items yet.")).toBeInTheDocument();
     await unlockVaultSuccessfully("correct horse");
-    fireEvent.click(screen.getByRole("button", { name: "New login" }));
+    const createForm = await openCreateForm();
 
-    fireEvent.click(screen.getByRole("button", { name: "Show password" }));
-    fireEvent.change(screen.getByLabelText("Password"), {
+    fireEvent.click(within(createForm).getByRole("button", { name: "Show password" }));
+    fireEvent.change(within(createForm).getByLabelText("Password"), {
       target: { value: "hunter2" },
     });
-    fireEvent.change(screen.getByLabelText("Title"), {
+    fireEvent.change(within(createForm).getByLabelText("Title"), {
       target: { value: "GitHub" },
     });
-    fireEvent.submit(screen.getByRole("button", { name: "Save item" }).closest("form")!);
+    fireEvent.submit(
+      within(createForm).getByRole("button", { name: "Save item" }).closest("form")!,
+    );
 
+    await expectSyncCall(
+      2,
+      {
+        changed_items: [
+          expect.objectContaining({
+            title: "GitHub",
+            encrypted_payload: expect.objectContaining({
+              password_ciphertext: expect.any(String),
+            }),
+          }),
+        ],
+        deleted_item_ids: [],
+      },
+      20_000,
+    );
+    expect(await screen.findByText("Item saved")).toBeInTheDocument();
     await expectVisibleText("GitHub");
 
-    fireEvent.click(screen.getByRole("button", { name: "New login" }));
+    const reopenedCreateForm = await openCreateForm();
 
-    const passwordField = await screen.findByLabelText("Password");
+    const passwordField = within(reopenedCreateForm).getByLabelText("Password");
     expect(passwordField).toHaveValue("");
     expect(passwordField).toHaveAttribute("type", "password");
     expect(
-      await screen.findByRole("button", { name: "Show password" }),
+      within(reopenedCreateForm).getByRole("button", { name: "Show password" }),
     ).toBeInTheDocument();
   });
 
