@@ -22,6 +22,7 @@ final class PairingInviteViewModel: ObservableObject {
     @Published private(set) var macDisplayName = ""
     @Published private(set) var macEndpointText = ""
     @Published private(set) var macInviteDetailText = ""
+    @Published private(set) var pairingFailureDiagnostic = ""
     @Published private(set) var state: PairingInviteFlowState = .empty
     @Published private(set) var statusMessage = "Paste the invite from your Mac."
 
@@ -47,6 +48,7 @@ final class PairingInviteViewModel: ObservableObject {
     func replaceInviteText(_ text: String) {
         inviteText = text
         handoff = nil
+        pairingFailureDiagnostic = ""
 
         let trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedText.isEmpty else {
@@ -80,18 +82,28 @@ final class PairingInviteViewModel: ObservableObject {
         }
 
         state = .pairing
+        pairingFailureDiagnostic = ""
         statusMessage = "Requesting one-time encrypted handoff..."
 
         do {
             handoff = try await exchange(invite, targetIdentity)
+            pairingFailureDiagnostic = ""
             state = .paired
             statusMessage = "Pairing complete. Wrapped handoff received."
-        } catch PairingExchangeClientError.httpStatus(410) {
+        } catch let PairingExchangeClientError.httpStatus(status) {
             handoff = nil
-            state = .invalid
-            statusMessage = "Invite expired. Generate a fresh invite on your Mac."
+            pairingFailureDiagnostic = "httpStatus(\(status))"
+
+            if status == 410 {
+                state = .invalid
+                statusMessage = "Invite expired. Generate a fresh invite on your Mac."
+            } else {
+                state = .failed
+                statusMessage = "Pairing failed. Generate a fresh invite on your Mac."
+            }
         } catch {
             handoff = nil
+            pairingFailureDiagnostic = String(describing: error)
             state = .failed
             statusMessage = "Pairing failed. Generate a fresh invite on your Mac."
         }
@@ -102,6 +114,7 @@ final class PairingInviteViewModel: ObservableObject {
         macDisplayName = ""
         macEndpointText = ""
         macInviteDetailText = ""
+        pairingFailureDiagnostic = ""
         state = .empty
         statusMessage = "Paste the invite from your Mac."
     }
@@ -111,6 +124,7 @@ final class PairingInviteViewModel: ObservableObject {
         macDisplayName = ""
         macEndpointText = ""
         macInviteDetailText = ""
+        pairingFailureDiagnostic = ""
         state = .invalid
         statusMessage = message
     }

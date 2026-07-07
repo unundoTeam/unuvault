@@ -76,6 +76,22 @@ final class PairingInviteFlowTests: XCTestCase {
         XCTAssertFalse(viewModel.statusMessage.contains("password"))
     }
 
+    func testPairingFailureKeepsDiagnosticForReceiptHarness() async throws {
+        let invite = makeInvite()
+        let viewModel = PairingInviteViewModel(
+            now: { Date(timeIntervalSince1970: 1_060) },
+            targetIdentity: makeTarget(),
+            exchange: { _, _ in throw PairingExchangeClientError.httpStatus(423) }
+        )
+        viewModel.replaceInviteText(try inviteJSON(invite))
+
+        await viewModel.pair()
+
+        XCTAssertEqual(viewModel.state, .failed)
+        XCTAssertNil(viewModel.handoff)
+        XCTAssertTrue(viewModel.pairingFailureDiagnostic.contains("httpStatus(423)"))
+    }
+
     func testPairingViewContainsExpectedReceiveFlowCopy() {
         let view = PairingInviteReceiveView(
             viewModel: PairingInviteViewModel(

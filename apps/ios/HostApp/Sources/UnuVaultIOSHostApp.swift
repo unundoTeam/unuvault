@@ -57,7 +57,9 @@ private struct PairingInviteHostRootView: View {
 
     private func reportPairingReceipt() {
         guard let handoff = viewModel.handoff else {
-            print("UNUVAULT_IOS_PAIRING_RECEIPT failed state=\(viewModel.state)")
+            let diagnostic = viewModel.pairingFailureDiagnostic
+            let diagnosticText = diagnostic.isEmpty ? "" : " diagnostic=\(diagnostic)"
+            print("UNUVAULT_IOS_PAIRING_RECEIPT failed state=\(viewModel.state)\(diagnosticText)")
             return
         }
 
