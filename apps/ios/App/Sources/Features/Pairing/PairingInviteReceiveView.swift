@@ -15,7 +15,7 @@ typealias PairingInviteExchange = (
     PairingTargetIdentity
 ) async throws -> MacPairingHandoff
 
-typealias PairingTargetIdentityProvider = () -> PairingTargetIdentity
+typealias PairingTargetIdentityProvider = @MainActor () -> PairingTargetIdentity
 
 @MainActor
 final class PairingInviteViewModel: ObservableObject {
@@ -39,7 +39,7 @@ final class PairingInviteViewModel: ObservableObject {
 
     convenience init(
         now: @escaping @Sendable () -> Date = Date.init,
-        targetIdentity: PairingTargetIdentity = PairingInviteViewModel.defaultTargetIdentity(),
+        targetIdentity: PairingTargetIdentity,
         exchange: PairingInviteExchange? = nil
     ) {
         self.init(
@@ -51,7 +51,9 @@ final class PairingInviteViewModel: ObservableObject {
 
     init(
         now: @escaping @Sendable () -> Date = Date.init,
-        targetIdentityProvider: @escaping PairingTargetIdentityProvider,
+        targetIdentityProvider: @escaping PairingTargetIdentityProvider = {
+            DefaultPairingTargetIdentityProvider().makeIdentity()
+        },
         exchange: PairingInviteExchange? = nil
     ) {
         self.exchange = exchange ?? Self.defaultExchange(now: now)
@@ -142,14 +144,6 @@ final class PairingInviteViewModel: ObservableObject {
         pairingFailureDiagnostic = ""
         state = .invalid
         statusMessage = message
-    }
-
-    private static func defaultTargetIdentity() -> PairingTargetIdentity {
-        PairingTargetIdentity(
-            deviceId: "ios-device-local",
-            displayName: "This iPhone",
-            publicKeyFingerprint: "ios-public-key-fingerprint-pending"
-        )
     }
 
     private static func defaultExchange(
