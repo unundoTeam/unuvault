@@ -469,6 +469,11 @@ For the private env-secrets bridge:
 - `Standard pre-merge verification`:
   - `pnpm lint`
   - `pnpm test`
+  - if GitHub-hosted runner capacity is unavailable because of organization
+    spending or payment limits, record
+    `github-hosted runner unavailable; local maintainer gate used` in the PR
+    handoff and include local `pnpm lint` plus `pnpm test` evidence instead of
+    treating the missing remote run as product-code failure evidence
 - `Release or heavy verification`:
   - `bash scripts/testing/run-ios.sh` when the iOS surface or native bridge is
     in scope
