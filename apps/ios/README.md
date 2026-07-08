@@ -31,9 +31,12 @@ Run the preflight first to check LAN address, port availability, Xcode tools,
 installing, or launching the app. The receipt wrapper starts the Mac receipt
 host, installs `UnuVaultIOSHost` on the device, launches it with a
 `unuvault-ioshost://pair` payload URL, and waits for
-`UNUVAULT_IOS_PAIRING_RECEIPT paired` in the iPhone console. The 2026-07-07
-hardware run recorded physical receipt harness proof; it still does not claim
-camera QR scanning or local decrypt/import.
+`UNUVAULT_IOS_PAIRING_RECEIPT paired` in the iPhone console. The latest
+recorded hardware run on 2026-07-08 passed with
+`handoffId=physical-receipt-session-25B426DF-4FB2-4AA3-B51F-0022286AB270`,
+`targetDeviceId=ios-device-d5185f1f-c612-4987-9a68-6a90a3ab8313`, and
+`material=AES-GCM-256`; it still does not claim camera QR scanning or local
+decrypt/import.
 
 Run:
 

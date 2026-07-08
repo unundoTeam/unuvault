@@ -387,7 +387,10 @@ For the native Mac companion proof:
   URL with a base64URL invite, and waits for
   `UNUVAULT_IOS_PAIRING_RECEIPT paired` in the device console. This is a
   physical receipt harness only; camera QR scanning, local decrypt/import, and
-  full mobile adapter adoption remain separate claims.
+  full mobile adapter adoption remain separate claims. Recorded local hardware
+  evidence: on 2026-07-08, `corepack pnpm test:pairing-physical-receipt`
+  passed and captured
+  `UNUVAULT_IOS_PAIRING_RECEIPT paired ... material=AES-GCM-256`.
 - iOS Mac pairing receive proof is available through:
   `bash scripts/testing/run-ios.sh`
   This proves the iPhone app can parse the Mac pairing invite envelope and QR
