@@ -180,6 +180,119 @@ final class CompanionViewModelLocalUserPresenceTests: XCTestCase {
         XCTAssertEqual(viewModel.filteredCredentialRows.map(\.label), ["apple.com"])
     }
 
+    func testCopyUsernameWritesVisibleUsernameWithoutAuthorization() async {
+        let store = RecordingCompanionVaultStore(
+            credentials: [Self.githubCredential()]
+        )
+        let authorizer = SequencedLocalUserPresenceAuthorizer(
+            results: [.authorized, .denied]
+        )
+        let clipboard = RecordingClipboardWriter()
+        let viewModel = CompanionViewModel(
+            vaultStore: store,
+            localUserPresenceAuthorizer: authorizer,
+            clipboardWriter: clipboard
+        )
+        await viewModel.unlockLocalVault()
+
+        let didCopy = viewModel.copyUsername(viewModel.savedCredentialRows[0])
+
+        XCTAssertTrue(didCopy)
+        XCTAssertEqual(authorizer.authorizationReasons.count, 1)
+        XCTAssertEqual(clipboard.writes, [
+            .init(string: "yuchen", clearAfter: nil)
+        ])
+        XCTAssertEqual(
+            viewModel.lastDecisionText,
+            L10n.format("decision.copied_username", "github.com")
+        )
+    }
+
+    func testCopyPasswordRequiresAuthorizationAndWritesWithClipboardClear() async {
+        let store = RecordingCompanionVaultStore(
+            credentials: [Self.githubCredential(), Self.bankCredential()]
+        )
+        let authorizer = SequencedLocalUserPresenceAuthorizer(
+            results: [.authorized, .authorized]
+        )
+        let clipboard = RecordingClipboardWriter()
+        let viewModel = CompanionViewModel(
+            vaultStore: store,
+            localUserPresenceAuthorizer: authorizer,
+            clipboardWriter: clipboard,
+            clipboardClearDelay: 45
+        )
+        await viewModel.unlockLocalVault()
+
+        let didCopy = await viewModel.copyPassword(viewModel.savedCredentialRows[1])
+
+        XCTAssertTrue(didCopy)
+        XCTAssertEqual(authorizer.authorizationReasons, [
+            L10n.string("local_auth.unlock_reason"),
+            L10n.string("local_auth.copy_password_reason")
+        ])
+        XCTAssertEqual(clipboard.writes, [
+            .init(string: "bank-password", clearAfter: 45)
+        ])
+        XCTAssertEqual(
+            viewModel.lastDecisionText,
+            L10n.format("decision.copied_password", "bank.example")
+        )
+    }
+
+    func testDeniedAuthorizationDoesNotCopyPassword() async {
+        let store = RecordingCompanionVaultStore(
+            credentials: [Self.githubCredential(), Self.bankCredential()]
+        )
+        let clipboard = RecordingClipboardWriter()
+        let viewModel = CompanionViewModel(
+            vaultStore: store,
+            localUserPresenceAuthorizer: SequencedLocalUserPresenceAuthorizer(
+                results: [.authorized, .denied]
+            ),
+            clipboardWriter: clipboard
+        )
+        await viewModel.unlockLocalVault()
+
+        let didCopy = await viewModel.copyPassword(viewModel.savedCredentialRows[1])
+
+        XCTAssertFalse(didCopy)
+        XCTAssertEqual(clipboard.writes, [])
+        XCTAssertEqual(
+            viewModel.lastDecisionText,
+            L10n.string("decision.local_auth_failed")
+        )
+    }
+
+    func testLockedVaultDoesNotCopyLocalCredential() async {
+        let store = RecordingCompanionVaultStore(
+            credentials: [Self.githubCredential()]
+        )
+        let clipboard = RecordingClipboardWriter()
+        let viewModel = CompanionViewModel(
+            vaultStore: store,
+            localUserPresenceAuthorizer: StaticLocalUserPresenceAuthorizer(
+                result: .authorized
+            ),
+            clipboardWriter: clipboard
+        )
+
+        let didCopyUsername = viewModel.copyUsername(
+            CompanionLocalCredentialRow(Self.githubCredential())
+        )
+        let didCopyPassword = await viewModel.copyPassword(
+            CompanionLocalCredentialRow(Self.githubCredential())
+        )
+
+        XCTAssertFalse(didCopyUsername)
+        XCTAssertFalse(didCopyPassword)
+        XCTAssertEqual(clipboard.writes, [])
+        XCTAssertEqual(
+            viewModel.lastDecisionText,
+            L10n.string("decision.copy_locked")
+        )
+    }
+
     func testDeniedAuthorizationDoesNotDeleteLocalCredential() async {
         let store = RecordingCompanionVaultStore(
             credentials: [Self.githubCredential(), Self.bankCredential()]
@@ -300,16 +413,32 @@ private final class SequencedLocalUserPresenceAuthorizer:
     LocalUserPresenceAuthorizing
 {
     private var results: [LocalUserPresenceAuthorizationResult]
+    private(set) var authorizationReasons: [String] = []
 
     init(results: [LocalUserPresenceAuthorizationResult]) {
         self.results = results
     }
 
-    func authorize(reason _: String) async -> LocalUserPresenceAuthorizationResult {
+    func authorize(reason: String) async -> LocalUserPresenceAuthorizationResult {
+        authorizationReasons.append(reason)
+
         guard !results.isEmpty else {
             return .denied
         }
 
         return results.removeFirst()
+    }
+}
+
+private final class RecordingClipboardWriter: CompanionClipboardWriting {
+    struct Write: Equatable {
+        let string: String
+        let clearAfter: TimeInterval?
+    }
+
+    private(set) var writes: [Write] = []
+
+    func write(_ string: String, clearAfter: TimeInterval?) {
+        writes.append(.init(string: string, clearAfter: clearAfter))
     }
 }

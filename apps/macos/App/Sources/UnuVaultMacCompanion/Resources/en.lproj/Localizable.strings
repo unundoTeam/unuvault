@@ -18,6 +18,8 @@
 "action.pair_iphone" = "Pair iPhone";
 "action.cancel" = "Cancel";
 "action.clear_search" = "Clear search";
+"action.copy_password" = "Copy password";
+"action.copy_username" = "Copy username";
 "action.confirm_delete" = "Delete";
 "action.delete" = "Delete";
 "action.save" = "Save";
@@ -37,6 +39,8 @@
 "local_logins.empty" = "No local logins saved yet.";
 "local_logins.no_results" = "No matching local logins.";
 "local_logins.search_placeholder" = "Search site or username";
+"local_logins.copy_username_accessibility" = "Copy username for %@";
+"local_logins.copy_password_accessibility" = "Copy password for %@";
 "local_logins.delete_confirm_title" = "Delete %@?";
 "local_logins.delete_confirm_copy" = "Requires local authorization. This removes the login from the encrypted local vault.";
 "local_logins.delete_accessibility" = "Delete %@";
@@ -47,6 +51,7 @@
 "decision.bridge_unavailable" = "Local bridge unavailable.";
 "local_auth.unlock_reason" = "Unlock UnuVault local vault on this Mac";
 "local_auth.save_reason" = "Save this login to the UnuVault local vault on this Mac";
+"local_auth.copy_password_reason" = "Copy this password from the UnuVault local vault on this Mac";
 "local_auth.delete_reason" = "Delete this login from the UnuVault local vault on this Mac";
 "decision.local_auth_failed" = "Local authorization was canceled or denied.";
 "decision.local_auth_unavailable" = "Local authorization is unavailable on this Mac.";
@@ -57,6 +62,11 @@
 "decision.unlocked" = "Local vault unlocked.";
 "decision.open_failed" = "Could not open local vault.";
 "decision.save_failed" = "Could not save local login.";
+"decision.copy_locked" = "Unlock before copying a local login.";
+"decision.copy_missing" = "Local login no longer exists.";
+"decision.copy_failed" = "Could not copy local login.";
+"decision.copied_username" = "Copied username for %@.";
+"decision.copied_password" = "Copied password for %@. Clipboard clears soon.";
 "decision.delete_locked" = "Unlock before deleting a local login.";
 "decision.delete_missing" = "Local login no longer exists.";
 "decision.deleted" = "Deleted %@ locally.";

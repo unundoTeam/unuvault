@@ -226,10 +226,19 @@ struct CompanionMenuView: View {
                     ForEach(viewModel.filteredCredentialRows) { credential in
                         CompanionCredentialRowView(
                             credential: credential,
-                            isPendingDelete: viewModel.pendingDeleteCredential?.id == credential.id
-                        ) {
-                            viewModel.requestDeleteLocalCredential(credential)
-                        }
+                            isPendingDelete: viewModel.pendingDeleteCredential?.id == credential.id,
+                            onCopyUsername: {
+                                _ = viewModel.copyUsername(credential)
+                            },
+                            onCopyPassword: {
+                                Task { @MainActor in
+                                    await viewModel.copyPassword(credential)
+                                }
+                            },
+                            onDelete: {
+                                viewModel.requestDeleteLocalCredential(credential)
+                            }
+                        )
                     }
                 }
             }
@@ -495,6 +504,8 @@ private enum CompanionMenuStyle {
     static let border = Color(red: 0.78, green: 0.80, blue: 0.83)
     static let hairline = Color(red: 0.88, green: 0.89, blue: 0.91)
     static let secure = Color(red: 0.25, green: 0.46, blue: 0.40)
+    static let secureSurface = Color(red: 0.93, green: 0.97, blue: 0.95)
+    static let secureBorder = Color(red: 0.62, green: 0.77, blue: 0.70)
     static let danger = Color(red: 0.72, green: 0.11, blue: 0.11)
     static let dangerSurface = Color(red: 1.00, green: 0.95, blue: 0.95)
     static let dangerBorder = Color(red: 0.94, green: 0.45, blue: 0.45)
@@ -551,6 +562,8 @@ private struct CompanionSearchField: View {
 private struct CompanionCredentialRowView: View {
     let credential: CompanionLocalCredentialRow
     let isPendingDelete: Bool
+    let onCopyUsername: () -> Void
+    let onCopyPassword: () -> Void
     let onDelete: () -> Void
 
     var body: some View {
@@ -575,28 +588,51 @@ private struct CompanionCredentialRowView: View {
 
             Spacer(minLength: 8)
 
-            Button(action: onDelete) {
-                HStack(spacing: 5) {
-                    Image(systemName: "trash")
-                        .font(.system(size: 12, weight: .semibold))
-                    Text(L10n.string("action.delete"))
-                        .font(.system(size: 11, weight: .semibold))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.85)
-                }
-                .foregroundStyle(CompanionMenuStyle.danger)
-                .frame(width: 76, height: 40)
-                .background(CompanionMenuStyle.dangerSurface)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(CompanionMenuStyle.dangerBorder, lineWidth: 1)
+            HStack(spacing: 6) {
+                CompanionCredentialRowButton(
+                    systemName: "person.text.rectangle",
+                    title: L10n.format(
+                        "local_logins.copy_username_accessibility",
+                        credential.label
+                    ),
+                    style: .neutral,
+                    action: onCopyUsername
                 )
+
+                CompanionCredentialRowButton(
+                    systemName: "key",
+                    title: L10n.format(
+                        "local_logins.copy_password_accessibility",
+                        credential.label
+                    ),
+                    style: .secure,
+                    action: onCopyPassword
+                )
+
+                Button(action: onDelete) {
+                    HStack(spacing: 5) {
+                        Image(systemName: "trash")
+                            .font(.system(size: 12, weight: .semibold))
+                        Text(L10n.string("action.delete"))
+                            .font(.system(size: 11, weight: .semibold))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.85)
+                    }
+                    .foregroundStyle(CompanionMenuStyle.danger)
+                    .frame(width: 76, height: 40)
+                    .background(CompanionMenuStyle.dangerSurface)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(CompanionMenuStyle.dangerBorder, lineWidth: 1)
+                    )
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(
+                    L10n.format("local_logins.delete_accessibility", credential.label)
+                )
+                .help(L10n.format("local_logins.delete_accessibility", credential.label))
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel(
-                L10n.format("local_logins.delete_accessibility", credential.label)
-            )
         }
         .padding(.horizontal, 9)
         .padding(.vertical, 8)
@@ -616,6 +652,63 @@ private struct CompanionCredentialRowView: View {
         )
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("local-credential-row-\(credential.id)")
+    }
+}
+
+private struct CompanionCredentialRowButton: View {
+    enum Style {
+        case neutral
+        case secure
+    }
+
+    let systemName: String
+    let title: String
+    let style: Style
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(foreground)
+                .frame(width: 40, height: 40)
+                .background(background)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(border, lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(title)
+        .help(title)
+    }
+
+    private var foreground: Color {
+        switch style {
+        case .neutral:
+            CompanionMenuStyle.body
+        case .secure:
+            CompanionMenuStyle.secure
+        }
+    }
+
+    private var background: Color {
+        switch style {
+        case .neutral:
+            Color.white
+        case .secure:
+            CompanionMenuStyle.secureSurface
+        }
+    }
+
+    private var border: Color {
+        switch style {
+        case .neutral:
+            CompanionMenuStyle.border
+        case .secure:
+            CompanionMenuStyle.secureBorder
+        }
     }
 }
 

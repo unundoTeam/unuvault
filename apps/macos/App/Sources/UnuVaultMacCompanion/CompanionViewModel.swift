@@ -56,6 +56,8 @@ final class CompanionViewModel: ObservableObject {
     private let addLoginDraftCredential: CompanionCredential?
     private let bridgeBindHost: String
     private let bridgePort: UInt16
+    private let clipboardClearDelay: TimeInterval
+    private let clipboardWriter: CompanionClipboardWriting
     private let localUserPresenceAuthorizer: LocalUserPresenceAuthorizing
     private let launchAtLoginController: LaunchAtLoginControlling
     private let pairingBaseURL: URL
@@ -77,6 +79,8 @@ final class CompanionViewModel: ObservableObject {
             LocalAuthenticationUserPresenceAuthorizer(),
         launchAtLoginController: LaunchAtLoginControlling =
             ServiceManagementLaunchAtLoginController(),
+        clipboardWriter: CompanionClipboardWriting = MacPasteboardClipboardWriter(),
+        clipboardClearDelay: TimeInterval = 45,
         accessToken: String = "local-dev-bridge-token",
         addLoginDraftCredential: CompanionCredential? = nil,
         bridgeBindHost: String = "127.0.0.1",
@@ -91,6 +95,8 @@ final class CompanionViewModel: ObservableObject {
         self.addLoginDraftCredential = addLoginDraftCredential
         self.bridgeBindHost = bridgeBindHost
         self.bridgePort = bridgePort
+        self.clipboardClearDelay = clipboardClearDelay
+        self.clipboardWriter = clipboardWriter
         self.localUserPresenceAuthorizer = localUserPresenceAuthorizer
         self.launchAtLoginController = launchAtLoginController
         self.launchAtLoginStatus = launchAtLoginController.status
@@ -403,6 +409,63 @@ final class CompanionViewModel: ObservableObject {
 
     func cancelDeleteLocalCredential() {
         pendingDeleteCredential = nil
+    }
+
+    @discardableResult
+    func copyUsername(_ credential: CompanionLocalCredentialRow) -> Bool {
+        guard isUnlocked else {
+            lastDecisionText = L10n.string("decision.copy_locked")
+            refresh()
+            return false
+        }
+
+        clipboardWriter.write(credential.username, clearAfter: nil)
+        lastDecisionText = L10n.format("decision.copied_username", credential.label)
+        return true
+    }
+
+    @discardableResult
+    func copyPassword(_ credential: CompanionLocalCredentialRow) async -> Bool {
+        guard isUnlocked else {
+            lastDecisionText = L10n.string("decision.copy_locked")
+            refresh()
+            return false
+        }
+
+        guard await authorizeLocalUserPresence(
+            reason: L10n.string("local_auth.copy_password_reason")
+        ) else {
+            return false
+        }
+
+        guard let vaultStore else {
+            lastDecisionText = L10n.string("decision.vault_unavailable")
+            return false
+        }
+
+        do {
+            let credentials = try vaultStore.loadCredentials()
+
+            guard let storedCredential = credentials.first(where: { storedCredential in
+                storedCredential.id == credential.id
+            }) else {
+                lastDecisionText = L10n.string("decision.copy_missing")
+                refresh()
+                return false
+            }
+
+            clipboardWriter.write(
+                storedCredential.password,
+                clearAfter: clipboardClearDelay
+            )
+            lastDecisionText = L10n.format("decision.copied_password", credential.label)
+            refresh()
+            return true
+        } catch {
+            lastDecisionText = L10n.string("decision.copy_failed")
+            refresh()
+            return false
+        }
     }
 
     @discardableResult
