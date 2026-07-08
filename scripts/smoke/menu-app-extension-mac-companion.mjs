@@ -347,7 +347,7 @@ function openNativeMenu() {
   runAppleScript(`
 tell application "System Events"
   tell process "UnuVaultMacCompanion"
-    if not (exists window 1) then click menu bar item 1 of menu bar 2
+    if not (exists window 1) then perform action "AXPress" of menu bar item 1 of menu bar 2
   end tell
 end tell
 `);
@@ -357,7 +357,7 @@ function openNativeLoginForm() {
   return runAppleScript(`
 tell application "System Events"
   tell process "UnuVaultMacCompanion"
-    if not (exists window 1) then click menu bar item 1 of menu bar 2
+    if not (exists window 1) then perform action "AXPress" of menu bar item 1 of menu bar 2
     delay 0.2
     tell group 1 of window 1
       click button 2
@@ -386,7 +386,7 @@ function commitNativeLoginSaveAndUnlock() {
   return runAppleScript(`
 tell application "System Events"
   tell process "UnuVaultMacCompanion"
-    if not (exists window 1) then click menu bar item 1 of menu bar 2
+    if not (exists window 1) then perform action "AXPress" of menu bar item 1 of menu bar 2
     delay 0.2
     tell group 1 of window 1
       click button 2
@@ -404,7 +404,7 @@ function clickNativeApprovalButton() {
   return runAppleScript(`
 tell application "System Events"
   tell process "UnuVaultMacCompanion"
-    if not (exists window 1) then click menu bar item 1 of menu bar 2
+    if not (exists window 1) then perform action "AXPress" of menu bar item 1 of menu bar 2
     delay 0.2
     tell group 1 of window 1
       set buttonCount to count of buttons

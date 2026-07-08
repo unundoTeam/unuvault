@@ -216,6 +216,11 @@ struct CompanionMenuView: View {
         } else if viewModel.filteredCredentialRows.isEmpty {
             localCredentialEmptyState(L10n.string("local_logins.no_results"))
         } else {
+            let rowHeight: CGFloat = 64
+            let visibleRows = min(viewModel.filteredCredentialRows.count, 3)
+            let listHeight = CGFloat(visibleRows) * rowHeight +
+                CGFloat(max(visibleRows - 1, 0)) * 6
+
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 6) {
                     ForEach(viewModel.filteredCredentialRows) { credential in
@@ -228,7 +233,7 @@ struct CompanionMenuView: View {
                     }
                 }
             }
-            .frame(maxHeight: 178)
+            .frame(height: min(listHeight, 204))
             .accessibilityIdentifier("local-credential-list")
         }
     }
