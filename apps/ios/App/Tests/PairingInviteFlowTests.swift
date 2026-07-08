@@ -1,4 +1,5 @@
 import SwiftUI
+import CryptoKit
 import XCTest
 @testable import App
 
@@ -81,7 +82,8 @@ final class PairingInviteFlowTests: XCTestCase {
         let providerTarget = PairingTargetIdentity(
             deviceId: "ios-provider-device",
             displayName: "Provider iPhone",
-            publicKeyFingerprint: "ios-provider-public-key-fingerprint"
+            publicKeyFingerprint: samplePublicKeyFingerprint,
+            publicKeyAgreementDERBase64URL: samplePublicKeyAgreementDERBase64URL
         )
         var providerCallCount = 0
         var capturedTarget: PairingTargetIdentity?
@@ -225,7 +227,8 @@ final class PairingInviteFlowTests: XCTestCase {
         PairingTargetIdentity(
             deviceId: "ios-device-1",
             displayName: "Yuchen iPhone",
-            publicKeyFingerprint: "ios-public-key-fingerprint"
+            publicKeyFingerprint: samplePublicKeyFingerprint,
+            publicKeyAgreementDERBase64URL: samplePublicKeyAgreementDERBase64URL
         )
     }
 
@@ -243,7 +246,8 @@ final class PairingInviteFlowTests: XCTestCase {
             createdAt: Date(timeIntervalSince1970: 1_060),
             expiresAt: Date(timeIntervalSince1970: 1_120),
             material: MacPairingHandoffMaterial(
-                algorithm: "AES-GCM-256",
+                algorithm: "P256-HKDF-SHA256-AES-GCM-256",
+                senderPublicKeyAgreementDERBase64URL: samplePublicKeyAgreementDERBase64URL,
                 nonce: "nonce-base64",
                 ciphertext: "wrapped-ciphertext-base64",
                 tag: "tag-base64"
@@ -258,4 +262,25 @@ final class PairingInviteFlowTests: XCTestCase {
 
 private enum PairingInviteFlowError: Error {
     case exchangeUnavailable
+}
+
+private let samplePrivateKey = P256.KeyAgreement.PrivateKey()
+private let samplePublicKeyAgreementDER = samplePrivateKey.publicKey.derRepresentation
+private let samplePublicKeyAgreementDERBase64URL = samplePublicKeyAgreementDER
+    .base64URLEncodedString()
+private let samplePublicKeyFingerprint = "sha256:\(SHA256.hash(data: samplePublicKeyAgreementDER).hexString)"
+
+private extension Data {
+    func base64URLEncodedString() -> String {
+        base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "")
+    }
+}
+
+private extension SHA256.Digest {
+    var hexString: String {
+        map { String(format: "%02x", $0) }.joined()
+    }
 }

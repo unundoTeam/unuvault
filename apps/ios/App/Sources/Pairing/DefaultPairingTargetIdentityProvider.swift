@@ -23,7 +23,7 @@ struct KeychainPairingTargetIdentityPrivateKeyStore: PairingTargetIdentityPrivat
 
     init(
         service: String = "com.unundo.unuvault.ios.pairing",
-        account: String = "target-identity-p256-private-key-v1"
+        account: String = "target-identity-p256-key-agreement-private-key-v1"
     ) {
         self.service = service
         self.account = account
@@ -112,10 +112,16 @@ struct DefaultPairingTargetIdentityProvider {
     }
 
     func makeIdentity() throws -> PairingTargetIdentity {
-        PairingTargetIdentity(
+        let privateKey = try pairingPrivateKey()
+        let publicKeyData = privateKey.publicKey.derRepresentation
+        let digest = SHA256.hash(data: publicKeyData)
+        let hexDigest = digest.map { String(format: "%02x", $0) }.joined()
+
+        return PairingTargetIdentity(
             deviceId: deviceId(),
             displayName: normalizedDisplayName(),
-            publicKeyFingerprint: try publicKeyFingerprint()
+            publicKeyFingerprint: "sha256:\(hexDigest)",
+            publicKeyAgreementDERBase64URL: publicKeyData.base64URLEncodedString()
         )
     }
 
@@ -136,24 +142,16 @@ struct DefaultPairingTargetIdentityProvider {
         return name.isEmpty ? "This iPhone" : name
     }
 
-    private func publicKeyFingerprint() throws -> String {
-        let privateKey = try pairingPrivateKey()
-        let publicKeyData = privateKey.publicKey.derRepresentation
-        let digest = SHA256.hash(data: publicKeyData)
-        let hexDigest = digest.map { String(format: "%02x", $0) }.joined()
-        return "sha256:\(hexDigest)"
-    }
-
-    private func pairingPrivateKey() throws -> P256.Signing.PrivateKey {
+    private func pairingPrivateKey() throws -> P256.KeyAgreement.PrivateKey {
         if let storedPrivateKeyData = try privateKeyStore.loadPrivateKeyData() {
             do {
-                return try P256.Signing.PrivateKey(rawRepresentation: storedPrivateKeyData)
+                return try P256.KeyAgreement.PrivateKey(rawRepresentation: storedPrivateKeyData)
             } catch {
                 throw PairingTargetIdentityProviderError.invalidStoredPrivateKey
             }
         }
 
-        let privateKey = P256.Signing.PrivateKey()
+        let privateKey = P256.KeyAgreement.PrivateKey()
         try privateKeyStore.savePrivateKeyData(privateKey.rawRepresentation)
         return privateKey
     }
@@ -164,5 +162,14 @@ struct DefaultPairingTargetIdentityProvider {
         #else
         "This iPhone"
         #endif
+    }
+}
+
+private extension Data {
+    func base64URLEncodedString() -> String {
+        base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "")
     }
 }

@@ -58,8 +58,7 @@ let service = CompanionBridgeService(session: session)
 let codec = BridgeHTTPCodec(
     service: service,
     accessToken: "physical-receipt-token",
-    pairingCoordinator: pairingCoordinator,
-    pairingTransferKeyData: Data(repeating: 31, count: 32)
+    pairingCoordinator: pairingCoordinator
 )
 let server = LoopbackHTTPServer(codec: codec, port: port, bindHost: bindHost)
 

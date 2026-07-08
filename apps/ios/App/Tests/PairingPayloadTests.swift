@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 import XCTest
 @testable import App
 
@@ -98,19 +99,22 @@ final class PairingPayloadTests: XCTestCase {
             createdAt: Date(timeIntervalSince1970: 1_000),
             expiresAt: Date(timeIntervalSince1970: 1_120)
         )
-        let identity = PairingTargetIdentity(
-            deviceId: "ios-device-1",
-            displayName: "Yuchen iPhone",
-            publicKeyFingerprint: "ios-public-key-fingerprint"
-        )
+        let identity = makeTargetIdentity()
 
         let claim = try PairingTargetClaimBuilder().makeClaim(
             payload: payload,
             targetIdentity: identity
         )
-        let encodedClaim = try String(
-            data: JSONEncoder().encode(claim),
-            encoding: .utf8
+        let encodedClaimData = try JSONEncoder().encode(claim)
+        let encodedClaim = String(data: encodedClaimData, encoding: .utf8)
+        let encodedClaimJSON = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: encodedClaimData) as? [String: Any]
+        )
+        let encodedClaimTargetJSON = try XCTUnwrap(
+            encodedClaimJSON["target"] as? [String: Any]
+        )
+        let publicKeyAgreementDERBase64URL = try XCTUnwrap(
+            encodedClaimTargetJSON["publicKeyAgreementDERBase64URL"] as? String
         )
 
         XCTAssertEqual(claim.sessionId, payload.sessionId)
@@ -118,11 +122,33 @@ final class PairingPayloadTests: XCTestCase {
         XCTAssertEqual(claim.target.deviceId, identity.deviceId)
         XCTAssertEqual(claim.target.displayName, identity.displayName)
         XCTAssertEqual(claim.target.publicKeyFingerprint, identity.publicKeyFingerprint)
+        XCTAssertFalse(publicKeyAgreementDERBase64URL.isEmpty)
         XCTAssertFalse(encodedClaim?.contains("credentials") ?? true)
         XCTAssertFalse(encodedClaim?.contains("github-login") ?? true)
         XCTAssertFalse(encodedClaim?.contains("secret-github") ?? true)
         XCTAssertFalse(encodedClaim?.contains("vaultMaterial") ?? true)
         XCTAssertFalse(encodedClaim?.contains("password") ?? true)
+    }
+
+    func testRejectsTargetClaimWithEmptyKeyAgreementPublicKey() throws {
+        let invalidClaim = Data(
+            """
+            {
+              "sessionId": "pairing-session-1",
+              "sessionNonce": "pairing-nonce-1",
+              "target": {
+                "deviceId": "ios-device-1",
+                "displayName": "Yuchen iPhone",
+                "publicKeyFingerprint": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+                "publicKeyAgreementDERBase64URL": ""
+              }
+            }
+            """.utf8
+        )
+
+        XCTAssertThrowsError(
+            try JSONDecoder().decode(PairingTargetClaim.self, from: invalidClaim)
+        )
     }
 
     func testParsesMacPairingInviteWithEndpointWithoutVaultSecrets() throws {
@@ -194,11 +220,12 @@ final class PairingPayloadTests: XCTestCase {
                 sourceDeviceId: "mac-device-1",
                 targetDeviceId: "ios-device-1",
                 targetDeviceDisplayName: "Yuchen iPhone",
-                targetPublicKeyFingerprint: "ios-public-key-fingerprint",
+                targetPublicKeyFingerprint: samplePublicKeyFingerprint,
                 createdAt: Date(timeIntervalSince1970: 1_000),
                 expiresAt: Date(timeIntervalSince1970: 1_120),
                 material: MacPairingHandoffMaterial(
-                    algorithm: "AES-GCM-256",
+                    algorithm: "P256-HKDF-SHA256-AES-GCM-256",
+                    senderPublicKeyAgreementDERBase64URL: samplePublicKeyAgreementDERBase64URL,
                     nonce: "nonce-base64",
                     ciphertext: "wrapped-ciphertext-base64",
                     tag: "tag-base64"
@@ -212,14 +239,15 @@ final class PairingPayloadTests: XCTestCase {
             expectedTarget: PairingTargetIdentity(
                 deviceId: "ios-device-1",
                 displayName: "Yuchen iPhone",
-                publicKeyFingerprint: "ios-public-key-fingerprint"
+                publicKeyFingerprint: samplePublicKeyFingerprint,
+                publicKeyAgreementDERBase64URL: samplePublicKeyAgreementDERBase64URL
             ),
             now: Date(timeIntervalSince1970: 1_060)
         )
         let encodedResponse = String(data: data, encoding: .utf8)
 
         XCTAssertEqual(parsed, response.handoff)
-        XCTAssertEqual(parsed.material.algorithm, "AES-GCM-256")
+        XCTAssertEqual(parsed.material.algorithm, "P256-HKDF-SHA256-AES-GCM-256")
         XCTAssertFalse(encodedResponse?.contains("credentials") ?? true)
         XCTAssertFalse(encodedResponse?.contains("github-login") ?? true)
         XCTAssertFalse(encodedResponse?.contains("secret-github") ?? true)
@@ -227,11 +255,7 @@ final class PairingPayloadTests: XCTestCase {
     }
 
     func testRejectsInvalidExpiredOrMismatchedHandoffResponses() throws {
-        let target = PairingTargetIdentity(
-            deviceId: "ios-device-1",
-            displayName: "Yuchen iPhone",
-            publicKeyFingerprint: "ios-public-key-fingerprint"
-        )
+        let target = makeTargetIdentity()
         let validResponse = MacPairingHandoffResponse(
             handoff: MacPairingHandoff(
                 handoffId: "pairing-session-1",
@@ -243,7 +267,8 @@ final class PairingPayloadTests: XCTestCase {
                 createdAt: Date(timeIntervalSince1970: 1_000),
                 expiresAt: Date(timeIntervalSince1970: 1_120),
                 material: MacPairingHandoffMaterial(
-                    algorithm: "AES-GCM-256",
+                    algorithm: "P256-HKDF-SHA256-AES-GCM-256",
+                    senderPublicKeyAgreementDERBase64URL: samplePublicKeyAgreementDERBase64URL,
                     nonce: "nonce-base64",
                     ciphertext: "wrapped-ciphertext-base64",
                     tag: "tag-base64"
@@ -290,7 +315,8 @@ final class PairingPayloadTests: XCTestCase {
                 expectedTarget: PairingTargetIdentity(
                     deviceId: target.deviceId,
                     displayName: target.displayName,
-                    publicKeyFingerprint: "unexpected-public-key-fingerprint"
+                    publicKeyFingerprint: "unexpected-public-key-fingerprint",
+                    publicKeyAgreementDERBase64URL: samplePublicKeyAgreementDERBase64URL
                 ),
                 now: Date(timeIntervalSince1970: 1_060)
             )
@@ -309,11 +335,7 @@ final class PairingPayloadTests: XCTestCase {
             createdAt: Date(timeIntervalSince1970: 1_000),
             expiresAt: Date(timeIntervalSince1970: 1_120)
         )
-        let target = PairingTargetIdentity(
-            deviceId: "ios-device-1",
-            displayName: "Yuchen iPhone",
-            publicKeyFingerprint: "ios-public-key-fingerprint"
-        )
+        let target = makeTargetIdentity()
         let response = MacPairingHandoffResponse(
             handoff: MacPairingHandoff(
                 handoffId: payload.sessionId,
@@ -325,7 +347,8 @@ final class PairingPayloadTests: XCTestCase {
                 createdAt: Date(timeIntervalSince1970: 1_000),
                 expiresAt: Date(timeIntervalSince1970: 1_120),
                 material: MacPairingHandoffMaterial(
-                    algorithm: "AES-GCM-256",
+                    algorithm: "P256-HKDF-SHA256-AES-GCM-256",
+                    senderPublicKeyAgreementDERBase64URL: samplePublicKeyAgreementDERBase64URL,
                     nonce: "nonce-base64",
                     ciphertext: "wrapped-ciphertext-base64",
                     tag: "tag-base64"
@@ -372,6 +395,15 @@ final class PairingPayloadTests: XCTestCase {
         )
         XCTAssertTrue(requestBody?.contains(payload.sessionId) ?? false)
         XCTAssertTrue(requestBody?.contains(target.deviceId) ?? false)
+        let requestBodyData = try XCTUnwrap(capturedRequest?.httpBody)
+        let requestBodyJSON = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: requestBodyData) as? [String: Any]
+        )
+        let requestTargetJSON = try XCTUnwrap(requestBodyJSON["target"] as? [String: Any])
+        let requestPublicKeyAgreementDERBase64URL = try XCTUnwrap(
+            requestTargetJSON["publicKeyAgreementDERBase64URL"] as? String
+        )
+        XCTAssertFalse(requestPublicKeyAgreementDERBase64URL.isEmpty)
         XCTAssertFalse(requestBody?.contains("credentials") ?? true)
         XCTAssertFalse(requestBody?.contains("github-login") ?? true)
         XCTAssertFalse(requestBody?.contains("secret-github") ?? true)
@@ -394,11 +426,7 @@ final class PairingPayloadTests: XCTestCase {
             macBaseURL: URL(string: "http://192.168.1.42:17666")!,
             pairing: payload
         )
-        let target = PairingTargetIdentity(
-            deviceId: "ios-device-1",
-            displayName: "Yuchen iPhone",
-            publicKeyFingerprint: "ios-public-key-fingerprint"
-        )
+        let target = makeTargetIdentity()
         let response = MacPairingHandoffResponse(
             handoff: MacPairingHandoff(
                 handoffId: payload.sessionId,
@@ -410,7 +438,8 @@ final class PairingPayloadTests: XCTestCase {
                 createdAt: Date(timeIntervalSince1970: 1_000),
                 expiresAt: Date(timeIntervalSince1970: 1_120),
                 material: MacPairingHandoffMaterial(
-                    algorithm: "AES-GCM-256",
+                    algorithm: "P256-HKDF-SHA256-AES-GCM-256",
+                    senderPublicKeyAgreementDERBase64URL: samplePublicKeyAgreementDERBase64URL,
                     nonce: "nonce-base64",
                     ciphertext: "wrapped-ciphertext-base64",
                     tag: "tag-base64"
@@ -460,11 +489,7 @@ final class PairingPayloadTests: XCTestCase {
             createdAt: Date(timeIntervalSince1970: 1_000),
             expiresAt: Date(timeIntervalSince1970: 1_120)
         )
-        let target = PairingTargetIdentity(
-            deviceId: "ios-device-1",
-            displayName: "Yuchen iPhone",
-            publicKeyFingerprint: "ios-public-key-fingerprint"
-        )
+        let target = makeTargetIdentity()
         let client = PairingExchangeClient(
             macBaseURL: URL(string: "http://127.0.0.1:17666")!,
             now: { Date(timeIntervalSince1970: 1_060) },
@@ -490,6 +515,26 @@ final class PairingPayloadTests: XCTestCase {
     }
 }
 
+private let samplePrivateKey = P256.KeyAgreement.PrivateKey()
+private let samplePublicKeyAgreementDER = samplePrivateKey.publicKey.derRepresentation
+private let samplePublicKeyAgreementDERBase64URL = samplePublicKeyAgreementDER
+    .base64URLEncodedString()
+private let samplePublicKeyFingerprint = "sha256:\(SHA256.hash(data: samplePublicKeyAgreementDER).hexString)"
+
+private func makeTargetIdentity(
+    deviceId: String = "ios-device-1",
+    displayName: String = "Yuchen iPhone",
+    publicKeyFingerprint: String = samplePublicKeyFingerprint,
+    publicKeyAgreementDERBase64URL: String = samplePublicKeyAgreementDERBase64URL
+) -> PairingTargetIdentity {
+    PairingTargetIdentity(
+        deviceId: deviceId,
+        displayName: displayName,
+        publicKeyFingerprint: publicKeyFingerprint,
+        publicKeyAgreementDERBase64URL: publicKeyAgreementDERBase64URL
+    )
+}
+
 private actor PairingRequestStore {
     private var storedRequest: URLRequest?
 
@@ -499,5 +544,20 @@ private actor PairingRequestStore {
 
     func request() -> URLRequest? {
         storedRequest
+    }
+}
+
+private extension Data {
+    func base64URLEncodedString() -> String {
+        base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "")
+    }
+}
+
+private extension SHA256.Digest {
+    var hexString: String {
+        map { String(format: "%02x", $0) }.joined()
     }
 }

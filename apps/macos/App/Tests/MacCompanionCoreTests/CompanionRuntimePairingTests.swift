@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 import XCTest
 @testable import MacCompanionCore
 @testable import UnuVaultMacCompanion
@@ -60,7 +61,8 @@ final class CompanionRuntimePairingTests: XCTestCase {
               "target": {
                 "deviceId": "ios-device-1",
                 "displayName": "Yuchen iPhone",
-                "publicKeyFingerprint": "ios-public-key-fingerprint"
+                "publicKeyFingerprint": "\(sampleRecipientPublicKeyFingerprint)",
+                "publicKeyAgreementDERBase64URL": "\(sampleRecipientPublicKeyAgreementDERBase64URL)"
               }
             }
             """
@@ -80,7 +82,7 @@ final class CompanionRuntimePairingTests: XCTestCase {
         XCTAssertEqual(envelope.handoff.targetDeviceId, "ios-device-1")
         XCTAssertEqual(
             envelope.handoff.targetPublicKeyFingerprint,
-            "ios-public-key-fingerprint"
+            sampleRecipientPublicKeyFingerprint
         )
     }
 
@@ -123,4 +125,27 @@ private struct RuntimePairingClaimEnvelope: Decodable {
 private struct RuntimePairingInviteEnvelope: Decodable {
     let macBaseURL: URL
     let pairing: CompanionPairingQRCodePayload
+}
+
+private let sampleRecipientPrivateKey = P256.KeyAgreement.PrivateKey()
+private let sampleRecipientPublicKeyDER = sampleRecipientPrivateKey
+    .publicKey
+    .derRepresentation
+private let sampleRecipientPublicKeyAgreementDERBase64URL = sampleRecipientPublicKeyDER
+    .base64URLEncodedString()
+private let sampleRecipientPublicKeyFingerprint = "sha256:\(SHA256.hash(data: sampleRecipientPublicKeyDER).hexString)"
+
+private extension Data {
+    func base64URLEncodedString() -> String {
+        base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "")
+    }
+}
+
+private extension SHA256.Digest {
+    var hexString: String {
+        map { String(format: "%02x", $0) }.joined()
+    }
 }

@@ -15,20 +15,18 @@ public final class BridgeHTTPCodec: @unchecked Sendable {
     private let accessToken: String
     private let localVaultImporter: CompanionLocalVaultImporter?
     private let pairingCoordinator: CompanionPairingSessionCoordinator?
-    private let pairingTransferKeyData: Data?
 
     public init(
         service: CompanionBridgeService,
         accessToken: String,
         localVaultImporter: CompanionLocalVaultImporter? = nil,
         pairingCoordinator: CompanionPairingSessionCoordinator? = nil,
-        pairingTransferKeyData: Data? = nil
+        pairingTransferKeyData _: Data? = nil
     ) {
         self.service = service
         self.accessToken = accessToken
         self.localVaultImporter = localVaultImporter
         self.pairingCoordinator = pairingCoordinator
-        self.pairingTransferKeyData = pairingTransferKeyData
     }
 
     public func handle(
@@ -120,29 +118,32 @@ public final class BridgeHTTPCodec: @unchecked Sendable {
 
     private func pairingClaimResponse(body: Data) -> BridgeHTTPResponse {
         guard let pairingCoordinator,
-              let pairingTransferKeyData,
               let request = decode(PairingClaimRequest.self, from: body),
               !request.sessionId.isEmpty,
               !request.sessionNonce.isEmpty,
               !request.target.deviceId.isEmpty,
               !request.target.displayName.isEmpty,
-              !request.target.publicKeyFingerprint.isEmpty
+              !request.target.publicKeyFingerprint.isEmpty,
+              !request.target.publicKeyAgreementDERBase64URL.isEmpty
         else {
-            return invalidRequest()
+            return pairingSessionErrorResponse(.invalidRequest)
         }
 
         let target = CompanionPairingTarget(
             deviceId: request.target.deviceId,
             displayName: request.target.displayName,
-            publicKeyFingerprint: request.target.publicKeyFingerprint
+            publicKeyFingerprint: request.target.publicKeyFingerprint,
+            publicKeyAgreementDERBase64URL: request.target.publicKeyAgreementDERBase64URL
         )
+        guard target.isValidKeyAgreementPublicKey else {
+            return pairingSessionErrorResponse(.invalidRequest)
+        }
 
         do {
             let handoff = try pairingCoordinator.completeSession(
                 sessionId: request.sessionId,
                 sessionNonce: request.sessionNonce,
-                target: target,
-                transferKeyData: pairingTransferKeyData
+                target: target
             )
 
             return jsonEncodable(
@@ -406,6 +407,7 @@ private struct PairingClaimTarget: Decodable {
     let deviceId: String
     let displayName: String
     let publicKeyFingerprint: String
+    let publicKeyAgreementDERBase64URL: String
 }
 
 private struct PairingClaimResponse: Encodable {

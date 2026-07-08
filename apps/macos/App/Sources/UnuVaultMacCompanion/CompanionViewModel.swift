@@ -1,5 +1,4 @@
 import Combine
-import CryptoKit
 import Foundation
 import MacCompanionCore
 
@@ -32,7 +31,6 @@ final class CompanionViewModel: ObservableObject {
     private let pairingBaseURL: URL
     private let pairingSourceDeviceDisplayName: String
     private let pairingSourceDeviceId: String
-    private let pairingTransferKeyData: Data
     private let session = CompanionVaultSession()
     private let startupCredential: CompanionCredential?
     private let unlockOnStart: Bool
@@ -56,7 +54,6 @@ final class CompanionViewModel: ObservableObject {
         pairingBaseURL: URL? = nil,
         pairingSourceDeviceDisplayName: String = Host.current().localizedName ?? "This Mac",
         pairingSourceDeviceId: String = "mac-companion-local",
-        pairingTransferKeyData: Data = CompanionViewModel.makePairingTransferKeyData(),
         startupCredential: CompanionCredential? = nil,
         unlockOnStart: Bool = false
     ) {
@@ -72,7 +69,6 @@ final class CompanionViewModel: ObservableObject {
         )
         self.pairingSourceDeviceDisplayName = pairingSourceDeviceDisplayName
         self.pairingSourceDeviceId = pairingSourceDeviceId
-        self.pairingTransferKeyData = pairingTransferKeyData
         self.startupCredential = startupCredential
         self.unlockOnStart = unlockOnStart
         self.vaultStore = vaultStore
@@ -150,8 +146,7 @@ final class CompanionViewModel: ObservableObject {
                         vaultStore: vaultStore
                     )
                 },
-                pairingCoordinator: pairingCoordinator,
-                pairingTransferKeyData: pairingTransferKeyData
+                pairingCoordinator: pairingCoordinator
             )
             server = LoopbackHTTPServer(
                 codec: codec,
@@ -175,12 +170,6 @@ final class CompanionViewModel: ObservableObject {
         }
 
         refresh()
-    }
-
-    private static func makePairingTransferKeyData() -> Data {
-        SymmetricKey(size: .bits256).withUnsafeBytes { bytes in
-            Data(bytes)
-        }
     }
 
     private static func defaultPairingBaseURL(bridgePort: UInt16) -> URL {

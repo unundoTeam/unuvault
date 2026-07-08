@@ -147,8 +147,7 @@ public final class CompanionPairingSessionCoordinator: @unchecked Sendable {
     public func completeSession(
         sessionId: String,
         sessionNonce: String,
-        target: CompanionPairingTarget,
-        transferKeyData: Data
+        target: CompanionPairingTarget
     ) throws -> CompanionPairingHandoff {
         stateLock.lock()
         defer { stateLock.unlock() }
@@ -160,6 +159,10 @@ public final class CompanionPairingSessionCoordinator: @unchecked Sendable {
         guard let payload = pendingSessions[sessionId],
               payload.sessionNonce == sessionNonce
         else {
+            throw CompanionPairingSessionError.invalidRequest
+        }
+
+        guard target.isValidKeyAgreementPublicKey else {
             throw CompanionPairingSessionError.invalidRequest
         }
 
@@ -178,7 +181,6 @@ public final class CompanionPairingSessionCoordinator: @unchecked Sendable {
             credentials: credentials,
             sourceDeviceId: payload.sourceDeviceId,
             target: target,
-            transferKeyData: transferKeyData,
             now: currentNow,
             ttl: payload.expiresAt.timeIntervalSince(currentNow),
             handoffId: payload.sessionId

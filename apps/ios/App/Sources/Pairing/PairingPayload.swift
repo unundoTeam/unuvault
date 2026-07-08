@@ -152,15 +152,44 @@ public struct PairingTargetIdentity: Equatable, Codable, Sendable {
     public let deviceId: String
     public let displayName: String
     public let publicKeyFingerprint: String
+    public let publicKeyAgreementDERBase64URL: String
 
     public init(
         deviceId: String,
         displayName: String,
-        publicKeyFingerprint: String
+        publicKeyFingerprint: String,
+        publicKeyAgreementDERBase64URL: String
     ) {
         self.deviceId = deviceId
         self.displayName = displayName
         self.publicKeyFingerprint = publicKeyFingerprint
+        self.publicKeyAgreementDERBase64URL = publicKeyAgreementDERBase64URL
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.deviceId = try container.decode(String.self, forKey: .deviceId)
+        self.displayName = try container.decode(String.self, forKey: .displayName)
+        self.publicKeyFingerprint = try container.decode(String.self, forKey: .publicKeyFingerprint)
+        self.publicKeyAgreementDERBase64URL = try container.decode(
+            String.self,
+            forKey: .publicKeyAgreementDERBase64URL
+        )
+
+        guard !publicKeyAgreementDERBase64URL.isEmpty else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .publicKeyAgreementDERBase64URL,
+                in: container,
+                debugDescription: "publicKeyAgreementDERBase64URL must not be empty"
+            )
+        }
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case deviceId
+        case displayName
+        case publicKeyFingerprint
+        case publicKeyAgreementDERBase64URL
     }
 }
 
@@ -192,7 +221,8 @@ public struct PairingTargetClaimBuilder {
               !payload.sessionNonce.isEmpty,
               !targetIdentity.deviceId.isEmpty,
               !targetIdentity.displayName.isEmpty,
-              !targetIdentity.publicKeyFingerprint.isEmpty
+              !targetIdentity.publicKeyFingerprint.isEmpty,
+              !targetIdentity.publicKeyAgreementDERBase64URL.isEmpty
         else {
             throw PairingPayloadError.invalidPayload
         }
@@ -207,17 +237,20 @@ public struct PairingTargetClaimBuilder {
 
 public struct MacPairingHandoffMaterial: Equatable, Codable, Sendable {
     public let algorithm: String
+    public let senderPublicKeyAgreementDERBase64URL: String
     public let nonce: String
     public let ciphertext: String
     public let tag: String
 
     public init(
         algorithm: String,
+        senderPublicKeyAgreementDERBase64URL: String,
         nonce: String,
         ciphertext: String,
         tag: String
     ) {
         self.algorithm = algorithm
+        self.senderPublicKeyAgreementDERBase64URL = senderPublicKeyAgreementDERBase64URL
         self.nonce = nonce
         self.ciphertext = ciphertext
         self.tag = tag
@@ -291,6 +324,7 @@ public enum PairingHandoffResponseParser {
               !handoff.targetDeviceId.isEmpty,
               !handoff.targetDeviceDisplayName.isEmpty,
               !handoff.targetPublicKeyFingerprint.isEmpty,
+              !handoff.material.senderPublicKeyAgreementDERBase64URL.isEmpty,
               !handoff.material.nonce.isEmpty,
               !handoff.material.ciphertext.isEmpty,
               !handoff.material.tag.isEmpty,
@@ -299,7 +333,7 @@ public enum PairingHandoffResponseParser {
             throw PairingHandoffResponseError.invalidPayload
         }
 
-        guard handoff.material.algorithm == "AES-GCM-256" else {
+        guard handoff.material.algorithm == "P256-HKDF-SHA256-AES-GCM-256" else {
             throw PairingHandoffResponseError.unsupportedAlgorithm
         }
 

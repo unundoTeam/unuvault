@@ -1,10 +1,10 @@
 import Foundation
+import CryptoKit
 import XCTest
 @testable import MacCompanionCore
 
 final class PairingHandoffTests: XCTestCase {
     func testPairingHandoffContainsOnlyWrappedVaultMaterial() throws {
-        let transferKey = Data(repeating: 23, count: 32)
         let credential = CompanionCredential(
             id: "github-login",
             label: "github.com",
@@ -13,27 +13,30 @@ final class PairingHandoffTests: XCTestCase {
             profileId: "personal",
             websiteOrigin: "https://github.com"
         )
-        let target = CompanionPairingTarget(
-            deviceId: "ios-device-1",
-            displayName: "Yuchen iPhone",
-            publicKeyFingerprint: "ios-public-key-fingerprint"
-        )
+        let target = makeTarget()
 
         let handoff = try CompanionPairingHandoffBuilder().makeHandoff(
             credentials: [credential],
             sourceDeviceId: "mac-device-1",
-            target: target,
-            transferKeyData: transferKey
+            target: target
         )
-        let encodedHandoff = try String(
-            data: JSONEncoder().encode(handoff),
-            encoding: .utf8
+        let encodedHandoffData = try JSONEncoder().encode(handoff)
+        let encodedHandoff = String(data: encodedHandoffData, encoding: .utf8)
+        let encodedHandoffJSON = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: encodedHandoffData) as? [String: Any]
+        )
+        let encodedMaterialJSON = try XCTUnwrap(
+            encodedHandoffJSON["material"] as? [String: Any]
+        )
+        let senderPublicKeyAgreementDERBase64URL = try XCTUnwrap(
+            encodedMaterialJSON["senderPublicKeyAgreementDERBase64URL"] as? String
         )
 
         XCTAssertNotNil(encodedHandoff)
         XCTAssertEqual(handoff.targetDeviceId, target.deviceId)
         XCTAssertEqual(handoff.targetDeviceDisplayName, target.displayName)
-        XCTAssertEqual(handoff.material.algorithm, "AES-GCM-256")
+        XCTAssertEqual(handoff.material.algorithm, "P256-HKDF-SHA256-AES-GCM-256")
+        XCTAssertFalse(senderPublicKeyAgreementDERBase64URL.isEmpty)
         XCTAssertFalse(encodedHandoff?.contains("credentials") ?? true)
         XCTAssertFalse(encodedHandoff?.contains("github-login") ?? true)
         XCTAssertFalse(encodedHandoff?.contains("yuchen") ?? true)
@@ -41,12 +44,12 @@ final class PairingHandoffTests: XCTestCase {
 
         let restored = try CompanionPairingHandoffBuilder().openHandoff(
             handoff,
-            transferKeyData: transferKey
+            recipientPrivateKey: sampleRecipientPrivateKey
         )
         XCTAssertEqual(restored, [credential])
     }
 
-    func testPairingHandoffFailsClosedWithWrongTransferMaterial() throws {
+    func testPairingHandoffFailsClosedWithWrongRecipientPrivateKey() throws {
         let handoff = try CompanionPairingHandoffBuilder().makeHandoff(
             credentials: [
                 CompanionCredential(
@@ -59,18 +62,13 @@ final class PairingHandoffTests: XCTestCase {
                 )
             ],
             sourceDeviceId: "mac-device-1",
-            target: CompanionPairingTarget(
-                deviceId: "ios-device-1",
-                displayName: "Yuchen iPhone",
-                publicKeyFingerprint: "ios-public-key-fingerprint"
-            ),
-            transferKeyData: Data(repeating: 23, count: 32)
+            target: makeTarget()
         )
 
         XCTAssertThrowsError(
             try CompanionPairingHandoffBuilder().openHandoff(
                 handoff,
-                transferKeyData: Data(repeating: 24, count: 32)
+                recipientPrivateKey: P256.KeyAgreement.PrivateKey()
             )
         ) { error in
             XCTAssertEqual(error as? CompanionPairingHandoffError, .openFailed)
@@ -84,7 +82,6 @@ final class PairingHandoffTests: XCTestCase {
             credentials: [makeCredential()],
             sourceDeviceId: "mac-device-1",
             target: target,
-            transferKeyData: Data(repeating: 23, count: 32),
             now: now,
             ttl: 60,
             handoffId: "handoff-expired"
@@ -93,7 +90,7 @@ final class PairingHandoffTests: XCTestCase {
         XCTAssertThrowsError(
             try CompanionPairingHandoffVerifier().openHandoff(
                 handoff,
-                transferKeyData: Data(repeating: 23, count: 32),
+                recipientPrivateKey: sampleRecipientPrivateKey,
                 expectedTarget: target,
                 now: Date(timeIntervalSince1970: 1_061)
             )
@@ -109,7 +106,6 @@ final class PairingHandoffTests: XCTestCase {
             credentials: [makeCredential()],
             sourceDeviceId: "mac-device-1",
             target: target,
-            transferKeyData: Data(repeating: 23, count: 32),
             now: now,
             ttl: 60,
             handoffId: "handoff-target-mismatch"
@@ -117,13 +113,14 @@ final class PairingHandoffTests: XCTestCase {
         let unexpectedTarget = CompanionPairingTarget(
             deviceId: target.deviceId,
             displayName: target.displayName,
-            publicKeyFingerprint: "unexpected-public-key-fingerprint"
+            publicKeyFingerprint: "unexpected-public-key-fingerprint",
+            publicKeyAgreementDERBase64URL: target.publicKeyAgreementDERBase64URL
         )
 
         XCTAssertThrowsError(
             try CompanionPairingHandoffVerifier().openHandoff(
                 handoff,
-                transferKeyData: Data(repeating: 23, count: 32),
+                recipientPrivateKey: sampleRecipientPrivateKey,
                 expectedTarget: unexpectedTarget,
                 now: now
             )
@@ -139,7 +136,6 @@ final class PairingHandoffTests: XCTestCase {
             credentials: [makeCredential()],
             sourceDeviceId: "mac-device-1",
             target: target,
-            transferKeyData: Data(repeating: 23, count: 32),
             now: now,
             ttl: 60,
             handoffId: "handoff-replay"
@@ -148,7 +144,7 @@ final class PairingHandoffTests: XCTestCase {
 
         _ = try verifier.openHandoff(
             handoff,
-            transferKeyData: Data(repeating: 23, count: 32),
+            recipientPrivateKey: sampleRecipientPrivateKey,
             expectedTarget: target,
             now: now
         )
@@ -156,7 +152,7 @@ final class PairingHandoffTests: XCTestCase {
         XCTAssertThrowsError(
             try verifier.openHandoff(
                 handoff,
-                transferKeyData: Data(repeating: 23, count: 32),
+                recipientPrivateKey: sampleRecipientPrivateKey,
                 expectedTarget: target,
                 now: now
             )
@@ -266,8 +262,7 @@ final class PairingHandoffTests: XCTestCase {
         let handoff = try coordinator.completeSession(
             sessionId: payload.sessionId,
             sessionNonce: payload.sessionNonce,
-            target: target,
-            transferKeyData: Data(repeating: 23, count: 32)
+            target: target
         )
 
         XCTAssertEqual(handoff.handoffId, payload.sessionId)
@@ -277,7 +272,7 @@ final class PairingHandoffTests: XCTestCase {
 
         let restored = try CompanionPairingHandoffVerifier().openHandoff(
             handoff,
-            transferKeyData: Data(repeating: 23, count: 32),
+            recipientPrivateKey: sampleRecipientPrivateKey,
             expectedTarget: target,
             now: now
         )
@@ -287,8 +282,7 @@ final class PairingHandoffTests: XCTestCase {
             try coordinator.completeSession(
                 sessionId: payload.sessionId,
                 sessionNonce: payload.sessionNonce,
-                target: target,
-                transferKeyData: Data(repeating: 23, count: 32)
+                target: target
             )
         ) { error in
             XCTAssertEqual(error as? CompanionPairingSessionError, .replayed)
@@ -313,8 +307,7 @@ final class PairingHandoffTests: XCTestCase {
             try coordinator.completeSession(
                 sessionId: payload.sessionId,
                 sessionNonce: "wrong-nonce",
-                target: makeTarget(),
-                transferKeyData: Data(repeating: 23, count: 32)
+                target: makeTarget()
             )
         ) { error in
             XCTAssertEqual(error as? CompanionPairingSessionError, .invalidRequest)
@@ -326,11 +319,41 @@ final class PairingHandoffTests: XCTestCase {
             try coordinator.completeSession(
                 sessionId: payload.sessionId,
                 sessionNonce: payload.sessionNonce,
-                target: makeTarget(),
-                transferKeyData: Data(repeating: 23, count: 32)
+                target: makeTarget()
             )
         ) { error in
             XCTAssertEqual(error as? CompanionPairingSessionError, .expired)
+        }
+    }
+
+    func testPairingSessionRejectsInvalidTargetKeyMaterial() throws {
+        let now = Date(timeIntervalSince1970: 1_000)
+        let coordinator = CompanionPairingSessionCoordinator(
+            session: makeUnlockedSession(now: now),
+            now: { now },
+            makeSessionId: { "pairing-session-1" },
+            makeSessionNonce: { "pairing-nonce-1" }
+        )
+        let payload = try coordinator.startSession(
+            sourceDeviceId: "mac-device-1",
+            sourceDeviceDisplayName: "Yuchen Mac",
+            ttl: 120
+        )
+        let invalidTarget = CompanionPairingTarget(
+            deviceId: "ios-device-1",
+            displayName: "Yuchen iPhone",
+            publicKeyFingerprint: "sha256:invalid",
+            publicKeyAgreementDERBase64URL: sampleRecipientPublicKeyAgreementDERBase64URL
+        )
+
+        XCTAssertThrowsError(
+            try coordinator.completeSession(
+                sessionId: payload.sessionId,
+                sessionNonce: payload.sessionNonce,
+                target: invalidTarget
+            )
+        ) { error in
+            XCTAssertEqual(error as? CompanionPairingSessionError, .invalidRequest)
         }
     }
 
@@ -349,7 +372,8 @@ final class PairingHandoffTests: XCTestCase {
         CompanionPairingTarget(
             deviceId: "ios-device-1",
             displayName: "Yuchen iPhone",
-            publicKeyFingerprint: "ios-public-key-fingerprint"
+            publicKeyFingerprint: sampleRecipientPublicKeyFingerprint,
+            publicKeyAgreementDERBase64URL: sampleRecipientPublicKeyAgreementDERBase64URL
         )
     }
 
@@ -357,5 +381,28 @@ final class PairingHandoffTests: XCTestCase {
         let session = CompanionVaultSession(now: { now })
         session.unlock(credentials: [makeCredential()], ttl: 300)
         return session
+    }
+}
+
+private let sampleRecipientPrivateKey = P256.KeyAgreement.PrivateKey()
+private let sampleRecipientPublicKeyDER = sampleRecipientPrivateKey
+    .publicKey
+    .derRepresentation
+private let sampleRecipientPublicKeyAgreementDERBase64URL = sampleRecipientPublicKeyDER
+    .base64URLEncodedString()
+private let sampleRecipientPublicKeyFingerprint = "sha256:\(SHA256.hash(data: sampleRecipientPublicKeyDER).hexString)"
+
+private extension Data {
+    func base64URLEncodedString() -> String {
+        base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "")
+    }
+}
+
+private extension SHA256.Digest {
+    var hexString: String {
+        map { String(format: "%02x", $0) }.joined()
     }
 }

@@ -1,3 +1,4 @@
+import CryptoKit
 import XCTest
 @testable import MacCompanionCore
 
@@ -299,12 +300,10 @@ final class BridgeHTTPCodecTests: XCTestCase {
             sourceDeviceDisplayName: "Yuchen Mac",
             ttl: 120
         )
-        let transferKey = Data(repeating: 23, count: 32)
         let codec = BridgeHTTPCodec(
             service: CompanionBridgeService(session: session),
             accessToken: "bridge-token",
-            pairingCoordinator: pairingCoordinator,
-            pairingTransferKeyData: transferKey
+            pairingCoordinator: pairingCoordinator
         )
 
         let response = codec.handle(
@@ -318,7 +317,8 @@ final class BridgeHTTPCodecTests: XCTestCase {
               "target": {
                 "deviceId": "ios-device-1",
                 "displayName": "Yuchen iPhone",
-                "publicKeyFingerprint": "ios-public-key-fingerprint"
+                "publicKeyFingerprint": "\(sampleRecipientPublicKeyFingerprint)",
+                "publicKeyAgreementDERBase64URL": "\(sampleRecipientPublicKeyAgreementDERBase64URL)"
               }
             }
             """.utf8)
@@ -333,19 +333,77 @@ final class BridgeHTTPCodecTests: XCTestCase {
             .decode(PairingClaimExchangeEnvelope.self, from: response.body)
         XCTAssertEqual(envelope.handoff.handoffId, "pairing-session-1")
         XCTAssertEqual(envelope.handoff.targetDeviceId, "ios-device-1")
-        XCTAssertEqual(envelope.handoff.targetPublicKeyFingerprint, "ios-public-key-fingerprint")
+        XCTAssertEqual(envelope.handoff.targetPublicKeyFingerprint, sampleRecipientPublicKeyFingerprint)
 
         let restored = try CompanionPairingHandoffVerifier().openHandoff(
             envelope.handoff,
-            transferKeyData: transferKey,
+            recipientPrivateKey: sampleRecipientPrivateKey,
             expectedTarget: CompanionPairingTarget(
                 deviceId: "ios-device-1",
                 displayName: "Yuchen iPhone",
-                publicKeyFingerprint: "ios-public-key-fingerprint"
+                publicKeyFingerprint: sampleRecipientPublicKeyFingerprint,
+                publicKeyAgreementDERBase64URL: sampleRecipientPublicKeyAgreementDERBase64URL
             ),
             now: now
         )
         XCTAssertEqual(restored.first?.password, "secret-github")
+    }
+
+    func testPairingClaimExchangeRejectsMissingRecipientKeyMaterial() throws {
+        let now = Date(timeIntervalSince1970: 1_000)
+        let session = CompanionVaultSession(now: { now })
+        session.unlock(
+            credentials: [
+                CompanionCredential(
+                    id: "github-login",
+                    label: "github.com",
+                    username: "yuchen",
+                    password: "secret-github",
+                    profileId: "personal",
+                    websiteOrigin: "https://github.com"
+                )
+            ],
+            ttl: 300
+        )
+        let pairingCoordinator = CompanionPairingSessionCoordinator(
+            session: session,
+            now: { now },
+            makeSessionId: { "pairing-session-1" },
+            makeSessionNonce: { "pairing-nonce-1" }
+        )
+        let payload = try pairingCoordinator.startSession(
+            sourceDeviceId: "mac-device-1",
+            sourceDeviceDisplayName: "Yuchen Mac",
+            ttl: 120
+        )
+        let codec = BridgeHTTPCodec(
+            service: CompanionBridgeService(session: session),
+            accessToken: "bridge-token",
+            pairingCoordinator: pairingCoordinator
+        )
+
+        let response = codec.handle(
+            method: "POST",
+            path: "/v1/pairing/claim",
+            headers: ["content-type": "application/json"],
+            body: Data("""
+            {
+              "sessionId": "\(payload.sessionId)",
+              "sessionNonce": "\(payload.sessionNonce)",
+              "target": {
+                "deviceId": "ios-device-1",
+                "displayName": "Yuchen iPhone",
+                "publicKeyFingerprint": "\(sampleRecipientPublicKeyFingerprint)"
+              }
+            }
+            """.utf8)
+        )
+
+        XCTAssertEqual(response.statusCode, 400)
+        XCTAssertTrue(response.bodyString.contains("invalid_pairing_claim"))
+        XCTAssertFalse(response.bodyString.contains("github-login"))
+        XCTAssertFalse(response.bodyString.contains("yuchen"))
+        XCTAssertFalse(response.bodyString.contains("secret-github"))
     }
 
     func testPairingClaimExchangeRejectsMismatchAndReplayWithoutSecrets() throws {
@@ -378,8 +436,7 @@ final class BridgeHTTPCodecTests: XCTestCase {
         let codec = BridgeHTTPCodec(
             service: CompanionBridgeService(session: session),
             accessToken: "bridge-token",
-            pairingCoordinator: pairingCoordinator,
-            pairingTransferKeyData: Data(repeating: 23, count: 32)
+            pairingCoordinator: pairingCoordinator
         )
 
         let mismatchResponse = codec.handle(
@@ -393,7 +450,8 @@ final class BridgeHTTPCodecTests: XCTestCase {
               "target": {
                 "deviceId": "ios-device-1",
                 "displayName": "Yuchen iPhone",
-                "publicKeyFingerprint": "ios-public-key-fingerprint"
+                "publicKeyFingerprint": "\(sampleRecipientPublicKeyFingerprint)",
+                "publicKeyAgreementDERBase64URL": "\(sampleRecipientPublicKeyAgreementDERBase64URL)"
               }
             }
             """.utf8)
@@ -414,7 +472,8 @@ final class BridgeHTTPCodecTests: XCTestCase {
               "target": {
                 "deviceId": "ios-device-1",
                 "displayName": "Yuchen iPhone",
-                "publicKeyFingerprint": "ios-public-key-fingerprint"
+                "publicKeyFingerprint": "\(sampleRecipientPublicKeyFingerprint)",
+                "publicKeyAgreementDERBase64URL": "\(sampleRecipientPublicKeyAgreementDERBase64URL)"
               }
             }
             """.utf8)
@@ -432,7 +491,8 @@ final class BridgeHTTPCodecTests: XCTestCase {
               "target": {
                 "deviceId": "ios-device-1",
                 "displayName": "Yuchen iPhone",
-                "publicKeyFingerprint": "ios-public-key-fingerprint"
+                "publicKeyFingerprint": "\(sampleRecipientPublicKeyFingerprint)",
+                "publicKeyAgreementDERBase64URL": "\(sampleRecipientPublicKeyAgreementDERBase64URL)"
               }
             }
             """.utf8)
@@ -446,4 +506,27 @@ final class BridgeHTTPCodecTests: XCTestCase {
 
 private struct PairingClaimExchangeEnvelope: Decodable {
     let handoff: CompanionPairingHandoff
+}
+
+private let sampleRecipientPrivateKey = P256.KeyAgreement.PrivateKey()
+private let sampleRecipientPublicKeyDER = sampleRecipientPrivateKey
+    .publicKey
+    .derRepresentation
+private let sampleRecipientPublicKeyAgreementDERBase64URL = sampleRecipientPublicKeyDER
+    .base64URLEncodedString()
+private let sampleRecipientPublicKeyFingerprint = "sha256:\(SHA256.hash(data: sampleRecipientPublicKeyDER).hexString)"
+
+private extension Data {
+    func base64URLEncodedString() -> String {
+        base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "")
+    }
+}
+
+private extension SHA256.Digest {
+    var hexString: String {
+        map { String(format: "%02x", $0) }.joined()
+    }
 }

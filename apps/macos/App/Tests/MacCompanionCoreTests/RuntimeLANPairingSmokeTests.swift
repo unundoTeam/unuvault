@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 import XCTest
 @testable import MacCompanionCore
 @testable import UnuVaultMacCompanion
@@ -58,7 +59,7 @@ final class RuntimeLANPairingSmokeTests: XCTestCase {
         XCTAssertFalse(inviteText.contains("mac-lan-password"))
 
         let targetDeviceId = "ios-lan-device-1"
-        let targetFingerprint = "ios-lan-public-key-fingerprint"
+        let targetFingerprint = sampleRecipientPublicKeyFingerprint
         let body = """
         {
           "sessionId": "\(invite.pairing.sessionId)",
@@ -66,7 +67,8 @@ final class RuntimeLANPairingSmokeTests: XCTestCase {
           "target": {
             "deviceId": "\(targetDeviceId)",
             "displayName": "LAN iPhone",
-            "publicKeyFingerprint": "\(targetFingerprint)"
+            "publicKeyFingerprint": "\(targetFingerprint)",
+            "publicKeyAgreementDERBase64URL": "\(sampleRecipientPublicKeyAgreementDERBase64URL)"
           }
         }
         """
@@ -88,7 +90,8 @@ final class RuntimeLANPairingSmokeTests: XCTestCase {
         XCTAssertEqual(envelope.handoff.handoffId, invite.pairing.sessionId)
         XCTAssertEqual(envelope.handoff.targetDeviceId, targetDeviceId)
         XCTAssertEqual(envelope.handoff.targetPublicKeyFingerprint, targetFingerprint)
-        XCTAssertEqual(envelope.handoff.material.algorithm, "AES-GCM-256")
+        XCTAssertEqual(envelope.handoff.material.algorithm, "P256-HKDF-SHA256-AES-GCM-256")
+        XCTAssertFalse(envelope.handoff.material.senderPublicKeyAgreementDERBase64URL.isEmpty)
 
         let replayClaim = try await postJSON(url: claimURL, body: body)
 
@@ -141,4 +144,27 @@ private struct LANPairingClaimEnvelope: Decodable {
 private struct LANPairingInviteEnvelope: Decodable {
     let macBaseURL: URL
     let pairing: CompanionPairingQRCodePayload
+}
+
+private let sampleRecipientPrivateKey = P256.KeyAgreement.PrivateKey()
+private let sampleRecipientPublicKeyDER = sampleRecipientPrivateKey
+    .publicKey
+    .derRepresentation
+private let sampleRecipientPublicKeyAgreementDERBase64URL = sampleRecipientPublicKeyDER
+    .base64URLEncodedString()
+private let sampleRecipientPublicKeyFingerprint = "sha256:\(SHA256.hash(data: sampleRecipientPublicKeyDER).hexString)"
+
+private extension Data {
+    func base64URLEncodedString() -> String {
+        base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "")
+    }
+}
+
+private extension SHA256.Digest {
+    var hexString: String {
+        map { String(format: "%02x", $0) }.joined()
+    }
 }
