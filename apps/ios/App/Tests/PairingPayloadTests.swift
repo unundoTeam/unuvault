@@ -505,6 +505,44 @@ final class PairingPayloadTests: XCTestCase {
         }
     }
 
+    func testImportStorePersistsCredentialsEncryptedAndReloadsThem() throws {
+        let target = makeTargetIdentity()
+        let credential = PairingImportedCredential(
+            id: "github-login",
+            label: "github.com",
+            username: "yuchen",
+            password: "secret-github",
+            profileId: "personal",
+            websiteOrigin: "https://github.com"
+        )
+        let handoff = try makeMacProducedHandoff(target: target, credentials: [credential])
+        let storeURL = try temporaryEncryptedStoreURL()
+        let encryptionKey = SymmetricKey(size: .bits256)
+        var importStore = try PairingHandoffImportStore(
+            encryptedStoreURL: storeURL,
+            encryptionKey: encryptionKey
+        )
+
+        let receipt = try importStore.importPayload(
+            PairingHandoffOpenedPayload(items: [credential]),
+            from: handoff
+        )
+
+        XCTAssertEqual(receipt.importedCredentialIds, ["github-login"])
+        let rawStore = try Data(contentsOf: storeURL)
+        let rawStoreText = String(data: rawStore, encoding: .utf8) ?? ""
+        XCTAssertFalse(rawStoreText.contains("github-login"))
+        XCTAssertFalse(rawStoreText.contains("yuchen"))
+        XCTAssertFalse(rawStoreText.contains("secret-github"))
+        XCTAssertFalse(rawStoreText.contains("password"))
+
+        let reloadedStore = try PairingHandoffImportStore(
+            encryptedStoreURL: storeURL,
+            encryptionKey: encryptionKey
+        )
+        XCTAssertEqual(reloadedStore.importedCredential(id: "github-login"), credential)
+    }
+
     func testPairingExchangeClientPostsTargetClaimWithoutBearerOrSecrets() async throws {
         let payload = MacPairingQRCodePayload(
             version: 1,
@@ -792,6 +830,16 @@ private func pairingHandoffAssociatedData(
             targetPublicKeyFingerprint
         ].joined(separator: "|").utf8
     )
+}
+
+private func temporaryEncryptedStoreURL() throws -> URL {
+    let directoryURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent(UUID().uuidString, isDirectory: true)
+    try FileManager.default.createDirectory(
+        at: directoryURL,
+        withIntermediateDirectories: true
+    )
+    return directoryURL.appendingPathComponent("received-vault.store")
 }
 
 private actor PairingRequestStore {

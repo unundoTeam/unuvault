@@ -208,6 +208,8 @@ final class PairingInviteViewModel: ObservableObject {
             switch importError {
             case .emptyPayload:
                 return "importFailed(emptyPayload)"
+            case .invalidEncryptedStore:
+                return "importFailed(invalidEncryptedStore)"
             case .invalidCredential:
                 return "importFailed(invalidCredential)"
             }
