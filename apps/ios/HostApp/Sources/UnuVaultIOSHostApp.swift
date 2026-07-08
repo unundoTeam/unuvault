@@ -53,20 +53,14 @@ private struct PairingInviteHostRootView: View {
     }
 
     private func reportPairingReceipt() {
-        guard let handoff = viewModel.handoff else {
+        guard let receipt = viewModel.importReceipt else {
             let diagnostic = viewModel.pairingFailureDiagnostic
             let diagnosticText = diagnostic.isEmpty ? "" : " diagnostic=\(diagnostic)"
             print("UNUVAULT_IOS_PAIRING_RECEIPT failed state=\(viewModel.state)\(diagnosticText)")
             return
         }
 
-        print(
-            "UNUVAULT_IOS_PAIRING_RECEIPT paired " +
-            "handoffId=\(handoff.handoffId) " +
-            "sourceDeviceId=\(handoff.sourceDeviceId) " +
-            "targetDeviceId=\(handoff.targetDeviceId) " +
-            "material=\(handoff.material.algorithm)"
-        )
+        print(receipt.receiptLine)
     }
 
     private static func inviteText(from url: URL) -> String? {

@@ -9,6 +9,9 @@ public struct PairingHandoffImportReceipt: Equatable, Codable, Sendable {
     public let handoffId: String
     public let importedCredentialCount: Int
     public let importedCredentialIds: [String]
+    public let materialAlgorithm: String
+    public let sourceDeviceId: String
+    public let targetDeviceId: String
 
     public var statusText: String {
         "Imported \(importedCredentialCount) item(s) from paired Mac."
@@ -19,17 +22,28 @@ public struct PairingHandoffImportReceipt: Equatable, Codable, Sendable {
     }
 
     public var receiptLine: String {
-        "UNUVAULT_IOS_PAIRING_RECEIPT imported handoffId=\(handoffId) importedCredentialCount=\(importedCredentialCount)"
+        "UNUVAULT_IOS_PAIRING_RECEIPT imported " +
+            "handoffId=\(handoffId) " +
+            "sourceDeviceId=\(sourceDeviceId) " +
+            "targetDeviceId=\(targetDeviceId) " +
+            "importedCredentialCount=\(importedCredentialCount) " +
+            "material=\(materialAlgorithm)"
     }
 
     public init(
         handoffId: String,
         importedCredentialCount: Int,
-        importedCredentialIds: [String]
+        importedCredentialIds: [String],
+        materialAlgorithm: String,
+        sourceDeviceId: String,
+        targetDeviceId: String
     ) {
         self.handoffId = handoffId
         self.importedCredentialCount = importedCredentialCount
         self.importedCredentialIds = importedCredentialIds
+        self.materialAlgorithm = materialAlgorithm
+        self.sourceDeviceId = sourceDeviceId
+        self.targetDeviceId = targetDeviceId
     }
 }
 
@@ -59,7 +73,10 @@ public struct PairingHandoffImportStore {
         return PairingHandoffImportReceipt(
             handoffId: handoff.handoffId,
             importedCredentialCount: payload.items.count,
-            importedCredentialIds: payload.items.map(\.id)
+            importedCredentialIds: payload.items.map(\.id),
+            materialAlgorithm: handoff.material.algorithm,
+            sourceDeviceId: handoff.sourceDeviceId,
+            targetDeviceId: handoff.targetDeviceId
         )
     }
 

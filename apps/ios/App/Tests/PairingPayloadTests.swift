@@ -354,6 +354,15 @@ final class PairingPayloadTests: XCTestCase {
         XCTAssertEqual(receipt.importedCredentialCount, 1)
         XCTAssertEqual(receipt.importedCredentialIds, ["github-login"])
         XCTAssertEqual(importStore.importedCredential(id: "github-login"), credential)
+        XCTAssertEqual(
+            receipt.receiptLine,
+            "UNUVAULT_IOS_PAIRING_RECEIPT imported " +
+            "handoffId=\(handoff.handoffId) " +
+            "sourceDeviceId=\(handoff.sourceDeviceId) " +
+            "targetDeviceId=\(handoff.targetDeviceId) " +
+            "importedCredentialCount=1 " +
+            "material=P256-HKDF-SHA256-AES-GCM-256"
+        )
 
         let encodedHandoff = try String(
             data: JSONEncoder().encode(handoff),

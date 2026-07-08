@@ -6,6 +6,8 @@ enum PairingInviteFlowState: Equatable {
     case ready
     case pairing
     case paired
+    case imported
+    case importFailed
     case invalid
     case failed
 }
@@ -16,10 +18,15 @@ typealias PairingInviteExchange = (
 ) async throws -> MacPairingHandoff
 
 typealias PairingTargetIdentityProvider = @MainActor () throws -> PairingTargetIdentity
+typealias PairingHandoffImporter = @MainActor (
+    MacPairingHandoff,
+    PairingTargetIdentity
+) throws -> PairingHandoffImportReceipt
 
 @MainActor
 final class PairingInviteViewModel: ObservableObject {
     @Published private(set) var handoff: MacPairingHandoff?
+    @Published private(set) var importReceipt: PairingHandoffImportReceipt?
     @Published private(set) var inviteText = ""
     @Published private(set) var macDisplayName = ""
     @Published private(set) var macEndpointText = ""
@@ -29,6 +36,7 @@ final class PairingInviteViewModel: ObservableObject {
     @Published private(set) var statusMessage = "Paste the invite from your Mac."
 
     private let exchange: PairingInviteExchange
+    private let handoffImporter: PairingHandoffImporter
     private let now: @Sendable () -> Date
     private let targetIdentityProvider: PairingTargetIdentityProvider
     private var invite: MacPairingInvite?
@@ -40,12 +48,14 @@ final class PairingInviteViewModel: ObservableObject {
     convenience init(
         now: @escaping @Sendable () -> Date = Date.init,
         targetIdentity: PairingTargetIdentity,
-        exchange: PairingInviteExchange? = nil
+        exchange: PairingInviteExchange? = nil,
+        handoffImporter: PairingHandoffImporter? = nil
     ) {
         self.init(
             now: now,
             targetIdentityProvider: { targetIdentity },
-            exchange: exchange
+            exchange: exchange,
+            handoffImporter: handoffImporter
         )
     }
 
@@ -54,9 +64,11 @@ final class PairingInviteViewModel: ObservableObject {
         targetIdentityProvider: @escaping PairingTargetIdentityProvider = {
             try DefaultPairingTargetIdentityProvider().makeIdentity()
         },
-        exchange: PairingInviteExchange? = nil
+        exchange: PairingInviteExchange? = nil,
+        handoffImporter: PairingHandoffImporter? = nil
     ) {
         self.exchange = exchange ?? Self.defaultExchange(now: now)
+        self.handoffImporter = handoffImporter ?? Self.defaultHandoffImporter(now: now)
         self.now = now
         self.targetIdentityProvider = targetIdentityProvider
     }
@@ -64,6 +76,7 @@ final class PairingInviteViewModel: ObservableObject {
     func replaceInviteText(_ text: String) {
         inviteText = text
         handoff = nil
+        importReceipt = nil
         pairingFailureDiagnostic = ""
 
         let trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -103,12 +116,24 @@ final class PairingInviteViewModel: ObservableObject {
 
         do {
             let targetIdentity = try targetIdentityProvider()
-            handoff = try await exchange(invite, targetIdentity)
-            pairingFailureDiagnostic = ""
-            state = .paired
-            statusMessage = "Pairing complete. Wrapped handoff received."
+            let receivedHandoff = try await exchange(invite, targetIdentity)
+            handoff = receivedHandoff
+
+            do {
+                let receipt = try handoffImporter(receivedHandoff, targetIdentity)
+                importReceipt = receipt
+                pairingFailureDiagnostic = receipt.diagnostic
+                state = .imported
+                statusMessage = receipt.statusText
+            } catch {
+                importReceipt = nil
+                pairingFailureDiagnostic = Self.importFailureDiagnostic(for: error)
+                state = .importFailed
+                statusMessage = "Import failed. Generate a fresh invite on your Mac."
+            }
         } catch let PairingExchangeClientError.httpStatus(status) {
             handoff = nil
+            importReceipt = nil
             pairingFailureDiagnostic = "httpStatus(\(status))"
 
             if status == 410 {
@@ -120,7 +145,8 @@ final class PairingInviteViewModel: ObservableObject {
             }
         } catch {
             handoff = nil
-            pairingFailureDiagnostic = String(describing: error)
+            importReceipt = nil
+            pairingFailureDiagnostic = Self.pairingFailureDiagnostic(for: error)
             state = .failed
             statusMessage = "Pairing failed. Generate a fresh invite on your Mac."
         }
@@ -131,6 +157,7 @@ final class PairingInviteViewModel: ObservableObject {
         macDisplayName = ""
         macEndpointText = ""
         macInviteDetailText = ""
+        importReceipt = nil
         pairingFailureDiagnostic = ""
         state = .empty
         statusMessage = "Paste the invite from your Mac."
@@ -141,6 +168,7 @@ final class PairingInviteViewModel: ObservableObject {
         macDisplayName = ""
         macEndpointText = ""
         macInviteDetailText = ""
+        importReceipt = nil
         pairingFailureDiagnostic = ""
         state = .invalid
         statusMessage = message
@@ -158,20 +186,95 @@ final class PairingInviteViewModel: ObservableObject {
         }
     }
 
+    private static func defaultHandoffImporter(
+        now: @escaping @Sendable () -> Date
+    ) -> PairingHandoffImporter {
+        let importer = DefaultPairingHandoffImporter(now: now)
+
+        return { handoff, targetIdentity in
+            try importer.importHandoff(handoff, expectedTarget: targetIdentity)
+        }
+    }
+
     private static func inviteDetailText(for invite: MacPairingInvite, now: Date) -> String {
         let secondsRemaining = max(0, invite.pairing.expiresAt.timeIntervalSince(now))
         let minutesRemaining = max(1, Int(ceil(secondsRemaining / 60)))
 
         return "Local network • invite expires in \(minutesRemaining) min"
     }
+
+    private static func importFailureDiagnostic(for error: Error) -> String {
+        if let importError = error as? PairingHandoffImportError {
+            switch importError {
+            case .emptyPayload:
+                return "importFailed(emptyPayload)"
+            case .invalidCredential:
+                return "importFailed(invalidCredential)"
+            }
+        }
+
+        if let openError = error as? PairingHandoffOpenError {
+            switch openError {
+            case .expired:
+                return "importFailed(expired)"
+            case .invalidKey:
+                return "importFailed(invalidKey)"
+            case .openFailed:
+                return "importFailed(openFailed)"
+            case .replayed:
+                return "importFailed(replayed)"
+            case .targetMismatch:
+                return "importFailed(targetMismatch)"
+            case .unsupportedAlgorithm:
+                return "importFailed(unsupportedAlgorithm)"
+            }
+        }
+
+        if let providerError = error as? PairingTargetIdentityProviderError {
+            switch providerError {
+            case .invalidStoredPrivateKey:
+                return "importFailed(invalidStoredPrivateKey)"
+            case .keychainReadFailed:
+                return "importFailed(keychainReadFailed)"
+            case .keychainWriteFailed:
+                return "importFailed(keychainWriteFailed)"
+            }
+        }
+
+        return "importFailed(unavailable)"
+    }
+
+    private static func pairingFailureDiagnostic(for error: Error) -> String {
+        if let exchangeError = error as? PairingExchangeClientError {
+            switch exchangeError {
+            case let .httpStatus(status):
+                return "httpStatus(\(status))"
+            case .invalidHTTPResponse:
+                return "invalidHTTPResponse"
+            }
+        }
+
+        if let providerError = error as? PairingTargetIdentityProviderError {
+            switch providerError {
+            case .invalidStoredPrivateKey:
+                return "targetIdentity(invalidStoredPrivateKey)"
+            case .keychainReadFailed:
+                return "targetIdentity(keychainReadFailed)"
+            case .keychainWriteFailed:
+                return "targetIdentity(keychainWriteFailed)"
+            }
+        }
+
+        return "pairingFailed(unavailable)"
+    }
 }
 
 private extension PairingInviteViewModel {
     var hidesRawInviteText: Bool {
         switch state {
-        case .ready, .pairing, .paired:
+        case .ready, .pairing, .paired, .imported:
             true
-        case .empty, .invalid, .failed:
+        case .empty, .invalid, .failed, .importFailed:
             false
         }
     }
@@ -391,7 +494,7 @@ struct PairingInviteReceiveView: View {
 
     private var statusBackground: Color {
         switch viewModel.state {
-        case .invalid, .failed:
+        case .invalid, .failed, .importFailed:
             PairingInviteStyle.dangerSurface
         default:
             PairingInviteStyle.input
@@ -400,7 +503,7 @@ struct PairingInviteReceiveView: View {
 
     private var statusBorder: Color {
         switch viewModel.state {
-        case .invalid, .failed:
+        case .invalid, .failed, .importFailed:
             PairingInviteStyle.danger
         default:
             PairingInviteStyle.border
@@ -409,7 +512,7 @@ struct PairingInviteReceiveView: View {
 
     private var statusForeground: Color {
         switch viewModel.state {
-        case .invalid, .failed:
+        case .invalid, .failed, .importFailed:
             PairingInviteStyle.danger
         default:
             PairingInviteStyle.body

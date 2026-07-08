@@ -332,15 +332,15 @@ xcrun devicectl device process launch \
   "$bundle_id" >"$console_log" 2>&1 &
 launch_pid="$!"
 
-if wait_for_log_line "UNUVAULT_IOS_PAIRING_RECEIPT paired" "$console_log" "$receipt_timeout"; then
-  grep "UNUVAULT_IOS_PAIRING_RECEIPT paired" "$console_log" | tail -1
+if wait_for_log_line "UNUVAULT_IOS_PAIRING_RECEIPT imported" "$console_log" "$receipt_timeout"; then
+  grep "UNUVAULT_IOS_PAIRING_RECEIPT imported" "$console_log" | tail -1
   exit 0
 fi
 
 if grep -q "UNUVAULT_IOS_PAIRING_RECEIPT failed" "$console_log"; then
   grep "UNUVAULT_IOS_PAIRING_RECEIPT failed" "$console_log" >&2
 else
-  echo "Timed out waiting for UNUVAULT_IOS_PAIRING_RECEIPT paired." >&2
+  echo "Timed out waiting for UNUVAULT_IOS_PAIRING_RECEIPT imported." >&2
 fi
 
 echo "--- MacPairingReceiptHost log ---" >&2
