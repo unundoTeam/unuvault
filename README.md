@@ -1,8 +1,9 @@
 # unuvault
 
-unuvault is a Chinese-first public cloud password manager for technical users
-who want a more trustworthy home for credentials than browser-native storage.
-面向中文技术用户，首阶段聚焦浏览器扩展、Web vault 与 iPhone 的安全可信密码管理体验。
+unuvault is a personal full password manager for technical users, built
+local-first and self-use first before broader hosted or commercial expansion.
+面向中文技术用户，先把自用完整密码管理器做稳：Mac 本地保险库、浏览器填充、
+iPhone 查看与接收优先，云同步和家庭/应急能力作为后续可选层。
 
 
 ## What This Repo Owns
@@ -68,6 +69,9 @@ recovery flows; vault unlock remains the secret-release boundary.
   account-optional, device-loss, and recovery semantics
 - `docs/architecture/0007-mac-companion-boundary.md` for the planned native
   macOS companion, loopback bridge, local unlock, and iOS pairing boundary
+- `docs/architecture/0008-personal-local-first-product-split.md` for the
+  personal full password manager posture, future local/lite extraction, and
+  Core / Local App / Cloud and Sync layer boundaries
 - `docs/superpowers/plans/2026-03-14-chinese-password-manager-phase1-roadmap.md`
   for the engineering roadmap
 - this README for contributor-facing local entrypoints and current contract
