@@ -543,6 +543,48 @@ final class PairingPayloadTests: XCTestCase {
         XCTAssertEqual(reloadedStore.importedCredential(id: "github-login"), credential)
     }
 
+    @MainActor
+    func testDefaultHandoffImporterPersistsReceivedVaultToEncryptedStore() throws {
+        let target = makeTargetIdentity()
+        let credential = PairingImportedCredential(
+            id: "github-login",
+            label: "github.com",
+            username: "yuchen",
+            password: "secret-github",
+            profileId: "personal",
+            websiteOrigin: "https://github.com"
+        )
+        let handoff = try makeMacProducedHandoff(target: target, credentials: [credential])
+        let storeURL = try temporaryEncryptedStoreURL()
+        let encryptionKey = SymmetricKey(size: .bits256)
+        let importer = DefaultPairingHandoffImporter(
+            privateKeyStore: StaticPairingTargetIdentityPrivateKeyStore(
+                privateKeyData: samplePrivateKey.rawRepresentation
+            ),
+            receivedVaultStoreConfiguration: PairingReceivedVaultStoreConfiguration(
+                encryptedStoreURL: storeURL,
+                encryptionKeyProvider: { encryptionKey }
+            ),
+            now: { Date(timeIntervalSince1970: 1_060) }
+        )
+
+        let receipt = try importer.importHandoff(handoff, expectedTarget: target)
+
+        XCTAssertEqual(receipt.importedCredentialIds, ["github-login"])
+        let rawStore = try Data(contentsOf: storeURL)
+        let rawStoreText = String(data: rawStore, encoding: .utf8) ?? ""
+        XCTAssertFalse(rawStoreText.contains("github-login"))
+        XCTAssertFalse(rawStoreText.contains("yuchen"))
+        XCTAssertFalse(rawStoreText.contains("secret-github"))
+        XCTAssertFalse(rawStoreText.contains("password"))
+
+        let reloadedStore = try PairingHandoffImportStore(
+            encryptedStoreURL: storeURL,
+            encryptionKey: encryptionKey
+        )
+        XCTAssertEqual(reloadedStore.importedCredential(id: "github-login"), credential)
+    }
+
     func testPairingExchangeClientPostsTargetClaimWithoutBearerOrSecrets() async throws {
         let payload = MacPairingQRCodePayload(
             version: 1,
@@ -852,6 +894,22 @@ private actor PairingRequestStore {
     func request() -> URLRequest? {
         storedRequest
     }
+}
+
+private final class StaticPairingTargetIdentityPrivateKeyStore:
+    PairingTargetIdentityPrivateKeyStore
+{
+    private let privateKeyData: Data
+
+    init(privateKeyData: Data) {
+        self.privateKeyData = privateKeyData
+    }
+
+    func loadPrivateKeyData() throws -> Data? {
+        privateKeyData
+    }
+
+    func savePrivateKeyData(_ data: Data) throws {}
 }
 
 private extension Data {
