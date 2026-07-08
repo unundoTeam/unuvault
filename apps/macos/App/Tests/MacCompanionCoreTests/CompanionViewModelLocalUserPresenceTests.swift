@@ -180,6 +180,168 @@ final class CompanionViewModelLocalUserPresenceTests: XCTestCase {
         XCTAssertEqual(viewModel.filteredCredentialRows.map(\.label), ["apple.com"])
     }
 
+    func testShowEditLoginPrefillsExistingLocalCredential() async {
+        let store = RecordingCompanionVaultStore(
+            credentials: [Self.githubCredential(), Self.bankCredential()]
+        )
+        let viewModel = CompanionViewModel(
+            vaultStore: store,
+            localUserPresenceAuthorizer: StaticLocalUserPresenceAuthorizer(
+                result: .authorized
+            )
+        )
+        await viewModel.unlockLocalVault()
+
+        let didOpenEdit = viewModel.showEditLogin(viewModel.savedCredentialRows[1])
+
+        XCTAssertTrue(didOpenEdit)
+        XCTAssertEqual(viewModel.route, .editLogin)
+        XCTAssertEqual(viewModel.credentialOrigin, "https://bank.example")
+        XCTAssertEqual(viewModel.credentialLabel, "bank.example")
+        XCTAssertEqual(viewModel.credentialUsername, "finance@yuchen.dev")
+        XCTAssertEqual(viewModel.credentialPassword, "bank-password")
+    }
+
+    func testAllowedAuthorizationEditsLocalCredentialAndRefreshesUnlockedRows() async {
+        let store = RecordingCompanionVaultStore(
+            credentials: [Self.githubCredential(), Self.bankCredential()]
+        )
+        let authorizer = SequencedLocalUserPresenceAuthorizer(
+            results: [.authorized, .authorized]
+        )
+        let viewModel = CompanionViewModel(
+            vaultStore: store,
+            localUserPresenceAuthorizer: authorizer
+        )
+        await viewModel.unlockLocalVault()
+
+        XCTAssertTrue(viewModel.showEditLogin(viewModel.savedCredentialRows[1]))
+        viewModel.credentialOrigin = "https://bank.example/login"
+        viewModel.credentialLabel = "Bank Primary"
+        viewModel.credentialUsername = "primary@yuchen.dev"
+        viewModel.credentialPassword = "updated-bank-password"
+        let didEdit = await viewModel.saveLocalCredential()
+
+        XCTAssertTrue(didEdit)
+        XCTAssertEqual(authorizer.authorizationReasons, [
+            L10n.string("local_auth.unlock_reason"),
+            L10n.string("local_auth.edit_reason")
+        ])
+        XCTAssertTrue(store.didSaveCredentials)
+        XCTAssertEqual(store.loadResult().map(\.id), ["github-login", "bank-login"])
+        XCTAssertEqual(store.loadResult().map(\.label), ["github.com", "Bank Primary"])
+        XCTAssertEqual(store.loadResult()[1].username, "primary@yuchen.dev")
+        XCTAssertEqual(store.loadResult()[1].password, "updated-bank-password")
+        XCTAssertEqual(store.loadResult()[1].websiteOrigin, "https://bank.example/login")
+        XCTAssertEqual(viewModel.savedCredentialRows.map(\.label), ["github.com", "Bank Primary"])
+        XCTAssertEqual(viewModel.route, .overview)
+        XCTAssertEqual(
+            viewModel.lastDecisionText,
+            L10n.format("decision.edited", "Bank Primary")
+        )
+    }
+
+    func testDeniedAuthorizationDoesNotEditLocalCredential() async {
+        let store = RecordingCompanionVaultStore(
+            credentials: [Self.githubCredential(), Self.bankCredential()]
+        )
+        let viewModel = CompanionViewModel(
+            vaultStore: store,
+            localUserPresenceAuthorizer: SequencedLocalUserPresenceAuthorizer(
+                results: [.authorized, .denied]
+            )
+        )
+        await viewModel.unlockLocalVault()
+
+        XCTAssertTrue(viewModel.showEditLogin(viewModel.savedCredentialRows[1]))
+        viewModel.credentialLabel = "Bank Primary"
+        viewModel.credentialPassword = "updated-bank-password"
+        let didEdit = await viewModel.saveLocalCredential()
+
+        XCTAssertFalse(didEdit)
+        XCTAssertFalse(store.didSaveCredentials)
+        XCTAssertEqual(store.loadResult().map(\.label), ["github.com", "bank.example"])
+        XCTAssertEqual(store.loadResult()[1].password, "bank-password")
+        XCTAssertEqual(
+            viewModel.lastDecisionText,
+            L10n.string("decision.local_auth_failed")
+        )
+    }
+
+    func testCancelEditClearsSensitiveCredentialDraft() async {
+        let store = RecordingCompanionVaultStore(
+            credentials: [Self.githubCredential(), Self.bankCredential()]
+        )
+        let viewModel = CompanionViewModel(
+            vaultStore: store,
+            localUserPresenceAuthorizer: StaticLocalUserPresenceAuthorizer(
+                result: .authorized
+            )
+        )
+        await viewModel.unlockLocalVault()
+        XCTAssertTrue(viewModel.showEditLogin(viewModel.savedCredentialRows[1]))
+
+        viewModel.cancelAddLogin()
+
+        XCTAssertEqual(viewModel.route, .overview)
+        XCTAssertEqual(viewModel.credentialOrigin, "")
+        XCTAssertEqual(viewModel.credentialLabel, "")
+        XCTAssertEqual(viewModel.credentialUsername, "")
+        XCTAssertEqual(viewModel.credentialPassword, "")
+    }
+
+    func testLockedVaultDoesNotOpenEditLocalCredential() {
+        let store = RecordingCompanionVaultStore(
+            credentials: [Self.githubCredential()]
+        )
+        let viewModel = CompanionViewModel(
+            vaultStore: store,
+            localUserPresenceAuthorizer: StaticLocalUserPresenceAuthorizer(
+                result: .authorized
+            )
+        )
+
+        let didOpenEdit = viewModel.showEditLogin(
+            CompanionLocalCredentialRow(Self.githubCredential())
+        )
+
+        XCTAssertFalse(didOpenEdit)
+        XCTAssertFalse(store.didLoadCredentials)
+        XCTAssertEqual(viewModel.route, .overview)
+        XCTAssertEqual(
+            viewModel.lastDecisionText,
+            L10n.string("decision.edit_locked")
+        )
+    }
+
+    func testMissingLocalCredentialDoesNotOpenEdit() async {
+        let store = RecordingCompanionVaultStore(
+            credentials: [Self.githubCredential()]
+        )
+        let viewModel = CompanionViewModel(
+            vaultStore: store,
+            localUserPresenceAuthorizer: StaticLocalUserPresenceAuthorizer(
+                result: .authorized
+            )
+        )
+        await viewModel.unlockLocalVault()
+
+        let didOpenEdit = viewModel.showEditLogin(
+            CompanionLocalCredentialRow(Self.bankCredential())
+        )
+
+        XCTAssertFalse(didOpenEdit)
+        XCTAssertEqual(viewModel.route, .overview)
+        XCTAssertEqual(viewModel.credentialOrigin, "")
+        XCTAssertEqual(viewModel.credentialLabel, "")
+        XCTAssertEqual(viewModel.credentialUsername, "")
+        XCTAssertEqual(viewModel.credentialPassword, "")
+        XCTAssertEqual(
+            viewModel.lastDecisionText,
+            L10n.string("decision.edit_missing")
+        )
+    }
+
     func testCopyUsernameWritesVisibleUsernameWithoutAuthorization() async {
         let store = RecordingCompanionVaultStore(
             credentials: [Self.githubCredential()]

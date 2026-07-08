@@ -22,13 +22,17 @@
 "action.copy_username" = "复制用户名";
 "action.confirm_delete" = "删除";
 "action.delete" = "删除";
+"action.edit" = "编辑";
 "action.save" = "保存";
+"action.update" = "更新";
 "action.deny" = "拒绝";
 "action.fill_once" = "填充一次";
 "idle.copy" = "暂无填充请求。浏览器请求会在这里等待批准。";
 "recovery.copy" = "恢复需要可信设备、恢复密钥或加密备份。";
 "add.title" = "添加本机登录项";
 "add.copy" = "登录项会在这台 Mac 上加密保存。网页填充仍需要解锁和批准。";
+"edit.title" = "编辑本机登录项";
+"edit.copy" = "修改仍只在这台 Mac 上加密保存，保存前需要本机批准。";
 "field.website_origin" = "网站地址";
 "field.label" = "标签";
 "field.username" = "用户名";
@@ -41,6 +45,7 @@
 "local_logins.search_placeholder" = "搜索网站或用户名";
 "local_logins.copy_username_accessibility" = "复制 %@ 的用户名";
 "local_logins.copy_password_accessibility" = "复制 %@ 的密码";
+"local_logins.edit_accessibility" = "编辑 %@";
 "local_logins.delete_confirm_title" = "删除 %@？";
 "local_logins.delete_confirm_copy" = "需要本机授权。此操作会从加密本机保险库移除此登录项。";
 "local_logins.delete_accessibility" = "删除 %@";
@@ -51,6 +56,7 @@
 "decision.bridge_unavailable" = "本机桥接不可用。";
 "local_auth.unlock_reason" = "解锁这台 Mac 上的 UnuVault 本机保险库";
 "local_auth.save_reason" = "将此登录保存到这台 Mac 上的 UnuVault 本机保险库";
+"local_auth.edit_reason" = "编辑这台 Mac 上的 UnuVault 本机保险库登录项";
 "local_auth.copy_password_reason" = "从这台 Mac 上的 UnuVault 本机保险库复制此密码";
 "local_auth.delete_reason" = "从这台 Mac 上的 UnuVault 本机保险库删除此登录项";
 "decision.local_auth_failed" = "本机授权已取消或被拒绝。";
@@ -62,6 +68,10 @@
 "decision.unlocked" = "本机保险库已解锁。";
 "decision.open_failed" = "无法打开本机保险库。";
 "decision.save_failed" = "无法保存本机登录项。";
+"decision.edit_locked" = "请先解锁，再编辑本机登录项。";
+"decision.edit_missing" = "本机登录项已不存在。";
+"decision.edited" = "已在本机更新 %@。";
+"decision.edit_failed" = "无法编辑本机登录项。";
 "decision.copy_locked" = "请先解锁，再复制本机登录项。";
 "decision.copy_missing" = "本机登录项已不存在。";
 "decision.copy_failed" = "无法复制本机登录项。";

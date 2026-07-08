@@ -409,9 +409,25 @@ tell application "System Events"
     tell group 1 of window 1
       set buttonCount to count of buttons
       if buttonCount < 1 then error "No native approval buttons found."
-      set targetButton to button buttonCount
-      click targetButton
-      return buttonCount as text
+      set targetIndex to 0
+      set targetX to -1
+      set targetY to -1
+      set targetButton to missing value
+      repeat with buttonIndex from 1 to buttonCount
+        set candidateButton to button buttonIndex
+        set candidatePosition to position of candidateButton
+        set candidateX to item 1 of candidatePosition
+        set candidateY to item 2 of candidatePosition
+        if candidateY > targetY or (candidateY = targetY and candidateX > targetX) then
+          set targetIndex to buttonIndex
+          set targetX to candidateX
+          set targetY to candidateY
+          set targetButton to candidateButton
+        end if
+      end repeat
+      if targetIndex is 0 then error "No native approval target button found."
+      perform action "AXPress" of targetButton
+      return targetIndex as text
     end tell
   end tell
 end tell

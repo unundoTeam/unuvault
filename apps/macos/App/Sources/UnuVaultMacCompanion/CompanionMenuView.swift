@@ -21,7 +21,7 @@ struct CompanionMenuView: View {
         switch viewModel.route {
         case .overview:
             overviewContent
-        case .addLogin:
+        case .addLogin, .editLogin:
             addLoginPage
         }
     }
@@ -235,6 +235,9 @@ struct CompanionMenuView: View {
                                     await viewModel.copyPassword(credential)
                                 }
                             },
+                            onEdit: {
+                                viewModel.showEditLogin(credential)
+                            },
                             onDelete: {
                                 viewModel.requestDeleteLocalCredential(credential)
                             }
@@ -309,12 +312,14 @@ struct CompanionMenuView: View {
     }
 
     private var addLoginPage: some View {
-        VStack(alignment: .leading, spacing: 11) {
+        let isEditing = viewModel.route == .editLogin
+
+        return VStack(alignment: .leading, spacing: 11) {
             VStack(alignment: .leading, spacing: 4) {
-                Text(L10n.string("add.title"))
+                Text(L10n.string(isEditing ? "edit.title" : "add.title"))
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(CompanionMenuStyle.ink)
-                Text(L10n.string("add.copy"))
+                Text(L10n.string(isEditing ? "edit.copy" : "add.copy"))
                     .font(.system(size: 12))
                     .lineSpacing(2)
                     .foregroundStyle(CompanionMenuStyle.body)
@@ -331,7 +336,7 @@ struct CompanionMenuView: View {
                     viewModel.cancelAddLogin()
                 }
                 CompanionActionButton(
-                    title: L10n.string("action.save"),
+                    title: L10n.string(isEditing ? "action.update" : "action.save"),
                     style: .primary
                 ) {
                     Task { @MainActor in
@@ -564,6 +569,7 @@ private struct CompanionCredentialRowView: View {
     let isPendingDelete: Bool
     let onCopyUsername: () -> Void
     let onCopyPassword: () -> Void
+    let onEdit: () -> Void
     let onDelete: () -> Void
 
     var body: some View {
@@ -609,29 +615,25 @@ private struct CompanionCredentialRowView: View {
                     action: onCopyPassword
                 )
 
-                Button(action: onDelete) {
-                    HStack(spacing: 5) {
-                        Image(systemName: "trash")
-                            .font(.system(size: 12, weight: .semibold))
-                        Text(L10n.string("action.delete"))
-                            .font(.system(size: 11, weight: .semibold))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.85)
-                    }
-                    .foregroundStyle(CompanionMenuStyle.danger)
-                    .frame(width: 76, height: 40)
-                    .background(CompanionMenuStyle.dangerSurface)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(CompanionMenuStyle.dangerBorder, lineWidth: 1)
-                    )
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(
-                    L10n.format("local_logins.delete_accessibility", credential.label)
+                CompanionCredentialRowButton(
+                    systemName: "pencil",
+                    title: L10n.format(
+                        "local_logins.edit_accessibility",
+                        credential.label
+                    ),
+                    style: .neutral,
+                    action: onEdit
                 )
-                .help(L10n.format("local_logins.delete_accessibility", credential.label))
+
+                CompanionCredentialRowButton(
+                    systemName: "trash",
+                    title: L10n.format(
+                        "local_logins.delete_accessibility",
+                        credential.label
+                    ),
+                    style: .danger,
+                    action: onDelete
+                )
             }
         }
         .padding(.horizontal, 9)
@@ -659,6 +661,7 @@ private struct CompanionCredentialRowButton: View {
     enum Style {
         case neutral
         case secure
+        case danger
     }
 
     let systemName: String
@@ -690,6 +693,8 @@ private struct CompanionCredentialRowButton: View {
             CompanionMenuStyle.body
         case .secure:
             CompanionMenuStyle.secure
+        case .danger:
+            CompanionMenuStyle.danger
         }
     }
 
@@ -699,6 +704,8 @@ private struct CompanionCredentialRowButton: View {
             Color.white
         case .secure:
             CompanionMenuStyle.secureSurface
+        case .danger:
+            CompanionMenuStyle.dangerSurface
         }
     }
 
@@ -708,6 +715,8 @@ private struct CompanionCredentialRowButton: View {
             CompanionMenuStyle.border
         case .secure:
             CompanionMenuStyle.secureBorder
+        case .danger:
+            CompanionMenuStyle.dangerBorder
         }
     }
 }

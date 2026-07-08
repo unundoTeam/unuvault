@@ -2,9 +2,10 @@ import Combine
 import Foundation
 import MacCompanionCore
 
-enum CompanionMenuRoute {
+enum CompanionMenuRoute: Equatable {
     case overview
     case addLogin
+    case editLogin
 }
 
 struct CompanionLocalCredentialRow: Equatable, Identifiable {
@@ -70,6 +71,7 @@ final class CompanionViewModel: ObservableObject {
     private lazy var bridgeService = CompanionBridgeService(session: session)
     private lazy var pairingCoordinator = CompanionPairingSessionCoordinator(session: session)
     private var didApplyStartupState = false
+    private var editingCredentialId: String?
     private var refreshTimer: Timer?
     private var server: LoopbackHTTPServer?
 
@@ -257,6 +259,7 @@ final class CompanionViewModel: ObservableObject {
     }
 
     func showAddLogin() {
+        editingCredentialId = nil
         route = .addLogin
 
         guard let addLoginDraftCredential,
@@ -274,7 +277,47 @@ final class CompanionViewModel: ObservableObject {
         credentialPassword = addLoginDraftCredential.password
     }
 
+    @discardableResult
+    func showEditLogin(_ credential: CompanionLocalCredentialRow) -> Bool {
+        guard isUnlocked else {
+            lastDecisionText = L10n.string("decision.edit_locked")
+            refresh()
+            return false
+        }
+
+        guard let vaultStore else {
+            lastDecisionText = L10n.string("decision.vault_unavailable")
+            return false
+        }
+
+        do {
+            let credentials = try vaultStore.loadCredentials()
+
+            guard let storedCredential = credentials.first(where: { storedCredential in
+                storedCredential.id == credential.id
+            }) else {
+                lastDecisionText = L10n.string("decision.edit_missing")
+                refresh()
+                return false
+            }
+
+            editingCredentialId = storedCredential.id
+            credentialOrigin = storedCredential.websiteOrigin
+            credentialLabel = storedCredential.label
+            credentialUsername = storedCredential.username
+            credentialPassword = storedCredential.password
+            pendingDeleteCredential = nil
+            route = .editLogin
+            return true
+        } catch {
+            lastDecisionText = L10n.string("decision.edit_failed")
+            refresh()
+            return false
+        }
+    }
+
     func cancelAddLogin() {
+        clearCredentialDraft()
         route = .overview
     }
 
@@ -298,14 +341,48 @@ final class CompanionViewModel: ObservableObject {
             return false
         }
 
-        guard await authorizeLocalUserPresence(
-            reason: L10n.string("local_auth.save_reason")
-        ) else {
+        let editingCredentialId = editingCredentialId
+        let authorizationReason = editingCredentialId == nil
+            ? L10n.string("local_auth.save_reason")
+            : L10n.string("local_auth.edit_reason")
+
+        guard await authorizeLocalUserPresence(reason: authorizationReason) else {
             return false
         }
 
         do {
             var credentials = try vaultStore.loadCredentials()
+
+            if let editingCredentialId {
+                guard let credentialIndex = credentials.firstIndex(where: { credential in
+                    credential.id == editingCredentialId
+                }) else {
+                    lastDecisionText = L10n.string("decision.edit_missing")
+                    refresh()
+                    return false
+                }
+
+                let existingCredential = credentials[credentialIndex]
+                credentials[credentialIndex] = CompanionCredential(
+                    id: existingCredential.id,
+                    label: trimmedLabel,
+                    username: trimmedUsername,
+                    password: credentialPassword,
+                    profileId: existingCredential.profileId,
+                    websiteOrigin: trimmedOrigin
+                )
+                try vaultStore.save(credentials: credentials)
+                session.unlock(credentials: credentials, ttl: 300)
+                bridgeService.clearPendingApproval()
+                pendingApproval = nil
+                clearCredentialDraft()
+                route = .overview
+                savedCredentialCountText = L10n.format("status.saved_count", credentials.count)
+                lastDecisionText = L10n.format("decision.edited", trimmedLabel)
+                refresh()
+                return true
+            }
+
             credentials.append(
                 CompanionCredential(
                     id: "local-\(UUID().uuidString)",
@@ -317,10 +394,7 @@ final class CompanionViewModel: ObservableObject {
                 )
             )
             try vaultStore.save(credentials: credentials)
-            credentialLabel = ""
-            credentialOrigin = ""
-            credentialPassword = ""
-            credentialUsername = ""
+            clearCredentialDraft()
             route = .overview
             savedCredentialCountText = L10n.format("status.saved_count", credentials.count)
             lastDecisionText = L10n.format("decision.saved", trimmedLabel)
@@ -330,6 +404,14 @@ final class CompanionViewModel: ObservableObject {
             lastDecisionText = L10n.string("decision.save_failed")
             return false
         }
+    }
+
+    private func clearCredentialDraft() {
+        editingCredentialId = nil
+        credentialLabel = ""
+        credentialOrigin = ""
+        credentialPassword = ""
+        credentialUsername = ""
     }
 
     func toggleLockState() {
@@ -390,6 +472,7 @@ final class CompanionViewModel: ObservableObject {
         bridgeService.clearPendingApproval()
         pairingInviteText = nil
         pairingPayload = nil
+        clearCredentialDraft()
         pendingDeleteCredential = nil
         pendingApproval = nil
         route = .overview
