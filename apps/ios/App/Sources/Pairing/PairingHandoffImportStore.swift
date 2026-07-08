@@ -49,6 +49,30 @@ public struct PairingHandoffImportReceipt: Equatable, Codable, Sendable {
     }
 }
 
+public struct PairingImportedCredentialMetadata:
+    Equatable,
+    Identifiable,
+    Codable,
+    Sendable
+{
+    public let id: String
+    public let label: String
+    public let username: String
+    public let websiteOrigin: String
+
+    public init(
+        id: String,
+        label: String,
+        username: String,
+        websiteOrigin: String
+    ) {
+        self.id = id
+        self.label = label
+        self.username = username
+        self.websiteOrigin = websiteOrigin
+    }
+}
+
 public struct PairingHandoffImportStore {
     private enum Persistence {
         case memory
@@ -112,6 +136,26 @@ public struct PairingHandoffImportStore {
 
     public func importedCredential(id: String) -> PairingImportedCredential? {
         importedCredentialsById[id]
+    }
+
+    public func importedCredentialMetadata() -> [PairingImportedCredentialMetadata] {
+        importedCredentialsById
+            .values
+            .map {
+                PairingImportedCredentialMetadata(
+                    id: $0.id,
+                    label: $0.label,
+                    username: $0.username,
+                    websiteOrigin: $0.websiteOrigin
+                )
+            }
+            .sorted { left, right in
+                if left.label.localizedCaseInsensitiveCompare(right.label) == .orderedSame {
+                    return left.id < right.id
+                }
+
+                return left.label.localizedCaseInsensitiveCompare(right.label) == .orderedAscending
+            }
     }
 
     private static func isValidCredential(_ credential: PairingImportedCredential) -> Bool {
