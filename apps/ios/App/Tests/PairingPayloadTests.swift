@@ -325,6 +325,177 @@ final class PairingPayloadTests: XCTestCase {
         }
     }
 
+    func testOpensMacProducedRecipientBoundHandoffAndImportsSafeReceipt() throws {
+        let target = makeTargetIdentity()
+        let credential = PairingImportedCredential(
+            id: "github-login",
+            label: "github.com",
+            username: "yuchen",
+            password: "secret-github",
+            profileId: "personal",
+            websiteOrigin: "https://github.com"
+        )
+        let handoff = try makeMacProducedHandoff(target: target, credentials: [credential])
+        let opener = PairingHandoffOpener()
+
+        let openedPayload = try opener.open(
+            handoff,
+            recipientPrivateKey: samplePrivateKey,
+            expectedTarget: target,
+            now: Date(timeIntervalSince1970: 1_060)
+        )
+
+        XCTAssertEqual(openedPayload.items, [credential])
+
+        var importStore = PairingHandoffImportStore()
+        let receipt = try importStore.importPayload(openedPayload, from: handoff)
+
+        XCTAssertEqual(receipt.handoffId, handoff.handoffId)
+        XCTAssertEqual(receipt.importedCredentialCount, 1)
+        XCTAssertEqual(receipt.importedCredentialIds, ["github-login"])
+        XCTAssertEqual(importStore.importedCredential(id: "github-login"), credential)
+
+        let encodedHandoff = try String(
+            data: JSONEncoder().encode(handoff),
+            encoding: .utf8
+        )
+        XCTAssertFalse(encodedHandoff?.contains("github-login") ?? true)
+        XCTAssertFalse(encodedHandoff?.contains("yuchen") ?? true)
+        XCTAssertFalse(encodedHandoff?.contains("secret-github") ?? true)
+        XCTAssertFalse(encodedHandoff?.contains("password") ?? true)
+
+        for safeSurface in [
+            receipt.statusText,
+            receipt.diagnostic,
+            receipt.receiptLine
+        ] {
+            XCTAssertFalse(safeSurface.contains("github-login"))
+            XCTAssertFalse(safeSurface.contains("yuchen"))
+            XCTAssertFalse(safeSurface.contains("secret-github"))
+            XCTAssertFalse(safeSurface.contains("password"))
+        }
+    }
+
+    func testHandoffOpenerFailsClosedForInvalidMaterialAndReplay() throws {
+        let target = makeTargetIdentity()
+        let handoff = try makeMacProducedHandoff(
+            target: target,
+            credentials: [
+                PairingImportedCredential(
+                    id: "github-login",
+                    label: "github.com",
+                    username: "yuchen",
+                    password: "secret-github",
+                    profileId: "personal",
+                    websiteOrigin: "https://github.com"
+                )
+            ]
+        )
+
+        XCTAssertThrowsError(
+            try PairingHandoffOpener().open(
+                handoff,
+                recipientPrivateKey: P256.KeyAgreement.PrivateKey(),
+                expectedTarget: target,
+                now: Date(timeIntervalSince1970: 1_060)
+            )
+        ) { error in
+            XCTAssertEqual(error as? PairingHandoffOpenError, .openFailed)
+        }
+
+        XCTAssertThrowsError(
+            try PairingHandoffOpener().open(
+                handoff.replacingMaterial(
+                    ciphertext: Data("tampered".utf8).base64EncodedString()
+                ),
+                recipientPrivateKey: samplePrivateKey,
+                expectedTarget: target,
+                now: Date(timeIntervalSince1970: 1_060)
+            )
+        ) { error in
+            XCTAssertEqual(error as? PairingHandoffOpenError, .openFailed)
+        }
+
+        XCTAssertThrowsError(
+            try PairingHandoffOpener().open(
+                handoff.replacingMaterial(
+                    tag: Data("tampered".utf8).base64EncodedString()
+                ),
+                recipientPrivateKey: samplePrivateKey,
+                expectedTarget: target,
+                now: Date(timeIntervalSince1970: 1_060)
+            )
+        ) { error in
+            XCTAssertEqual(error as? PairingHandoffOpenError, .openFailed)
+        }
+
+        XCTAssertThrowsError(
+            try PairingHandoffOpener().open(
+                handoff.replacingMaterial(algorithm: "AES-GCM-256"),
+                recipientPrivateKey: samplePrivateKey,
+                expectedTarget: target,
+                now: Date(timeIntervalSince1970: 1_060)
+            )
+        ) { error in
+            XCTAssertEqual(error as? PairingHandoffOpenError, .unsupportedAlgorithm)
+        }
+
+        XCTAssertThrowsError(
+            try PairingHandoffOpener().open(
+                handoff,
+                recipientPrivateKey: samplePrivateKey,
+                expectedTarget: target,
+                now: Date(timeIntervalSince1970: 1_121)
+            )
+        ) { error in
+            XCTAssertEqual(error as? PairingHandoffOpenError, .expired)
+        }
+
+        XCTAssertThrowsError(
+            try PairingHandoffOpener().open(
+                handoff,
+                recipientPrivateKey: samplePrivateKey,
+                expectedTarget: makeTargetIdentity(
+                    publicKeyFingerprint: "sha256:unexpected"
+                ),
+                now: Date(timeIntervalSince1970: 1_060)
+            )
+        ) { error in
+            XCTAssertEqual(error as? PairingHandoffOpenError, .targetMismatch)
+        }
+
+        let opener = PairingHandoffOpener()
+        _ = try opener.open(
+            handoff,
+            recipientPrivateKey: samplePrivateKey,
+            expectedTarget: target,
+            now: Date(timeIntervalSince1970: 1_060)
+        )
+        XCTAssertThrowsError(
+            try opener.open(
+                handoff,
+                recipientPrivateKey: samplePrivateKey,
+                expectedTarget: target,
+                now: Date(timeIntervalSince1970: 1_060)
+            )
+        ) { error in
+            XCTAssertEqual(error as? PairingHandoffOpenError, .replayed)
+        }
+    }
+
+    func testImportStoreRejectsEmptyCredentialPayload() throws {
+        let target = makeTargetIdentity()
+        let handoff = try makeMacProducedHandoff(target: target, credentials: [])
+        let payload = PairingHandoffOpenedPayload(items: [])
+        var importStore = PairingHandoffImportStore()
+
+        XCTAssertThrowsError(
+            try importStore.importPayload(payload, from: handoff)
+        ) { error in
+            XCTAssertEqual(error as? PairingHandoffImportError, .emptyPayload)
+        }
+    }
+
     func testPairingExchangeClientPostsTargetClaimWithoutBearerOrSecrets() async throws {
         let payload = MacPairingQRCodePayload(
             version: 1,
@@ -535,6 +706,85 @@ private func makeTargetIdentity(
     )
 }
 
+private func makeMacProducedHandoff(
+    target: PairingTargetIdentity,
+    credentials: [PairingImportedCredential],
+    handoffId: String = "pairing-session-1",
+    sourceDeviceId: String = "mac-device-1",
+    now: Date = Date(timeIntervalSince1970: 1_000),
+    ttl: TimeInterval = 120
+) throws -> MacPairingHandoff {
+    let senderPrivateKey = P256.KeyAgreement.PrivateKey()
+    let recipientPublicKeyData = try XCTUnwrap(
+        Data(base64URLEncoded: target.publicKeyAgreementDERBase64URL)
+    )
+    let recipientPublicKey = try P256.KeyAgreement.PublicKey(
+        derRepresentation: recipientPublicKeyData
+    )
+    let associatedData = pairingHandoffAssociatedData(
+        handoffId: handoffId,
+        sourceDeviceId: sourceDeviceId,
+        targetDeviceId: target.deviceId,
+        targetPublicKeyFingerprint: target.publicKeyFingerprint
+    )
+    let sharedSecret = try senderPrivateKey.sharedSecretFromKeyAgreement(
+        with: recipientPublicKey
+    )
+    let symmetricKey = sharedSecret.hkdfDerivedSymmetricKey(
+        using: SHA256.self,
+        salt: Data("unuvault-pairing-handoff-v1".utf8),
+        sharedInfo: associatedData,
+        outputByteCount: 32
+    )
+    let payloadData = try JSONEncoder().encode(
+        PairingHandoffOpenedPayload(items: credentials)
+    )
+    let sealedBox = try AES.GCM.seal(
+        payloadData,
+        using: symmetricKey,
+        authenticating: associatedData
+    )
+    let nonce = sealedBox.nonce.withUnsafeBytes { Data($0) }
+
+    return MacPairingHandoff(
+        handoffId: handoffId,
+        version: 1,
+        sourceDeviceId: sourceDeviceId,
+        targetDeviceId: target.deviceId,
+        targetDeviceDisplayName: target.displayName,
+        targetPublicKeyFingerprint: target.publicKeyFingerprint,
+        createdAt: now,
+        expiresAt: now.addingTimeInterval(ttl),
+        material: MacPairingHandoffMaterial(
+            algorithm: "P256-HKDF-SHA256-AES-GCM-256",
+            senderPublicKeyAgreementDERBase64URL: senderPrivateKey
+                .publicKey
+                .derRepresentation
+                .base64URLEncodedString(),
+            nonce: nonce.base64EncodedString(),
+            ciphertext: sealedBox.ciphertext.base64EncodedString(),
+            tag: sealedBox.tag.base64EncodedString()
+        )
+    )
+}
+
+private func pairingHandoffAssociatedData(
+    handoffId: String,
+    sourceDeviceId: String,
+    targetDeviceId: String,
+    targetPublicKeyFingerprint: String
+) -> Data {
+    Data(
+        [
+            "unuvault-pairing-v1",
+            handoffId,
+            sourceDeviceId,
+            targetDeviceId,
+            targetPublicKeyFingerprint
+        ].joined(separator: "|").utf8
+    )
+}
+
 private actor PairingRequestStore {
     private var storedRequest: URLRequest?
 
@@ -548,6 +798,19 @@ private actor PairingRequestStore {
 }
 
 private extension Data {
+    init?(base64URLEncoded value: String) {
+        var base64URL = value
+            .replacingOccurrences(of: "-", with: "+")
+            .replacingOccurrences(of: "_", with: "/")
+
+        let padding = base64URL.count % 4
+        if padding > 0 {
+            base64URL.append(String(repeating: "=", count: 4 - padding))
+        }
+
+        self.init(base64Encoded: base64URL)
+    }
+
     func base64URLEncodedString() -> String {
         base64EncodedString()
             .replacingOccurrences(of: "+", with: "-")
@@ -559,5 +822,34 @@ private extension Data {
 private extension SHA256.Digest {
     var hexString: String {
         map { String(format: "%02x", $0) }.joined()
+    }
+}
+
+private extension MacPairingHandoff {
+    func replacingMaterial(
+        algorithm: String? = nil,
+        senderPublicKeyAgreementDERBase64URL: String? = nil,
+        nonce: String? = nil,
+        ciphertext: String? = nil,
+        tag: String? = nil
+    ) -> MacPairingHandoff {
+        MacPairingHandoff(
+            handoffId: handoffId,
+            version: version,
+            sourceDeviceId: sourceDeviceId,
+            targetDeviceId: targetDeviceId,
+            targetDeviceDisplayName: targetDeviceDisplayName,
+            targetPublicKeyFingerprint: targetPublicKeyFingerprint,
+            createdAt: createdAt,
+            expiresAt: expiresAt,
+            material: MacPairingHandoffMaterial(
+                algorithm: algorithm ?? material.algorithm,
+                senderPublicKeyAgreementDERBase64URL: senderPublicKeyAgreementDERBase64URL ??
+                    material.senderPublicKeyAgreementDERBase64URL,
+                nonce: nonce ?? material.nonce,
+                ciphertext: ciphertext ?? material.ciphertext,
+                tag: tag ?? material.tag
+            )
+        )
     }
 }
