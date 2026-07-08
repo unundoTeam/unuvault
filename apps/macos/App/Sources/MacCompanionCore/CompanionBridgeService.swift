@@ -6,6 +6,7 @@ public final class CompanionBridgeService: @unchecked Sendable {
     private var currentPendingApproval: CompanionApprovalRequest?
     private var pendingCredential: CompanionCredential?
     private var approvedCredential: CompanionCredential?
+    public var onPendingApprovalChanged: ((CompanionApprovalRequest?) -> Void)?
 
     public var pendingApproval: CompanionApprovalRequest? {
         stateLock.lock()
@@ -68,6 +69,7 @@ public final class CompanionBridgeService: @unchecked Sendable {
         currentPendingApproval = approval
         pendingCredential = credential
         approvedCredential = nil
+        onPendingApprovalChanged?(approval)
 
         return .approvalRequired(approval)
     }
@@ -99,6 +101,7 @@ public final class CompanionBridgeService: @unchecked Sendable {
         currentPendingApproval = nil
         pendingCredential = nil
         approvedCredential = credential
+        onPendingApprovalChanged?(nil)
 
         return .released(
             CompanionReleasedCredential(
@@ -160,6 +163,7 @@ public final class CompanionBridgeService: @unchecked Sendable {
         currentPendingApproval = nil
         pendingCredential = nil
         approvedCredential = nil
+        onPendingApprovalChanged?(nil)
     }
 
     private func isSessionUnlocked() -> Bool {

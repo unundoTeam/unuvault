@@ -179,6 +179,11 @@ final class CompanionViewModel: ObservableObject {
 
     func start() {
         applyStartupStateIfNeeded()
+        bridgeService.onPendingApprovalChanged = { [weak self] approval in
+            Task { @MainActor in
+                self?.pendingApproval = approval
+            }
+        }
 
         if server == nil {
             let codec = BridgeHTTPCodec(
@@ -206,11 +211,13 @@ final class CompanionViewModel: ObservableObject {
         }
 
         if refreshTimer == nil {
-            refreshTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+            let timer = Timer(timeInterval: 0.5, repeats: true) { [weak self] _ in
                 Task { @MainActor in
                     self?.refresh()
                 }
             }
+            RunLoop.main.add(timer, forMode: .common)
+            refreshTimer = timer
         }
 
         refresh()
@@ -546,6 +553,69 @@ final class CompanionViewModel: ObservableObject {
             return true
         } catch {
             lastDecisionText = L10n.string("decision.copy_failed")
+            refresh()
+            return false
+        }
+    }
+
+    @discardableResult
+    func exportLocalVaultBackup(to destinationURL: URL) async -> Bool {
+        guard await authorizeLocalUserPresence(
+            reason: L10n.string("local_auth.export_backup_reason")
+        ) else {
+            return false
+        }
+
+        guard let vaultStore else {
+            lastDecisionText = L10n.string("decision.vault_unavailable")
+            return false
+        }
+
+        do {
+            try vaultStore.exportBackup(to: destinationURL)
+            lastDecisionText = L10n.string("decision.backup_exported")
+            refresh()
+            return true
+        } catch {
+            lastDecisionText = L10n.string("decision.backup_failed")
+            refresh()
+            return false
+        }
+    }
+
+    @discardableResult
+    func restoreLocalVaultBackup(from sourceURL: URL) async -> Bool {
+        guard await authorizeLocalUserPresence(
+            reason: L10n.string("local_auth.restore_backup_reason")
+        ) else {
+            return false
+        }
+
+        guard let vaultStore else {
+            lastDecisionText = L10n.string("decision.vault_unavailable")
+            return false
+        }
+
+        do {
+            let credentials = try vaultStore.restoreBackup(from: sourceURL)
+            session.unlock(credentials: credentials, ttl: 300)
+            bridgeService.clearPendingApproval()
+            pendingApproval = nil
+            pendingDeleteCredential = nil
+            clearCredentialDraft()
+            route = .overview
+            savedCredentialCountText = L10n.format(
+                "status.saved_count",
+                credentials.count
+            )
+            lastDecisionText = L10n.format(
+                "decision.backup_restored",
+                credentials.count
+            )
+            refresh()
+            return true
+        } catch {
+            lastDecisionText = L10n.string("decision.restore_failed")
             refresh()
             return false
         }

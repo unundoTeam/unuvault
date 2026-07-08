@@ -215,6 +215,9 @@ function hasReleasedCredential(
   return "credential" in result;
 }
 
+const MAC_COMPANION_APPROVAL_CLAIM_ATTEMPTS = 80;
+const MAC_COMPANION_APPROVAL_CLAIM_INTERVAL_MS = 250;
+
 async function claimApprovedMacCompanionRelease(input: {
   accessToken: string;
   id: string;
@@ -222,7 +225,7 @@ async function claimApprovedMacCompanionRelease(input: {
   origin: string;
   profileId: string;
 }): Promise<BackgroundResponse> {
-  for (let attempt = 0; attempt < 20; attempt += 1) {
+  for (let attempt = 0; attempt < MAC_COMPANION_APPROVAL_CLAIM_ATTEMPTS; attempt += 1) {
     const claim = await input.macCompanionClient.claimCredentialRelease({
       accessToken: input.accessToken,
       id: input.id,
@@ -245,7 +248,7 @@ async function claimApprovedMacCompanionRelease(input: {
     }
 
     await new Promise((resolve) => {
-      setTimeout(resolve, 250);
+      setTimeout(resolve, MAC_COMPANION_APPROVAL_CLAIM_INTERVAL_MS);
     });
   }
 

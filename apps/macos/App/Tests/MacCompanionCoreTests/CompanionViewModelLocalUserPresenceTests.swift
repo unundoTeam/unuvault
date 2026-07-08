@@ -455,6 +455,115 @@ final class CompanionViewModelLocalUserPresenceTests: XCTestCase {
         )
     }
 
+    func testAllowedAuthorizationExportsLocalVaultBackup() async {
+        let store = RecordingCompanionVaultStore(
+            credentials: [Self.githubCredential()]
+        )
+        let authorizer = SequencedLocalUserPresenceAuthorizer(
+            results: [.authorized]
+        )
+        let viewModel = CompanionViewModel(
+            vaultStore: store,
+            localUserPresenceAuthorizer: authorizer
+        )
+        let backupURL = URL(fileURLWithPath: "/tmp/unuvault-backup.json")
+
+        let didExport = await viewModel.exportLocalVaultBackup(to: backupURL)
+
+        XCTAssertTrue(didExport)
+        XCTAssertEqual(authorizer.authorizationReasons, [
+            L10n.string("local_auth.export_backup_reason")
+        ])
+        XCTAssertEqual(store.exportedBackupURL, backupURL)
+        XCTAssertEqual(
+            viewModel.lastDecisionText,
+            L10n.string("decision.backup_exported")
+        )
+    }
+
+    func testDeniedAuthorizationDoesNotExportLocalVaultBackup() async {
+        let store = RecordingCompanionVaultStore(
+            credentials: [Self.githubCredential()]
+        )
+        let viewModel = CompanionViewModel(
+            vaultStore: store,
+            localUserPresenceAuthorizer: StaticLocalUserPresenceAuthorizer(
+                result: .denied
+            )
+        )
+
+        let didExport = await viewModel.exportLocalVaultBackup(
+            to: URL(fileURLWithPath: "/tmp/unuvault-backup.json")
+        )
+
+        XCTAssertFalse(didExport)
+        XCTAssertNil(store.exportedBackupURL)
+        XCTAssertEqual(
+            viewModel.lastDecisionText,
+            L10n.string("decision.local_auth_failed")
+        )
+    }
+
+    func testAllowedAuthorizationRestoresLocalVaultBackupAndUnlocksRows() async {
+        let store = RecordingCompanionVaultStore(
+            credentials: [Self.githubCredential()]
+        )
+        store.restoredBackupCredentials = [
+            Self.githubCredential(),
+            Self.bankCredential()
+        ]
+        let authorizer = SequencedLocalUserPresenceAuthorizer(
+            results: [.authorized]
+        )
+        let viewModel = CompanionViewModel(
+            vaultStore: store,
+            localUserPresenceAuthorizer: authorizer
+        )
+        let backupURL = URL(fileURLWithPath: "/tmp/unuvault-backup.json")
+
+        let didRestore = await viewModel.restoreLocalVaultBackup(from: backupURL)
+
+        XCTAssertTrue(didRestore)
+        XCTAssertTrue(viewModel.isUnlocked)
+        XCTAssertEqual(authorizer.authorizationReasons, [
+            L10n.string("local_auth.restore_backup_reason")
+        ])
+        XCTAssertEqual(store.restoredBackupURL, backupURL)
+        XCTAssertEqual(
+            viewModel.savedCredentialRows.map(\.label),
+            ["github.com", "bank.example"]
+        )
+        XCTAssertEqual(
+            viewModel.lastDecisionText,
+            L10n.format("decision.backup_restored", 2)
+        )
+    }
+
+    func testDeniedAuthorizationDoesNotRestoreLocalVaultBackup() async {
+        let store = RecordingCompanionVaultStore(
+            credentials: [Self.githubCredential()]
+        )
+        store.restoredBackupCredentials = [Self.githubCredential(), Self.bankCredential()]
+        let viewModel = CompanionViewModel(
+            vaultStore: store,
+            localUserPresenceAuthorizer: StaticLocalUserPresenceAuthorizer(
+                result: .denied
+            )
+        )
+
+        let didRestore = await viewModel.restoreLocalVaultBackup(
+            from: URL(fileURLWithPath: "/tmp/unuvault-backup.json")
+        )
+
+        XCTAssertFalse(didRestore)
+        XCTAssertFalse(viewModel.isUnlocked)
+        XCTAssertNil(store.restoredBackupURL)
+        XCTAssertEqual(
+            viewModel.lastDecisionText,
+            L10n.string("decision.local_auth_failed")
+        )
+    }
+
     func testDeniedAuthorizationDoesNotDeleteLocalCredential() async {
         let store = RecordingCompanionVaultStore(
             credentials: [Self.githubCredential(), Self.bankCredential()]
@@ -550,6 +659,9 @@ private final class RecordingCompanionVaultStore: CompanionVaultStoring {
     private let credentials: [CompanionCredential]
     private(set) var didLoadCredentials = false
     private(set) var didSaveCredentials = false
+    private(set) var exportedBackupURL: URL?
+    private(set) var restoredBackupURL: URL?
+    var restoredBackupCredentials: [CompanionCredential]?
     private(set) var savedCredentials: [CompanionCredential]?
 
     init(credentials: [CompanionCredential]) {
@@ -563,6 +675,21 @@ private final class RecordingCompanionVaultStore: CompanionVaultStoring {
 
     func loadCredentials() throws -> [CompanionCredential] {
         didLoadCredentials = true
+        return loadResult()
+    }
+
+    func exportBackup(to destinationURL: URL) throws {
+        exportedBackupURL = destinationURL
+    }
+
+    func restoreBackup(from sourceURL: URL) throws -> [CompanionCredential] {
+        restoredBackupURL = sourceURL
+
+        if let restoredBackupCredentials {
+            savedCredentials = restoredBackupCredentials
+            return restoredBackupCredentials
+        }
+
         return loadResult()
     }
 

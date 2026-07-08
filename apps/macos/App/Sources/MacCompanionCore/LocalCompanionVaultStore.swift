@@ -15,6 +15,18 @@ public protocol CompanionVaultKeyProvider {
 public protocol CompanionVaultStoring {
     func save(credentials: [CompanionCredential]) throws
     func loadCredentials() throws -> [CompanionCredential]
+    func exportBackup(to destinationURL: URL) throws
+    func restoreBackup(from sourceURL: URL) throws -> [CompanionCredential]
+}
+
+public extension CompanionVaultStoring {
+    func exportBackup(to destinationURL: URL) throws {
+        throw CompanionVaultStoreError.openFailed
+    }
+
+    func restoreBackup(from sourceURL: URL) throws -> [CompanionCredential] {
+        throw CompanionVaultStoreError.openFailed
+    }
 }
 
 public struct StaticCompanionVaultKeyProvider: CompanionVaultKeyProvider {
@@ -161,32 +173,73 @@ public final class LocalCompanionVaultStore: CompanionVaultStoring {
 
         do {
             let data = try Data(contentsOf: vaultURL)
-            let envelope = try JSONDecoder().decode(
-                StoredVaultEnvelope.self,
-                from: data
-            )
-            guard envelope.version == 1, envelope.algorithm == "AES-GCM-256",
-                  let nonceData = Data(base64Encoded: envelope.nonce),
-                  let ciphertext = Data(base64Encoded: envelope.ciphertext),
-                  let tag = Data(base64Encoded: envelope.tag)
-            else {
-                throw CompanionVaultStoreError.openFailed
-            }
-
-            let sealedBox = try AES.GCM.SealedBox(
-                nonce: AES.GCM.Nonce(data: nonceData),
-                ciphertext: ciphertext,
-                tag: tag
-            )
-            let payloadData = try AES.GCM.open(sealedBox, using: symmetricKey())
-            return try JSONDecoder()
-                .decode(StoredVaultPayload.self, from: payloadData)
-                .credentials
+            return try openCredentials(from: data)
         } catch let error as CompanionVaultStoreError {
             throw error
         } catch {
             throw CompanionVaultStoreError.openFailed
         }
+    }
+
+    public func exportBackup(to destinationURL: URL) throws {
+        guard FileManager.default.fileExists(atPath: vaultURL.path) else {
+            throw CompanionVaultStoreError.openFailed
+        }
+
+        do {
+            let data = try Data(contentsOf: vaultURL)
+            _ = try openCredentials(from: data)
+            try FileManager.default.createDirectory(
+                at: destinationURL.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            try data.write(to: destinationURL, options: [.atomic])
+        } catch let error as CompanionVaultStoreError {
+            throw error
+        } catch {
+            throw CompanionVaultStoreError.openFailed
+        }
+    }
+
+    public func restoreBackup(from sourceURL: URL) throws -> [CompanionCredential] {
+        do {
+            let data = try Data(contentsOf: sourceURL)
+            let credentials = try openCredentials(from: data)
+            try FileManager.default.createDirectory(
+                at: vaultURL.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            try data.write(to: vaultURL, options: [.atomic])
+            return credentials
+        } catch let error as CompanionVaultStoreError {
+            throw error
+        } catch {
+            throw CompanionVaultStoreError.openFailed
+        }
+    }
+
+    private func openCredentials(from data: Data) throws -> [CompanionCredential] {
+        let envelope = try JSONDecoder().decode(
+            StoredVaultEnvelope.self,
+            from: data
+        )
+        guard envelope.version == 1, envelope.algorithm == "AES-GCM-256",
+              let nonceData = Data(base64Encoded: envelope.nonce),
+              let ciphertext = Data(base64Encoded: envelope.ciphertext),
+              let tag = Data(base64Encoded: envelope.tag)
+        else {
+            throw CompanionVaultStoreError.openFailed
+        }
+
+        let sealedBox = try AES.GCM.SealedBox(
+            nonce: AES.GCM.Nonce(data: nonceData),
+            ciphertext: ciphertext,
+            tag: tag
+        )
+        let payloadData = try AES.GCM.open(sealedBox, using: symmetricKey())
+        return try JSONDecoder()
+            .decode(StoredVaultPayload.self, from: payloadData)
+            .credentials
     }
 
     private func symmetricKey() throws -> SymmetricKey {

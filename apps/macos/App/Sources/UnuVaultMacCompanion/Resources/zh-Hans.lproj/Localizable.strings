@@ -23,7 +23,9 @@
 "action.confirm_delete" = "删除";
 "action.delete" = "删除";
 "action.edit" = "编辑";
+"action.export_backup" = "导出备份";
 "action.save" = "保存";
+"action.restore_backup" = "恢复备份";
 "action.update" = "更新";
 "action.deny" = "拒绝";
 "action.fill_once" = "填充一次";
@@ -39,6 +41,8 @@
 "field.password" = "密码";
 "store_note.title" = "本机保存边界";
 "store_note.copy" = "服务器无法恢复明文。导出、恢复和配对都需要新的本机批准。";
+"backup.title" = "加密备份";
+"backup.copy" = "导出或恢复加密的本机保险库文件。两个操作都需要新的本机批准。";
 "local_logins.title" = "本机登录项";
 "local_logins.empty" = "还没有保存的本机登录项。";
 "local_logins.no_results" = "没有匹配的本机登录项。";
@@ -59,6 +63,8 @@
 "local_auth.edit_reason" = "编辑这台 Mac 上的 UnuVault 本机保险库登录项";
 "local_auth.copy_password_reason" = "从这台 Mac 上的 UnuVault 本机保险库复制此密码";
 "local_auth.delete_reason" = "从这台 Mac 上的 UnuVault 本机保险库删除此登录项";
+"local_auth.export_backup_reason" = "从这台 Mac 导出 UnuVault 本机保险库加密备份";
+"local_auth.restore_backup_reason" = "在这台 Mac 上恢复 UnuVault 本机保险库加密备份";
 "decision.local_auth_failed" = "本机授权已取消或被拒绝。";
 "decision.local_auth_unavailable" = "这台 Mac 暂时无法进行本机授权。";
 "decision.vault_unavailable" = "本机保险库不可用。";
@@ -81,6 +87,10 @@
 "decision.delete_missing" = "本机登录项已不存在。";
 "decision.deleted" = "已在本机删除 %@。";
 "decision.delete_failed" = "无法删除本机登录项。";
+"decision.backup_exported" = "已导出加密本机备份。";
+"decision.backup_failed" = "无法导出加密本机备份。";
+"decision.backup_restored" = "已从备份恢复 %d 个本机登录项。";
+"decision.restore_failed" = "无法恢复加密本机备份。";
 "decision.approved" = "已为 %@ 批准一次。";
 "decision.denied" = "已拒绝 %@ 的填充请求。";
 "decision.pairing_locked" = "请先解锁，再配对 iPhone。";

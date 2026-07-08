@@ -3,6 +3,100 @@ import XCTest
 @testable import MacCompanionCore
 
 final class RecoveryBoundaryTests: XCTestCase {
+    func testEncryptedBackupExportsAndRestoresThroughStoreAPI() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(
+            at: directory,
+            withIntermediateDirectories: true
+        )
+        defer {
+            try? FileManager.default.removeItem(at: directory)
+        }
+
+        let sourceVaultURL = directory.appendingPathComponent("source-vault.json")
+        let restoredVaultURL = directory.appendingPathComponent("restored-vault.json")
+        let backupURL = directory.appendingPathComponent("unuvault-backup.json")
+        let recoveryKey = Data(repeating: 21, count: 32)
+        let credential = CompanionCredential(
+            id: "github-login",
+            label: "github.com",
+            username: "yuchen",
+            password: "secret-github",
+            profileId: "personal",
+            websiteOrigin: "https://github.com"
+        )
+        let sourceStore = LocalCompanionVaultStore(
+            keyProvider: StaticCompanionVaultKeyProvider(keyData: recoveryKey),
+            vaultURL: sourceVaultURL
+        )
+
+        try sourceStore.save(credentials: [credential])
+        try sourceStore.exportBackup(to: backupURL)
+
+        let rawBackup = try String(contentsOf: backupURL, encoding: .utf8)
+        XCTAssertTrue(rawBackup.contains(#""algorithm":"AES-GCM-256""#))
+        XCTAssertFalse(rawBackup.contains("credentials"))
+        XCTAssertFalse(rawBackup.contains("github-login"))
+        XCTAssertFalse(rawBackup.contains("yuchen"))
+        XCTAssertFalse(rawBackup.contains("secret-github"))
+
+        let wrongKeyRestore = LocalCompanionVaultStore(
+            keyProvider: StaticCompanionVaultKeyProvider(
+                keyData: Data(repeating: 22, count: 32)
+            ),
+            vaultURL: restoredVaultURL
+        )
+        XCTAssertThrowsError(try wrongKeyRestore.restoreBackup(from: backupURL)) { error in
+            XCTAssertEqual(error as? CompanionVaultStoreError, .openFailed)
+        }
+
+        let trustedRestore = LocalCompanionVaultStore(
+            keyProvider: StaticCompanionVaultKeyProvider(keyData: recoveryKey),
+            vaultURL: restoredVaultURL
+        )
+        XCTAssertEqual(try trustedRestore.restoreBackup(from: backupURL), [credential])
+        XCTAssertEqual(try trustedRestore.loadCredentials(), [credential])
+    }
+
+    func testMalformedBackupDoesNotReplaceExistingVault() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(
+            at: directory,
+            withIntermediateDirectories: true
+        )
+        defer {
+            try? FileManager.default.removeItem(at: directory)
+        }
+
+        let vaultURL = directory.appendingPathComponent("vault.json")
+        let backupURL = directory.appendingPathComponent("bad-backup.json")
+        let credential = CompanionCredential(
+            id: "github-login",
+            label: "github.com",
+            username: "yuchen",
+            password: "secret-github",
+            profileId: "personal",
+            websiteOrigin: "https://github.com"
+        )
+        let store = LocalCompanionVaultStore(
+            keyProvider: StaticCompanionVaultKeyProvider(
+                keyData: Data(repeating: 23, count: 32)
+            ),
+            vaultURL: vaultURL
+        )
+
+        try store.save(credentials: [credential])
+        try Data(#"{"version":1,"algorithm":"AES-GCM-256"}"#.utf8)
+            .write(to: backupURL)
+
+        XCTAssertThrowsError(try store.restoreBackup(from: backupURL)) { error in
+            XCTAssertEqual(error as? CompanionVaultStoreError, .openFailed)
+        }
+        XCTAssertEqual(try store.loadCredentials(), [credential])
+    }
+
     func testEncryptedBackupRestoresOnlyWithUserHeldKeyMaterial() throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)

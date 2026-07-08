@@ -109,6 +109,42 @@ final class CompanionBridgeServiceTests: XCTestCase {
         XCTAssertEqual(service.pendingApproval, nil)
     }
 
+    func testPendingApprovalChangeCallbackFiresForRequestApproveAndClear() {
+        let session = CompanionVaultSession()
+        session.unlock(
+            credentials: [
+                CompanionCredential(
+                    id: "github-login",
+                    label: "github.com",
+                    username: "yuchen",
+                    password: "secret-github",
+                    profileId: "personal",
+                    websiteOrigin: "https://github.com"
+                )
+            ],
+            ttl: 300
+        )
+        let service = CompanionBridgeService(session: session)
+        var observedApprovals: [CompanionApprovalRequest?] = []
+        service.onPendingApprovalChanged = { approval in
+            observedApprovals.append(approval)
+        }
+
+        _ = service.requestRelease(
+            id: "github-login",
+            origin: "https://github.com/login",
+            profileId: "personal",
+            reason: "fill-active-page"
+        )
+        _ = service.approvePendingRelease(id: "github-login")
+        service.clearPendingApproval()
+
+        XCTAssertEqual(
+            observedApprovals.map { approval in approval?.id },
+            ["github-login", nil, nil]
+        )
+    }
+
     func testUnsupportedReleaseReasonFailsClosed() {
         let session = CompanionVaultSession()
         session.unlock(

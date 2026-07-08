@@ -4,6 +4,15 @@ import SwiftUI
 struct CompanionMenuView: View {
     @ObservedObject var viewModel: CompanionViewModel
     @FocusState private var focusedCredentialField: CredentialField?
+    private let backupFilePicker: CompanionBackupFilePicking
+
+    init(
+        viewModel: CompanionViewModel,
+        backupFilePicker: CompanionBackupFilePicking = MacCompanionBackupFilePicker()
+    ) {
+        self.viewModel = viewModel
+        self.backupFilePicker = backupFilePicker
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 11) {
@@ -74,6 +83,9 @@ struct CompanionMenuView: View {
             Divider()
                 .overlay(CompanionMenuStyle.hairline)
             approvalSection
+            Divider()
+                .overlay(CompanionMenuStyle.hairline)
+            backupSection
             Divider()
                 .overlay(CompanionMenuStyle.hairline)
             recoveryCopy
@@ -459,10 +471,12 @@ struct CompanionMenuView: View {
                     CompanionActionButton(title: L10n.string("action.deny"), style: .secondary) {
                         viewModel.denyPendingFill()
                     }
+                    .accessibilityIdentifier("deny-fill-button")
                     CompanionActionButton(title: L10n.string("action.fill_once"), style: .primary) {
                         viewModel.approvePendingFill()
                     }
                     .keyboardShortcut(.defaultAction)
+                    .accessibilityIdentifier("approve-fill-once-button")
                 }
             }
         } else {
@@ -489,6 +503,67 @@ struct CompanionMenuView: View {
             .lineSpacing(2)
             .foregroundStyle(CompanionMenuStyle.body)
             .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private var backupSection: some View {
+        VStack(alignment: .leading, spacing: 9) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(L10n.string("backup.title"))
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(CompanionMenuStyle.ink)
+                Text(L10n.string("backup.copy"))
+                    .font(.system(size: 11, weight: .medium))
+                    .lineSpacing(2)
+                    .foregroundStyle(CompanionMenuStyle.body)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            HStack(spacing: 8) {
+                CompanionActionButton(
+                    title: L10n.string("action.export_backup"),
+                    style: .secondary
+                ) {
+                    exportBackup()
+                }
+                .accessibilityIdentifier("export-backup-button")
+
+                CompanionActionButton(
+                    title: L10n.string("action.restore_backup"),
+                    style: .secondary
+                ) {
+                    restoreBackup()
+                }
+                .accessibilityIdentifier("restore-backup-button")
+            }
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.white)
+        .clipShape(RoundedRectangle(cornerRadius: 9))
+        .overlay(
+            RoundedRectangle(cornerRadius: 9)
+                .stroke(CompanionMenuStyle.hairline, lineWidth: 1)
+        )
+    }
+
+    private func exportBackup() {
+        guard let destinationURL = backupFilePicker.exportBackupURL() else {
+            return
+        }
+
+        Task { @MainActor in
+            await viewModel.exportLocalVaultBackup(to: destinationURL)
+        }
+    }
+
+    private func restoreBackup() {
+        guard let sourceURL = backupFilePicker.restoreBackupURL() else {
+            return
+        }
+
+        Task { @MainActor in
+            await viewModel.restoreLocalVaultBackup(from: sourceURL)
+        }
     }
 }
 

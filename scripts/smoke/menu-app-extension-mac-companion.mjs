@@ -44,6 +44,10 @@ const localSaveScreenshot = join(
   exportRoot,
   `${proofDate}-${screenshotStem}-form-real-app-full.png`,
 );
+const smokeTimeoutMs = Number.parseInt(
+  process.env.UNUVAULT_MENU_SMOKE_TIMEOUT_MS ?? "180000",
+  10,
+);
 
 const swiftClickSource = `
 import CoreGraphics
@@ -67,6 +71,140 @@ let up = CGEvent(
 down?.post(tap: .cghidEventTap)
 Thread.sleep(forTimeInterval: 0.05)
 up?.post(tap: .cghidEventTap)
+`;
+
+const swiftApprovalSource = `
+import AppKit
+import ApplicationServices
+import Foundation
+
+func copyAttribute(_ element: AXUIElement, _ attribute: String) -> AnyObject? {
+    var value: AnyObject?
+    let result = AXUIElementCopyAttributeValue(element, attribute as CFString, &value)
+    return result == .success ? value : nil
+}
+
+func pointValue(_ value: AnyObject?) -> CGPoint? {
+    guard let value else { return nil }
+    let axValue = value as! AXValue
+    var point = CGPoint.zero
+    if AXValueGetType(axValue) == .cgPoint,
+       AXValueGetValue(axValue, .cgPoint, &point) {
+        return point
+    }
+    return nil
+}
+
+func sizeValue(_ value: AnyObject?) -> CGSize? {
+    guard let value else { return nil }
+    let axValue = value as! AXValue
+    var size = CGSize.zero
+    if AXValueGetType(axValue) == .cgSize,
+       AXValueGetValue(axValue, .cgSize, &size) {
+        return size
+    }
+    return nil
+}
+
+func collectButtons(_ element: AXUIElement, into buttons: inout [AXUIElement], depth: Int = 0) {
+    if depth > 12 {
+        return
+    }
+
+    if let role = copyAttribute(element, kAXRoleAttribute) as? String,
+       role == kAXButtonRole {
+        buttons.append(element)
+    }
+
+    if let windows = copyAttribute(element, kAXWindowsAttribute) as? [AXUIElement] {
+        for window in windows {
+            collectButtons(window, into: &buttons, depth: depth + 1)
+        }
+    }
+
+    if let children = copyAttribute(element, kAXChildrenAttribute) as? [AXUIElement] {
+        for child in children {
+            collectButtons(child, into: &buttons, depth: depth + 1)
+        }
+    }
+}
+
+func targetButton(from buttons: [AXUIElement]) -> AXUIElement? {
+    for button in buttons {
+        let title = (copyAttribute(button, kAXTitleAttribute) as? String) ?? ""
+        let description = (copyAttribute(button, kAXDescriptionAttribute) as? String) ?? ""
+        if title == "Fill once" || description == "Fill once" {
+            return button
+        }
+    }
+
+    let positioned = buttons.compactMap { button -> (AXUIElement, CGPoint, CGSize)? in
+        guard let position = pointValue(copyAttribute(button, kAXPositionAttribute)),
+              let size = sizeValue(copyAttribute(button, kAXSizeAttribute)) else {
+            return nil
+        }
+        return (button, position, size)
+    }
+
+    guard let bottomY = positioned.map({ $0.1.y }).max() else {
+        return nil
+    }
+
+    return positioned
+        .filter { $0.1.y < bottomY - 8 }
+        .sorted { lhs, rhs in
+            if lhs.1.y == rhs.1.y {
+                return lhs.1.x > rhs.1.x
+            }
+            return lhs.1.y > rhs.1.y
+        }
+        .first?.0
+}
+
+func targetSummary(_ button: AXUIElement) -> String {
+    let title = (copyAttribute(button, kAXTitleAttribute) as? String) ?? ""
+    let position = pointValue(copyAttribute(button, kAXPositionAttribute)) ?? .zero
+    let size = sizeValue(copyAttribute(button, kAXSizeAttribute)) ?? .zero
+    return "button:title=\\(title):x=\\(Int(position.x)):y=\\(Int(position.y)):w=\\(Int(size.width)):h=\\(Int(size.height))"
+}
+
+let mode = CommandLine.arguments.dropFirst().first ?? "find"
+let attempts = Int(CommandLine.arguments.dropFirst(2).first ?? "1") ?? 1
+let app = NSWorkspace.shared.runningApplications.first { app in
+    app.executableURL?.lastPathComponent == "UnuVaultMacCompanion" ||
+        app.localizedName == "UnuVaultMacCompanion"
+}
+
+guard let app else {
+    fputs("missing app\\n", stderr)
+    exit(2)
+}
+
+let axApp = AXUIElementCreateApplication(app.processIdentifier)
+
+for attempt in 0..<max(attempts, 1) {
+    var buttons: [AXUIElement] = []
+    collectButtons(axApp, into: &buttons)
+
+    if let target = targetButton(from: buttons) {
+        if mode == "press" {
+            let result = AXUIElementPerformAction(target, kAXPressAction as CFString)
+            if result != .success {
+                fputs("press failed \\(result.rawValue)\\n", stderr)
+                exit(4)
+            }
+        }
+        print(targetSummary(target))
+        exit(0)
+    }
+
+    if attempt < attempts - 1 {
+        Thread.sleep(forTimeInterval: 0.1)
+    }
+}
+
+fputs("missing target\\n", stderr)
+exit(3)
 `;
 
 function assert(condition, message) {
@@ -279,15 +417,17 @@ async function triggerAutofill(client, popupSessionId) {
   throw lastError ?? new Error("Autofill trigger failed.");
 }
 
-function runAppleScript(source) {
+function runAppleScript(source, options = {}) {
   const result = spawnSync("osascript", ["-"], {
     encoding: "utf8",
     input: source,
+    killSignal: "SIGKILL",
+    timeout: options.timeout ?? 10_000,
   });
 
   if (result.status !== 0) {
     throw new Error(
-      `osascript failed:\n${result.stdout}\n${result.stderr}`,
+      `osascript failed:\n${result.stdout}\n${result.stderr}${result.error ? `\n${result.error.message}` : ""}`,
     );
   }
 
@@ -304,6 +444,35 @@ function clickScreenPoint(x, y) {
     throw new Error(
       `swift click helper failed:\n${result.stdout}\n${result.stderr}`,
     );
+  }
+}
+
+function runApprovalHelper(mode, attempts = 1) {
+  const result = spawnSync("swift", ["-", mode, String(attempts)], {
+    encoding: "utf8",
+    input: swiftApprovalSource,
+    killSignal: "SIGKILL",
+    timeout: Math.max(45_000, attempts * 500 + 20_000),
+  });
+
+  if (result.status !== 0) {
+    throw new Error(
+      `approval helper failed (${mode}):\n${result.stdout}\n${result.stderr}${result.error ? `\n${result.error.message}` : ""}`,
+    );
+  }
+
+  return result.stdout.trim();
+}
+
+async function waitForNativeApprovalButton() {
+  return runApprovalHelper("find", 45);
+}
+
+function nativeApprovalDebugSummary() {
+  try {
+    return runApprovalHelper("find", 1);
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
   }
 }
 
@@ -347,7 +516,9 @@ function openNativeMenu() {
   runAppleScript(`
 tell application "System Events"
   tell process "UnuVaultMacCompanion"
+    set frontmost to true
     if not (exists window 1) then perform action "AXPress" of menu bar item 1 of menu bar 2
+    delay 0.4
   end tell
 end tell
 `);
@@ -401,37 +572,7 @@ end tell
 }
 
 function clickNativeApprovalButton() {
-  return runAppleScript(`
-tell application "System Events"
-  tell process "UnuVaultMacCompanion"
-    if not (exists window 1) then perform action "AXPress" of menu bar item 1 of menu bar 2
-    delay 0.2
-    tell group 1 of window 1
-      set buttonCount to count of buttons
-      if buttonCount < 1 then error "No native approval buttons found."
-      set targetIndex to 0
-      set targetX to -1
-      set targetY to -1
-      set targetButton to missing value
-      repeat with buttonIndex from 1 to buttonCount
-        set candidateButton to button buttonIndex
-        set candidatePosition to position of candidateButton
-        set candidateX to item 1 of candidatePosition
-        set candidateY to item 2 of candidatePosition
-        if candidateY > targetY or (candidateY = targetY and candidateX > targetX) then
-          set targetIndex to buttonIndex
-          set targetX to candidateX
-          set targetY to candidateY
-          set targetButton to candidateButton
-        end if
-      end repeat
-      if targetIndex is 0 then error "No native approval target button found."
-      perform action "AXPress" of targetButton
-      return targetIndex as text
-    end tell
-  end tell
-end tell
-`);
+  return runApprovalHelper("press", 1);
 }
 
 async function waitForMacCompanionReady(expectedState) {
@@ -505,6 +646,14 @@ function killExistingCompanionProcesses() {
     } catch {
       // Missing process is fine.
     }
+  }
+}
+
+function killSmokeChildProcesses() {
+  try {
+    execFileSync("pkill", ["-P", String(process.pid)], { stdio: "ignore" });
+  } catch {
+    // Child processes may already be gone.
   }
 }
 
@@ -629,7 +778,30 @@ async function main() {
     const autofillPromise = triggerAutofill(cdp, popupSessionId);
     await delay(750);
     openNativeMenu();
-    await delay(400);
+    try {
+      await waitForNativeApprovalButton();
+    } catch (error) {
+      const nativeDebug = nativeApprovalDebugSummary();
+      try {
+        execFileSync("screencapture", ["-x", approvalScreenshot], {
+          cwd: repoRoot,
+          stdio: "ignore",
+        });
+      } catch {
+        // Best-effort failure evidence only.
+      }
+      let autofillResponse = null;
+      try {
+        autofillResponse = await autofillPromise;
+      } catch (autofillError) {
+        autofillResponse = {
+          error: autofillError instanceof Error ? autofillError.message : String(autofillError),
+        };
+      }
+      throw new Error(
+        `${error.message}; autofillResponse=${JSON.stringify(autofillResponse)}; nativeDebug=${JSON.stringify(nativeDebug)}`,
+      );
+    }
     execFileSync("screencapture", ["-x", approvalScreenshot], {
       cwd: repoRoot,
       stdio: "inherit",
@@ -654,7 +826,12 @@ async function main() {
         autofillResponse.result?.status === "filled" &&
         filledValues.username === "mac-menu-user" &&
         filledValues.password === "mac-menu-password",
-      `Unexpected autofill result: ${JSON.stringify({ autofillResponse, filledValues })}`,
+      `Unexpected autofill result: ${JSON.stringify({
+        autofillResponse,
+        filledValues,
+        clickedButtonIndex,
+        secondClaim,
+      })}`,
     );
     assert(
       secondClaim.status === 404 &&
@@ -696,7 +873,20 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+const smokeTimeout = setTimeout(() => {
+  console.error(
+    new Error(`Mac companion menu smoke timed out after ${smokeTimeoutMs}ms.`),
+  );
+  killSmokeChildProcesses();
+  process.exit(124);
+}, smokeTimeoutMs);
+
+main()
+  .then(() => {
+    clearTimeout(smokeTimeout);
+  })
+  .catch((error) => {
+    clearTimeout(smokeTimeout);
+    console.error(error);
+    process.exitCode = 1;
+  });

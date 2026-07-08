@@ -23,7 +23,9 @@
 "action.confirm_delete" = "Delete";
 "action.delete" = "Delete";
 "action.edit" = "Edit";
+"action.export_backup" = "Export backup";
 "action.save" = "Save";
+"action.restore_backup" = "Restore backup";
 "action.update" = "Update";
 "action.deny" = "Deny";
 "action.fill_once" = "Fill once";
@@ -39,6 +41,8 @@
 "field.password" = "Password";
 "store_note.title" = "Local store boundary";
 "store_note.copy" = "Plaintext is not recoverable from the server. Export, recovery, and pairing require fresh local approval.";
+"backup.title" = "Encrypted backup";
+"backup.copy" = "Export or restore the encrypted local vault file. Both actions require fresh local approval.";
 "local_logins.title" = "Local logins";
 "local_logins.empty" = "No local logins saved yet.";
 "local_logins.no_results" = "No matching local logins.";
@@ -59,6 +63,8 @@
 "local_auth.edit_reason" = "Edit this login in the UnuVault local vault on this Mac";
 "local_auth.copy_password_reason" = "Copy this password from the UnuVault local vault on this Mac";
 "local_auth.delete_reason" = "Delete this login from the UnuVault local vault on this Mac";
+"local_auth.export_backup_reason" = "Export an encrypted UnuVault local vault backup from this Mac";
+"local_auth.restore_backup_reason" = "Restore an encrypted UnuVault local vault backup on this Mac";
 "decision.local_auth_failed" = "Local authorization was canceled or denied.";
 "decision.local_auth_unavailable" = "Local authorization is unavailable on this Mac.";
 "decision.vault_unavailable" = "Local vault unavailable.";
@@ -81,6 +87,10 @@
 "decision.delete_missing" = "Local login no longer exists.";
 "decision.deleted" = "Deleted %@ locally.";
 "decision.delete_failed" = "Could not delete local login.";
+"decision.backup_exported" = "Encrypted local backup exported.";
+"decision.backup_failed" = "Could not export encrypted local backup.";
+"decision.backup_restored" = "Restored %d local logins from backup.";
+"decision.restore_failed" = "Could not restore encrypted local backup.";
 "decision.approved" = "Approved once for %@.";
 "decision.denied" = "Denied fill for %@.";
 "decision.pairing_locked" = "Unlock before pairing an iPhone.";

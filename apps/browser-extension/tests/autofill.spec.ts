@@ -783,4 +783,95 @@ describe("content autofill runtime", () => {
       profileId: "profile-1",
     });
   });
+
+  it("keeps polling long enough for delayed Mac companion approval", async () => {
+    vi.useFakeTimers();
+
+    try {
+      const claimCredentialRelease = vi.fn();
+
+      for (let attempt = 0; attempt < 24; attempt += 1) {
+        claimCredentialRelease.mockResolvedValueOnce({
+          error: "credential_not_found",
+        });
+      }
+
+      claimCredentialRelease.mockResolvedValue({
+        credential: {
+          username: "alice@example.com",
+          password: "native-approved-secret",
+        },
+      });
+
+      const deps = {
+        authRuntime: {
+          readExtensionAuthState: vi.fn().mockResolvedValue({
+            status: "signed_in",
+            accessToken: "jwt-token",
+            email: "user@example.com",
+            profileId: "profile-1",
+            signedInAt: "2026-05-27T00:00:00.000Z",
+          }),
+          signInWithPassword: vi.fn(),
+          signOut: vi.fn(),
+        },
+        hydratePopupVaultCache: vi.fn(),
+        macCompanionClient: {
+          claimCredentialRelease,
+          readCredentialMetadata: vi.fn().mockResolvedValue({
+            status: "ready",
+            credentials: [
+              {
+                id: "github-login",
+                label: "GitHub",
+                username: "alice@example.com",
+              },
+            ],
+          }),
+          requestCredentialRelease: vi.fn().mockResolvedValue({
+            ok: false,
+            error: "approval_required",
+          }),
+        },
+        unlockRuntime: {
+          lock: vi.fn(),
+          readUnlockPassphrase: vi.fn(),
+          readUnlockState: vi.fn().mockResolvedValue({
+            mode: "locked",
+          }),
+          unlockWithPassphrase: vi.fn(),
+        },
+        unlockedVaultReader: {
+          readUnlockedLoginItems: vi.fn().mockResolvedValue([]),
+        },
+      } as never;
+
+      const responsePromise = handleBackgroundRequest(
+        {
+          type: "read_autofill_fill_data",
+        },
+        deps,
+        {
+          source: "content",
+          trustedPageUrl: "https://github.com/login",
+        },
+      );
+
+      await vi.advanceTimersByTimeAsync(24 * 250);
+
+      await expect(responsePromise).resolves.toEqual({
+        ok: true,
+        autofillFillData: {
+          status: "ready",
+          fillData: {
+            username: "alice@example.com",
+            password: "native-approved-secret",
+          },
+        },
+      });
+      expect(claimCredentialRelease).toHaveBeenCalledTimes(25);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
