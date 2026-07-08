@@ -17,6 +17,9 @@
 "action.add_login" = "添加登录项";
 "action.pair_iphone" = "配对 iPhone";
 "action.cancel" = "取消";
+"action.clear_search" = "清除搜索";
+"action.confirm_delete" = "删除";
+"action.delete" = "删除";
 "action.save" = "保存";
 "action.deny" = "拒绝";
 "action.fill_once" = "填充一次";
@@ -30,6 +33,13 @@
 "field.password" = "密码";
 "store_note.title" = "本机保存边界";
 "store_note.copy" = "服务器无法恢复明文。导出、恢复和配对都需要新的本机批准。";
+"local_logins.title" = "本机登录项";
+"local_logins.empty" = "还没有保存的本机登录项。";
+"local_logins.no_results" = "没有匹配的本机登录项。";
+"local_logins.search_placeholder" = "搜索网站或用户名";
+"local_logins.delete_confirm_title" = "删除 %@？";
+"local_logins.delete_confirm_copy" = "需要本机授权。此操作会从加密本机保险库移除此登录项。";
+"local_logins.delete_accessibility" = "删除 %@";
 "approval.title" = "允许填充密码？";
 "approval.site" = "%@ 正在请求一个保存的登录项";
 "approval.meta" = "凭据：%@ · 密码已隐藏 · 仅填充一次";
@@ -37,6 +47,7 @@
 "decision.bridge_unavailable" = "本机桥接不可用。";
 "local_auth.unlock_reason" = "解锁这台 Mac 上的 UnuVault 本机保险库";
 "local_auth.save_reason" = "将此登录保存到这台 Mac 上的 UnuVault 本机保险库";
+"local_auth.delete_reason" = "从这台 Mac 上的 UnuVault 本机保险库删除此登录项";
 "decision.local_auth_failed" = "本机授权已取消或被拒绝。";
 "decision.local_auth_unavailable" = "这台 Mac 暂时无法进行本机授权。";
 "decision.vault_unavailable" = "本机保险库不可用。";
@@ -46,6 +57,10 @@
 "decision.unlocked" = "本机保险库已解锁。";
 "decision.open_failed" = "无法打开本机保险库。";
 "decision.save_failed" = "无法保存本机登录项。";
+"decision.delete_locked" = "请先解锁，再删除本机登录项。";
+"decision.delete_missing" = "本机登录项已不存在。";
+"decision.deleted" = "已在本机删除 %@。";
+"decision.delete_failed" = "无法删除本机登录项。";
 "decision.approved" = "已为 %@ 批准一次。";
 "decision.denied" = "已拒绝 %@ 的填充请求。";
 "decision.pairing_locked" = "请先解锁，再配对 iPhone。";

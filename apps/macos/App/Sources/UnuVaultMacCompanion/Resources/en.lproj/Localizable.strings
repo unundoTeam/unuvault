@@ -17,6 +17,9 @@
 "action.add_login" = "Add login";
 "action.pair_iphone" = "Pair iPhone";
 "action.cancel" = "Cancel";
+"action.clear_search" = "Clear search";
+"action.confirm_delete" = "Delete";
+"action.delete" = "Delete";
 "action.save" = "Save";
 "action.deny" = "Deny";
 "action.fill_once" = "Fill once";
@@ -30,6 +33,13 @@
 "field.password" = "Password";
 "store_note.title" = "Local store boundary";
 "store_note.copy" = "Plaintext is not recoverable from the server. Export, recovery, and pairing require fresh local approval.";
+"local_logins.title" = "Local logins";
+"local_logins.empty" = "No local logins saved yet.";
+"local_logins.no_results" = "No matching local logins.";
+"local_logins.search_placeholder" = "Search site or username";
+"local_logins.delete_confirm_title" = "Delete %@?";
+"local_logins.delete_confirm_copy" = "Requires local authorization. This removes the login from the encrypted local vault.";
+"local_logins.delete_accessibility" = "Delete %@";
 "approval.title" = "Allow password fill?";
 "approval.site" = "%@ is requesting one saved login";
 "approval.meta" = "Credential: %@ · password hidden · fill once";
@@ -37,6 +47,7 @@
 "decision.bridge_unavailable" = "Local bridge unavailable.";
 "local_auth.unlock_reason" = "Unlock UnuVault local vault on this Mac";
 "local_auth.save_reason" = "Save this login to the UnuVault local vault on this Mac";
+"local_auth.delete_reason" = "Delete this login from the UnuVault local vault on this Mac";
 "decision.local_auth_failed" = "Local authorization was canceled or denied.";
 "decision.local_auth_unavailable" = "Local authorization is unavailable on this Mac.";
 "decision.vault_unavailable" = "Local vault unavailable.";
@@ -46,6 +57,10 @@
 "decision.unlocked" = "Local vault unlocked.";
 "decision.open_failed" = "Could not open local vault.";
 "decision.save_failed" = "Could not save local login.";
+"decision.delete_locked" = "Unlock before deleting a local login.";
+"decision.delete_missing" = "Local login no longer exists.";
+"decision.deleted" = "Deleted %@ locally.";
+"decision.delete_failed" = "Could not delete local login.";
 "decision.approved" = "Approved once for %@.";
 "decision.denied" = "Denied fill for %@.";
 "decision.pairing_locked" = "Unlock before pairing an iPhone.";

@@ -70,6 +70,7 @@ struct CompanionMenuView: View {
             launchAtLoginSetting
             primaryStateAction
             secondaryActionRow
+            localCredentialSection
             Divider()
                 .overlay(CompanionMenuStyle.hairline)
             approvalSection
@@ -173,6 +174,124 @@ struct CompanionMenuView: View {
                 viewModel.pairIPhone()
             }
         }
+    }
+
+    @ViewBuilder
+    private var localCredentialSection: some View {
+        if viewModel.isUnlocked {
+            VStack(alignment: .leading, spacing: 9) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(L10n.string("local_logins.title"))
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(CompanionMenuStyle.ink)
+                    Spacer(minLength: 10)
+                    Text(viewModel.savedCredentialCountText)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(CompanionMenuStyle.muted)
+                }
+
+                CompanionSearchField(text: $viewModel.searchText)
+
+                localCredentialList
+
+                if let pendingDeleteCredential = viewModel.pendingDeleteCredential {
+                    deleteConfirmation(for: pendingDeleteCredential)
+                }
+            }
+            .padding(11)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.white)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(CompanionMenuStyle.hairline, lineWidth: 1)
+            )
+        }
+    }
+
+    @ViewBuilder
+    private var localCredentialList: some View {
+        if viewModel.savedCredentialRows.isEmpty {
+            localCredentialEmptyState(L10n.string("local_logins.empty"))
+        } else if viewModel.filteredCredentialRows.isEmpty {
+            localCredentialEmptyState(L10n.string("local_logins.no_results"))
+        } else {
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 6) {
+                    ForEach(viewModel.filteredCredentialRows) { credential in
+                        CompanionCredentialRowView(
+                            credential: credential,
+                            isPendingDelete: viewModel.pendingDeleteCredential?.id == credential.id
+                        ) {
+                            viewModel.requestDeleteLocalCredential(credential)
+                        }
+                    }
+                }
+            }
+            .frame(maxHeight: 178)
+            .accessibilityIdentifier("local-credential-list")
+        }
+    }
+
+    private func localCredentialEmptyState(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 12, weight: .medium))
+            .foregroundStyle(CompanionMenuStyle.body)
+            .lineSpacing(2)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(CompanionMenuStyle.neutralSurface)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(CompanionMenuStyle.hairline, lineWidth: 1)
+            )
+    }
+
+    private func deleteConfirmation(
+        for credential: CompanionLocalCredentialRow
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(L10n.format("local_logins.delete_confirm_title", credential.label))
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(CompanionMenuStyle.ink)
+                .lineLimit(2)
+            Text(L10n.string("local_logins.delete_confirm_copy"))
+                .font(.system(size: 11, weight: .medium))
+                .lineSpacing(2)
+                .foregroundStyle(CompanionMenuStyle.warningText)
+                .fixedSize(horizontal: false, vertical: true)
+
+            HStack(spacing: 8) {
+                CompanionActionButton(
+                    title: L10n.string("action.cancel"),
+                    style: .secondary
+                ) {
+                    viewModel.cancelDeleteLocalCredential()
+                }
+                CompanionActionButton(
+                    title: L10n.string("action.confirm_delete"),
+                    style: .destructive
+                ) {
+                    Task { @MainActor in
+                        await viewModel.confirmDeleteLocalCredential()
+                    }
+                }
+            }
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(CompanionMenuStyle.warningSurface)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(CompanionMenuStyle.warningBorder, lineWidth: 1)
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(
+            L10n.format("local_logins.delete_confirm_title", credential.label)
+        )
     }
 
     private var addLoginPage: some View {
@@ -371,6 +490,128 @@ private enum CompanionMenuStyle {
     static let border = Color(red: 0.78, green: 0.80, blue: 0.83)
     static let hairline = Color(red: 0.88, green: 0.89, blue: 0.91)
     static let secure = Color(red: 0.25, green: 0.46, blue: 0.40)
+    static let danger = Color(red: 0.72, green: 0.11, blue: 0.11)
+    static let dangerSurface = Color(red: 1.00, green: 0.95, blue: 0.95)
+    static let dangerBorder = Color(red: 0.94, green: 0.45, blue: 0.45)
+    static let warningSurface = Color(red: 1.00, green: 0.97, blue: 0.91)
+    static let warningBorder = Color(red: 0.96, green: 0.68, blue: 0.35)
+    static let warningText = Color(red: 0.55, green: 0.22, blue: 0.07)
+}
+
+private struct CompanionSearchField: View {
+    @Binding var text: String
+
+    var body: some View {
+        HStack(spacing: 7) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(CompanionMenuStyle.muted)
+                .frame(width: 16)
+
+            TextField(
+                L10n.string("local_logins.search_placeholder"),
+                text: $text,
+                prompt: Text(L10n.string("local_logins.search_placeholder"))
+                    .foregroundStyle(CompanionMenuStyle.muted)
+            )
+            .textFieldStyle(.plain)
+            .font(.system(size: 12, weight: .medium))
+            .foregroundStyle(CompanionMenuStyle.ink)
+
+            if !text.isEmpty {
+                Button {
+                    text = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(CompanionMenuStyle.muted)
+                        .frame(width: 24, height: 24)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(L10n.string("action.clear_search"))
+            }
+        }
+        .padding(.horizontal, 10)
+        .frame(height: 36)
+        .background(CompanionMenuStyle.panel)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(CompanionMenuStyle.border, lineWidth: 1)
+        )
+        .accessibilityIdentifier("local-credential-search")
+    }
+}
+
+private struct CompanionCredentialRowView: View {
+    let credential: CompanionLocalCredentialRow
+    let isPendingDelete: Bool
+    let onDelete: () -> Void
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 9) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(credential.label)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(CompanionMenuStyle.ink)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Text(credential.username)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(CompanionMenuStyle.body)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Text(credential.websiteOrigin)
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(CompanionMenuStyle.muted)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+
+            Spacer(minLength: 8)
+
+            Button(action: onDelete) {
+                HStack(spacing: 5) {
+                    Image(systemName: "trash")
+                        .font(.system(size: 12, weight: .semibold))
+                    Text(L10n.string("action.delete"))
+                        .font(.system(size: 11, weight: .semibold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
+                }
+                .foregroundStyle(CompanionMenuStyle.danger)
+                .frame(width: 76, height: 40)
+                .background(CompanionMenuStyle.dangerSurface)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(CompanionMenuStyle.dangerBorder, lineWidth: 1)
+                )
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(
+                L10n.format("local_logins.delete_accessibility", credential.label)
+            )
+        }
+        .padding(.horizontal, 9)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, minHeight: 58, alignment: .leading)
+        .background(
+            isPendingDelete
+                ? CompanionMenuStyle.warningSurface
+                : CompanionMenuStyle.neutralSurface
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(
+                    isPendingDelete ? CompanionMenuStyle.warningBorder : CompanionMenuStyle.hairline,
+                    lineWidth: 1
+                )
+        )
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("local-credential-row-\(credential.id)")
+    }
 }
 
 private struct CompanionTextField: View {
@@ -420,6 +661,7 @@ private struct CompanionActionButton: View {
     enum Style {
         case primary
         case secondary
+        case destructive
     }
 
     let title: String
@@ -452,6 +694,8 @@ private struct CompanionActionButton: View {
             Color.white
         case .secondary:
             CompanionMenuStyle.body
+        case .destructive:
+            Color.white
         }
     }
 
@@ -461,6 +705,8 @@ private struct CompanionActionButton: View {
             CompanionMenuStyle.ink
         case .secondary:
             Color.white
+        case .destructive:
+            CompanionMenuStyle.danger
         }
     }
 
@@ -470,6 +716,8 @@ private struct CompanionActionButton: View {
             CompanionMenuStyle.ink
         case .secondary:
             CompanionMenuStyle.border
+        case .destructive:
+            CompanionMenuStyle.danger
         }
     }
 }

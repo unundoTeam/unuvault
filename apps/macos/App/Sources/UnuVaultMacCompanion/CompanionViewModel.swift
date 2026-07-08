@@ -7,6 +7,33 @@ enum CompanionMenuRoute {
     case addLogin
 }
 
+struct CompanionLocalCredentialRow: Equatable, Identifiable {
+    let id: String
+    let label: String
+    let username: String
+    let websiteOrigin: String
+
+    init(_ credential: CompanionCredential) {
+        id = credential.id
+        label = credential.label
+        username = credential.username
+        websiteOrigin = credential.websiteOrigin
+    }
+
+    func matches(_ query: String) -> Bool {
+        let normalizedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+
+        guard !normalizedQuery.isEmpty else {
+            return true
+        }
+
+        return label.lowercased().contains(normalizedQuery) ||
+            username.lowercased().contains(normalizedQuery) ||
+            websiteOrigin.lowercased().contains(normalizedQuery)
+    }
+}
+
 @MainActor
 final class CompanionViewModel: ObservableObject {
     @Published var credentialLabel = ""
@@ -17,9 +44,12 @@ final class CompanionViewModel: ObservableObject {
     @Published private(set) var launchAtLoginStatus: LaunchAtLoginStatus
     @Published var pairingInviteText: String?
     @Published var pairingPayload: CompanionPairingQRCodePayload?
+    @Published private(set) var pendingDeleteCredential: CompanionLocalCredentialRow?
     @Published var pendingApproval: CompanionApprovalRequest?
     @Published var route: CompanionMenuRoute = .overview
     @Published var savedCredentialCountText = L10n.format("status.saved_count", 0)
+    @Published private(set) var savedCredentialRows: [CompanionLocalCredentialRow] = []
+    @Published var searchText = ""
     @Published var statusText = L10n.string("status.locked")
 
     private let accessToken: String
@@ -96,6 +126,12 @@ final class CompanionViewModel: ObservableObject {
 
     var isLaunchAtLoginControlDisabled: Bool {
         launchAtLoginStatus == .unavailable
+    }
+
+    var filteredCredentialRows: [CompanionLocalCredentialRow] {
+        savedCredentialRows.filter { row in
+            row.matches(searchText)
+        }
     }
 
     var launchAtLoginStatusText: String {
@@ -348,9 +384,78 @@ final class CompanionViewModel: ObservableObject {
         bridgeService.clearPendingApproval()
         pairingInviteText = nil
         pairingPayload = nil
+        pendingDeleteCredential = nil
         pendingApproval = nil
         route = .overview
+        savedCredentialRows = []
         refresh()
+    }
+
+    func requestDeleteLocalCredential(_ credential: CompanionLocalCredentialRow) {
+        guard isUnlocked else {
+            pendingDeleteCredential = nil
+            lastDecisionText = L10n.string("decision.delete_locked")
+            return
+        }
+
+        pendingDeleteCredential = credential
+    }
+
+    func cancelDeleteLocalCredential() {
+        pendingDeleteCredential = nil
+    }
+
+    @discardableResult
+    func confirmDeleteLocalCredential() async -> Bool {
+        guard isUnlocked else {
+            pendingDeleteCredential = nil
+            lastDecisionText = L10n.string("decision.delete_locked")
+            refresh()
+            return false
+        }
+
+        guard let credential = pendingDeleteCredential else {
+            lastDecisionText = L10n.string("decision.delete_missing")
+            return false
+        }
+
+        guard await authorizeLocalUserPresence(
+            reason: L10n.string("local_auth.delete_reason")
+        ) else {
+            return false
+        }
+
+        guard let vaultStore else {
+            lastDecisionText = L10n.string("decision.vault_unavailable")
+            return false
+        }
+
+        do {
+            let credentials = try vaultStore.loadCredentials()
+            let nextCredentials = credentials.filter { storedCredential in
+                storedCredential.id != credential.id
+            }
+
+            guard nextCredentials.count != credentials.count else {
+                pendingDeleteCredential = nil
+                lastDecisionText = L10n.string("decision.delete_missing")
+                refresh()
+                return false
+            }
+
+            try vaultStore.save(credentials: nextCredentials)
+            session.unlock(credentials: nextCredentials, ttl: 300)
+            bridgeService.clearPendingApproval()
+            pendingApproval = nil
+            pendingDeleteCredential = nil
+            lastDecisionText = L10n.format("decision.deleted", credential.label)
+            refresh()
+            return true
+        } catch {
+            lastDecisionText = L10n.string("decision.delete_failed")
+            refresh()
+            return false
+        }
     }
 
     func pairIPhone() {
@@ -427,14 +532,17 @@ final class CompanionViewModel: ObservableObject {
 
     private func updateSavedCredentialCountText() {
         guard isUnlocked else {
+            savedCredentialRows = []
             return
         }
 
-        guard let count = try? vaultStore?.loadCredentials().count else {
+        guard let credentials = try? vaultStore?.loadCredentials() else {
             savedCredentialCountText = L10n.string("status.unavailable")
+            savedCredentialRows = []
             return
         }
 
-        savedCredentialCountText = L10n.format("status.saved_count", count)
+        savedCredentialRows = credentials.map(CompanionLocalCredentialRow.init)
+        savedCredentialCountText = L10n.format("status.saved_count", credentials.count)
     }
 }

@@ -7,7 +7,7 @@ import XCTest
 final class CompanionViewModelLocalUserPresenceTests: XCTestCase {
     func testAllowAuthorizationUnlocksLocalVault() async {
         let store = RecordingCompanionVaultStore(
-            credentials: [Self.githubCredential()]
+            credentials: [Self.githubCredential(), Self.bankCredential()]
         )
         let viewModel = CompanionViewModel(
             vaultStore: store,
@@ -21,6 +21,10 @@ final class CompanionViewModelLocalUserPresenceTests: XCTestCase {
         XCTAssertTrue(store.didLoadCredentials)
         XCTAssertTrue(viewModel.isUnlocked)
         XCTAssertEqual(viewModel.lastDecisionText, L10n.string("decision.unlocked"))
+        XCTAssertEqual(
+            viewModel.savedCredentialRows.map(\.label),
+            ["github.com", "bank.example"]
+        )
     }
 
     func testDeniedAuthorizationDoesNotReadVaultOrUnlock() async {
@@ -148,6 +152,82 @@ final class CompanionViewModelLocalUserPresenceTests: XCTestCase {
 
         XCTAssertFalse(store.didLoadCredentials)
         XCTAssertFalse(viewModel.isUnlocked)
+        XCTAssertEqual(viewModel.savedCredentialRows, [])
+    }
+
+    func testSearchFiltersSavedCredentialRowsBySiteAndUsername() async {
+        let store = RecordingCompanionVaultStore(
+            credentials: [
+                Self.githubCredential(),
+                Self.bankCredential(),
+                Self.appleCredential()
+            ]
+        )
+        let viewModel = CompanionViewModel(
+            vaultStore: store,
+            localUserPresenceAuthorizer: StaticLocalUserPresenceAuthorizer(
+                result: .authorized
+            )
+        )
+
+        await viewModel.unlockLocalVault()
+        viewModel.searchText = "finance"
+
+        XCTAssertEqual(viewModel.filteredCredentialRows.map(\.label), ["bank.example"])
+
+        viewModel.searchText = "icloud"
+
+        XCTAssertEqual(viewModel.filteredCredentialRows.map(\.label), ["apple.com"])
+    }
+
+    func testDeniedAuthorizationDoesNotDeleteLocalCredential() async {
+        let store = RecordingCompanionVaultStore(
+            credentials: [Self.githubCredential(), Self.bankCredential()]
+        )
+        let viewModel = CompanionViewModel(
+            vaultStore: store,
+            localUserPresenceAuthorizer: SequencedLocalUserPresenceAuthorizer(
+                results: [.authorized, .denied]
+            )
+        )
+        await viewModel.unlockLocalVault()
+
+        viewModel.requestDeleteLocalCredential(viewModel.savedCredentialRows[1])
+        let didDelete = await viewModel.confirmDeleteLocalCredential()
+
+        XCTAssertFalse(didDelete)
+        XCTAssertFalse(store.didSaveCredentials)
+        XCTAssertEqual(store.loadResult().map(\.label), ["github.com", "bank.example"])
+        XCTAssertEqual(
+            viewModel.lastDecisionText,
+            L10n.string("decision.local_auth_failed")
+        )
+    }
+
+    func testAllowedAuthorizationDeletesLocalCredentialAndRefreshesUnlockedRows() async {
+        let store = RecordingCompanionVaultStore(
+            credentials: [Self.githubCredential(), Self.bankCredential()]
+        )
+        let viewModel = CompanionViewModel(
+            vaultStore: store,
+            localUserPresenceAuthorizer: StaticLocalUserPresenceAuthorizer(
+                result: .authorized
+            )
+        )
+        await viewModel.unlockLocalVault()
+
+        viewModel.requestDeleteLocalCredential(viewModel.savedCredentialRows[1])
+        let didDelete = await viewModel.confirmDeleteLocalCredential()
+
+        XCTAssertTrue(didDelete)
+        XCTAssertTrue(store.didSaveCredentials)
+        XCTAssertEqual(store.loadResult().map(\.label), ["github.com"])
+        XCTAssertEqual(viewModel.savedCredentialRows.map(\.label), ["github.com"])
+        XCTAssertNil(viewModel.pendingDeleteCredential)
+        XCTAssertEqual(
+            viewModel.lastDecisionText,
+            L10n.format("decision.deleted", "bank.example")
+        )
     }
 
     private static func githubCredential() -> CompanionCredential {
@@ -158,6 +238,28 @@ final class CompanionViewModelLocalUserPresenceTests: XCTestCase {
             password: "secret-github",
             profileId: "personal",
             websiteOrigin: "https://github.com"
+        )
+    }
+
+    private static func bankCredential() -> CompanionCredential {
+        CompanionCredential(
+            id: "bank-login",
+            label: "bank.example",
+            username: "finance@yuchen.dev",
+            password: "bank-password",
+            profileId: "personal",
+            websiteOrigin: "https://bank.example"
+        )
+    }
+
+    private static func appleCredential() -> CompanionCredential {
+        CompanionCredential(
+            id: "apple-login",
+            label: "apple.com",
+            username: "yuchen@icloud.com",
+            password: "apple-password",
+            profileId: "personal",
+            websiteOrigin: "https://apple.com"
         )
     }
 
@@ -186,6 +288,28 @@ private final class RecordingCompanionVaultStore: CompanionVaultStoring {
 
     func loadCredentials() throws -> [CompanionCredential] {
         didLoadCredentials = true
-        return credentials
+        return loadResult()
+    }
+
+    func loadResult() -> [CompanionCredential] {
+        savedCredentials ?? credentials
+    }
+}
+
+private final class SequencedLocalUserPresenceAuthorizer:
+    LocalUserPresenceAuthorizing
+{
+    private var results: [LocalUserPresenceAuthorizationResult]
+
+    init(results: [LocalUserPresenceAuthorizationResult]) {
+        self.results = results
+    }
+
+    func authorize(reason _: String) async -> LocalUserPresenceAuthorizationResult {
+        guard !results.isEmpty else {
+            return .denied
+        }
+
+        return results.removeFirst()
     }
 }
