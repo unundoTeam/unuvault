@@ -25,6 +25,7 @@
 
 - Treat `/Users/yuchen/Code/unu/unuOS/docs/portfolio/agent-delivery-defaults.md` as the version-controlled authority for portfolio-wide delivery defaults across `/Users/yuchen/Code/unu`.
 - Follow those delivery defaults by default when the user asks for change implementation, PR text, merge text, or other committable output.
+- Follow the repo scope boundary in `/Users/yuchen/Code/unu/unuOS/docs/portfolio/agent-delivery-defaults.md`: by default, handle `unuvault` only, unless the current task has a clear cross-repo dependency or the user explicitly asks for another project.
 
 ## unu Skill Routing
 
