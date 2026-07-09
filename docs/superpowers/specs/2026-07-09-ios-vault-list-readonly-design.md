@@ -17,23 +17,28 @@ passwords or adding edit, delete, fill, search, or sync behavior.
 - ui-ux-pro-max: used for iOS app UI guidance.
 - Draft frame/page: `draft/unuvault/ios-vault-list-readonly-v1`
   (`eTCzx`) in `/Users/yuchen/Design/unu/unuvault/unuvault.draft.pen`.
-- Promotion target: a future `current/unuvault/ios-vault-list-readonly-v1`
-  state if the user approves the visual state.
+- Promotion target: `current/unuvault/ios-vault-list-readonly-v1`.
 - Design system frame: `current/unuvault/design-system-v1`.
 - Code token/component mapping: native SwiftUI `List` rows, system typography,
   and existing safe vault metadata model.
 - User approval: approved in chat on 2026-07-09.
 - Implementation source: current iOS vault home direction plus the approved
   chat design in this spec.
-- Pencil sync: draft backwrite pending approval.
-- Draft cleanup: keep as active evidence until promoted or superseded.
+- Pencil sync: current promoted; full simulator visual parity proof remains
+  pending until the iOS UI host covers this vault list state.
+- Draft cleanup: kept as active evidence after promotion.
 
 ## Visual Evidence
 
 - Draft frame export:
   `/Users/yuchen/Design/unu/unuvault/exports/2026-07-09-ios-vault-list-readonly-v1b/eTCzx.png`
+- Current frame export:
+  `/Users/yuchen/Design/unu/unuvault/exports/2026-07-09-ios-vault-list-readonly-current-v1/dQ58n.png`
+- Fresh current frame export:
+  `/Users/yuchen/Design/unu/unuvault/exports/2026-07-09-ios-vault-list-readonly-current-v2/dQ58n.png`
 - Pencil layout snapshot for `eTCzx`: no layout problems.
-- Current frame promotion: not performed in this slice.
+- Pencil layout snapshot for `dQ58n`: no layout problems.
+- Current frame promotion: performed on 2026-07-09.
 
 ## User Experience
 
