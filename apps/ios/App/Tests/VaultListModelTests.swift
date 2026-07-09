@@ -4,6 +4,70 @@ import XCTest
 @testable import App
 
 final class VaultListModelTests: XCTestCase {
+    @MainActor
+    func testVaultListViewRendersMetadataWithoutPasswords() {
+        let model = VaultListModel(
+            items: [
+                VaultListItem(
+                    id: "github-login",
+                    label: "github.com",
+                    username: "yuchen",
+                    websiteOrigin: "https://github.com"
+                ),
+                VaultListItem(
+                    id: "bank-login",
+                    label: "Bank",
+                    username: "me@example.com",
+                    websiteOrigin: "https://bank.example"
+                )
+            ]
+        )
+
+        let renderedBody = String(describing: VaultListView(model: model).body)
+
+        XCTAssertTrue(renderedBody.contains("github.com"))
+        XCTAssertTrue(renderedBody.contains("yuchen"))
+        XCTAssertTrue(renderedBody.contains("https://github.com"))
+        XCTAssertTrue(renderedBody.contains("Bank"))
+        XCTAssertTrue(renderedBody.contains("me@example.com"))
+        XCTAssertTrue(renderedBody.contains("https://bank.example"))
+        XCTAssertFalse(renderedBody.contains("secret"))
+        XCTAssertFalse(renderedBody.contains("password"))
+    }
+
+    @MainActor
+    func testVaultListViewRendersReadOnlyContextCopy() {
+        let renderedBody = String(
+            describing: VaultListView(
+                model: VaultListModel(
+                    items: [
+                        VaultListItem(
+                            id: "github-login",
+                            label: "github.com",
+                            username: "yuchen",
+                            websiteOrigin: "https://github.com"
+                        )
+                    ]
+                )
+            ).body
+        )
+
+        XCTAssertTrue(renderedBody.contains("Vault"))
+        XCTAssertTrue(renderedBody.contains("Local items received from your Mac."))
+        XCTAssertTrue(renderedBody.contains("Sensitive values stay hidden"))
+        XCTAssertTrue(renderedBody.contains("Imported items"))
+    }
+
+    @MainActor
+    func testVaultListViewShowsEmptyStateWhenNoImportedItemsExist() {
+        let renderedBody = String(
+            describing: VaultListView(model: VaultListModel(items: [])).body
+        )
+
+        XCTAssertTrue(renderedBody.contains("No imported vault items yet"))
+        XCTAssertTrue(renderedBody.contains("Pair with your Mac to receive local vault metadata."))
+    }
+
     func testVaultListModelReadsImportedMetadataWithoutPasswords() throws {
         let storeURL = try temporaryEncryptedStoreURL()
         let encryptionKey = SymmetricKey(size: .bits256)
