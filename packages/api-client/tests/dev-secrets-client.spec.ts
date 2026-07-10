@@ -16,7 +16,7 @@ describe("dev secrets client", () => {
     });
 
     const response = await createDevSecretsHandoff(fetcher, "browser-jwt", {
-      app: "unundo",
+      app: "unuidentity",
       env: "local",
     });
 
@@ -27,7 +27,7 @@ describe("dev secrets client", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        app: "unundo",
+        app: "unuidentity",
         env: "local",
       }),
     });
@@ -65,12 +65,12 @@ describe("dev secrets client", () => {
     });
 
     const response = await readDevSecretRecord(fetcher, "cli-session-token", {
-      app: "unundo",
+      app: "unuidentity",
       env: "local",
     });
 
     expect(fetcher).toHaveBeenCalledWith(
-      "/dev/secrets/records/unundo/local/dotenv",
+      "/dev/secrets/records/unuidentity/local/dotenv",
       {
         method: "GET",
         headers: {
@@ -90,13 +90,13 @@ describe("dev secrets client", () => {
     });
 
     const response = await writeDevSecretRecord(fetcher, "cli-session-token", {
-      app: "unundo",
+      app: "unuidentity",
       env: "local",
       ciphertext: "sealed-dotenv",
     });
 
     expect(fetcher).toHaveBeenCalledWith(
-      "/dev/secrets/records/unundo/local/dotenv",
+      "/dev/secrets/records/unuidentity/local/dotenv",
       {
         method: "PUT",
         headers: {

@@ -51,7 +51,7 @@ Use one fixed legacy sample set to manually prove the secure crypto migration st
 ## CLI Dev Secrets Smoke
 
 1. Seed the dev-secrets record ciphertext with `LEGACY_FIXTURE_DEVELOPER_SECRET_BLOB_V1`.
-2. Run `bash scripts/secrets/provider.sh read --app unundo --env local`.
+2. Run `bash scripts/secrets/provider.sh read --app unuidentity --env local`.
 3. Enter `LEGACY_FIXTURE_MASTER_PASSWORD` and confirm:
    - plaintext dotenv prints only to `stdout`
    - `stderr` does not contain any secret value
@@ -59,7 +59,7 @@ Use one fixed legacy sample set to manually prove the secure crypto migration st
    - exit is non-zero
    - `stderr` contains `decrypt_failed`
    - `stderr` does not contain any dotenv line
-5. Run `bash scripts/secrets/provider.sh import --app unundo --env local --from /absolute/path/to/local.env`.
+5. Run `bash scripts/secrets/provider.sh import --app unuidentity --env local --from /absolute/path/to/local.env`.
 6. Confirm the uploaded ciphertext is now JSON with:
    - `version: 2`
    - `cipher: "xchacha20poly1305-ietf"`

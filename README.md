@@ -441,12 +441,12 @@ For the private env-secrets bridge:
 - the TypeScript command module is also exposed as:
   `pnpm secrets:provider --help`
 - the currently supported private namespaces are:
-  - `unundo/local/dotenv`
-  - `unundo/staging/dotenv`
-  - `unundo/production/dotenv`
   - `unuidentity/local/dotenv`
   - `unuidentity/staging/dotenv`
   - `unuidentity/production/dotenv`
+- the retired `unundo/*/dotenv` namespaces are no longer accepted; remove any
+  remaining encrypted records through the owner-approved control-plane
+  closeout without reading their ciphertext
 - `read` prints plaintext only to `stdout` on success
 - `verify` prints only `VERIFY_OK <app>/<env>/dotenv` after successful decrypt
   and dotenv validation; it never prints the dotenv payload
