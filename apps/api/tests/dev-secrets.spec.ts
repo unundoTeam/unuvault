@@ -46,14 +46,14 @@ describe("/dev/secrets", () => {
 
     const response = await app.inject({
       method: "GET",
-      url: "/dev/secrets/records/unundo/local/dotenv",
+      url: "/dev/secrets/records/unuidentity/local/dotenv",
       headers: {
         authorization: "Bearer cli-session-token",
       },
     });
 
     expect(getPrivateRecord).toHaveBeenCalledWith("cli-session-token", {
-      app_code: "unundo",
+      app_code: "unuidentity",
       target_env: "local",
       secret_kind: "dotenv",
     });
@@ -78,13 +78,13 @@ describe("/dev/secrets", () => {
         authorization: "Bearer browser-jwt",
       },
       payload: {
-        app: "unundo",
+        app: "unuidentity",
         env: "local",
       },
     });
 
     expect(createBrowserHandoff).toHaveBeenCalledWith("browser-jwt", {
-      app_code: "unundo",
+      app_code: "unuidentity",
       target_env: "local",
       secret_kind: "dotenv",
     });
@@ -112,7 +112,7 @@ describe("/dev/secrets", () => {
         authorization: "Bearer browser-jwt",
       },
       payload: {
-        app: "unundo",
+        app: "unuidentity",
         env: "local",
       },
     });
@@ -156,6 +156,25 @@ describe("createDevSecretsService", () => {
     });
 
     expect(result.handoff_code).toBeTruthy();
+  });
+
+  it("rejects the retired unundo target", async () => {
+    const service = createDevSecretsService({
+      sessionStore: createDevSecretSessionStore(),
+      getBrowserAccountIdFromToken: async () => "account-1",
+      getStoredRecord: async () => ({
+        ciphertext: "ciphertext",
+      }),
+      putStoredRecord: async () => undefined,
+    });
+
+    await expect(
+      service.createBrowserHandoff("browser-jwt", {
+        app_code: "unundo",
+        target_env: "local",
+        secret_kind: "dotenv",
+      }),
+    ).rejects.toThrowError(new DevSecretValidationError("unsupported_target"));
   });
 
   it("still rejects unsupported app/env combinations", async () => {

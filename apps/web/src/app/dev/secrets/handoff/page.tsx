@@ -22,7 +22,7 @@ export default async function DevSecretsHandoffPage({
     <DevSecretsHandoffPageClient
       callbackUrl={getSingleValue(resolvedSearchParams.callback) ?? ""}
       state={getSingleValue(resolvedSearchParams.state) ?? ""}
-      app={getSingleValue(resolvedSearchParams.app) ?? "unundo"}
+      app={getSingleValue(resolvedSearchParams.app) ?? "unuidentity"}
       env={getSingleValue(resolvedSearchParams.env) ?? "local"}
     />
   );

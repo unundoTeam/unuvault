@@ -24,6 +24,38 @@ afterEach(() => {
 });
 
 describe("DevSecretsHandoffPage", () => {
+  it("defaults an omitted app to the retained unuidentity namespace", async () => {
+    const identityClient = {
+      auth: {
+        getSession: vi.fn(),
+      },
+    };
+
+    mocks.createIdentityBrowserClient.mockReturnValue(identityClient);
+    mocks.startBrowserHandoff.mockResolvedValue({
+      status: "redirecting",
+    });
+
+    render(
+      await DevSecretsHandoffPage({
+        searchParams: Promise.resolve({
+          callback: "http://127.0.0.1:4318/callback",
+          state: "state-1",
+          env: "local",
+        }),
+      }),
+    );
+
+    await waitFor(() => {
+      expect(mocks.startBrowserHandoff).toHaveBeenCalledWith(
+        expect.objectContaining({
+          app: "unuidentity",
+          env: "local",
+        }),
+      );
+    });
+  });
+
   it("mints a handoff code and redirects the browser to the loopback callback", async () => {
     const identityClient = {
       auth: {
@@ -41,7 +73,7 @@ describe("DevSecretsHandoffPage", () => {
         searchParams: Promise.resolve({
           callback: "http://127.0.0.1:4318/callback",
           state: "state-1",
-          app: "unundo",
+          app: "unuidentity",
           env: "local",
         }),
       }),
@@ -57,7 +89,7 @@ describe("DevSecretsHandoffPage", () => {
         fetcher: expect.any(Function),
         callbackUrl: "http://127.0.0.1:4318/callback",
         state: "state-1",
-        app: "unundo",
+        app: "unuidentity",
         env: "local",
         redirect: expect.any(Function),
       });
@@ -79,7 +111,7 @@ describe("DevSecretsHandoffPage", () => {
         searchParams: Promise.resolve({
           callback: "http://127.0.0.1:4318/callback",
           state: "state-1",
-          app: "unundo",
+          app: "unuidentity",
           env: "local",
         }),
       }),
@@ -97,15 +129,15 @@ describe("DevSecretsHandoffPage", () => {
 
     expect(googleLink).toHaveAttribute(
       "href",
-      "/login?next=%2Fdev%2Fsecrets%2Fhandoff%3Fcallback%3Dhttp%253A%252F%252F127.0.0.1%253A4318%252Fcallback%26state%3Dstate-1%26app%3Dunundo%26env%3Dlocal&provider=google",
+      "/login?next=%2Fdev%2Fsecrets%2Fhandoff%3Fcallback%3Dhttp%253A%252F%252F127.0.0.1%253A4318%252Fcallback%26state%3Dstate-1%26app%3Dunuidentity%26env%3Dlocal&provider=google",
     );
     expect(emailLink).toHaveAttribute(
       "href",
-      "/login?next=%2Fdev%2Fsecrets%2Fhandoff%3Fcallback%3Dhttp%253A%252F%252F127.0.0.1%253A4318%252Fcallback%26state%3Dstate-1%26app%3Dunundo%26env%3Dlocal",
+      "/login?next=%2Fdev%2Fsecrets%2Fhandoff%3Fcallback%3Dhttp%253A%252F%252F127.0.0.1%253A4318%252Fcallback%26state%3Dstate-1%26app%3Dunuidentity%26env%3Dlocal",
     );
     expect(registerLink).toHaveAttribute(
       "href",
-      "/register?next=%2Fdev%2Fsecrets%2Fhandoff%3Fcallback%3Dhttp%253A%252F%252F127.0.0.1%253A4318%252Fcallback%26state%3Dstate-1%26app%3Dunundo%26env%3Dlocal",
+      "/register?next=%2Fdev%2Fsecrets%2Fhandoff%3Fcallback%3Dhttp%253A%252F%252F127.0.0.1%253A4318%252Fcallback%26state%3Dstate-1%26app%3Dunuidentity%26env%3Dlocal",
     );
   });
 
@@ -124,7 +156,7 @@ describe("DevSecretsHandoffPage", () => {
         searchParams: Promise.resolve({
           callback: "http://127.0.0.1:4318/callback",
           state: "state-1",
-          app: "unundo",
+          app: "unuidentity",
           env: "local",
         }),
       }),
@@ -136,7 +168,7 @@ describe("DevSecretsHandoffPage", () => {
       }),
     ).toHaveAttribute(
       "href",
-      "/login?next=%2Fdev%2Fsecrets%2Fhandoff%3Fcallback%3Dhttp%253A%252F%252F127.0.0.1%253A4318%252Fcallback%26state%3Dstate-1%26app%3Dunundo%26env%3Dlocal&provider=google",
+      "/login?next=%2Fdev%2Fsecrets%2Fhandoff%3Fcallback%3Dhttp%253A%252F%252F127.0.0.1%253A4318%252Fcallback%26state%3Dstate-1%26app%3Dunuidentity%26env%3Dlocal&provider=google",
     );
     expect(
       screen.getByRole("link", {
@@ -144,7 +176,7 @@ describe("DevSecretsHandoffPage", () => {
       }),
     ).toHaveAttribute(
       "href",
-      "/login?next=%2Fdev%2Fsecrets%2Fhandoff%3Fcallback%3Dhttp%253A%252F%252F127.0.0.1%253A4318%252Fcallback%26state%3Dstate-1%26app%3Dunundo%26env%3Dlocal",
+      "/login?next=%2Fdev%2Fsecrets%2Fhandoff%3Fcallback%3Dhttp%253A%252F%252F127.0.0.1%253A4318%252Fcallback%26state%3Dstate-1%26app%3Dunuidentity%26env%3Dlocal",
     );
     expect(
       screen.getByRole("link", {
@@ -152,7 +184,7 @@ describe("DevSecretsHandoffPage", () => {
       }),
     ).toHaveAttribute(
       "href",
-      "/register?next=%2Fdev%2Fsecrets%2Fhandoff%3Fcallback%3Dhttp%253A%252F%252F127.0.0.1%253A4318%252Fcallback%26state%3Dstate-1%26app%3Dunundo%26env%3Dlocal",
+      "/register?next=%2Fdev%2Fsecrets%2Fhandoff%3Fcallback%3Dhttp%253A%252F%252F127.0.0.1%253A4318%252Fcallback%26state%3Dstate-1%26app%3Dunuidentity%26env%3Dlocal",
     );
   });
 });

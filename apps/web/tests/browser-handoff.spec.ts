@@ -33,7 +33,7 @@ describe("startBrowserHandoff", () => {
       fetcher,
       callbackUrl: "http://127.0.0.1:4318/callback",
       state: "state-1",
-      app: "unundo",
+      app: "unuidentity",
       env: "local",
       redirect,
     });

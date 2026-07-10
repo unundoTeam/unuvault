@@ -68,7 +68,7 @@ describe("runDevSecretsProvider", () => {
     });
 
     const exitCode = await runDevSecretsProvider(
-      ["read", "--app", "unundo", "--env", "local"],
+      ["read", "--app", "unuidentity", "--env", "local"],
       {
         io,
         deps: {
@@ -84,7 +84,7 @@ describe("runDevSecretsProvider", () => {
 
     expect(exitCode).toBe(0);
     expect(readRecord).toHaveBeenCalledWith("cli-session-token", {
-      app: "unundo",
+      app: "unuidentity",
       env: "local",
     });
     expect(readStdout()).toBe("SUPABASE_URL=https://example.supabase.co\n");
@@ -102,7 +102,7 @@ describe("runDevSecretsProvider", () => {
     const writeRecord = vi.fn().mockResolvedValue({ ok: true as const });
 
     const exitCode = await runDevSecretsProvider(
-      ["verify", "--app", "unundo", "--env", "local"],
+      ["verify", "--app", "unuidentity", "--env", "local"],
       {
         io,
         deps: {
@@ -118,11 +118,11 @@ describe("runDevSecretsProvider", () => {
 
     expect(exitCode).toBe(0);
     expect(readRecord).toHaveBeenCalledWith("cli-session-token", {
-      app: "unundo",
+      app: "unuidentity",
       env: "local",
     });
     expect(writeRecord).not.toHaveBeenCalled();
-    expect(readStdout()).toBe("VERIFY_OK unundo/local/dotenv\n");
+    expect(readStdout()).toBe("VERIFY_OK unuidentity/local/dotenv\n");
     expect(readStdout()).not.toContain(plaintext);
     expect(readStderr()).toBe("");
   });
@@ -202,6 +202,31 @@ describe("runDevSecretsProvider", () => {
     expect(readStderr()).toBe("");
   });
 
+  it("rejects the retired unundo secret namespace", async () => {
+    const { io, readStdout, readStderr } = createCapturedIo();
+    const readRecord = vi.fn();
+
+    const exitCode = await runDevSecretsProvider(
+      ["read", "--app", "unundo", "--env", "local"],
+      {
+        io,
+        deps: {
+          getCliSessionToken: async () => "cli-session-token",
+          promptSecret: async () => "correct horse",
+          readRecord,
+          writeRecord: async () => ({ ok: true as const }),
+          readTextFile: async () => "",
+          confirm: async () => true,
+        },
+      },
+    );
+
+    expect(exitCode).toBe(1);
+    expect(readRecord).not.toHaveBeenCalled();
+    expect(readStdout()).toBe("");
+    expect(readStderr()).toContain("invalid_target");
+  });
+
   it("keeps stdout empty for unsupported namespaces", async () => {
     const { io, readStdout, readStderr } = createCapturedIo();
 
@@ -235,7 +260,7 @@ describe("runDevSecretsProvider", () => {
     );
 
     const exitCode = await runDevSecretsProvider(
-      ["read", "--app", "unundo", "--env", "local"],
+      ["read", "--app", "unuidentity", "--env", "local"],
       {
         io,
         deps: {
@@ -267,7 +292,7 @@ describe("runDevSecretsProvider", () => {
     const writeRecord = vi.fn().mockResolvedValue({ ok: true as const });
 
     const exitCode = await runDevSecretsProvider(
-      ["verify", "--app", "unundo", "--env", "local"],
+      ["verify", "--app", "unuidentity", "--env", "local"],
       {
         io,
         deps: {
@@ -292,7 +317,7 @@ describe("runDevSecretsProvider", () => {
     const { io, readStdout, readStderr } = createCapturedIo();
 
     const exitCode = await runDevSecretsProvider(
-      ["read", "--app", "unundo", "--env", "local"],
+      ["read", "--app", "unuidentity", "--env", "local"],
       {
         io,
         deps: {
@@ -323,7 +348,7 @@ describe("runDevSecretsProvider", () => {
       [
         "import",
         "--app",
-        "unundo",
+        "unuidentity",
         "--env",
         "local",
         "--from",
@@ -349,13 +374,13 @@ describe("runDevSecretsProvider", () => {
     expect(writeRecord).toHaveBeenCalledWith(
       "cli-session-token",
       {
-        app: "unundo",
+        app: "unuidentity",
         env: "local",
       },
       expect.any(String),
     );
     expect(readStdout()).toBe("");
-    expect(readStderr()).toContain("Target: unundo/local/dotenv");
+    expect(readStderr()).toContain("Target: unuidentity/local/dotenv");
     expect(readStderr()).toContain("Source: /tmp/local.env");
     expect(readStderr()).toContain("SHA256:");
     expect(readStderr()).not.toContain("test-key");
