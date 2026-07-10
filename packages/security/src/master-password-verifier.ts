@@ -2,6 +2,7 @@ import {
   createPasswordHash,
   verifyPasswordHash,
 } from "./sodium";
+import { isPinnedArgon2idVerifierSyntax } from "./argon2-policy";
 
 export type LegacyMasterPasswordVerifier = {
   version: 1;
@@ -66,6 +67,19 @@ function isSecureMasterPasswordVerifier(
   );
 }
 
+export function parseStoredMasterPasswordVerifier(
+  value: unknown,
+): MasterPasswordVerifier | null {
+  if (isLegacyMasterPasswordVerifier(value)) return value;
+  if (
+    !isSecureMasterPasswordVerifier(value) ||
+    !isPinnedArgon2idVerifierSyntax(value.passwordHash)
+  ) {
+    return null;
+  }
+  return value;
+}
+
 export async function createMasterPasswordVerifier(
   masterPassword: string,
 ): Promise<SecureMasterPasswordVerifier> {
@@ -84,17 +98,22 @@ export async function verifyMasterPassword(
     return { success: false };
   }
 
-  if (isSecureMasterPasswordVerifier(verifier)) {
-    return (await verifyPasswordHash(verifier.passwordHash, masterPassword))
+  const parsedVerifier = parseStoredMasterPasswordVerifier(verifier);
+
+  if (!parsedVerifier) {
+    return { success: false };
+  }
+
+  if (parsedVerifier.version === 2) {
+    return (await verifyPasswordHash(parsedVerifier.passwordHash, masterPassword))
       ? { success: true }
       : { success: false };
   }
 
-  if (!isLegacyMasterPasswordVerifier(verifier)) {
-    return { success: false };
-  }
-
-  if (hashToHex(`${masterPassword}:${verifier.salt}`) !== verifier.check) {
+  if (
+    hashToHex(`${masterPassword}:${parsedVerifier.salt}`) !==
+    parsedVerifier.check
+  ) {
     return { success: false };
   }
 

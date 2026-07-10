@@ -65,12 +65,48 @@ describe("extension master password storage", () => {
     await expect(readMasterPasswordVerifier()).resolves.toEqual(verifier);
   });
 
+  it("preserves compatibility with raw-object verifiers", async () => {
+    const verifier = await createMasterPasswordVerifier("correct horse");
+    installChromeStorageMock(verifier);
+
+    await expect(readMasterPasswordVerifier()).resolves.toEqual(verifier);
+  });
+
   it("returns null when no verifier exists", async () => {
     await expect(readMasterPasswordVerifier()).resolves.toBeNull();
   });
 
   it("fails closed for malformed stored verifier values", async () => {
     installChromeStorageMock("{bad json");
+
+    await expect(readMasterPasswordVerifier()).resolves.toBeNull();
+  });
+
+  it("rejects a string verifier with hostile Argon2 memory parameters", async () => {
+    const verifier = await createMasterPasswordVerifier("correct horse");
+    installChromeStorageMock(
+      JSON.stringify({
+        ...verifier,
+        passwordHash: verifier.passwordHash.replace("m=65536", "m=1048576"),
+      }),
+    );
+
+    await expect(readMasterPasswordVerifier()).resolves.toBeNull();
+  });
+
+  it("rejects a raw-object verifier with hostile Argon2 memory parameters", async () => {
+    const verifier = await createMasterPasswordVerifier("correct horse");
+    installChromeStorageMock({
+      ...verifier,
+      passwordHash: verifier.passwordHash.replace("m=65536", "m=1048576"),
+    });
+
+    await expect(readMasterPasswordVerifier()).resolves.toBeNull();
+  });
+
+  it("rejects oversized stored verifier JSON before parsing", async () => {
+    const verifier = await createMasterPasswordVerifier("correct horse");
+    installChromeStorageMock(JSON.stringify(verifier).padEnd(513, " "));
 
     await expect(readMasterPasswordVerifier()).resolves.toBeNull();
   });

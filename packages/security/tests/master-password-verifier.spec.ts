@@ -26,6 +26,33 @@ describe("master password verifier helpers", () => {
     });
   });
 
+  it("rejects a secure verifier with hostile Argon2 memory parameters", async () => {
+    const verifier = await createMasterPasswordVerifier("correct horse");
+
+    await expect(
+      verifyMasterPassword(
+        {
+          ...verifier,
+          passwordHash: verifier.passwordHash.replace("m=65536", "m=1048576"),
+        },
+        "correct horse",
+      ),
+    ).resolves.toEqual({ success: false });
+  });
+
+  it("rejects a 128-character secure verifier", async () => {
+    await expect(
+      verifyMasterPassword(
+        {
+          version: 2,
+          algorithm: "argon2id13",
+          passwordHash: "A".repeat(128),
+        },
+        "correct horse",
+      ),
+    ).resolves.toEqual({ success: false });
+  });
+
   it("upgrades a legacy verifier after successful verification", async () => {
     const result = await verifyMasterPassword(
       LEGACY_FIXTURE_MASTER_PASSWORD_VERIFIER_V1,
