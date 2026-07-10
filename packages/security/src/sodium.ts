@@ -6,7 +6,7 @@ const PWHASH_ALGORITHM = "argon2id13" as const;
 const AEAD_CIPHER = "xchacha20poly1305-ietf" as const;
 const BASE64_VARIANT = sodium.base64_variants.URLSAFE_NO_PADDING;
 
-type ReadySodium = typeof sodium;
+export type ReadySodium = typeof sodium;
 
 export type PasswordDerivedCiphertext = {
   cipher: typeof AEAD_CIPHER;
