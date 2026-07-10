@@ -5,6 +5,7 @@ import {
 
 const MASTER_PASSWORD_VERIFIER_STORAGE_KEY =
   "unuvault.extension.master-password-verifier";
+const MAX_MASTER_PASSWORD_VERIFIER_JSON_CHARACTERS = 512;
 
 type ExtensionStorageArea = {
   get(keys: string | string[] | Record<string, unknown>): Promise<Record<string, unknown>>;
@@ -36,10 +37,19 @@ export async function readMasterPasswordVerifier(): Promise<MasterPasswordVerifi
     const rawValue = stored[MASTER_PASSWORD_VERIFIER_STORAGE_KEY];
 
     if (typeof rawValue !== "string") {
-      return parseStoredMasterPasswordVerifier(rawValue);
+      const serialized = JSON.stringify(rawValue);
+
+      if (
+        typeof serialized !== "string" ||
+        serialized.length > MAX_MASTER_PASSWORD_VERIFIER_JSON_CHARACTERS
+      ) {
+        return null;
+      }
+
+      return parseStoredMasterPasswordVerifier(JSON.parse(serialized));
     }
 
-    if (rawValue.length > 512) {
+    if (rawValue.length > MAX_MASTER_PASSWORD_VERIFIER_JSON_CHARACTERS) {
       return null;
     }
 

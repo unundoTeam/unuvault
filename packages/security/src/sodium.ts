@@ -75,7 +75,13 @@ export async function sealWithPassword(
     throw new Error("sealWithPassword requires a non-empty purpose tag.");
   }
 
-  if (new TextEncoder().encode(plaintext).byteLength > ARGON2ID_V3_POLICY.maxPlaintextBytes) {
+  const textEncoder = new TextEncoder();
+
+  if (textEncoder.encode(purpose).byteLength > 128) {
+    throw new Error("sealWithPassword purpose tag exceeds the supported policy.");
+  }
+
+  if (textEncoder.encode(plaintext).byteLength > ARGON2ID_V3_POLICY.maxPlaintextBytes) {
     throw new Error("sealWithPassword plaintext exceeds the supported policy.");
   }
 

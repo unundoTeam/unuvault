@@ -72,6 +72,29 @@ describe("extension master password storage", () => {
     await expect(readMasterPasswordVerifier()).resolves.toEqual(verifier);
   });
 
+  it("rejects oversized or unserializable raw-object verifiers", async () => {
+    const verifier = await createMasterPasswordVerifier("correct horse");
+    installChromeStorageMock({ ...verifier, padding: "A".repeat(512) });
+
+    await expect(readMasterPasswordVerifier()).resolves.toBeNull();
+
+    const cyclicVerifier: Record<string, unknown> = { ...verifier };
+    cyclicVerifier.self = cyclicVerifier;
+    installChromeStorageMock(cyclicVerifier);
+
+    await expect(readMasterPasswordVerifier()).resolves.toBeNull();
+  });
+
+  it("rejects overlong raw-object V1 verifier fields", async () => {
+    installChromeStorageMock({
+      version: 1,
+      salt: "AQIDBAUGBwgJCgsMA",
+      check: "716ba384",
+    });
+
+    await expect(readMasterPasswordVerifier()).resolves.toBeNull();
+  });
+
   it("returns null when no verifier exists", async () => {
     await expect(readMasterPasswordVerifier()).resolves.toBeNull();
   });

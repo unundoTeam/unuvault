@@ -217,6 +217,10 @@ export async function openStoredVaultPassword(
     return "";
   }
 
+  if (ciphertext.length > MAX_PASSWORD_ENVELOPE_JSON_CHARACTERS) {
+    return "";
+  }
+
   const openedEnvelope = await openVaultPassword(ciphertext, passphrase);
 
   if (openedEnvelope) {

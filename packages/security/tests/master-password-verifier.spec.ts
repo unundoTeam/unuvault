@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   createMasterPasswordVerifier,
+  parseStoredMasterPasswordVerifier,
   verifyMasterPassword,
 } from "../src/master-password-verifier";
 import {
@@ -75,6 +76,39 @@ describe("master password verifier helpers", () => {
         LEGACY_FIXTURE_WRONG_MASTER_PASSWORD,
       ),
     ).resolves.toEqual({ success: false });
+  });
+
+  it("accepts only the canonical historical V1 verifier structure", () => {
+    expect(
+      parseStoredMasterPasswordVerifier(
+        LEGACY_FIXTURE_MASTER_PASSWORD_VERIFIER_V1,
+      ),
+    ).toEqual(LEGACY_FIXTURE_MASTER_PASSWORD_VERIFIER_V1);
+
+    expect(
+      parseStoredMasterPasswordVerifier({
+        ...LEGACY_FIXTURE_MASTER_PASSWORD_VERIFIER_V1,
+        salt: "AQIDBAUGBwgJCgsMA",
+      }),
+    ).toBeNull();
+    expect(
+      parseStoredMasterPasswordVerifier({
+        ...LEGACY_FIXTURE_MASTER_PASSWORD_VERIFIER_V1,
+        salt: "AQIDBAUGBwgJCgs=",
+      }),
+    ).toBeNull();
+    expect(
+      parseStoredMasterPasswordVerifier({
+        ...LEGACY_FIXTURE_MASTER_PASSWORD_VERIFIER_V1,
+        check: "716BA384",
+      }),
+    ).toBeNull();
+    expect(
+      parseStoredMasterPasswordVerifier({
+        ...LEGACY_FIXTURE_MASTER_PASSWORD_VERIFIER_V1,
+        check: "716ba3840",
+      }),
+    ).toBeNull();
   });
 
   it("fails closed for malformed verifier values", async () => {

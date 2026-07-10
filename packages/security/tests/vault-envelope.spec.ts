@@ -11,7 +11,10 @@ import {
   LEGACY_FIXTURE_VAULT_ENVELOPE_V2,
   LEGACY_FIXTURE_VAULT_PASSWORD_PLAINTEXT,
 } from "../../../tests/fixtures/crypto-legacy-fixtures";
-import { ARGON2ID_V3_POLICY } from "../src/argon2-policy";
+import {
+  ARGON2ID_V3_POLICY,
+  MAX_PASSWORD_ENVELOPE_JSON_CHARACTERS,
+} from "../src/argon2-policy";
 
 const jsonBound =
   ARGON2ID_V3_POLICY.maxCiphertextBase64URLCharacters + 2_048;
@@ -93,6 +96,19 @@ describe("vault envelope helpers", () => {
         LEGACY_FIXTURE_MASTER_PASSWORD,
       ),
     ).resolves.toBe("hunter2");
+  });
+
+  it("rejects oversized legacy plaintext before envelope parsing or fallback", async () => {
+    const oversizedPlaintext = "A".repeat(
+      MAX_PASSWORD_ENVELOPE_JSON_CHARACTERS + 1,
+    );
+
+    await expect(
+      openStoredVaultPassword(oversizedPlaintext, LEGACY_FIXTURE_MASTER_PASSWORD),
+    ).resolves.toBe("");
+    await expect(
+      openStoredVaultPassword("short legacy plaintext", LEGACY_FIXTURE_MASTER_PASSWORD),
+    ).resolves.toBe("short legacy plaintext");
   });
 
   it("opens legacy version 1 envelope values through the storage helper", async () => {

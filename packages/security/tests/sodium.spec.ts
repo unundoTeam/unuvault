@@ -99,4 +99,32 @@ describe("libsodium substrate", () => {
     expect(random).not.toHaveBeenCalled();
     expect(pwhash).not.toHaveBeenCalled();
   });
+
+  it("bounds purpose tags by UTF-8 bytes before randomness or crypto_pwhash", async () => {
+    const acceptedPurpose = "é".repeat(64);
+    const sealed = await sealWithPassword(
+      "hunter2",
+      "correct horse",
+      acceptedPurpose,
+    );
+    expect(sealed.purpose).toBe(acceptedPurpose);
+
+    const ready = await getSodium();
+    const random = vi.spyOn(ready, "randombytes_buf").mockImplementation(() => {
+      throw new Error("unexpected randomness call");
+    });
+    const pwhash = vi.spyOn(ready, "crypto_pwhash").mockImplementation(() => {
+      throw new Error("unexpected KDF call");
+    });
+
+    await expect(
+      sealWithPassword(
+        "hunter2",
+        "correct horse",
+        `${acceptedPurpose}A`,
+      ),
+    ).rejects.toThrow("purpose tag exceeds the supported policy");
+    expect(random).not.toHaveBeenCalled();
+    expect(pwhash).not.toHaveBeenCalled();
+  });
 });

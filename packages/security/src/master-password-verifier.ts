@@ -30,6 +30,19 @@ export type VerifyMasterPasswordResult =
     };
 
 const textEncoder = new TextEncoder();
+const LEGACY_SALT_BASE64 = /^[A-Za-z0-9+/]{16}$/;
+const LEGACY_CHECK_HEX = /^[0-9a-f]{8}$/;
+
+function isCanonicalLegacySalt(value: string): boolean {
+  if (!LEGACY_SALT_BASE64.test(value)) return false;
+
+  try {
+    const decoded = atob(value);
+    return decoded.length === 12 && btoa(decoded) === value;
+  } catch {
+    return false;
+  }
+}
 
 function hashToHex(input: string): string {
   let hash = 0x811c9dc5;
@@ -46,12 +59,16 @@ function hashToHex(input: string): string {
 function isLegacyMasterPasswordVerifier(
   value: unknown,
 ): value is LegacyMasterPasswordVerifier {
+  const candidate = value as Partial<LegacyMasterPasswordVerifier> | null;
+
   return (
-    !!value &&
-    typeof value === "object" &&
-    (value as Partial<LegacyMasterPasswordVerifier>).version === 1 &&
-    typeof (value as Partial<LegacyMasterPasswordVerifier>).salt === "string" &&
-    typeof (value as Partial<LegacyMasterPasswordVerifier>).check === "string"
+    !!candidate &&
+    typeof candidate === "object" &&
+    candidate.version === 1 &&
+    typeof candidate.salt === "string" &&
+    isCanonicalLegacySalt(candidate.salt) &&
+    typeof candidate.check === "string" &&
+    LEGACY_CHECK_HEX.test(candidate.check)
   );
 }
 
