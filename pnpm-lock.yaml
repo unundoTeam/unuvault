@@ -7,10 +7,6 @@ settings:
 importers:
 
   .:
-    dependencies:
-      libsodium-wrappers-sumo:
-        specifier: ^0.8.3
-        version: 0.8.3
     devDependencies:
       '@fastify/cors':
         specifier: ^11.2.0
