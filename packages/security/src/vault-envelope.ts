@@ -9,6 +9,7 @@ import {
   sealWithPassword,
   type PasswordDerivedCiphertext,
 } from "./sodium";
+import { MAX_PASSWORD_ENVELOPE_JSON_CHARACTERS } from "./argon2-policy";
 
 /**
  * @deprecated Version 1 stores the password as plaintext and only exists for explicit
@@ -134,6 +135,8 @@ function isSecureEnvelope(
 }
 
 function parseVaultEnvelope(ciphertext: string): Partial<VaultEnvelope> | null {
+  if (ciphertext.length > MAX_PASSWORD_ENVELOPE_JSON_CHARACTERS) return null;
+
   try {
     return JSON.parse(ciphertext) as Partial<VaultEnvelope>;
   } catch {

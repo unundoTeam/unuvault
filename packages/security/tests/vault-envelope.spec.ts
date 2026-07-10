@@ -11,10 +11,37 @@ import {
   LEGACY_FIXTURE_VAULT_ENVELOPE_V2,
   LEGACY_FIXTURE_VAULT_PASSWORD_PLAINTEXT,
 } from "../../../tests/fixtures/crypto-legacy-fixtures";
+import { ARGON2ID_V3_POLICY } from "../src/argon2-policy";
+
+const jsonBound =
+  ARGON2ID_V3_POLICY.maxCiphertextBase64URLCharacters + 2_048;
 
 describe("vault envelope helpers", () => {
   afterEach(() => {
+    vi.restoreAllMocks();
     vi.unstubAllGlobals();
+  });
+
+  it("rejects oversized envelope JSON before parsing", async () => {
+    const parse = vi.spyOn(JSON, "parse").mockImplementation(() => {
+      throw new Error("unexpected JSON.parse call");
+    });
+    const oversized = "A".repeat(jsonBound + 1);
+
+    await expect(openVaultPassword(oversized, "correct horse")).resolves.toBe("");
+    expect(isPassphraseProtectedVaultPassword(oversized)).toBe(false);
+    expect(parse).not.toHaveBeenCalled();
+  });
+
+  it("parses envelope JSON at the size limit", async () => {
+    const parse = vi.spyOn(JSON, "parse").mockImplementation(() => {
+      throw new Error("unexpected JSON.parse call");
+    });
+
+    await expect(
+      openVaultPassword("A".repeat(jsonBound), "correct horse"),
+    ).resolves.toBe("");
+    expect(parse).toHaveBeenCalledOnce();
   });
 
   it("round-trips a plaintext password through a secure envelope", async () => {

@@ -3,6 +3,7 @@ import {
   sealWithPassword,
   type PasswordDerivedCiphertext,
 } from "./sodium";
+import { MAX_PASSWORD_ENVELOPE_JSON_CHARACTERS } from "./argon2-policy";
 
 type LegacyDeveloperSecretEnvelope = {
   version: 1;
@@ -109,6 +110,16 @@ function isSecureDeveloperSecretEnvelope(
   );
 }
 
+function parseDeveloperSecretEnvelope(ciphertext: string): unknown | null {
+  if (ciphertext.length > MAX_PASSWORD_ENVELOPE_JSON_CHARACTERS) return null;
+
+  try {
+    return JSON.parse(ciphertext) as unknown;
+  } catch {
+    return null;
+  }
+}
+
 export async function sealDeveloperSecretBlob(
   plaintext: string,
   masterPassword: string,
@@ -133,13 +144,9 @@ export async function openDeveloperSecretBlob(
     return "";
   }
 
-  let parsed: unknown;
+  const parsed = parseDeveloperSecretEnvelope(ciphertext);
 
-  try {
-    parsed = JSON.parse(ciphertext) as unknown;
-  } catch {
-    return "";
-  }
+  if (!parsed) return "";
 
   if (isSecureDeveloperSecretEnvelope(parsed)) {
     return openWithPassword(parsed, masterPassword);

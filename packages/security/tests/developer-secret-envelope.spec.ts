@@ -9,10 +9,38 @@ import {
   LEGACY_FIXTURE_DEV_SECRET_DOTENV,
   LEGACY_FIXTURE_MASTER_PASSWORD,
 } from "../../../tests/fixtures/crypto-legacy-fixtures";
+import { ARGON2ID_V3_POLICY } from "../src/argon2-policy";
+
+const jsonBound =
+  ARGON2ID_V3_POLICY.maxCiphertextBase64URLCharacters + 2_048;
 
 describe("developer secret envelope helpers", () => {
   afterEach(() => {
+    vi.restoreAllMocks();
     vi.unstubAllGlobals();
+  });
+
+  it("rejects oversized envelope JSON before parsing", async () => {
+    const parse = vi.spyOn(JSON, "parse").mockImplementation(() => {
+      throw new Error("unexpected JSON.parse call");
+    });
+    const oversized = "A".repeat(jsonBound + 1);
+
+    await expect(
+      openDeveloperSecretBlob(oversized, "correct horse"),
+    ).resolves.toBe("");
+    expect(parse).not.toHaveBeenCalled();
+  });
+
+  it("parses envelope JSON at the size limit", async () => {
+    const parse = vi.spyOn(JSON, "parse").mockImplementation(() => {
+      throw new Error("unexpected JSON.parse call");
+    });
+
+    await expect(
+      openDeveloperSecretBlob("A".repeat(jsonBound), "correct horse"),
+    ).resolves.toBe("");
+    expect(parse).toHaveBeenCalledOnce();
   });
 
   it("round-trips a dotenv blob with the master password", async () => {

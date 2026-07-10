@@ -24,6 +24,9 @@ export const ARGON2ID_V3_POLICY = Object.freeze({
   maxCiphertextBase64URLCharacters: Math.ceil((MAX_CIPHERTEXT_BYTES * 4) / 3),
 });
 
+export const MAX_PASSWORD_ENVELOPE_JSON_CHARACTERS =
+  ARGON2ID_V3_POLICY.maxCiphertextBase64URLCharacters + 2_048;
+
 function isFiniteSafeInteger(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value) && Number.isSafeInteger(value);
 }
