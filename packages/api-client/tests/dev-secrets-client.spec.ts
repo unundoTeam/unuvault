@@ -5,8 +5,17 @@ import {
   readDevSecretRecord,
   writeDevSecretRecord,
 } from "../src/dev-secrets";
+import { listSupportedDevSecretNamespaces } from "../src/dev-secrets-targets";
 
 describe("dev secrets client", () => {
+  it("lists only the retained unuidentity dotenv namespaces", () => {
+    expect(listSupportedDevSecretNamespaces()).toEqual([
+      "unuidentity/local/dotenv",
+      "unuidentity/staging/dotenv",
+      "unuidentity/production/dotenv",
+    ]);
+  });
+
   it("posts to /dev/secrets/handoffs with bearer auth", async () => {
     const fetcher = vi.fn().mockResolvedValue({
       ok: true,

@@ -31,7 +31,8 @@
     "test:pairing-lan-smoke": "bash scripts/testing/run-pairing-lan-smoke.sh",
     "test:pairing-physical-preflight": "bash scripts/testing/run-pairing-physical-receipt.sh --preflight",
     "test:pairing-physical-receipt": "bash scripts/testing/run-pairing-physical-receipt.sh",
-    "lint": "bash scripts/testing/lint-runner.sh"
+    "lint": "bash scripts/testing/lint-runner.sh",
+    "typecheck": "bash scripts/testing/lint-runner.sh"
   },
   "devDependencies": {
     "@fastify/cors": "^11.2.0",
