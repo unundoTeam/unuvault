@@ -628,4 +628,313 @@ describe("createImportReportService", () => {
     expect(deps.getUserProfileByAccountId).not.toHaveBeenCalled();
     expect(deps.insertBrowserImportReport).not.toHaveBeenCalled();
   });
+
+  it.each([
+    [
+      "source",
+      () => {
+        const request = cloneValidRequest();
+        const getter = vi
+          .fn()
+          .mockReturnValueOnce("chrome")
+          .mockReturnValue("CANARY_SOURCE");
+        Object.defineProperty(request, "source", {
+          enumerable: true,
+          get: getter,
+        });
+        return { request, getter };
+      },
+    ],
+    [
+      "report",
+      () => {
+        const request = cloneValidRequest();
+        const safeReport = request.report;
+        const getter = vi
+          .fn()
+          .mockReturnValueOnce(safeReport)
+          .mockReturnValue("CANARY_REPORT");
+        Object.defineProperty(request, "report", {
+          enumerable: true,
+          get: getter,
+        });
+        return { request, getter };
+      },
+    ],
+    [
+      "counts",
+      () => {
+        const request = cloneValidRequest();
+        const safeCounts = request.report.counts;
+        const getter = vi
+          .fn()
+          .mockReturnValueOnce(safeCounts)
+          .mockReturnValue("CANARY_COUNTS");
+        Object.defineProperty(request.report, "counts", {
+          enumerable: true,
+          get: getter,
+        });
+        return { request, getter };
+      },
+    ],
+    [
+      "issues",
+      () => {
+        const request = cloneValidRequest();
+        const safeIssues = request.report.issues;
+        const getter = vi
+          .fn()
+          .mockReturnValueOnce(safeIssues)
+          .mockReturnValue("CANARY_ISSUES");
+        Object.defineProperty(request.report, "issues", {
+          enumerable: true,
+          get: getter,
+        });
+        return { request, getter };
+      },
+    ],
+    [
+      "row_index",
+      () => {
+        const request = cloneValidRequest();
+        const getter = vi.fn().mockReturnValueOnce(3).mockReturnValue("CANARY_ROW");
+        Object.defineProperty(request.report.issues[0], "row_index", {
+          enumerable: true,
+          get: getter,
+        });
+        return { request, getter };
+      },
+    ],
+    [
+      "reason_code",
+      () => {
+        const request = cloneValidRequest();
+        const getter = vi
+          .fn()
+          .mockReturnValueOnce("invalid_url")
+          .mockReturnValue("CANARY_REASON");
+        Object.defineProperty(request.report.issues[0], "reason_code", {
+          enumerable: true,
+          get: getter,
+        });
+        return { request, getter };
+      },
+    ],
+    [
+      "duplicate_of_row_index",
+      () => {
+        const request = cloneValidRequest();
+        const getter = vi.fn().mockReturnValueOnce(2).mockReturnValue("CANARY_TARGET");
+        Object.defineProperty(
+          request.report.issues[1],
+          "duplicate_of_row_index",
+          { enumerable: true, get: getter },
+        );
+        return { request, getter };
+      },
+    ],
+  ])("rejects an authorized %s accessor without invoking it", async (_name, build) => {
+    const { request, getter } = build();
+    await expectInvalid(request);
+    expect(getter).not.toHaveBeenCalled();
+  });
+
+  it("rejects an accessor-backed issue array slot without invoking it", async () => {
+    const request = cloneValidRequest();
+    const firstIssue = request.report.issues[0];
+    const getter = vi
+      .fn()
+      .mockReturnValueOnce(firstIssue)
+      .mockReturnValue("CANARY_ARRAY_SLOT");
+    Object.defineProperty(request.report.issues, "0", {
+      enumerable: true,
+      configurable: true,
+      get: getter,
+    });
+
+    await expectInvalid(request);
+    expect(getter).not.toHaveBeenCalled();
+  });
+
+  it("rejects a non-enumerable allowed object field", async () => {
+    const request = cloneValidRequest();
+    Object.defineProperty(request, "source", {
+      enumerable: false,
+      value: "chrome",
+    });
+    await expectInvalid(request);
+  });
+
+  it.each([
+    ["extra string key", (issues: any[]) => Object.assign(issues, { raw_csv: "CANARY_ARRAY_EXTRA" })],
+    [
+      "symbol key",
+      (issues: any[]) =>
+        Object.defineProperty(issues, Symbol("CANARY_ARRAY_SYMBOL"), {
+          enumerable: true,
+          value: "CANARY_ARRAY_SYMBOL_VALUE",
+        }),
+    ],
+    ["sparse slot", (issues: any[]) => delete issues[0]],
+    ["custom prototype", (issues: any[]) => Object.setPrototypeOf(issues, [])],
+  ])("rejects an issues array with %s", async (_name, mutate) => {
+    const request = cloneValidRequest();
+    mutate(request.report.issues);
+    await expectInvalid(request);
+  });
+
+  it.each([
+    [
+      "getPrototypeOf",
+      () =>
+        new Proxy(cloneValidRequest(), {
+          getPrototypeOf() {
+            throw new Error("CANARY_PROXY_PROTOTYPE");
+          },
+        }),
+    ],
+    [
+      "ownKeys",
+      () =>
+        new Proxy(cloneValidRequest(), {
+          ownKeys() {
+            throw new Error("CANARY_PROXY_KEYS");
+          },
+        }),
+    ],
+    [
+      "getOwnPropertyDescriptor",
+      () =>
+        new Proxy(cloneValidRequest(), {
+          getOwnPropertyDescriptor() {
+            throw new Error("CANARY_PROXY_DESCRIPTOR");
+          },
+        }),
+    ],
+  ])("maps a throwing request Proxy %s trap to static validation", async (_name, build) => {
+    await expectInvalid(build());
+  });
+
+  it("snapshots request Proxy data descriptors without invoking get traps", async () => {
+    const deps = createDependencies();
+    const target = cloneValidRequest();
+    const get = vi.fn((_target: object, key: PropertyKey, receiver: object) => {
+      if (key === "source") return "CANARY_PROXY_SOURCE";
+      return Reflect.get(_target, key, receiver);
+    });
+    const request = new Proxy(target, { get });
+    const service = createImportReportService(deps);
+
+    await expect(
+      service.recordBrowserImportReport("jwt-token", request),
+    ).resolves.toEqual({
+      job_id: "123e4567-e89b-42d3-a456-426614174000",
+      status: "recorded",
+    });
+    expect(get).not.toHaveBeenCalled();
+    expect(JSON.stringify(deps.insertBrowserImportReport.mock.calls)).not.toContain(
+      "CANARY_PROXY_SOURCE",
+    );
+  });
+
+  it("rejects accessor-backed adapter fields without invoking them or leaking values", async () => {
+    const deps = createDependencies();
+    const idGetter = vi
+      .fn()
+      .mockReturnValueOnce("123e4567-e89b-42d3-a456-426614174000")
+      .mockReturnValue("CANARY_ADAPTER_ID");
+    const statusGetter = vi
+      .fn()
+      .mockReturnValueOnce("recorded")
+      .mockReturnValue("CANARY_ADAPTER_STATUS");
+    const result = Object.create(null);
+    Object.defineProperties(result, {
+      id: { enumerable: true, get: idGetter },
+      status: { enumerable: true, get: statusGetter },
+    });
+    deps.insertBrowserImportReport.mockResolvedValue(result);
+    const service = createImportReportService(deps);
+
+    let response: unknown;
+    let error: unknown;
+    try {
+      response = await service.recordBrowserImportReport(
+        "jwt-token",
+        VALID_REQUEST,
+      );
+    } catch (caught) {
+      error = caught;
+    }
+
+    expect(response).toBeUndefined();
+    expect(error).toBeInstanceOf(ImportReportPersistenceError);
+    expect(error).toMatchObject({
+      message: "import_report_create_failed",
+      code: "import_report_create_failed",
+    });
+    expect(idGetter).not.toHaveBeenCalled();
+    expect(statusGetter).not.toHaveBeenCalled();
+    expect(JSON.stringify({ response, error })).not.toContain("CANARY_ADAPTER");
+  });
+
+  it("snapshots adapter Proxy descriptors and returns the same validated id", async () => {
+    const deps = createDependencies();
+    const target = {
+      id: "123e4567-e89b-42d3-a456-426614174000",
+      status: "recorded",
+    };
+    const fieldGet = vi.fn(() => "CANARY_ADAPTER_PROXY_GET");
+    deps.insertBrowserImportReport.mockResolvedValue(
+      new Proxy(target, {
+        get(proxyTarget, key, receiver) {
+          if (key === "id" || key === "status") {
+            return fieldGet();
+          }
+          return Reflect.get(proxyTarget, key, receiver);
+        },
+      }),
+    );
+    const service = createImportReportService(deps);
+
+    await expect(
+      service.recordBrowserImportReport("jwt-token", VALID_REQUEST),
+    ).resolves.toEqual({
+      job_id: "123e4567-e89b-42d3-a456-426614174000",
+      status: "recorded",
+    });
+    expect(fieldGet).not.toHaveBeenCalled();
+  });
+
+  it.each(["getPrototypeOf", "ownKeys", "getOwnPropertyDescriptor"])(
+    "maps a throwing adapter Proxy %s trap to static persistence",
+    async (trapName) => {
+      const deps = createDependencies();
+      const target = {
+        id: "123e4567-e89b-42d3-a456-426614174000",
+        status: "recorded",
+      };
+      const handler: ProxyHandler<typeof target> = {};
+      Object.assign(handler, {
+        [trapName]() {
+          throw new Error(`CANARY_ADAPTER_${trapName}`);
+        },
+      });
+      deps.insertBrowserImportReport.mockResolvedValue(new Proxy(target, handler));
+      const service = createImportReportService(deps);
+
+      let error: unknown;
+      try {
+        await service.recordBrowserImportReport("jwt-token", VALID_REQUEST);
+      } catch (caught) {
+        error = caught;
+      }
+
+      expect(error).toBeInstanceOf(ImportReportPersistenceError);
+      expect(error).toMatchObject({
+        message: "import_report_create_failed",
+        code: "import_report_create_failed",
+      });
+      expect(JSON.stringify(error)).not.toContain("CANARY_ADAPTER");
+    },
+  );
 });

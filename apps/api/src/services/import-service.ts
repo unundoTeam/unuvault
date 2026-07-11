@@ -98,28 +98,92 @@ export class ImportReportPersistenceError extends StableImportReportError {
   }
 }
 
-function isObjectRecord(value: unknown): value is Record<string, unknown> {
+function snapshotPlainDataObject(
+  value: unknown,
+  allowedKeySets: readonly (readonly string[])[],
+): Record<string, unknown> | null {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    return false;
+    return null;
   }
 
-  const prototype = Object.getPrototypeOf(value);
-  return prototype === Object.prototype || prototype === null;
-}
-
-function hasExactOwnKeys(
-  value: unknown,
-  expectedKeys: readonly string[],
-): value is Record<string, unknown> {
-  if (!isObjectRecord(value)) {
-    return false;
+  const prototype = Reflect.getPrototypeOf(value);
+  if (prototype !== Object.prototype && prototype !== null) {
+    return null;
   }
 
   const ownKeys = Reflect.ownKeys(value);
-  return (
-    ownKeys.length === expectedKeys.length &&
-    expectedKeys.every((key) => Object.hasOwn(value, key))
+  const matchingKeys = allowedKeySets.find(
+    (expectedKeys) =>
+      ownKeys.length === expectedKeys.length &&
+      expectedKeys.every((key) => ownKeys.includes(key)),
   );
+  if (!matchingKeys) {
+    return null;
+  }
+
+  const snapshot: Record<string, unknown> = Object.create(null);
+  for (const key of matchingKeys) {
+    const descriptor = Reflect.getOwnPropertyDescriptor(value, key);
+    if (
+      !descriptor ||
+      descriptor.enumerable !== true ||
+      !Object.hasOwn(descriptor, "value")
+    ) {
+      return null;
+    }
+    snapshot[key] = descriptor.value;
+  }
+
+  return snapshot;
+}
+
+function snapshotDensePlainArray(
+  value: unknown,
+  maximumLength: number,
+): unknown[] | null {
+  if (!Array.isArray(value) || Reflect.getPrototypeOf(value) !== Array.prototype) {
+    return null;
+  }
+
+  const ownKeys = Reflect.ownKeys(value);
+  const lengthDescriptor = Reflect.getOwnPropertyDescriptor(value, "length");
+  if (
+    !lengthDescriptor ||
+    lengthDescriptor.enumerable !== false ||
+    !Object.hasOwn(lengthDescriptor, "value") ||
+    typeof lengthDescriptor.value !== "number" ||
+    !Number.isSafeInteger(lengthDescriptor.value) ||
+    lengthDescriptor.value < 0 ||
+    lengthDescriptor.value > maximumLength
+  ) {
+    return null;
+  }
+
+  const length = lengthDescriptor.value;
+  if (
+    ownKeys.length !== length + 1 ||
+    !ownKeys.includes("length") ||
+    Array.from({ length }, (_, index) => String(index)).some(
+      (key) => !ownKeys.includes(key),
+    )
+  ) {
+    return null;
+  }
+
+  const snapshot = new Array<unknown>(length);
+  for (let index = 0; index < length; index += 1) {
+    const descriptor = Reflect.getOwnPropertyDescriptor(value, String(index));
+    if (
+      !descriptor ||
+      descriptor.enumerable !== true ||
+      !Object.hasOwn(descriptor, "value")
+    ) {
+      return null;
+    }
+    snapshot[index] = descriptor.value;
+  }
+
+  return snapshot;
 }
 
 function isBoundedCount(value: unknown): value is number {
@@ -157,60 +221,67 @@ function invalidReport(): never {
 function validateAndRebuildRequest(
   input: unknown,
 ): BrowserImportReportRequest {
-  if (!hasExactOwnKeys(input, ["source", "report"])) {
+  const inputSnapshot = snapshotPlainDataObject(input, [["source", "report"]]);
+  if (!inputSnapshot) {
     return invalidReport();
   }
-  if (!isAllowedSource(input.source)) {
+  const source = inputSnapshot.source;
+  if (!isAllowedSource(source)) {
     return invalidReport();
   }
-  if (!hasExactOwnKeys(input.report, ["counts", "issues"])) {
+  const reportSnapshot = snapshotPlainDataObject(inputSnapshot.report, [
+    ["counts", "issues"],
+  ]);
+  if (!reportSnapshot) {
     return invalidReport();
   }
 
-  const report = input.report;
-  if (
-    !hasExactOwnKeys(report.counts, [
+  const countsSnapshot = snapshotPlainDataObject(reportSnapshot.counts, [
+    [
       "total_rows",
       "accepted_rows",
       "malformed_rows",
       "duplicate_rows",
-    ])
-  ) {
+    ],
+  ]);
+  if (!countsSnapshot) {
     return invalidReport();
   }
 
-  const counts = report.counts;
   if (
-    !isBoundedCount(counts.total_rows) ||
-    !isBoundedCount(counts.accepted_rows) ||
-    !isBoundedCount(counts.malformed_rows) ||
-    !isBoundedCount(counts.duplicate_rows)
+    !isBoundedCount(countsSnapshot.total_rows) ||
+    !isBoundedCount(countsSnapshot.accepted_rows) ||
+    !isBoundedCount(countsSnapshot.malformed_rows) ||
+    !isBoundedCount(countsSnapshot.duplicate_rows)
   ) {
     return invalidReport();
   }
-  if (!Array.isArray(report.issues)) {
+  const issueValues = snapshotDensePlainArray(
+    reportSnapshot.issues,
+    MAX_IMPORT_ROWS,
+  );
+  if (!issueValues) {
     return invalidReport();
   }
 
-  const totalRows = counts.total_rows;
+  const totalRows = countsSnapshot.total_rows;
   const rebuiltIssues: BrowserImportIssue[] = [];
   let previousRowIndex = 1;
   let duplicateCount = 0;
   let malformedCount = 0;
 
-  for (const candidate of report.issues) {
-    const hasMalformedKeys = hasExactOwnKeys(candidate, [
-      "row_index",
-      "reason_code",
+  for (const issueValue of issueValues) {
+    const candidate = snapshotPlainDataObject(issueValue, [
+      ["row_index", "reason_code"],
+      ["row_index", "reason_code", "duplicate_of_row_index"],
     ]);
-    const hasDuplicateKeys = hasExactOwnKeys(candidate, [
-      "row_index",
-      "reason_code",
-      "duplicate_of_row_index",
-    ]);
-    if (!hasMalformedKeys && !hasDuplicateKeys) {
+    if (!candidate) {
       return invalidReport();
     }
+    const hasDuplicateTarget = Object.hasOwn(
+      candidate,
+      "duplicate_of_row_index",
+    );
     if (
       !isLogicalRowIndex(candidate.row_index, totalRows) ||
       candidate.row_index <= previousRowIndex ||
@@ -222,7 +293,7 @@ function validateAndRebuildRequest(
     previousRowIndex = candidate.row_index;
     if (candidate.reason_code === "duplicate") {
       if (
-        !hasDuplicateKeys ||
+        !hasDuplicateTarget ||
         typeof candidate.duplicate_of_row_index !== "number" ||
         !Number.isSafeInteger(candidate.duplicate_of_row_index) ||
         candidate.duplicate_of_row_index < 2 ||
@@ -237,7 +308,7 @@ function validateAndRebuildRequest(
         duplicate_of_row_index: candidate.duplicate_of_row_index,
       });
     } else {
-      if (!hasMalformedKeys) {
+      if (hasDuplicateTarget) {
         return invalidReport();
       }
       malformedCount += 1;
@@ -249,12 +320,14 @@ function validateAndRebuildRequest(
   }
 
   if (
-    counts.accepted_rows + counts.malformed_rows + counts.duplicate_rows !==
+    countsSnapshot.accepted_rows +
+        countsSnapshot.malformed_rows +
+        countsSnapshot.duplicate_rows !==
       totalRows ||
     rebuiltIssues.length !==
-      counts.malformed_rows + counts.duplicate_rows ||
-    duplicateCount !== counts.duplicate_rows ||
-    malformedCount !== counts.malformed_rows
+      countsSnapshot.malformed_rows + countsSnapshot.duplicate_rows ||
+    duplicateCount !== countsSnapshot.duplicate_rows ||
+    malformedCount !== countsSnapshot.malformed_rows
   ) {
     return invalidReport();
   }
@@ -270,13 +343,13 @@ function validateAndRebuildRequest(
   }
 
   return {
-    source: input.source,
+    source,
     report: {
       counts: {
-        total_rows: counts.total_rows,
-        accepted_rows: counts.accepted_rows,
-        malformed_rows: counts.malformed_rows,
-        duplicate_rows: counts.duplicate_rows,
+        total_rows: countsSnapshot.total_rows,
+        accepted_rows: countsSnapshot.accepted_rows,
+        malformed_rows: countsSnapshot.malformed_rows,
+        duplicate_rows: countsSnapshot.duplicate_rows,
       },
       issues: rebuiltIssues,
     },
@@ -296,15 +369,20 @@ export function validateBrowserImportReportRequest(
   }
 }
 
-function isRecordedAdapterResult(
+function readRecordedAdapterResult(
   result: unknown,
-): result is { id: string; status: "recorded" } {
-  return (
-    hasExactOwnKeys(result, ["id", "status"]) &&
-    typeof result.id === "string" &&
-    CANONICAL_LOWERCASE_UUID_V4.test(result.id) &&
-    result.status === "recorded"
-  );
+): { id: string; status: "recorded" } | null {
+  const snapshot = snapshotPlainDataObject(result, [["id", "status"]]);
+  if (
+    !snapshot ||
+    typeof snapshot.id !== "string" ||
+    !CANONICAL_LOWERCASE_UUID_V4.test(snapshot.id) ||
+    snapshot.status !== "recorded"
+  ) {
+    return null;
+  }
+
+  return { id: snapshot.id, status: "recorded" };
 }
 
 export function createImportReportService(
@@ -371,7 +449,7 @@ export function createImportReportService(
           }
         }
 
-        const result = await deps.insertBrowserImportReport(profile.id, {
+        const adapterResult = await deps.insertBrowserImportReport(profile.id, {
           source: request.source,
           status: "recorded",
           totals: {
@@ -384,11 +462,12 @@ export function createImportReportService(
           malformed_rows: malformedRows,
           finished_at: finishedAt,
         });
-        if (!isRecordedAdapterResult(result)) {
+        const receipt = readRecordedAdapterResult(adapterResult);
+        if (!receipt) {
           throw new ImportReportPersistenceError();
         }
 
-        return { job_id: result.id, status: "recorded" as const };
+        return { job_id: receipt.id, status: "recorded" as const };
       } catch (error) {
         if (error instanceof ImportReportPersistenceError) {
           throw error;
