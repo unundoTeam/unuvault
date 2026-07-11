@@ -937,4 +937,226 @@ describe("createImportReportService", () => {
       expect(JSON.stringify(error)).not.toContain("CANARY_ADAPTER");
     },
   );
+
+  it("rejects an account_id accessor without invoking it or resolving a profile", async () => {
+    const deps = createDependencies();
+    const accountIdGetter = vi
+      .fn()
+      .mockReturnValueOnce("account-1")
+      .mockReturnValue("CANARY_ACCOUNT_ID");
+    const user = Object.create(null);
+    Object.defineProperties(user, {
+      id: { enumerable: true, value: "auth-user-1" },
+      account_id: { enumerable: true, get: accountIdGetter },
+      email: { enumerable: true, value: "user@example.com" },
+    });
+    deps.getUserByToken.mockResolvedValue(user);
+    const service = createImportReportService(deps);
+
+    let error: unknown;
+    try {
+      await service.recordBrowserImportReport("jwt-token", VALID_REQUEST);
+    } catch (caught) {
+      error = caught;
+    }
+
+    expect(error).toBeInstanceOf(ImportReportUnauthorizedError);
+    expect(error).toMatchObject({
+      message: "invalid_token",
+      code: "invalid_token",
+    });
+    expect(accountIdGetter).not.toHaveBeenCalled();
+    expect(deps.getUserProfileByAccountId).not.toHaveBeenCalled();
+    expect(deps.insertBrowserImportReport).not.toHaveBeenCalled();
+    expect(JSON.stringify(error)).not.toContain("CANARY_ACCOUNT_ID");
+  });
+
+  it("uses the snapshotted account_id from a Proxy data descriptor", async () => {
+    const deps = createDependencies();
+    const accountIdGet = vi
+      .fn()
+      .mockReturnValueOnce("account-1")
+      .mockReturnValue("CANARY_ACCOUNT_ID");
+    const user = new Proxy(
+      {
+        id: "auth-user-1",
+        account_id: "account-1",
+        email: "user@example.com",
+      },
+      {
+        get(target, key, receiver) {
+          if (key === "account_id") return accountIdGet();
+          return Reflect.get(target, key, receiver);
+        },
+      },
+    );
+    deps.getUserByToken.mockResolvedValue(user);
+    const service = createImportReportService(deps);
+
+    await expect(
+      service.recordBrowserImportReport("jwt-token", VALID_REQUEST),
+    ).resolves.toEqual({
+      job_id: "123e4567-e89b-42d3-a456-426614174000",
+      status: "recorded",
+    });
+    expect(accountIdGet).not.toHaveBeenCalled();
+    expect(deps.getUserProfileByAccountId).toHaveBeenCalledWith("account-1");
+    expect(
+      JSON.stringify(deps.getUserProfileByAccountId.mock.calls),
+    ).not.toContain("CANARY_ACCOUNT_ID");
+  });
+
+  it("rejects a profile id accessor without invoking it or inserting", async () => {
+    const deps = createDependencies();
+    const profileIdGetter = vi
+      .fn()
+      .mockReturnValueOnce("profile-1")
+      .mockReturnValue("CANARY_PROFILE_ID");
+    const profile = Object.create(null);
+    Object.defineProperties(profile, {
+      id: { enumerable: true, get: profileIdGetter },
+      account_id: { enumerable: true, value: "account-1" },
+    });
+    deps.getUserProfileByAccountId.mockResolvedValue(profile);
+    const service = createImportReportService(deps);
+
+    let error: unknown;
+    try {
+      await service.recordBrowserImportReport("jwt-token", VALID_REQUEST);
+    } catch (caught) {
+      error = caught;
+    }
+
+    expect(error).toBeInstanceOf(ImportReportPersistenceError);
+    expect(error).toMatchObject({
+      message: "import_report_create_failed",
+      code: "import_report_create_failed",
+    });
+    expect(profileIdGetter).not.toHaveBeenCalled();
+    expect(deps.insertBrowserImportReport).not.toHaveBeenCalled();
+    expect(JSON.stringify(error)).not.toContain("CANARY_PROFILE_ID");
+  });
+
+  it("uses the snapshotted profile id from a Proxy data descriptor", async () => {
+    const deps = createDependencies();
+    const profileIdGet = vi
+      .fn()
+      .mockReturnValueOnce("profile-1")
+      .mockReturnValue("CANARY_PROFILE_ID");
+    const profile = new Proxy(
+      { id: "profile-1", account_id: "account-1" },
+      {
+        get(target, key, receiver) {
+          if (key === "id") return profileIdGet();
+          return Reflect.get(target, key, receiver);
+        },
+      },
+    );
+    deps.getUserProfileByAccountId.mockResolvedValue(profile);
+    const service = createImportReportService(deps);
+
+    await expect(
+      service.recordBrowserImportReport("jwt-token", VALID_REQUEST),
+    ).resolves.toEqual({
+      job_id: "123e4567-e89b-42d3-a456-426614174000",
+      status: "recorded",
+    });
+    expect(profileIdGet).not.toHaveBeenCalled();
+    expect(deps.insertBrowserImportReport).toHaveBeenCalledWith(
+      "profile-1",
+      expect.any(Object),
+    );
+    expect(JSON.stringify(deps.insertBrowserImportReport.mock.calls)).not.toContain(
+      "CANARY_PROFILE_ID",
+    );
+  });
+
+  it.each([
+    ["account", "getPrototypeOf"],
+    ["account", "getOwnPropertyDescriptor"],
+    ["profile", "getPrototypeOf"],
+    ["profile", "getOwnPropertyDescriptor"],
+  ])("maps a throwing %s %s trap to static persistence", async (scope, trapName) => {
+    const deps = createDependencies();
+    const target =
+      scope === "account"
+        ? {
+            id: "auth-user-1",
+            account_id: "account-1",
+            email: "user@example.com",
+          }
+        : { id: "profile-1", account_id: "account-1" };
+    const handler: ProxyHandler<typeof target> = {};
+    Object.assign(handler, {
+      [trapName]() {
+        throw new Error(`CANARY_IDENTITY_${scope}_${trapName}`);
+      },
+    });
+    const proxy = new Proxy(target, handler);
+    if (scope === "account") {
+      deps.getUserByToken.mockResolvedValue(proxy);
+    } else {
+      deps.getUserProfileByAccountId.mockResolvedValue(proxy);
+    }
+    const service = createImportReportService(deps);
+
+    let error: unknown;
+    try {
+      await service.recordBrowserImportReport("jwt-token", VALID_REQUEST);
+    } catch (caught) {
+      error = caught;
+    }
+
+    expect(error).toBeInstanceOf(ImportReportPersistenceError);
+    expect(error).toMatchObject({
+      message: "import_report_create_failed",
+      code: "import_report_create_failed",
+    });
+    expect(deps.insertBrowserImportReport).not.toHaveBeenCalled();
+    expect(JSON.stringify(error)).not.toContain("CANARY_IDENTITY");
+  });
+
+  it("ignores extra identity fields and never invokes their accessors", async () => {
+    const deps = createDependencies();
+    const extraUserGetter = vi.fn(() => "CANARY_USER_EXTRA");
+    const extraProfileGetter = vi.fn(() => "CANARY_PROFILE_EXTRA");
+    const user = Object.create(null);
+    Object.defineProperties(user, {
+      account_id: { enumerable: true, value: "account-1" },
+      id: { enumerable: true, get: extraUserGetter },
+      email: { enumerable: true, value: "user@example.com" },
+    });
+    const profile = Object.create(null);
+    Object.defineProperties(profile, {
+      id: { enumerable: true, value: "profile-1" },
+      account_id: { enumerable: true, get: extraProfileGetter },
+    });
+    deps.getUserByToken.mockResolvedValue(user);
+    deps.getUserProfileByAccountId.mockResolvedValue(profile);
+    const service = createImportReportService(deps);
+
+    await expect(
+      service.recordBrowserImportReport("jwt-token", VALID_REQUEST),
+    ).resolves.toMatchObject({ status: "recorded" });
+    expect(extraUserGetter).not.toHaveBeenCalled();
+    expect(extraProfileGetter).not.toHaveBeenCalled();
+  });
+
+  it("keeps an empty profile id on the static persistence path", async () => {
+    const deps = createDependencies();
+    deps.getUserProfileByAccountId.mockResolvedValue({
+      id: "",
+      account_id: "account-1",
+    });
+    const service = createImportReportService(deps);
+
+    await expect(
+      service.recordBrowserImportReport("jwt-token", VALID_REQUEST),
+    ).rejects.toMatchObject({
+      name: "ImportReportPersistenceError",
+      message: "import_report_create_failed",
+      code: "import_report_create_failed",
+    });
+    expect(deps.insertBrowserImportReport).not.toHaveBeenCalled();
+  });
 });

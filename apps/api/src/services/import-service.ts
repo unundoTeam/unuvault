@@ -137,6 +137,35 @@ function snapshotPlainDataObject(
   return snapshot;
 }
 
+function snapshotPlainDataProperties(
+  value: unknown,
+  propertyNames: readonly string[],
+): Record<string, unknown> | null {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return null;
+  }
+
+  const prototype = Reflect.getPrototypeOf(value);
+  if (prototype !== Object.prototype && prototype !== null) {
+    return null;
+  }
+
+  const snapshot: Record<string, unknown> = Object.create(null);
+  for (const propertyName of propertyNames) {
+    const descriptor = Reflect.getOwnPropertyDescriptor(value, propertyName);
+    if (
+      !descriptor ||
+      descriptor.enumerable !== true ||
+      !Object.hasOwn(descriptor, "value")
+    ) {
+      return null;
+    }
+    snapshot[propertyName] = descriptor.value;
+  }
+
+  return snapshot;
+}
+
 function snapshotDensePlainArray(
   value: unknown,
   maximumLength: number,
@@ -392,31 +421,39 @@ export function createImportReportService(
 
   return {
     async recordBrowserImportReport(token: string, input: unknown) {
-      let profile: ImportReportProfile;
+      let profileId: string;
 
       try {
         const user = await deps.getUserByToken(token);
+        if (!user) {
+          throw new ImportReportUnauthorizedError();
+        }
+        const userSnapshot = snapshotPlainDataProperties(user, ["account_id"]);
+        const accountId = userSnapshot?.account_id;
         if (
-          !user ||
-          typeof user.account_id !== "string" ||
-          user.account_id.length === 0
+          typeof accountId !== "string" ||
+          accountId.length === 0
         ) {
           throw new ImportReportUnauthorizedError();
         }
 
         const resolvedProfile = await deps.getUserProfileByAccountId(
-          user.account_id,
+          accountId,
         );
         if (!resolvedProfile) {
           throw new ImportReportProfileNotFoundError();
         }
+        const profileSnapshot = snapshotPlainDataProperties(resolvedProfile, [
+          "id",
+        ]);
+        const resolvedProfileId = profileSnapshot?.id;
         if (
-          typeof resolvedProfile.id !== "string" ||
-          resolvedProfile.id.length === 0
+          typeof resolvedProfileId !== "string" ||
+          resolvedProfileId.length === 0
         ) {
           throw new ImportReportPersistenceError();
         }
-        profile = resolvedProfile;
+        profileId = resolvedProfileId;
       } catch (error) {
         if (
           error instanceof ImportReportUnauthorizedError ||
@@ -449,7 +486,7 @@ export function createImportReportService(
           }
         }
 
-        const adapterResult = await deps.insertBrowserImportReport(profile.id, {
+        const adapterResult = await deps.insertBrowserImportReport(profileId, {
           source: request.source,
           status: "recorded",
           totals: {
