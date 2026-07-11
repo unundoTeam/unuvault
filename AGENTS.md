@@ -27,6 +27,11 @@
 - Follow those delivery defaults by default when the user asks for change implementation, PR text, merge text, or other committable output.
 - Follow the repo scope boundary in `/Users/yuchen/Code/unu/unuOS/docs/portfolio/agent-delivery-defaults.md`: by default, handle `unuvault` only, unless the current task has a clear cross-repo dependency or the user explicitly asks for another project.
 
+## unu Task Clarification Gate
+
+- For every task semantically related to the `unu` ecosystem, follow the portfolio authority at `/Users/yuchen/Code/unu/unuOS/docs/portfolio/agent-task-clarification-gate.md` before answering, planning, or changing state.
+- This applies to read-only and state-changing work. Repo-local stricter rules still apply.
+
 ## unu Skill Routing
 
 - For auth bridge, browser/server env boundaries, sync behavior, iOS bridge, or shared `unuidentity` coupling questions, invoke `unu-docs` first.
