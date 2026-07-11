@@ -26,7 +26,7 @@ function readStrictBearerToken(value: unknown): string | null {
     return null;
   }
 
-  const match = /^Bearer ([^\s]+)$/u.exec(value);
+  const match = /^Bearer ([^\s\u0000-\u001f\u007f-\u009f]+)$/u.exec(value);
   return match?.[0] === value ? (match[1] ?? null) : null;
 }
 

@@ -78,7 +78,12 @@ describe("POST /imports/browser", () => {
     ["leading whitespace", " Bearer jwt-token"],
     ["trailing whitespace", "Bearer jwt-token "],
     ["double space", "Bearer  jwt-token"],
-    ["control character", "Bearer jwt-token\tjunk"],
+    ["tab control character", "Bearer jwt-token\tjunk"],
+    ["NUL control character", "Bearer jwt\u0000token"],
+    ["C0 control character", "Bearer jwt\u0001token"],
+    ["unit separator control character", "Bearer jwt\u001ftoken"],
+    ["DEL control character", "Bearer jwt\u007ftoken"],
+    ["C1 control character", "Bearer jwt\u0080token"],
     ["extra segment", "Bearer jwt-token extra"],
   ])("rejects a %s authorization header", async (_label, authorization) => {
     const deps = createDependencies();
