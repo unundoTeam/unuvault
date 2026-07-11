@@ -510,8 +510,3 @@ export function createImportReportService(
     },
   };
 }
-
-/** @deprecated Removed when the authenticated receipt route lands. */
-export function createBrowserImportJob() {
-  return { job_id: "job_123", status: "pending" };
-}
