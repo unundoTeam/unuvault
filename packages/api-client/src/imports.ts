@@ -1,38 +1,13 @@
-export type BrowserImportSource = "chrome" | "edge";
+import type {
+  BrowserImportReport,
+  BrowserImportRowReasonCode,
+  BrowserImportSource,
+} from "../../domain/src/browser-import";
 
-export type BrowserImportRowReasonCode =
-  | "empty_row"
-  | "malformed_row"
-  | "empty_url"
-  | "empty_password"
-  | "url_too_long"
-  | "username_too_long"
-  | "password_too_long"
-  | "name_too_long"
-  | "unsupported_note"
-  | "invalid_url"
-  | "unsupported_url_scheme"
-  | "duplicate";
-
-type BrowserImportIssue =
-  | {
-      rowIndex: number;
-      reasonCode: Exclude<BrowserImportRowReasonCode, "duplicate">;
-    }
-  | {
-      rowIndex: number;
-      reasonCode: "duplicate";
-      duplicateOfRowIndex: number;
-    };
-
-export type BrowserImportReport = {
-  counts: {
-    totalRows: number;
-    acceptedRows: number;
-    malformedRows: number;
-    duplicateRows: number;
-  };
-  issues: BrowserImportIssue[];
+export type {
+  BrowserImportReport,
+  BrowserImportRowReasonCode,
+  BrowserImportSource,
 };
 
 type BrowserImportReportWireIssue =
@@ -87,11 +62,53 @@ const IMPORT_REPORT_ERROR_CODES = new Set([
   "import_report_create_failed",
 ]);
 
+const CANONICAL_LOWERCASE_UUID_V4 =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
+function isPlainObjectWithExactKeys(
+  payload: unknown,
+  expectedKeys: readonly string[],
+): payload is Record<string, unknown> {
+  if (typeof payload !== "object" || payload === null) {
+    return false;
+  }
+
+  const prototype = Object.getPrototypeOf(payload);
+  if (prototype !== Object.prototype && prototype !== null) {
+    return false;
+  }
+
+  const keys = Object.keys(payload);
+  return (
+    keys.length === expectedKeys.length &&
+    expectedKeys.every((key) => Object.hasOwn(payload, key))
+  );
+}
+
+function readBrowserImportReceipt(
+  payload: unknown,
+): BrowserImportReportReceiptResponse | null {
+  if (!isPlainObjectWithExactKeys(payload, ["job_id", "status"])) {
+    return null;
+  }
+  if (
+    typeof payload.job_id !== "string" ||
+    !CANONICAL_LOWERCASE_UUID_V4.test(payload.job_id) ||
+    payload.status !== "recorded"
+  ) {
+    return null;
+  }
+
+  return {
+    job_id: payload.job_id,
+    status: "recorded",
+  };
+}
+
 function readAllowlistedImportError(payload: unknown): string | null {
   if (
-    typeof payload === "object" &&
-    payload !== null &&
-    "error" in payload &&
+    isPlainObjectWithExactKeys(payload, ["ok", "error"]) &&
+    payload.ok === false &&
     typeof payload.error === "string" &&
     IMPORT_REPORT_ERROR_CODES.has(payload.error)
   ) {
@@ -147,13 +164,10 @@ export async function recordBrowserImportReport(
   let payload: unknown;
   try {
     payload = await response.json();
-  } catch (error) {
-    if (response.ok === false) {
-      throw new Error(
-        `import_report_record_failed:${response.status ?? "unknown"}`,
-      );
-    }
-    throw error;
+  } catch {
+    throw new Error(
+      `import_report_record_failed:${response.status ?? "unknown"}`,
+    );
   }
   if (response.ok === false) {
     throw new Error(
@@ -162,5 +176,12 @@ export async function recordBrowserImportReport(
     );
   }
 
-  return payload as BrowserImportReportReceiptResponse;
+  const receipt = response.ok === true ? readBrowserImportReceipt(payload) : null;
+  if (receipt === null) {
+    throw new Error(
+      `import_report_record_failed:${response.status ?? "unknown"}`,
+    );
+  }
+
+  return receipt;
 }

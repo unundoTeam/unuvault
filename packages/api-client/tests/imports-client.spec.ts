@@ -1,8 +1,16 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, expectTypeOf, it, vi } from "vitest";
+import type {
+  BrowserImportReport as DomainBrowserImportReport,
+  BrowserImportRowReasonCode as DomainBrowserImportRowReasonCode,
+  BrowserImportSource as DomainBrowserImportSource,
+} from "../../domain/src/browser-import";
 import {
   recordBrowserImportReport,
   toBrowserImportReportRequest,
+  type BrowserImportReport,
   type BrowserImportRowReasonCode,
+  type BrowserImportSource,
 } from "../src/imports";
 
 describe("browser import report client", () => {
@@ -72,11 +80,29 @@ describe("browser import report client", () => {
     >();
   });
 
+  it("type-only imports and re-exports the domain browser-import contract", () => {
+    expectTypeOf<BrowserImportSource>().toEqualTypeOf<DomainBrowserImportSource>();
+    expectTypeOf<BrowserImportRowReasonCode>().toEqualTypeOf<
+      DomainBrowserImportRowReasonCode
+    >();
+    expectTypeOf<BrowserImportReport>().toEqualTypeOf<DomainBrowserImportReport>();
+
+    const moduleSource = readFileSync(
+      new URL("../src/imports.ts", import.meta.url),
+      "utf8",
+    );
+    expect(moduleSource).toContain('from "../../domain/src/browser-import"');
+    expect(moduleSource).not.toMatch(
+      /export type BrowserImport(?:Source|RowReasonCode|Report)\s*=/,
+    );
+  });
+
   it("posts a sanitized browser import report with bearer auth", async () => {
+    const jobId = "123e4567-e89b-42d3-a456-426614174000";
     const fetcher = vi.fn().mockResolvedValue({
       ok: true,
       status: 201,
-      json: async () => ({ job_id: "job-1", status: "recorded" }),
+      json: async () => ({ job_id: jobId, status: "recorded" }),
     });
     const request = {
       source: "chrome" as const,
@@ -97,7 +123,7 @@ describe("browser import report client", () => {
       request,
     );
 
-    expect(response).toEqual({ job_id: "job-1", status: "recorded" });
+    expect(response).toEqual({ job_id: jobId, status: "recorded" });
     expectTypeOf(response).toEqualTypeOf<{
       job_id: string;
       status: "recorded";
@@ -113,6 +139,78 @@ describe("browser import report client", () => {
   });
 
   it.each([
+    {
+      name: "an extra key",
+      ok: true,
+      payload: {
+        job_id: "123e4567-e89b-42d3-a456-426614174000",
+        status: "recorded",
+        internal: "receipt-secret-canary",
+      },
+    },
+    {
+      name: "the wrong status",
+      ok: true,
+      payload: {
+        job_id: "123e4567-e89b-42d3-a456-426614174000",
+        status: "completed",
+      },
+    },
+    {
+      name: "a non-UUID job id",
+      ok: true,
+      payload: { job_id: "job-1", status: "recorded" },
+    },
+    {
+      name: "an uppercase UUID",
+      ok: true,
+      payload: {
+        job_id: "123E4567-E89B-42D3-A456-426614174000",
+        status: "recorded",
+      },
+    },
+    {
+      name: "a non-v4 UUID",
+      ok: true,
+      payload: {
+        job_id: "123e4567-e89b-12d3-a456-426614174000",
+        status: "recorded",
+      },
+    },
+    { name: "null", ok: true, payload: null },
+    { name: "an array", ok: true, payload: [] },
+    {
+      name: "an absent ok flag",
+      ok: undefined,
+      payload: {
+        job_id: "123e4567-e89b-42d3-a456-426614174000",
+        status: "recorded",
+      },
+    },
+  ])("rejects a 2xx receipt with $name", async ({ ok, payload }) => {
+    const fetcher = vi.fn().mockResolvedValue({
+      ok,
+      status: 201,
+      json: async () => payload,
+    });
+
+    await expect(
+      recordBrowserImportReport(fetcher, "jwt-token", {
+        source: "chrome",
+        report: {
+          counts: {
+            total_rows: 0,
+            accepted_rows: 0,
+            malformed_rows: 0,
+            duplicate_rows: 0,
+          },
+          issues: [],
+        },
+      }),
+    ).rejects.toThrow("import_report_record_failed:201");
+  });
+
+  it.each([
     "invalid_import_report",
     "missing_bearer_token",
     "invalid_token",
@@ -124,7 +222,7 @@ describe("browser import report client", () => {
     const fetcher = vi.fn().mockResolvedValue({
       ok: false,
       status: 400,
-      json: async () => ({ error }),
+      json: async () => ({ ok: false, error }),
     });
 
     await expect(
@@ -141,6 +239,55 @@ describe("browser import report client", () => {
         },
       }),
     ).rejects.toThrow(error);
+  });
+
+  it.each([
+    {
+      name: "a missing ok field",
+      payload: { error: "invalid_token" },
+    },
+    {
+      name: "ok true",
+      payload: { ok: true, error: "invalid_token" },
+    },
+    {
+      name: "an extra key",
+      payload: {
+        ok: false,
+        error: "invalid_token",
+        internal: "error-secret-canary",
+      },
+    },
+    { name: "null", payload: null },
+    { name: "an array", payload: ["invalid_token"] },
+    {
+      name: "a non-plain object",
+      payload: Object.assign(Object.create({ inherited: true }), {
+        ok: false,
+        error: "invalid_token",
+      }),
+    },
+  ])("does not surface an allowlisted code from $name", async ({ payload }) => {
+    const fetcher = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      json: async () => payload,
+    });
+
+    await expect(
+      recordBrowserImportReport(fetcher, "jwt-token", {
+        source: "edge",
+        report: {
+          counts: {
+            total_rows: 0,
+            accepted_rows: 0,
+            malformed_rows: 0,
+            duplicate_rows: 0,
+          },
+          issues: [],
+        },
+      }),
+    ).rejects.toThrow("import_report_record_failed:401");
   });
 
   it.each([
@@ -208,5 +355,30 @@ describe("browser import report client", () => {
         },
       }),
     ).rejects.toThrow("import_report_record_failed:502");
+  });
+
+  it("does not surface a 2xx JSON parsing error", async () => {
+    const fetcher = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 201,
+      json: async () => {
+        throw new Error("success-parser-secret-canary");
+      },
+    });
+
+    await expect(
+      recordBrowserImportReport(fetcher, "jwt-token", {
+        source: "edge",
+        report: {
+          counts: {
+            total_rows: 0,
+            accepted_rows: 0,
+            malformed_rows: 0,
+            duplicate_rows: 0,
+          },
+          issues: [],
+        },
+      }),
+    ).rejects.toThrow("import_report_record_failed:201");
   });
 });
