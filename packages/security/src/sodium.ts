@@ -1,4 +1,10 @@
 import sodiumModule from "libsodium-wrappers-sumo";
+import {
+  ARGON2ID_V3_POLICY,
+  isSupportedArgon2idVerifier,
+  isSupportedPasswordDerivedCiphertext,
+  runtimeMatchesArgon2Policy,
+} from "./argon2-policy";
 
 const sodium = sodiumModule as typeof import("libsodium-wrappers-sumo");
 
@@ -6,7 +12,7 @@ const PWHASH_ALGORITHM = "argon2id13" as const;
 const AEAD_CIPHER = "xchacha20poly1305-ietf" as const;
 const BASE64_VARIANT = sodium.base64_variants.URLSAFE_NO_PADDING;
 
-type ReadySodium = typeof sodium;
+export type ReadySodium = typeof sodium;
 
 export type PasswordDerivedCiphertext = {
   cipher: typeof AEAD_CIPHER;
@@ -28,6 +34,9 @@ export async function getSodium(): Promise<ReadySodium> {
 
 export async function createPasswordHash(password: string): Promise<string> {
   const ready = await getSodium();
+  if (!runtimeMatchesArgon2Policy(ready)) {
+    throw new Error("Unsupported Argon2 runtime policy.");
+  }
   return ready.crypto_pwhash_str(
     password,
     ready.crypto_pwhash_OPSLIMIT_INTERACTIVE,
@@ -44,6 +53,7 @@ export async function verifyPasswordHash(
   }
 
   const ready = await getSodium();
+  if (!isSupportedArgon2idVerifier(passwordHash, ready)) return false;
 
   try {
     return ready.crypto_pwhash_str_verify(passwordHash, password);
@@ -65,7 +75,20 @@ export async function sealWithPassword(
     throw new Error("sealWithPassword requires a non-empty purpose tag.");
   }
 
+  const textEncoder = new TextEncoder();
+
+  if (textEncoder.encode(purpose).byteLength > 128) {
+    throw new Error("sealWithPassword purpose tag exceeds the supported policy.");
+  }
+
+  if (textEncoder.encode(plaintext).byteLength > ARGON2ID_V3_POLICY.maxPlaintextBytes) {
+    throw new Error("sealWithPassword plaintext exceeds the supported policy.");
+  }
+
   const ready = await getSodium();
+  if (!runtimeMatchesArgon2Policy(ready)) {
+    throw new Error("Unsupported Argon2 runtime policy.");
+  }
   const salt = ready.randombytes_buf(ready.crypto_pwhash_SALTBYTES, "uint8array");
   const nonce = ready.randombytes_buf(
     ready.crypto_aead_xchacha20poly1305_ietf_NPUBBYTES,
@@ -116,8 +139,6 @@ export async function openWithPassword(
     return "";
   }
 
-  const ready = await getSodium();
-
   if (
     ciphertext.cipher !== AEAD_CIPHER ||
     ciphertext.keyDerivation !== PWHASH_ALGORITHM ||
@@ -128,6 +149,9 @@ export async function openWithPassword(
   ) {
     return "";
   }
+
+  const ready = await getSodium();
+  if (!isSupportedPasswordDerivedCiphertext(ciphertext, ready)) return "";
 
   let key: Uint8Array | null = null;
 

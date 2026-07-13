@@ -9,6 +9,10 @@ import {
   sealWithPassword,
   type PasswordDerivedCiphertext,
 } from "./sodium";
+import {
+  isSupportedLegacyXorEnvelope,
+  MAX_PASSWORD_ENVELOPE_JSON_CHARACTERS,
+} from "./argon2-policy";
 
 /**
  * @deprecated Version 1 stores the password as plaintext and only exists for explicit
@@ -113,7 +117,12 @@ function isPassphraseEnvelope(
     value.keyDerivation === "unlock-passphrase-v1" &&
     typeof value.encryptedPayload === "string" &&
     typeof value.unlockSalt === "string" &&
-    typeof value.unlockTag === "string"
+    typeof value.unlockTag === "string" &&
+    isSupportedLegacyXorEnvelope(
+      value.encryptedPayload,
+      value.unlockSalt,
+      value.unlockTag,
+    )
   );
 }
 
@@ -134,6 +143,8 @@ function isSecureEnvelope(
 }
 
 function parseVaultEnvelope(ciphertext: string): Partial<VaultEnvelope> | null {
+  if (ciphertext.length > MAX_PASSWORD_ENVELOPE_JSON_CHARACTERS) return null;
+
   try {
     return JSON.parse(ciphertext) as Partial<VaultEnvelope>;
   } catch {
@@ -211,6 +222,10 @@ export async function openStoredVaultPassword(
   passphrase?: string,
 ): Promise<string> {
   if (!ciphertext) {
+    return "";
+  }
+
+  if (ciphertext.length > MAX_PASSWORD_ENVELOPE_JSON_CHARACTERS) {
     return "";
   }
 

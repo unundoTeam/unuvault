@@ -31,6 +31,28 @@ unuvault uses Supabase for authentication and managed Postgres in phase 1, while
 - Browser extension, web, and iPhone surfaces should speak to product APIs or
   typed clients rather than encoding database assumptions.
 
+## Browser Import Report Receipt
+
+`POST /imports/browser` is an implemented authenticated recorded report receipt.
+It derives tenant scope server-side through
+token -> `account_id` -> `users_profile.account_id` -> `profile.id` ->
+`import_jobs.user_profile_id`.
+The request body cannot choose or override any account or profile identifier.
+
+The endpoint persists only rebuilt sanitized source, counts, and row-level
+reason codes. It does not accept raw CSV, raw credential fields, encrypted vault
+items, or credential references. `status: "recorded"` means only that one report
+receipt was inserted; it does not prove vault item persistence, `/vault/sync`
+acceptance, or linkage to encrypted items.
+
+The receipt has at-least-once semantics and no idempotency guarantee, so a retry
+after an uncertain response can insert another row. Current scope isolation and
+report-shape validation are application-layer service-role guarantees. Database
+`CHECK` constraints for source/status/JSON shape, `import_jobs` RLS, an
+idempotency key plus uniqueness rule, production telemetry/on-call ownership,
+and external security review remain open. An actual browser UI call site and
+`/vault/sync` linkage also remain outside this receipt.
+
 ## Auth Boundary Layers
 
 `unuvault` uses three auth-adjacent layers that must stay distinct:

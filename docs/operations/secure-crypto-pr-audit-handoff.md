@@ -1,5 +1,44 @@
 # Secure Crypto PR And Audit Handoff
 
+## Bounded Argon2 Policy Checkpoint (2026-07-10)
+
+This independently reviewable checkpoint addresses only the hostile Argon2
+parameter-limit gap. It does not remediate or clear Pairing V2, local bridge
+authorization, owner-approval, or restart-persistent replay concerns.
+
+- Implemented envelope tuple: Argon2id13 `opsLimit = 2`,
+  `memLimit = 67_108_864` bytes, with a canonical `16`-byte salt and `24`-byte
+  XChaCha20 nonce.
+- Implemented PHC tuple: `$argon2id$v=19$m=65536,t=2,p=1`, with a canonical
+  unpadded Base64 `16`-byte salt and `32`-byte hash, printable ASCII only, and a
+  `127`-character maximum.
+- Implemented payload bounds: `1_048_576` plaintext bytes,
+  `1_048_592` authenticated-ciphertext bytes including the `16`-byte AEAD tag,
+  `128` UTF-8 bytes for accepted purpose tags, and `1_400_171` characters for
+  serialized vault or developer-secret envelopes. Web and extension serialized
+  verifier storage is bounded to `512` characters.
+- Rejection occurs before `crypto_pwhash` or
+  `crypto_pwhash_str_verify`; non-canonical encodings, runtime-policy drift,
+  non-finite or non-integer numeric metadata, different tuples, and over-limit
+  inputs fail closed.
+- Legacy readers remain explicit for vault `v1`/`v2`, developer-secret `v1`,
+  and master-password verifier `v1`. The serialized envelope bound applies to
+  legacy input too; over-limit recovery requires the preceding trusted release
+  in an offline environment followed by resealing, not an unbounded fallback.
+- Source implementation commits map into this clean extraction as
+  `bfdc8b2` -> `c775c25`, `8cbfa25` -> `5c769b8`, `354380b` -> `6b10af4`,
+  `8952a82` -> `b54a083`, `3da2361` -> `9b78f24`, `107a2ef` -> `6db3a42`, and
+  `22bf481` -> `b8a6e91`. The complete clean-extraction range is
+  `c775c25^..b8a6e91`; its later checkpoints are `9b78f24` (Web verifier test
+  fixture alignment), `6db3a42` (bounded-policy documentation), and `b8a6e91`
+  (legacy Argon2 input-bound closure).
+- Repo gate for this docs checkpoint: `git diff --check`, `pnpm lint`, and
+  `pnpm test`.
+
+Review status remains open: this checkpoint has not produced an independent
+third-party verdict and must not be used to describe Pairing V2 or the whole
+crypto boundary as complete or approved.
+
 ## Scope of Change
 
 - Replace the weak shared crypto helpers in `packages/security` with one async sodium-backed core

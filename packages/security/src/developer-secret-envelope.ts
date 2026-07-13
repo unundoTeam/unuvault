@@ -3,6 +3,10 @@ import {
   sealWithPassword,
   type PasswordDerivedCiphertext,
 } from "./sodium";
+import {
+  isSupportedLegacyXorEnvelope,
+  MAX_PASSWORD_ENVELOPE_JSON_CHARACTERS,
+} from "./argon2-policy";
 
 type LegacyDeveloperSecretEnvelope = {
   version: 1;
@@ -85,7 +89,12 @@ function isLegacyDeveloperSecretEnvelope(
       "master-password-v1" &&
     typeof (value as Partial<LegacyDeveloperSecretEnvelope>).encryptedPayload === "string" &&
     typeof (value as Partial<LegacyDeveloperSecretEnvelope>).salt === "string" &&
-    typeof (value as Partial<LegacyDeveloperSecretEnvelope>).tag === "string"
+    typeof (value as Partial<LegacyDeveloperSecretEnvelope>).tag === "string" &&
+    isSupportedLegacyXorEnvelope(
+      (value as LegacyDeveloperSecretEnvelope).encryptedPayload,
+      (value as LegacyDeveloperSecretEnvelope).salt,
+      (value as LegacyDeveloperSecretEnvelope).tag,
+    )
   );
 }
 
@@ -107,6 +116,16 @@ function isSecureDeveloperSecretEnvelope(
     typeof (value as Partial<SecureDeveloperSecretEnvelope>).opsLimit === "number" &&
     typeof (value as Partial<SecureDeveloperSecretEnvelope>).memLimit === "number"
   );
+}
+
+function parseDeveloperSecretEnvelope(ciphertext: string): unknown | null {
+  if (ciphertext.length > MAX_PASSWORD_ENVELOPE_JSON_CHARACTERS) return null;
+
+  try {
+    return JSON.parse(ciphertext) as unknown;
+  } catch {
+    return null;
+  }
 }
 
 export async function sealDeveloperSecretBlob(
@@ -133,13 +152,9 @@ export async function openDeveloperSecretBlob(
     return "";
   }
 
-  let parsed: unknown;
+  const parsed = parseDeveloperSecretEnvelope(ciphertext);
 
-  try {
-    parsed = JSON.parse(ciphertext) as unknown;
-  } catch {
-    return "";
-  }
+  if (!parsed) return "";
 
   if (isSecureDeveloperSecretEnvelope(parsed)) {
     return openWithPassword(parsed, masterPassword);

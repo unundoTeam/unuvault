@@ -2,7 +2,10 @@
 
 ## Purpose
 
-This document resolves overlap between the phase-1 design spec and the two execution plans created on March 14, 2026. It defines the single source of truth to use when product, architecture, or sequencing questions come up during implementation.
+This document resolves overlap between the phase-1 design spec and the two
+execution plans created on March 14, 2026. It also records which parts of that
+planned baseline remain current after implementation moved to a personal,
+local-first, Mac-first posture.
 
 ## Product Name
 
@@ -11,9 +14,17 @@ This document resolves overlap between the phase-1 design spec and the two execu
 
 ## Source-of-Truth Order
 
-1. Product scope, target user, goals, non-goals, and trust posture come from `docs/superpowers/specs/2026-03-14-chinese-password-manager-phase1-design.md`.
-2. Engineering stack, file layout, milestone order, and execution sequence come from `docs/superpowers/plans/2026-03-14-chinese-password-manager-phase1-roadmap.md`.
-3. `docs/superpowers/plans/2026-03-14-chinese-password-manager-phase1.md` remains a reference draft only. It can be mined for copy or test ideas, but it should not override the roadmap.
+1. Current product ownership, contributor entrypoints, verification, and
+   contract posture come from the root `README.md`.
+2. Current local-first product layering comes from
+   `docs/architecture/0008-personal-local-first-product-split.md`.
+3. Current workspace manifests, `pnpm-lock.yaml`, and checked-in runtime source
+   define the implemented stack.
+4. `docs/superpowers/specs/2026-03-14-chinese-password-manager-phase1-design.md`
+   and `docs/superpowers/plans/2026-03-14-chinese-password-manager-phase1-roadmap.md`
+   remain historical scope and sequencing context.
+5. `docs/superpowers/plans/2026-03-14-chinese-password-manager-phase1.md`
+   remains a reference draft only.
 
 ## Why This Is The Baseline
 
@@ -26,21 +37,36 @@ This document resolves overlap between the phase-1 design spec and the two execu
 ### Product Baseline
 
 - Use Bitwarden as the functional baseline and reference architecture for vault behavior, crypto expectations, and password-manager UX patterns.
-- Keep the approved phase-1 surface area from the design spec: public cloud, personal users, Chinese-first, browser extension + web vault + iPhone, passwords only.
+- Keep the phase-1 password-only and personal-user boundary, but apply the
+  current local-first split: Mac local vault, browser fill, Web management, and
+  iPhone receive/view come before optional Cloud and Sync expansion.
 
-### Infrastructure Baseline
+### Optional Cloud and Sync Infrastructure Baseline
 
-- Use Supabase for Auth and Postgres as the initial managed backend foundation.
-- Keep core vault business logic in the product's TypeScript API layer instead of pushing domain logic into Supabase directly.
+- For the optional Cloud and Sync layer, use Supabase for Auth and Postgres as
+  the initial managed backend foundation. Neither is a dependency of the local
+  Mac vault, browser-fill, or iPhone receive/view core.
+- Keep Cloud and Sync vault business logic in the product's TypeScript API
+  layer instead of pushing domain logic into Supabase directly.
 
-### Canonical Tech Stack
+### Current Implemented Tech Stack
 
 - Workspace: pnpm monorepo
-- Backend: Node.js, TypeScript, Fastify, PostgreSQL, Supabase, Drizzle
-- Web: Next.js, React, Tailwind CSS
-- Browser extension: WXT
+- Optional Cloud and Sync backend: Node.js, TypeScript, Fastify, PostgreSQL,
+  Supabase JavaScript client
+- Web: Next.js, React, repo-local CSS
+- Browser extension: TypeScript, React, esbuild, generated Manifest V3 assets
 - iPhone: SwiftUI
-- Testing: Vitest, Playwright, XCTest
+- Mac companion: SwiftUI and Swift Package Manager
+- Testing: Vitest, XCTest, and repo-owned native/browser smoke harnesses
+
+The March 2026 roadmap named Drizzle, Tailwind CSS, WXT, and Playwright as
+planned framework choices. They are not declared as direct, active dependencies
+in the current workspace manifests and are not requirements for the implemented
+runtime. A lockfile reference that exists only as optional or transitive peer
+metadata is not evidence of active adoption. Future adoption of any of these
+tools requires a deliberate implementation decision; historical plan references
+must not be read as proof that they are part of the current stack.
 
 ### Canonical Workspace Layout
 
@@ -57,25 +83,46 @@ This document resolves overlap between the phase-1 design spec and the two execu
 
 ### Canonical Implementation Conventions
 
-- Prefer the roadmap's concrete framework choices over the earlier generic draft.
+- Prefer current manifests and checked-in runtime source over unimplemented
+  framework choices in historical plans.
 - Web routes should follow the Next.js App Router structure shown in the roadmap, such as `apps/web/src/app/security/page.tsx`, not the earlier generic `src/routes` layout.
 - API route groups should follow the roadmap naming: `/auth`, `/vault`, `/devices`, `/imports`, and `/activity`.
 - Browser import should live under `/imports/browser`.
 - Shared client access for web and extension should live in `packages/api-client`.
 
-### Canonical Delivery Sequence
+### Historical Milestone Sequence
+
+The March 2026 milestone order is retained for traceability only. Current
+delivery order is controlled by
+`docs/architecture/0008-personal-local-first-product-split.md` and the root
+`README.md`; new work must not treat this historical sequence as canonical.
 
 1. Milestone M1: workspace, schema boundary, and client-side security model
 2. Milestone M2: API skeleton and web trust shell
 3. Milestone M3: browser daily-use loop and shared sync contract
 4. Milestone M4: migration flow, iPhone credibility, and launch trust loop
 
-## Immediate Next Step
+## Current Implementation Status
 
-Start with roadmap Milestone M1 Task 1:
+- The M1 workspace, schema, and shared security skeleton exists.
+- Web vault management, the browser-extension fill path, and the Mac local
+  vault have active implementations and repo-owned tests.
+- Repo-level iOS code and XCTest prove pairing can locally open and persist a
+  claimant-key-bound handoff, while its read-only list model can project
+  metadata from the encrypted received-vault store. Physical-device execution
+  of those paths is not proved, and the default app-start loader remains
+  unimplemented.
+- Browser import now has an implemented non-UI client core,
+  camelCase-to-wire mapper, API/client primitive, and authenticated recorded
+  report receipt. That receipt accepts only a sanitized report and does not
+  prove encrypted item persistence or a complete import workflow.
+- Browser import still needs an actual browser UI call site,
+  worker/progress/cancellation and representative Argon2 evidence,
+  `/vault/sync` linkage, database `CHECK` constraints/RLS, idempotency,
+  telemetry/on-call ownership, and external security review.
+- Devices and recent activity still contain scaffold-level surfaces and require
+  dedicated product slices before they are described as complete workflows.
 
-- create the root workspace manifests
-- create the `apps/`, `packages/`, and `infra/` skeleton
-- record the workspace layout in `docs/architecture/0001-workspace-layout.md`
-
-No implementation work should treat the earlier draft plan as canonical unless this baseline document is updated explicitly.
+New work should start from the root README, the current architecture decisions,
+and a current dated implementation plan rather than replaying the original M1
+bootstrap steps.

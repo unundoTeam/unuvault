@@ -67,45 +67,60 @@ const mocks = {
   syncVault,
 };
 
-vi.mock("../../../packages/security/src/sodium", () => ({
-  createPasswordHash: async (password: string) => `test-password-hash:${password}`,
-  verifyPasswordHash: async (passwordHash: string, password: string) =>
-    passwordHash === `test-password-hash:${password}`,
-  sealWithPassword: async (plaintext: string, password: string, purpose: string) => {
-    if (!password) {
-      throw new Error("sealWithPassword requires a non-empty password.");
-    }
+vi.mock("../../../packages/security/src/sodium", () => {
+  const passwordsByHash = new Map<string, string>();
+  let nextHashId = 1;
 
-    if (!purpose) {
-      throw new Error("sealWithPassword requires a non-empty purpose tag.");
-    }
+  return {
+    createPasswordHash: async (password: string) => {
+      const hashBytes = Buffer.alloc(32);
+      hashBytes.writeUInt32BE(nextHashId++, 28);
+      const passwordHash = [
+        "$argon2id$v=19$m=65536,t=2,p=1",
+        Buffer.alloc(16, 1).toString("base64").replace(/=+$/u, ""),
+        hashBytes.toString("base64").replace(/=+$/u, ""),
+      ].join("$");
+      passwordsByHash.set(passwordHash, password);
+      return passwordHash;
+    },
+    verifyPasswordHash: async (passwordHash: string, password: string) =>
+      passwordsByHash.get(passwordHash) === password,
+    sealWithPassword: async (plaintext: string, password: string, purpose: string) => {
+      if (!password) {
+        throw new Error("sealWithPassword requires a non-empty password.");
+      }
 
-    return {
-      cipher: "xchacha20poly1305-ietf",
-      purpose,
-      encryptedPayload: `${Buffer.from(password).toString("base64url")}.${Buffer.from(
-        plaintext,
-      ).toString("base64url")}`,
-      nonce: "test-nonce",
-      salt: "test-salt",
-      opsLimit: 1,
-      memLimit: 1,
-      keyDerivation: "argon2id13",
-    };
-  },
-  openWithPassword: async (
-    ciphertext: { encryptedPayload: string },
-    password: string,
-  ) => {
-    const [passwordTag, plaintext] = ciphertext.encryptedPayload.split(".");
+      if (!purpose) {
+        throw new Error("sealWithPassword requires a non-empty purpose tag.");
+      }
 
-    if (passwordTag !== Buffer.from(password).toString("base64url") || !plaintext) {
-      return "";
-    }
+      return {
+        cipher: "xchacha20poly1305-ietf",
+        purpose,
+        encryptedPayload: `${Buffer.from(password).toString("base64url")}.${Buffer.from(
+          plaintext,
+        ).toString("base64url")}`,
+        nonce: "test-nonce",
+        salt: "test-salt",
+        opsLimit: 1,
+        memLimit: 1,
+        keyDerivation: "argon2id13",
+      };
+    },
+    openWithPassword: async (
+      ciphertext: { encryptedPayload: string },
+      password: string,
+    ) => {
+      const [passwordTag, plaintext] = ciphertext.encryptedPayload.split(".");
 
-    return Buffer.from(plaintext, "base64url").toString("utf8");
-  },
-}));
+      if (passwordTag !== Buffer.from(password).toString("base64url") || !plaintext) {
+        return "";
+      }
+
+      return Buffer.from(plaintext, "base64url").toString("utf8");
+    },
+  };
+});
 
 beforeEach(() => {
   mocks.clearLocalCredentialBridgeSession.mockResolvedValue({ ok: true });
