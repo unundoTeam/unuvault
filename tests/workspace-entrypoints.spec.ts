@@ -126,6 +126,36 @@ describe("workspace entrypoints", () => {
     expect(testRunner).toContain("--exclude='.worktrees/**'");
   });
 
+  it("serializes root, native, and UI test entrypoints through the shared lock", () => {
+    const sharedLockRunnerPath =
+      "scripts/testing/run-with-shared-test-lock.sh";
+    const entrypoints = [
+      "scripts/testing/run-ios-ui-host.sh",
+      "scripts/testing/run-ios.sh",
+      "scripts/testing/run-macos.sh",
+      "scripts/testing/run-pairing-boundary.sh",
+      "scripts/testing/run-pairing-lan-smoke.sh",
+      "scripts/testing/run-pairing-physical-receipt.sh",
+    ];
+
+    expect(existsSync(resolve(repoRoot, sharedLockRunnerPath))).toBe(true);
+    expect(readText("scripts/testing/test-runner.sh")).toContain(
+      "run-with-shared-test-lock.sh",
+    );
+    expect(readText(sharedLockRunnerPath)).toContain(
+      "git -C \"$repo_root\" rev-parse --path-format=absolute --git-common-dir",
+    );
+    expect(readText(sharedLockRunnerPath)).toContain(
+      'test_lock_path="$git_common_dir/.unuvault-test-runner.lock"',
+    );
+
+    for (const entrypoint of entrypoints) {
+      expect(readText(entrypoint), entrypoint).toContain(
+        'exec "$repo_root/scripts/testing/run-with-shared-test-lock.sh" "$0" "$@"',
+      );
+    }
+  });
+
   it("adds a stable local dev-secrets provider wrapper", () => {
     const rootPackage = readJson<PackageManifest>("package.json");
     const providerWrapper = readText("scripts/secrets/provider.sh");
