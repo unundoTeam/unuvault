@@ -2,6 +2,10 @@ import { createDevSecretSessionStore } from "./dev-secret-session-store";
 import { createAuthBootstrapService } from "../services/auth-bootstrap-service";
 import { createDevSecretsService } from "../services/dev-secrets-service";
 import {
+  createImportReportService,
+  type BrowserImportReportInsertRow,
+} from "../services/import-service";
+import {
   createInMemoryLocalCredentialBridgeCredentialStore,
   createLocalCredentialBridgeService,
 } from "../services/local-credential-bridge-service";
@@ -72,6 +76,11 @@ type DeveloperSecretRecordRow = {
   ciphertext: string;
 };
 
+type BrowserImportReportReceiptRow = {
+  id: string;
+  status: string;
+};
+
 type SupabaseResult<T> = PromiseLike<{
   data: T | null;
   error: unknown | null;
@@ -104,6 +113,11 @@ type ProductDataSupabaseClientLike = {
     select(columns: string): {
       eq(column: string, value: string): unknown;
       in(column: string, values: string[]): unknown;
+    };
+    insert(values: unknown): {
+      select(columns: string): {
+        single(): SupabaseResult<BrowserImportReportReceiptRow>;
+      };
     };
     upsert(values: unknown, options: { onConflict: string }): unknown;
     update(values: unknown): {
@@ -252,6 +266,35 @@ export function createSupabaseAuthBootstrapDependencies(
 
       if (result.error) {
         return null;
+      }
+
+      return result.data;
+    },
+
+    async insertBrowserImportReport(
+      profileId: string,
+      row: BrowserImportReportInsertRow,
+    ): Promise<BrowserImportReportReceiptRow> {
+      const result = await clients.dataClient
+        .from("import_jobs")
+        .insert({
+          user_profile_id: profileId,
+          source: row.source,
+          status: "recorded",
+          totals: row.totals,
+          duplicates: row.duplicates,
+          malformed_rows: row.malformed_rows,
+          finished_at: row.finished_at,
+        })
+        .select("id, status")
+        .single();
+
+      if (result.error) {
+        throw result.error;
+      }
+
+      if (!result.data) {
+        throw new Error("failed to insert import_jobs");
       }
 
       return result.data;
@@ -431,6 +474,9 @@ let configuredService:
 let configuredVaultSyncService:
   | ReturnType<typeof createVaultSyncService>
   | undefined;
+let configuredImportReportService:
+  | ReturnType<typeof createImportReportService>
+  | undefined;
 let configuredDevSecretsService:
   | ReturnType<typeof createDevSecretsService>
   | undefined;
@@ -544,6 +590,30 @@ export function createConfiguredAuthBootstrapService() {
       }
 
       return configuredService.bootstrapProfileFromToken(token);
+    },
+  };
+}
+
+export function createConfiguredImportReportService() {
+  return {
+    async recordBrowserImportReport(token: string, input: unknown) {
+      if (!configuredImportReportService) {
+        const [identityClient, dataClient] = await Promise.all([
+          createIdentitySupabaseClient(),
+          createProductDataSupabaseClient(),
+        ]);
+        configuredImportReportService = createImportReportService(
+          createSupabaseAuthBootstrapDependencies({
+            identityClient,
+            dataClient,
+          }),
+        );
+      }
+
+      return configuredImportReportService.recordBrowserImportReport(
+        token,
+        input,
+      );
     },
   };
 }
