@@ -147,19 +147,52 @@ export function toBrowserImportReportRequest(
   };
 }
 
+function rebuildBrowserImportReportRequest(
+  request: BrowserImportReportRequest,
+): BrowserImportReportRequest {
+  return {
+    source: request.source,
+    report: {
+      counts: {
+        total_rows: request.report.counts.total_rows,
+        accepted_rows: request.report.counts.accepted_rows,
+        malformed_rows: request.report.counts.malformed_rows,
+        duplicate_rows: request.report.counts.duplicate_rows,
+      },
+      issues: request.report.issues.map((issue) =>
+        issue.reason_code === "duplicate"
+          ? {
+              row_index: issue.row_index,
+              reason_code: issue.reason_code,
+              duplicate_of_row_index: issue.duplicate_of_row_index,
+            }
+          : {
+              row_index: issue.row_index,
+              reason_code: issue.reason_code,
+            },
+      ),
+    },
+  };
+}
+
 export async function recordBrowserImportReport(
   fetcher: Fetcher,
   token: string,
   request: BrowserImportReportRequest,
 ): Promise<BrowserImportReportReceiptResponse> {
-  const response = await fetcher("/imports/browser", {
-    method: "POST",
-    headers: {
-      authorization: `Bearer ${token}`,
-      "content-type": "application/json",
-    },
-    body: JSON.stringify(request),
-  });
+  let response: Awaited<ReturnType<Fetcher>>;
+  try {
+    response = await fetcher("/imports/browser", {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(rebuildBrowserImportReportRequest(request)),
+    });
+  } catch {
+    throw new Error("import_report_record_failed:unknown");
+  }
 
   let payload: unknown;
   try {

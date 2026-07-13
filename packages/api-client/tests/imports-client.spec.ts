@@ -138,6 +138,94 @@ describe("browser import report client", () => {
     });
   });
 
+  it("does not surface a fetcher rejection", async () => {
+    const fetcher = vi
+      .fn()
+      .mockRejectedValue(new Error("provider-secret-canary"));
+
+    let failure: unknown;
+    try {
+      await recordBrowserImportReport(fetcher, "jwt-token", {
+        source: "chrome",
+        report: {
+          counts: {
+            total_rows: 0,
+            accepted_rows: 0,
+            malformed_rows: 0,
+            duplicate_rows: 0,
+          },
+          issues: [],
+        },
+      });
+    } catch (error) {
+      failure = error;
+    }
+
+    expect(failure).toEqual(
+      new Error("import_report_record_failed:unknown"),
+    );
+    expect(String(failure)).not.toContain("provider-secret-canary");
+  });
+
+  it("rebuilds the exact wire DTO before sending a structurally compatible request", async () => {
+    const jobId = "123e4567-e89b-42d3-a456-426614174000";
+    const fetcher = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 201,
+      json: async () => ({ job_id: jobId, status: "recorded" }),
+    });
+    const request = {
+      source: "edge" as const,
+      report: {
+        counts: {
+          total_rows: 2,
+          accepted_rows: 1,
+          malformed_rows: 0,
+          duplicate_rows: 1,
+          internal_count: "count-secret-canary",
+        },
+        issues: [
+          {
+            row_index: 2,
+            reason_code: "duplicate" as const,
+            duplicate_of_row_index: 1,
+            password: "issue-password-secret-canary",
+          },
+        ],
+        acceptedEntries: [
+          {
+            username: "accepted-username-secret-canary",
+            password: "accepted-password-secret-canary",
+          },
+        ],
+      },
+      internal: "request-secret-canary",
+    };
+
+    await recordBrowserImportReport(fetcher, "jwt-token", request);
+
+    const body = fetcher.mock.calls[0]?.[1]?.body;
+    expect(JSON.parse(body ?? "null")).toEqual({
+      source: "edge",
+      report: {
+        counts: {
+          total_rows: 2,
+          accepted_rows: 1,
+          malformed_rows: 0,
+          duplicate_rows: 1,
+        },
+        issues: [
+          {
+            row_index: 2,
+            reason_code: "duplicate",
+            duplicate_of_row_index: 1,
+          },
+        ],
+      },
+    });
+    expect(body).not.toContain("canary");
+  });
+
   it.each([
     {
       name: "an extra key",
