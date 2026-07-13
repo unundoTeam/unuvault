@@ -299,35 +299,67 @@ describe("browser import report client", () => {
   });
 
   it.each([
-    "invalid_import_report",
-    "missing_bearer_token",
-    "invalid_token",
-    "profile_not_found",
-    "import_report_too_large",
-    "unsupported_media_type",
-    "import_report_create_failed",
-  ] as const)("surfaces the allowlisted contract error %s", async (error) => {
-    const fetcher = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 400,
-      json: async () => ({ ok: false, error }),
-    });
+    [400, "invalid_import_report"],
+    [401, "missing_bearer_token"],
+    [401, "invalid_token"],
+    [404, "profile_not_found"],
+    [413, "import_report_too_large"],
+    [415, "unsupported_media_type"],
+    [500, "import_report_create_failed"],
+  ] as const)(
+    "surfaces HTTP %s allowlisted contract error %s",
+    async (status, error) => {
+      const fetcher = vi.fn().mockResolvedValue({
+        ok: false,
+        status,
+        json: async () => ({ ok: false, error }),
+      });
 
-    await expect(
-      recordBrowserImportReport(fetcher, "jwt-token", {
-        source: "edge",
-        report: {
-          counts: {
-            total_rows: 0,
-            accepted_rows: 0,
-            malformed_rows: 0,
-            duplicate_rows: 0,
+      await expect(
+        recordBrowserImportReport(fetcher, "jwt-token", {
+          source: "edge",
+          report: {
+            counts: {
+              total_rows: 0,
+              accepted_rows: 0,
+              malformed_rows: 0,
+              duplicate_rows: 0,
+            },
+            issues: [],
           },
-          issues: [],
-        },
-      }),
-    ).rejects.toThrow(error);
-  });
+        }),
+      ).rejects.toEqual(new Error(error));
+    },
+  );
+
+  it.each([
+    [500, "invalid_token"],
+    [401, "import_report_create_failed"],
+  ] as const)(
+    "does not surface mismatched HTTP %s allowlisted error %s",
+    async (status, error) => {
+      const fetcher = vi.fn().mockResolvedValue({
+        ok: false,
+        status,
+        json: async () => ({ ok: false, error }),
+      });
+
+      await expect(
+        recordBrowserImportReport(fetcher, "jwt-token", {
+          source: "edge",
+          report: {
+            counts: {
+              total_rows: 0,
+              accepted_rows: 0,
+              malformed_rows: 0,
+              duplicate_rows: 0,
+            },
+            issues: [],
+          },
+        }),
+      ).rejects.toEqual(new Error(`import_report_record_failed:${status}`));
+    },
+  );
 
   it.each([
     {
@@ -468,5 +500,172 @@ describe("browser import report client", () => {
         },
       }),
     ).rejects.toThrow("import_report_record_failed:201");
+  });
+
+  it.each([200, 202])(
+    "rejects an otherwise valid receipt at HTTP %s",
+    async (status) => {
+      const fetcher = vi.fn().mockResolvedValue({
+        ok: true,
+        status,
+        json: async () => ({
+          job_id: "123e4567-e89b-42d3-a456-426614174000",
+          status: "recorded",
+        }),
+      });
+
+      await expect(
+        recordBrowserImportReport(fetcher, "jwt-token", {
+          source: "chrome",
+          report: {
+            counts: {
+              total_rows: 0,
+              accepted_rows: 0,
+              malformed_rows: 0,
+              duplicate_rows: 0,
+            },
+            issues: [],
+          },
+        }),
+      ).rejects.toEqual(new Error(`import_report_record_failed:${status}`));
+    },
+  );
+
+  it.each([
+    {
+      name: "a poisoned ok getter",
+      response: Object.defineProperty(
+        {
+          status: 201,
+          json: async () => ({
+            job_id: "123e4567-e89b-42d3-a456-426614174000",
+            status: "recorded",
+          }),
+        },
+        "ok",
+        {
+          get() {
+            throw new Error("ok-getter-canary");
+          },
+        },
+      ),
+      expected: "import_report_record_failed:201",
+    },
+    {
+      name: "a poisoned status getter",
+      response: Object.defineProperty(
+        {
+          ok: true,
+          json: async () => ({
+            job_id: "123e4567-e89b-42d3-a456-426614174000",
+            status: "recorded",
+          }),
+        },
+        "status",
+        {
+          get() {
+            throw new Error("status-getter-canary");
+          },
+        },
+      ),
+      expected: "import_report_record_failed:unknown",
+    },
+    {
+      name: "a poisoned json getter",
+      response: Object.defineProperty(
+        { ok: true, status: 201 },
+        "json",
+        {
+          get() {
+            throw new Error("json-getter-canary");
+          },
+        },
+      ),
+      expected: "import_report_record_failed:201",
+    },
+    {
+      name: "a status coercion canary",
+      response: {
+        ok: false,
+        status: {
+          [Symbol.toPrimitive]() {
+            throw new Error("status-coercion-canary");
+          },
+          toString() {
+            throw new Error("status-to-string-canary");
+          },
+          valueOf() {
+            throw new Error("status-value-of-canary");
+          },
+        },
+        json: async () => ({ ok: false, error: "invalid_token" }),
+      },
+      expected: "import_report_record_failed:unknown",
+    },
+  ])("fails closed for $name", async ({ response, expected }) => {
+    const fetcher = vi.fn().mockResolvedValue(response);
+
+    await expect(
+      recordBrowserImportReport(fetcher, "jwt-token", {
+        source: "chrome",
+        report: {
+          counts: {
+            total_rows: 0,
+            accepted_rows: 0,
+            malformed_rows: 0,
+            duplicate_rows: 0,
+          },
+          issues: [],
+        },
+      }),
+    ).rejects.toEqual(new Error(expected));
+  });
+
+  it.each([
+    {
+      name: "a poisoned receipt getter",
+      ok: true,
+      payload: Object.defineProperty({ status: "recorded" }, "job_id", {
+        enumerable: true,
+        get() {
+          throw new Error("receipt-getter-canary");
+        },
+      }),
+      expected: "import_report_record_failed:201",
+    },
+    {
+      name: "a poisoned error proxy",
+      ok: false,
+      payload: new Proxy(
+        { ok: false, error: "invalid_token" },
+        {
+          getPrototypeOf() {
+            throw new Error("error-proxy-canary");
+          },
+        },
+      ),
+      expected: "import_report_record_failed:401",
+    },
+  ])("does not surface a canary from $name", async ({ ok, payload, expected }) => {
+    const fetcher = vi.fn().mockResolvedValue({
+      ok,
+      status: ok ? 201 : 401,
+      json: async () => payload,
+    });
+
+    await expect(
+      recordBrowserImportReport(fetcher, "jwt-token", {
+        source: "edge",
+        report: {
+          counts: {
+            total_rows: 0,
+            accepted_rows: 0,
+            malformed_rows: 0,
+            duplicate_rows: 0,
+          },
+          issues: [],
+        },
+      }),
+    ).rejects.toEqual(new Error(expected));
   });
 });

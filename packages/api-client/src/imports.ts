@@ -62,6 +62,16 @@ const IMPORT_REPORT_ERROR_CODES = new Set([
   "import_report_create_failed",
 ]);
 
+const IMPORT_REPORT_ERROR_STATUSES = new Map<string, readonly number[]>([
+  ["invalid_import_report", [400]],
+  ["missing_bearer_token", [401]],
+  ["invalid_token", [401]],
+  ["profile_not_found", [404]],
+  ["import_report_too_large", [413]],
+  ["unsupported_media_type", [415]],
+  ["import_report_create_failed", [500]],
+]);
+
 const CANONICAL_LOWERCASE_UUID_V4 =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
@@ -69,53 +79,124 @@ function isPlainObjectWithExactKeys(
   payload: unknown,
   expectedKeys: readonly string[],
 ): payload is Record<string, unknown> {
-  if (typeof payload !== "object" || payload === null) {
+  try {
+    if (typeof payload !== "object" || payload === null) {
+      return false;
+    }
+
+    const prototype = Object.getPrototypeOf(payload);
+    if (prototype !== Object.prototype && prototype !== null) {
+      return false;
+    }
+
+    const keys = Object.keys(payload);
+    return (
+      keys.length === expectedKeys.length &&
+      expectedKeys.every((key) => Object.hasOwn(payload, key))
+    );
+  } catch {
     return false;
   }
-
-  const prototype = Object.getPrototypeOf(payload);
-  if (prototype !== Object.prototype && prototype !== null) {
-    return false;
-  }
-
-  const keys = Object.keys(payload);
-  return (
-    keys.length === expectedKeys.length &&
-    expectedKeys.every((key) => Object.hasOwn(payload, key))
-  );
 }
 
 function readBrowserImportReceipt(
   payload: unknown,
 ): BrowserImportReportReceiptResponse | null {
-  if (!isPlainObjectWithExactKeys(payload, ["job_id", "status"])) {
-    return null;
-  }
-  if (
-    typeof payload.job_id !== "string" ||
-    !CANONICAL_LOWERCASE_UUID_V4.test(payload.job_id) ||
-    payload.status !== "recorded"
-  ) {
-    return null;
-  }
+  try {
+    if (!isPlainObjectWithExactKeys(payload, ["job_id", "status"])) {
+      return null;
+    }
+    if (
+      typeof payload.job_id !== "string" ||
+      !CANONICAL_LOWERCASE_UUID_V4.test(payload.job_id) ||
+      payload.status !== "recorded"
+    ) {
+      return null;
+    }
 
-  return {
-    job_id: payload.job_id,
-    status: "recorded",
-  };
+    return {
+      job_id: payload.job_id,
+      status: "recorded",
+    };
+  } catch {
+    return null;
+  }
 }
 
-function readAllowlistedImportError(payload: unknown): string | null {
-  if (
-    isPlainObjectWithExactKeys(payload, ["ok", "error"]) &&
-    payload.ok === false &&
-    typeof payload.error === "string" &&
-    IMPORT_REPORT_ERROR_CODES.has(payload.error)
-  ) {
+function readAllowlistedImportError(
+  payload: unknown,
+  status: number | null,
+): string | null {
+  try {
+    if (
+      !isPlainObjectWithExactKeys(payload, ["ok", "error"]) ||
+      payload.ok !== false ||
+      typeof payload.error !== "string" ||
+      !IMPORT_REPORT_ERROR_CODES.has(payload.error) ||
+      status === null ||
+      !IMPORT_REPORT_ERROR_STATUSES.get(payload.error)?.includes(status)
+    ) {
+      return null;
+    }
+
     return payload.error;
+  } catch {
+    return null;
+  }
+}
+
+function readSafeHttpStatus(response: unknown): number | null {
+  try {
+    const status = (response as { status?: unknown }).status;
+    return typeof status === "number" &&
+      Number.isSafeInteger(status) &&
+      status >= 100 &&
+      status <= 599
+      ? status
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function readSafeResponseOk(response: unknown): boolean | null {
+  try {
+    const ok = (response as { ok?: unknown }).ok;
+    return typeof ok === "boolean" ? ok : null;
+  } catch {
+    return null;
+  }
+}
+
+function readSafeResponseJson(
+  response: unknown,
+): (() => Promise<unknown>) | null {
+  try {
+    const json = (response as { json?: unknown }).json;
+    return typeof json === "function" ? (json as () => Promise<unknown>) : null;
+  } catch {
+    return null;
+  }
+}
+
+function importReportRecordFailure(status: number | null): Error {
+  return new Error(`import_report_record_failed:${status ?? "unknown"}`);
+}
+
+async function readResponsePayload(
+  response: unknown,
+  status: number | null,
+): Promise<unknown> {
+  const json = readSafeResponseJson(response);
+  if (json === null) {
+    throw importReportRecordFailure(status);
   }
 
-  return null;
+  try {
+    return await Reflect.apply(json, response, []);
+  } catch {
+    throw importReportRecordFailure(status);
+  }
 }
 
 export function toBrowserImportReportRequest(
@@ -194,27 +275,29 @@ export async function recordBrowserImportReport(
     throw new Error("import_report_record_failed:unknown");
   }
 
-  let payload: unknown;
-  try {
-    payload = await response.json();
-  } catch {
-    throw new Error(
-      `import_report_record_failed:${response.status ?? "unknown"}`,
+  const status = readSafeHttpStatus(response);
+  const ok = readSafeResponseOk(response);
+
+  if (ok === true && status === 201) {
+    const receipt = readBrowserImportReceipt(
+      await readResponsePayload(response, status),
     );
-  }
-  if (response.ok === false) {
-    throw new Error(
-      readAllowlistedImportError(payload) ??
-        `import_report_record_failed:${response.status ?? "unknown"}`,
-    );
+    if (receipt !== null) {
+      return receipt;
+    }
+
+    throw importReportRecordFailure(status);
   }
 
-  const receipt = response.ok === true ? readBrowserImportReceipt(payload) : null;
-  if (receipt === null) {
-    throw new Error(
-      `import_report_record_failed:${response.status ?? "unknown"}`,
+  if (ok === false) {
+    const error = readAllowlistedImportError(
+      await readResponsePayload(response, status),
+      status,
     );
+    if (error !== null) {
+      throw new Error(error);
+    }
   }
 
-  return receipt;
+  throw importReportRecordFailure(status);
 }
