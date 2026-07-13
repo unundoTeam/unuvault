@@ -5,6 +5,7 @@ import type {
   FastifyRequest,
 } from "fastify";
 import type { BrowserImportReportReceiptResponse } from "../../../../packages/api-client/src/imports";
+import { readStrictBearerToken } from "../lib/bearer-token";
 import { createConfiguredImportReportService } from "../lib/supabase";
 import {
   ImportReportProfileNotFoundError,
@@ -20,15 +21,6 @@ export type ImportRouteDependencies = {
     input: unknown,
   ): Promise<BrowserImportReportReceiptResponse>;
 };
-
-function readStrictBearerToken(value: unknown): string | null {
-  if (typeof value !== "string") {
-    return null;
-  }
-
-  const match = /^Bearer ([^\s\u0000-\u001f\u007f-\u009f]+)$/u.exec(value);
-  return match?.[0] === value ? (match[1] ?? null) : null;
-}
 
 function hasJsonContentType(request: FastifyRequest): boolean {
   const contentType = request.headers["content-type"];
