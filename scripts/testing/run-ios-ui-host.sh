@@ -2,6 +2,9 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+if [[ "${UNUVAULT_SHARED_TEST_LOCK_HELD:-0}" != "1" ]]; then
+  exec "$repo_root/scripts/testing/run-with-shared-test-lock.sh" "$0" "$@"
+fi
 host_root="$repo_root/apps/ios/HostApp"
 derived_data="$repo_root/.derived-data/ios-ui-host"
 bundle_id="com.unuvault.ioshost"
