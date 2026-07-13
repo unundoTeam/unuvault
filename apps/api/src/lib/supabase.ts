@@ -92,7 +92,6 @@ type IdentityAccountRow = {
 
 type SupabaseLikeError = {
   code?: string;
-  message?: string;
 };
 
 type IdentitySupabaseClientLike = {
@@ -165,10 +164,7 @@ function isMissingRowError(error: unknown): boolean {
 
   const candidate = error as SupabaseLikeError;
 
-  return (
-    candidate.code === "PGRST116" ||
-    candidate.message?.toLowerCase().includes("no rows") === true
-  );
+  return candidate.code === "PGRST116";
 }
 
 async function resolveAccountIdForAuthUser(
@@ -265,7 +261,11 @@ export function createSupabaseAuthBootstrapDependencies(
       ).single();
 
       if (result.error) {
-        return null;
+        if (isMissingRowError(result.error)) {
+          return null;
+        }
+
+        throw result.error;
       }
 
       return result.data;

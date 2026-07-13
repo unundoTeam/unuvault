@@ -62,7 +62,10 @@ describe("createSupabaseAuthBootstrapDependencies", () => {
     });
     const single = vi.fn().mockResolvedValue({
       data: null,
-      error: new Error("no rows"),
+      error: {
+        code: "PGRST116",
+        message: "Cannot coerce the result to a single JSON object",
+      },
     });
     const eq = vi.fn().mockReturnValue({ single });
     const select = vi.fn().mockReturnValue({ eq });
@@ -100,7 +103,10 @@ describe("createSupabaseAuthBootstrapDependencies", () => {
     });
     const single = vi.fn().mockResolvedValue({
       data: null,
-      error: new Error("no rows"),
+      error: {
+        code: "PGRST116",
+        message: "Cannot coerce the result to a single JSON object",
+      },
     });
     const eq = vi.fn().mockReturnValue({ single });
     const select = vi.fn().mockReturnValue({ eq });
@@ -250,6 +256,66 @@ describe("createSupabaseAuthBootstrapDependencies", () => {
       locale: "zh-CN",
     });
   });
+
+  it("returns null only for an exact PGRST116 users_profile lookup result", async () => {
+    const single = vi.fn().mockResolvedValue({
+      data: null,
+      error: {
+        code: "PGRST116",
+        message: "CANARY_PROVIDER_NO_PROFILE",
+      },
+    });
+    const eq = vi.fn().mockReturnValue({ single });
+    const select = vi.fn().mockReturnValue({ eq });
+    const from = vi.fn().mockReturnValue({ select });
+
+    const deps = createSupabaseAuthBootstrapDependencies({
+      identityClient: {
+        auth: { getUser: vi.fn() },
+      },
+      dataClient: {
+        from,
+      },
+    } as never);
+
+    await expect(
+      deps.getUserProfileByAccountId("account-without-profile"),
+    ).resolves.toBeNull();
+  });
+
+  it.each([
+    Object.assign(new Error("CANARY_DATABASE_OFFLINE"), {
+      code: "ECONNRESET",
+    }),
+    {
+      code: "PGRST000",
+      message: "No rows found because CANARY_CONNECTION_FAILURE",
+    },
+  ])(
+    "re-throws a non-PGRST116 users_profile lookup error",
+    async (lookupError) => {
+      const single = vi.fn().mockResolvedValue({
+        data: null,
+        error: lookupError,
+      });
+      const eq = vi.fn().mockReturnValue({ single });
+      const select = vi.fn().mockReturnValue({ eq });
+      const from = vi.fn().mockReturnValue({ select });
+
+      const deps = createSupabaseAuthBootstrapDependencies({
+        identityClient: {
+          auth: { getUser: vi.fn() },
+        },
+        dataClient: {
+          from,
+        },
+      } as never);
+
+      await expect(
+        deps.getUserProfileByAccountId("account-1"),
+      ).rejects.toBe(lookupError);
+    },
+  );
 
   it("inserts only allowlisted account-scoped browser import receipt fields", async () => {
     const rawCredentialCanary = "CANARY_RAW_BROWSER_CREDENTIAL";
