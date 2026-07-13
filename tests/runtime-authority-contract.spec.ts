@@ -107,4 +107,48 @@ describe("runtime authority contract", () => {
       "incident-observability-authority.md",
     );
   });
+
+  it("keeps production operations honest about the next maturity gate", () => {
+    const closeout = readText(
+      "docs/operations/production-ops-observability-closeout.md",
+    );
+
+    expect(closeout).toContain("## Next Maturity Gate");
+    expect(closeout).toContain("telemetry provider and retention policy");
+    expect(closeout).toContain("alert delivery receipt");
+    expect(closeout).toContain("named primary and backup responders");
+    expect(closeout).toContain("Incident rehearsal record");
+    expect(closeout).toContain("Status: `open`");
+  });
+
+  it("records the provider-neutral telemetry foundation without closing operations gates", () => {
+    const telemetryContract = readText("docs/operations/telemetry-contract.md");
+    const alertingPolicy = readText("docs/operations/alerting-policy.md");
+    const rehearsalTemplate = readText(
+      "docs/operations/incident-rehearsal-template.md",
+    );
+    const closeout = readText(
+      "docs/operations/production-ops-observability-closeout.md",
+    );
+
+    expect(telemetryContract).toContain("provider-neutral");
+    expect(telemetryContract).toContain("allowlist-only");
+    expect(telemetryContract).toContain("Fastify route template");
+    expect(telemetryContract).toContain("raw URL");
+    expect(telemetryContract).toContain("default no-op sink");
+    expect(telemetryContract).toContain("Provider/export status: `open`");
+
+    expect(alertingPolicy).toContain("Test-alert delivery status: `open`");
+    expect(alertingPolicy).toContain("Alert destination status: `open`");
+    expect(alertingPolicy).toContain("Named responder status: `open`");
+
+    expect(rehearsalTemplate).toContain("Rehearsal execution status: `open`");
+    expect(rehearsalTemplate).toContain("Primary responder: `<open>`");
+    expect(rehearsalTemplate).toContain("Backup responder: `<open>`");
+
+    expect(closeout).toContain("telemetry-contract.md");
+    expect(closeout).toContain("alerting-policy.md");
+    expect(closeout).toContain("incident-rehearsal-template.md");
+    expect(closeout).toContain("Status: `open`");
+  });
 });
