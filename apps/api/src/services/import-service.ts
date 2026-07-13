@@ -390,10 +390,7 @@ export function validateBrowserImportReportRequest(
 ): BrowserImportReportRequest {
   try {
     return validateAndRebuildRequest(input);
-  } catch (error) {
-    if (error instanceof ImportReportValidationError) {
-      throw error;
-    }
+  } catch {
     throw new ImportReportValidationError();
   }
 }
@@ -421,47 +418,49 @@ export function createImportReportService(
 
   return {
     async recordBrowserImportReport(token: string, input: unknown) {
-      let profileId: string;
-
+      let user: AuthUser | null;
       try {
-        const user = await deps.getUserByToken(token);
-        if (!user) {
-          throw new ImportReportUnauthorizedError();
-        }
-        const userSnapshot = snapshotPlainDataProperties(user, ["account_id"]);
-        const accountId = userSnapshot?.account_id;
-        if (
-          typeof accountId !== "string" ||
-          accountId.length === 0
-        ) {
-          throw new ImportReportUnauthorizedError();
-        }
+        user = await deps.getUserByToken(token);
+      } catch {
+        throw new ImportReportPersistenceError();
+      }
+      if (!user) {
+        throw new ImportReportUnauthorizedError();
+      }
 
-        const resolvedProfile = await deps.getUserProfileByAccountId(
+      let userSnapshot: Record<string, unknown> | null;
+      try {
+        userSnapshot = snapshotPlainDataProperties(user, ["account_id"]);
+      } catch {
+        throw new ImportReportPersistenceError();
+      }
+      const accountId = userSnapshot?.account_id;
+      if (typeof accountId !== "string" || accountId.length === 0) {
+        throw new ImportReportUnauthorizedError();
+      }
+
+      let resolvedProfile: ImportReportProfile | null;
+      try {
+        resolvedProfile = await deps.getUserProfileByAccountId(
           accountId,
         );
-        if (!resolvedProfile) {
-          throw new ImportReportProfileNotFoundError();
-        }
-        const profileSnapshot = snapshotPlainDataProperties(resolvedProfile, [
+      } catch {
+        throw new ImportReportPersistenceError();
+      }
+      if (!resolvedProfile) {
+        throw new ImportReportProfileNotFoundError();
+      }
+
+      let profileSnapshot: Record<string, unknown> | null;
+      try {
+        profileSnapshot = snapshotPlainDataProperties(resolvedProfile, [
           "id",
         ]);
-        const resolvedProfileId = profileSnapshot?.id;
-        if (
-          typeof resolvedProfileId !== "string" ||
-          resolvedProfileId.length === 0
-        ) {
-          throw new ImportReportPersistenceError();
-        }
-        profileId = resolvedProfileId;
-      } catch (error) {
-        if (
-          error instanceof ImportReportUnauthorizedError ||
-          error instanceof ImportReportProfileNotFoundError ||
-          error instanceof ImportReportPersistenceError
-        ) {
-          throw error;
-        }
+      } catch {
+        throw new ImportReportPersistenceError();
+      }
+      const profileId = profileSnapshot?.id;
+      if (typeof profileId !== "string" || profileId.length === 0) {
         throw new ImportReportPersistenceError();
       }
 
@@ -505,17 +504,14 @@ export function createImportReportService(
         }
 
         return { job_id: receipt.id, status: "recorded" as const };
-      } catch (error) {
-        if (error instanceof ImportReportPersistenceError) {
-          throw error;
-        }
+      } catch {
         throw new ImportReportPersistenceError();
       }
     },
   };
 }
 
-/** @deprecated Removed when the authenticated receipt route lands in Task 5. */
+/** @deprecated Removed when the authenticated receipt route lands. */
 export function createBrowserImportJob() {
   return { job_id: "job_123", status: "pending" };
 }

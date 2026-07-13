@@ -524,6 +524,55 @@ describe("createImportReportService", () => {
   });
 
   it.each([
+    [
+      "identity lookup",
+      (deps: ReturnType<typeof createDependencies>) => {
+        const providerError = new ImportReportUnauthorizedError();
+        providerError.message = "CANARY_PROVIDER_IDENTITY";
+        deps.getUserByToken.mockRejectedValue(providerError);
+      },
+    ],
+    [
+      "profile lookup",
+      (deps: ReturnType<typeof createDependencies>) => {
+        const providerError = new ImportReportProfileNotFoundError();
+        providerError.message = "CANARY_PROVIDER_PROFILE";
+        deps.getUserProfileByAccountId.mockRejectedValue(providerError);
+      },
+    ],
+    [
+      "insert",
+      (deps: ReturnType<typeof createDependencies>) => {
+        const providerError = new ImportReportPersistenceError();
+        providerError.message = "CANARY_PROVIDER_INSERT";
+        deps.insertBrowserImportReport.mockRejectedValue(providerError);
+      },
+    ],
+  ])(
+    "rebuilds a static persistence error for a forged %s local error instance",
+    async (_name, arrangeFailure) => {
+      const deps = createDependencies();
+      arrangeFailure(deps);
+      const service = createImportReportService(deps);
+
+      let error: unknown;
+      try {
+        await service.recordBrowserImportReport("jwt-token", VALID_REQUEST);
+      } catch (caught) {
+        error = caught;
+      }
+
+      expect(error).toBeInstanceOf(ImportReportPersistenceError);
+      expect(error).toMatchObject({
+        name: "ImportReportPersistenceError",
+        message: "import_report_create_failed",
+        code: "import_report_create_failed",
+      });
+      expect(JSON.stringify(error)).not.toContain("CANARY_PROVIDER");
+    },
+  );
+
+  it.each([
     ["null", null],
     ["array", []],
     ["missing status", { id: "123e4567-e89b-42d3-a456-426614174000" }],
@@ -813,6 +862,24 @@ describe("createImportReportService", () => {
     ],
   ])("maps a throwing request Proxy %s trap to static validation", async (_name, build) => {
     await expectInvalid(build());
+  });
+
+  it("maps a request Proxy trap that throws a poisoned Proxy to static validation", async () => {
+    const poisonedError = new Proxy(
+      {},
+      {
+        getPrototypeOf() {
+          throw new Error("CANARY_INSTANCEOF");
+        },
+      },
+    );
+    const request = new Proxy(cloneValidRequest(), {
+      getPrototypeOf() {
+        throw poisonedError;
+      },
+    });
+
+    await expectInvalid(request);
   });
 
   it("snapshots request Proxy data descriptors without invoking get traps", async () => {
