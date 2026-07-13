@@ -283,6 +283,29 @@ describe("createSupabaseAuthBootstrapDependencies", () => {
     ).resolves.toBeNull();
   });
 
+  it("rejects an empty successful users_profile lookup result", async () => {
+    const single = vi.fn().mockResolvedValue({
+      data: null,
+      error: null,
+    });
+    const eq = vi.fn().mockReturnValue({ single });
+    const select = vi.fn().mockReturnValue({ eq });
+    const from = vi.fn().mockReturnValue({ select });
+
+    const deps = createSupabaseAuthBootstrapDependencies({
+      identityClient: {
+        auth: { getUser: vi.fn() },
+      },
+      dataClient: {
+        from,
+      },
+    } as never);
+
+    await expect(
+      deps.getUserProfileByAccountId("account-1"),
+    ).rejects.toThrow("failed to get users_profile");
+  });
+
   it.each([
     Object.assign(new Error("CANARY_DATABASE_OFFLINE"), {
       code: "ECONNRESET",
@@ -647,7 +670,7 @@ describe("createSupabaseAuthBootstrapDependencies", () => {
 });
 
 describe("createConfiguredImportReportService", () => {
-  it("returns only the canonical receipt and sanitizes hostile adapter or database failures through the configured dependency composition", async () => {
+  it("returns only the canonical receipt and sanitizes hostile or empty provider results through the configured dependency composition", async () => {
     const accountSingle = vi.fn().mockResolvedValue({
       data: { account_id: "account-1" },
       error: null,
@@ -667,7 +690,7 @@ describe("createConfiguredImportReportService", () => {
         }),
       }),
     };
-    const profileSingle = vi.fn().mockResolvedValue({
+    const profileLookupSuccess = {
       data: {
         id: "profile-1",
         account_id: "account-1",
@@ -676,7 +699,13 @@ describe("createConfiguredImportReportService", () => {
         locale: "zh-CN",
       },
       error: null,
-    });
+    };
+    const profileSingle = vi
+      .fn()
+      .mockResolvedValueOnce(profileLookupSuccess)
+      .mockResolvedValueOnce(profileLookupSuccess)
+      .mockResolvedValueOnce(profileLookupSuccess)
+      .mockResolvedValueOnce({ data: null, error: null });
     const insertSingle = vi
       .fn()
       .mockResolvedValueOnce({
@@ -760,8 +789,21 @@ describe("createConfiguredImportReportService", () => {
       expect(JSON.stringify(error)).not.toContain("CANARY");
     }
 
+    let emptyProfileError: unknown;
+    try {
+      await service.recordBrowserImportReport("jwt-token", validRequest);
+    } catch (caught) {
+      emptyProfileError = caught;
+    }
+    expect(emptyProfileError).toMatchObject({
+      name: "ImportReportPersistenceError",
+      message: "import_report_create_failed",
+      code: "import_report_create_failed",
+    });
+    expect(JSON.stringify(emptyProfileError)).not.toContain("users_profile");
+
     expect(productClient.from).toHaveBeenCalledWith("users_profile");
-    expect(profileSingle).toHaveBeenCalledTimes(3);
+    expect(profileSingle).toHaveBeenCalledTimes(4);
     expect(insert).toHaveBeenCalledTimes(3);
     expect(insertSelect).toHaveBeenCalledWith("id, status");
   });

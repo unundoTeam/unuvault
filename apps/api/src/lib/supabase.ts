@@ -268,7 +268,11 @@ export function createSupabaseAuthBootstrapDependencies(
         throw result.error;
       }
 
-      return result.data;
+      if (result.data) {
+        return result.data;
+      }
+
+      throw new Error("failed to get users_profile");
     },
 
     async insertBrowserImportReport(
