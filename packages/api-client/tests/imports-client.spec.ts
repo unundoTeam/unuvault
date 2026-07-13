@@ -668,4 +668,220 @@ describe("browser import report client", () => {
       }),
     ).rejects.toEqual(new Error(expected));
   });
+
+  it("does not surface a stateful allowlisted error getter", async () => {
+    const errorCanary = "STATEFUL_ERROR_CANARY";
+    let reads = 0;
+    const payload = Object.defineProperty({ ok: false }, "error", {
+      enumerable: true,
+      get() {
+        reads += 1;
+        return reads <= 3 ? "invalid_token" : errorCanary;
+      },
+    });
+    const fetcher = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      json: async () => payload,
+    });
+
+    let failure: unknown;
+    try {
+      await recordBrowserImportReport(fetcher, "jwt-token", {
+        source: "edge",
+        report: {
+          counts: {
+            total_rows: 0,
+            accepted_rows: 0,
+            malformed_rows: 0,
+            duplicate_rows: 0,
+          },
+          issues: [],
+        },
+      });
+    } catch (error) {
+      failure = error;
+    }
+
+    expect(failure).toEqual(new Error("import_report_record_failed:401"));
+    expect(String(failure)).not.toContain(errorCanary);
+  });
+
+  it("does not return a stateful receipt job id getter", async () => {
+    const jobCanary = "STATEFUL_JOB_CANARY";
+    const validJobId = "123e4567-e89b-42d3-a456-426614174000";
+    let reads = 0;
+    const payload = Object.defineProperty({ status: "recorded" }, "job_id", {
+      enumerable: true,
+      get() {
+        reads += 1;
+        return reads <= 2 ? validJobId : jobCanary;
+      },
+    });
+    const fetcher = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 201,
+      json: async () => payload,
+    });
+
+    let failure: unknown;
+    try {
+      await recordBrowserImportReport(fetcher, "jwt-token", {
+        source: "edge",
+        report: {
+          counts: {
+            total_rows: 0,
+            accepted_rows: 0,
+            malformed_rows: 0,
+            duplicate_rows: 0,
+          },
+          issues: [],
+        },
+      });
+    } catch (error) {
+      failure = error;
+    }
+
+    expect(failure).toEqual(new Error("import_report_record_failed:201"));
+    expect(String(failure)).not.toContain(jobCanary);
+  });
+
+  it.each([
+    {
+      name: "a receipt job_id getter that returns a valid value",
+      ok: true,
+      status: 201,
+      payload: Object.defineProperty({ status: "recorded" }, "job_id", {
+        enumerable: true,
+        get: () => "123e4567-e89b-42d3-a456-426614174000",
+      }),
+    },
+    {
+      name: "a receipt status getter that returns a valid value",
+      ok: true,
+      status: 201,
+      payload: Object.defineProperty(
+        { job_id: "123e4567-e89b-42d3-a456-426614174000" },
+        "status",
+        { enumerable: true, get: () => "recorded" },
+      ),
+    },
+    {
+      name: "multiple receipt getters that return valid values",
+      ok: true,
+      status: 201,
+      payload: Object.defineProperties({}, {
+        job_id: {
+          enumerable: true,
+          get: () => "123e4567-e89b-42d3-a456-426614174000",
+        },
+        status: { enumerable: true, get: () => "recorded" },
+      }),
+    },
+    {
+      name: "an error ok getter that returns false",
+      ok: false,
+      status: 401,
+      payload: Object.defineProperty({ error: "invalid_token" }, "ok", {
+        enumerable: true,
+        get: () => false,
+      }),
+    },
+    {
+      name: "an error getter that returns an allowlisted value",
+      ok: false,
+      status: 401,
+      payload: Object.defineProperty({ ok: false }, "error", {
+        enumerable: true,
+        get: () => "invalid_token",
+      }),
+    },
+    {
+      name: "multiple error getters that return valid values",
+      ok: false,
+      status: 401,
+      payload: Object.defineProperties({}, {
+        ok: { enumerable: true, get: () => false },
+        error: { enumerable: true, get: () => "invalid_token" },
+      }),
+    },
+    {
+      name: "a receipt setter-only job_id field",
+      ok: true,
+      status: 201,
+      payload: Object.defineProperty({ status: "recorded" }, "job_id", {
+        enumerable: true,
+        set: () => undefined,
+      }),
+    },
+    {
+      name: "a receipt setter-only status field",
+      ok: true,
+      status: 201,
+      payload: Object.defineProperty(
+        { job_id: "123e4567-e89b-42d3-a456-426614174000" },
+        "status",
+        { enumerable: true, set: () => undefined },
+      ),
+    },
+    {
+      name: "an error setter-only error field",
+      ok: false,
+      status: 401,
+      payload: Object.defineProperty({ ok: false }, "error", {
+        enumerable: true,
+        set: () => undefined,
+      }),
+    },
+    {
+      name: "a receipt proxy with an ownKeys trap",
+      ok: true,
+      status: 201,
+      payload: new Proxy(
+        {
+          job_id: "123e4567-e89b-42d3-a456-426614174000",
+          status: "recorded",
+        },
+        {
+          ownKeys() {
+            throw new Error("receipt-own-keys-canary");
+          },
+        },
+      ),
+    },
+    {
+      name: "an error proxy with a descriptor trap",
+      ok: false,
+      status: 401,
+      payload: new Proxy(
+        { ok: false, error: "invalid_token" },
+        {
+          getOwnPropertyDescriptor() {
+            throw new Error("error-descriptor-canary");
+          },
+        },
+      ),
+    },
+  ])("rejects $name", async ({ ok, status, payload }) => {
+    const fetcher = vi.fn().mockResolvedValue({
+      ok,
+      status,
+      json: async () => payload,
+    });
+
+    await expect(
+      recordBrowserImportReport(fetcher, "jwt-token", {
+        source: "edge",
+        report: {
+          counts: {
+            total_rows: 0,
+            accepted_rows: 0,
+            malformed_rows: 0,
+            duplicate_rows: 0,
+          },
+          issues: [],
+        },
+      }),
+    ).rejects.toEqual(new Error(`import_report_record_failed:${status}`));
+  });
 });

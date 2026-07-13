@@ -75,27 +75,44 @@ const IMPORT_REPORT_ERROR_STATUSES = new Map<string, readonly number[]>([
 const CANONICAL_LOWERCASE_UUID_V4 =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
-function isPlainObjectWithExactKeys(
+function readExactOwnDataPropertySnapshot(
   payload: unknown,
   expectedKeys: readonly string[],
-): payload is Record<string, unknown> {
+): Record<string, unknown> | null {
   try {
     if (typeof payload !== "object" || payload === null) {
-      return false;
+      return null;
     }
 
     const prototype = Object.getPrototypeOf(payload);
     if (prototype !== Object.prototype && prototype !== null) {
-      return false;
+      return null;
     }
 
-    const keys = Object.keys(payload);
-    return (
+    const descriptors = Object.getOwnPropertyDescriptors(payload);
+    const keys = Reflect.ownKeys(descriptors);
+    if (
       keys.length === expectedKeys.length &&
-      expectedKeys.every((key) => Object.hasOwn(payload, key))
-    );
+      expectedKeys.every((key) => Object.hasOwn(descriptors, key))
+    ) {
+      const snapshot: Record<string, unknown> = {};
+      for (const key of expectedKeys) {
+        const descriptor = descriptors[key];
+        if (
+          descriptor === undefined ||
+          !Object.hasOwn(descriptor, "value") ||
+          descriptor.enumerable !== true
+        ) {
+          return null;
+        }
+        snapshot[key] = descriptor.value;
+      }
+      return snapshot;
+    }
+
+    return null;
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -103,19 +120,25 @@ function readBrowserImportReceipt(
   payload: unknown,
 ): BrowserImportReportReceiptResponse | null {
   try {
-    if (!isPlainObjectWithExactKeys(payload, ["job_id", "status"])) {
+    const receipt = readExactOwnDataPropertySnapshot(payload, [
+      "job_id",
+      "status",
+    ]);
+    if (receipt === null) {
       return null;
     }
+    const jobId = receipt.job_id;
+    const receiptStatus = receipt.status;
     if (
-      typeof payload.job_id !== "string" ||
-      !CANONICAL_LOWERCASE_UUID_V4.test(payload.job_id) ||
-      payload.status !== "recorded"
+      typeof jobId !== "string" ||
+      !CANONICAL_LOWERCASE_UUID_V4.test(jobId) ||
+      receiptStatus !== "recorded"
     ) {
       return null;
     }
 
     return {
-      job_id: payload.job_id,
+      job_id: jobId,
       status: "recorded",
     };
   } catch {
@@ -128,18 +151,26 @@ function readAllowlistedImportError(
   status: number | null,
 ): string | null {
   try {
+    const errorPayload = readExactOwnDataPropertySnapshot(payload, [
+      "ok",
+      "error",
+    ]);
+    if (errorPayload === null) {
+      return null;
+    }
+    const ok = errorPayload.ok;
+    const error = errorPayload.error;
     if (
-      !isPlainObjectWithExactKeys(payload, ["ok", "error"]) ||
-      payload.ok !== false ||
-      typeof payload.error !== "string" ||
-      !IMPORT_REPORT_ERROR_CODES.has(payload.error) ||
+      ok !== false ||
+      typeof error !== "string" ||
+      !IMPORT_REPORT_ERROR_CODES.has(error) ||
       status === null ||
-      !IMPORT_REPORT_ERROR_STATUSES.get(payload.error)?.includes(status)
+      !IMPORT_REPORT_ERROR_STATUSES.get(error)?.includes(status)
     ) {
       return null;
     }
 
-    return payload.error;
+    return error;
   } catch {
     return null;
   }
