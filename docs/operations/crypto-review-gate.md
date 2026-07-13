@@ -23,6 +23,29 @@ independently reviewed or third-party reviewed.
 - Current internal iterative review status: `cleared for current scope`.
 - Third-party crypto review status: `deferred by explicit launch exception`.
 
+## Bounded Argon2 Checkpoint
+
+The current JavaScript security boundary pins password-derived envelopes to
+Argon2id13 `opsLimit = 2` and `memLimit = 67_108_864` bytes, and pins verifier
+strings to `$argon2id$v=19$m=65536,t=2,p=1`. It also requires canonical
+unpadded encodings and exact `16`-byte salts and `24`-byte nonces.
+
+The accepted plaintext and authenticated-ciphertext maxima are `1_048_576` and
+`1_048_592` bytes respectively; accepted purpose tags are at most `128` UTF-8
+bytes; PHC verifier strings are at most `127` printable ASCII characters; Web
+and extension serialized verifier values are at most `512` characters; and
+vault/developer-secret envelope JSON is at most `1_400_171` characters.
+
+Envelope metadata, verifier syntax, encoded-field bounds, and runtime-policy
+compatibility are rejected before password KDF calls. Vault `v1`/`v2`,
+developer-secret `v1`, and master-password verifier `v1` readers remain
+supported behind the bounded parsers. No unbounded legacy fallback is allowed.
+
+This checkpoint closes only the implementation gap for hostile Argon2 metadata.
+It does not approve Pairing V2 or produce an independent third-party verdict,
+and it does not alter the broader gate state recorded in this document. Public
+copy must not claim independent or third-party review from this checkpoint.
+
 ## Current Review Target
 
 - GitHub PR: `#59` `[codex] finalize unuvault phase-1 launch packet`

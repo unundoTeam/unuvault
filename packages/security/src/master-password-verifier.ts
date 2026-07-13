@@ -2,6 +2,7 @@ import {
   createPasswordHash,
   verifyPasswordHash,
 } from "./sodium";
+import { isPinnedArgon2idVerifierSyntax } from "./argon2-policy";
 
 export type LegacyMasterPasswordVerifier = {
   version: 1;
@@ -29,6 +30,19 @@ export type VerifyMasterPasswordResult =
     };
 
 const textEncoder = new TextEncoder();
+const LEGACY_SALT_BASE64 = /^[A-Za-z0-9+/]{16}$/;
+const LEGACY_CHECK_HEX = /^[0-9a-f]{8}$/;
+
+function isCanonicalLegacySalt(value: string): boolean {
+  if (!LEGACY_SALT_BASE64.test(value)) return false;
+
+  try {
+    const decoded = atob(value);
+    return decoded.length === 12 && btoa(decoded) === value;
+  } catch {
+    return false;
+  }
+}
 
 function hashToHex(input: string): string {
   let hash = 0x811c9dc5;
@@ -45,12 +59,16 @@ function hashToHex(input: string): string {
 function isLegacyMasterPasswordVerifier(
   value: unknown,
 ): value is LegacyMasterPasswordVerifier {
+  const candidate = value as Partial<LegacyMasterPasswordVerifier> | null;
+
   return (
-    !!value &&
-    typeof value === "object" &&
-    (value as Partial<LegacyMasterPasswordVerifier>).version === 1 &&
-    typeof (value as Partial<LegacyMasterPasswordVerifier>).salt === "string" &&
-    typeof (value as Partial<LegacyMasterPasswordVerifier>).check === "string"
+    !!candidate &&
+    typeof candidate === "object" &&
+    candidate.version === 1 &&
+    typeof candidate.salt === "string" &&
+    isCanonicalLegacySalt(candidate.salt) &&
+    typeof candidate.check === "string" &&
+    LEGACY_CHECK_HEX.test(candidate.check)
   );
 }
 
@@ -64,6 +82,19 @@ function isSecureMasterPasswordVerifier(
     (value as Partial<SecureMasterPasswordVerifier>).algorithm === "argon2id13" &&
     typeof (value as Partial<SecureMasterPasswordVerifier>).passwordHash === "string"
   );
+}
+
+export function parseStoredMasterPasswordVerifier(
+  value: unknown,
+): MasterPasswordVerifier | null {
+  if (isLegacyMasterPasswordVerifier(value)) return value;
+  if (
+    !isSecureMasterPasswordVerifier(value) ||
+    !isPinnedArgon2idVerifierSyntax(value.passwordHash)
+  ) {
+    return null;
+  }
+  return value;
 }
 
 export async function createMasterPasswordVerifier(
@@ -84,17 +115,22 @@ export async function verifyMasterPassword(
     return { success: false };
   }
 
-  if (isSecureMasterPasswordVerifier(verifier)) {
-    return (await verifyPasswordHash(verifier.passwordHash, masterPassword))
+  const parsedVerifier = parseStoredMasterPasswordVerifier(verifier);
+
+  if (!parsedVerifier) {
+    return { success: false };
+  }
+
+  if (parsedVerifier.version === 2) {
+    return (await verifyPasswordHash(parsedVerifier.passwordHash, masterPassword))
       ? { success: true }
       : { success: false };
   }
 
-  if (!isLegacyMasterPasswordVerifier(verifier)) {
-    return { success: false };
-  }
-
-  if (hashToHex(`${masterPassword}:${verifier.salt}`) !== verifier.check) {
+  if (
+    hashToHex(`${masterPassword}:${parsedVerifier.salt}`) !==
+    parsedVerifier.check
+  ) {
     return { success: false };
   }
 

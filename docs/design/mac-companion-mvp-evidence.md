@@ -272,18 +272,20 @@ hygiene cleanup.
 - `pnpm test:pairing-boundary` runs both the iOS receive/client proof and the
   Mac companion pairing-boundary proof as one repo-level gate. This ties the
   iPhone target-claim client contract to the Mac runtime `/v1/pairing/claim`
-  contract, while still avoiding claims for real LAN discovery, camera QR
-  scanning, physical iPhone receipt, local decrypt/import, or full mobile
-  adapter adoption.
+  contract. Its complete iOS XCTest suite also proves repo-level/simulator
+  claimant-key local open, AES-GCM encrypted received-vault persistence, and an
+  injectable-store projection of read-only metadata. It still avoids claims
+  for physical-device local open, the default app-start received-vault loader,
+  real LAN discovery, camera QR scanning, or a complete mobile workflow.
 - `pnpm test:pairing-lan-smoke` resolves or accepts
   `UNUVAULT_PAIRING_LAN_HOST`, starts the proof-mode Mac companion bridge on
   `0.0.0.0`, emits an invite with the non-loopback LAN IPv4 base URL, posts a
   target-device claim over real HTTP to `/v1/pairing/claim`, receives only
   AES-GCM wrapped handoff material, and proves replay fails without exposing
   credential ids, usernames, passwords, bridge bearer tokens, or vault
-  plaintext. This is LAN-address transport proof only; it still does not claim
-  camera QR scanning, physical iPhone receipt, local decrypt/import, or full
-  mobile adapter adoption.
+  plaintext. This LAN-address transport smoke alone does not prove camera QR
+  scanning, physical-iPhone local open or encrypted import, the default
+  app-start received-vault loader, or a complete mobile workflow.
 - `pnpm test:pairing-physical-preflight` checks local LAN address resolution,
   port availability, Xcode tools, `xcodegen`, visible trusted iPhone detection,
   and signing hints before a real device run. It does not build, install,
@@ -293,9 +295,9 @@ hygiene cleanup.
   connected trusted iPhone, launches it through `xcrun devicectl` with a
   `unuvault-ioshost://pair` payload URL containing a base64URL invite, and
   waits for `UNUVAULT_IOS_PAIRING_RECEIPT paired` in the device console. The
-  harness is the first physical receipt gate; camera QR scanning,
-  local decrypt/import, and full mobile adapter adoption remain separate
-  claims.
+  harness is the first physical pairing-transport receipt gate; it does not
+  prove physical-device local open, encrypted import, or read-only reload.
+  Camera QR scanning and a complete mobile workflow remain separate claims.
   On 2026-07-08, a local hardware run of
   `corepack pnpm test:pairing-physical-receipt` passed against a connected,
   unlocked, trusted iPhone and captured
@@ -317,8 +319,12 @@ hygiene cleanup.
   invites, posts the claim to the
   invite-provided Mac pairing endpoint without a bridge bearer token, parses Mac
   handoff response envelopes, and rejects invalid, expired, status-failed, or
-  target-mismatched responses. It does not claim camera QR scanning, real LAN
-  discovery, local decrypt/import, or physical iPhone receipt.
+  target-mismatched responses. The complete XCTest suite also proves
+  repo-level/simulator claimant-key local open, AES-GCM encrypted received-vault
+  persistence, and an injectable-store projection of read-only metadata. It
+  does not prove those paths on a physical iPhone, the default app-start
+  received-vault loader, camera QR scanning, real LAN discovery, or a complete
+  mobile workflow.
 - `pnpm test:macos:recovery-boundary` proves encrypted local vault backup data
   contains only an AES-GCM envelope, does not contain the credential id,
   username, or password as plaintext, cannot be opened with account-only or
@@ -358,13 +364,15 @@ production app bundle.
   wording, app bundle naming, cancel copy, or macOS authentication UI changes
   should refresh that receipt. The default receipt gate remains non-prompting.
 - Physical iPhone pairing receipt harness proof is recorded for the 2026-07-08
-  local hardware run above. This does not claim camera QR scanning, local
-  decrypt/import, full mobile adapter adoption, or a shipped iPhone vault
-  workflow.
-- The current iOS pairing proof is still receive-side only outside the physical
-  receipt harness; LAN discovery, QR code rendering/scanning, local decrypt or
-  import, simulator/device visual parity, and a shipped iPhone vault workflow
-  remain unclaimed.
+  local hardware run above. That historical receipt proves pairing transport,
+  not physical-device local open, encrypted import, read-only reload, camera QR
+  scanning, full mobile adapter adoption, or a shipped iPhone vault workflow.
+- Current repo-level iOS code and XCTest prove claimant-key local open,
+  AES-GCM encrypted received-vault persistence, and injectable-store read-only
+  metadata projection. Physical-device execution of those paths, the default
+  app-start received-vault loader, LAN discovery, QR code rendering/scanning,
+  simulator/device visual parity, and a shipped iPhone vault workflow remain
+  unclaimed.
 - Automatic Account/Web sync into the Mac local vault is not claimed yet; the
   current proof covers a Web/account unlocked vault payload import receipt into
   the encrypted Mac vault, plus direct native menu local-save and manual menu

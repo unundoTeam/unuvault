@@ -31,6 +31,29 @@ describe("master password storage helper", () => {
     expect(readMasterPasswordVerifier()).toBeNull();
   });
 
+  it("rejects a stored verifier with hostile Argon2 memory parameters", async () => {
+    const verifier = await createMasterPasswordVerifier("correct horse");
+    window.localStorage.setItem(
+      "unuvault.web.master-password-verifier",
+      JSON.stringify({
+        ...verifier,
+        passwordHash: verifier.passwordHash.replace("m=65536", "m=1048576"),
+      }),
+    );
+
+    expect(readMasterPasswordVerifier()).toBeNull();
+  });
+
+  it("rejects oversized stored verifier JSON before parsing", async () => {
+    const verifier = await createMasterPasswordVerifier("correct horse");
+    window.localStorage.setItem(
+      "unuvault.web.master-password-verifier",
+      JSON.stringify(verifier).padEnd(513, " "),
+    );
+
+    expect(readMasterPasswordVerifier()).toBeNull();
+  });
+
   it("clears the stored verifier", async () => {
     writeMasterPasswordVerifier(
       await createMasterPasswordVerifier("correct horse"),

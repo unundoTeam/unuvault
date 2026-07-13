@@ -1,7 +1,11 @@
-import type { MasterPasswordVerifier } from "../../../../packages/security/src/master-password-verifier";
+import {
+  type MasterPasswordVerifier,
+  parseStoredMasterPasswordVerifier,
+} from "../../../../packages/security/src/master-password-verifier";
 
 const MASTER_PASSWORD_VERIFIER_STORAGE_KEY =
   "unuvault.extension.master-password-verifier";
+const MAX_MASTER_PASSWORD_VERIFIER_JSON_CHARACTERS = 512;
 
 type ExtensionStorageArea = {
   get(keys: string | string[] | Record<string, unknown>): Promise<Record<string, unknown>>;
@@ -21,23 +25,6 @@ function getExtensionStorageArea(): ExtensionStorageArea | null {
   );
 }
 
-function isMasterPasswordVerifier(
-  value: unknown,
-): value is MasterPasswordVerifier {
-  const partial = value as Partial<MasterPasswordVerifier> | null;
-
-  return (
-    !!partial &&
-    typeof partial === "object" &&
-    (partial.version === 1
-      ? typeof partial.salt === "string" && typeof partial.check === "string"
-      : partial.version === 2
-        ? partial.algorithm === "argon2id13" &&
-          typeof partial.passwordHash === "string"
-        : false)
-  );
-}
-
 export async function readMasterPasswordVerifier(): Promise<MasterPasswordVerifier | null> {
   const storage = getExtensionStorageArea();
 
@@ -50,12 +37,25 @@ export async function readMasterPasswordVerifier(): Promise<MasterPasswordVerifi
     const rawValue = stored[MASTER_PASSWORD_VERIFIER_STORAGE_KEY];
 
     if (typeof rawValue !== "string") {
-      return isMasterPasswordVerifier(rawValue) ? rawValue : null;
+      const serialized = JSON.stringify(rawValue);
+
+      if (
+        typeof serialized !== "string" ||
+        serialized.length > MAX_MASTER_PASSWORD_VERIFIER_JSON_CHARACTERS
+      ) {
+        return null;
+      }
+
+      return parseStoredMasterPasswordVerifier(JSON.parse(serialized));
+    }
+
+    if (rawValue.length > MAX_MASTER_PASSWORD_VERIFIER_JSON_CHARACTERS) {
+      return null;
     }
 
     const parsed = JSON.parse(rawValue) as unknown;
 
-    return isMasterPasswordVerifier(parsed) ? parsed : null;
+    return parseStoredMasterPasswordVerifier(parsed);
   } catch {
     return null;
   }

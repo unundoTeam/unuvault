@@ -53,6 +53,29 @@ The account layer must not be described as the reader of plaintext passwords.
 It exists to coordinate encrypted sync, device revocation, recent activity, and
 recovery flows; vault unlock remains the secret-release boundary.
 
+### Browser Import Report Receipt Boundary
+
+The browser-import path now has an implemented non-UI client core, encrypted
+Web import plan, camelCase-to-wire mapper, API/client primitive, and
+bearer-authenticated `POST /imports/browser` recorded report receipt. Server
+scope is derived only through:
+
+Bearer token -> authenticated identity user -> identity `account_id` ->
+`users_profile.account_id` -> `profile.id` -> `import_jobs.user_profile_id`
+
+The endpoint accepts only sanitized source, counts, and row-level reason codes;
+it does not accept raw CSV, raw credential fields, encrypted vault items, or
+credential references. A `201` response means only that the sanitized report
+receipt was inserted. It has at-least-once semantics with no idempotency
+guarantee, and `recorded` does not prove vault item persistence, `/vault/sync`
+acceptance, or linkage to encrypted items.
+
+An actual browser UI call site, worker isolation, progress, cancellation,
+representative Argon2 performance evidence, `/vault/sync` linkage, database
+`CHECK` constraints and RLS, idempotency, production telemetry and on-call
+ownership, and external security review remain open. This is not yet a complete
+browser-import workflow.
+
 ## What It Does Not Own
 
 - the shared identity and account platform owned by `unuidentity`
@@ -363,9 +386,13 @@ For the native Mac companion proof:
   `pnpm test:pairing-boundary`
   This runs the iOS receive/client proof and the Mac companion pairing-boundary
   proof as one repo-level gate. It ties the iPhone target-claim client contract
-  to the Mac runtime `/v1/pairing/claim` contract, while still stopping short of
-  claiming real LAN discovery, camera QR scanning, physical iPhone receipt,
-  local decrypt/import, or full mobile adapter adoption.
+  to the Mac runtime `/v1/pairing/claim` contract. The complete iOS XCTest suite
+  in this gate also proves the claimant-key-bound handoff can be opened locally,
+  persisted to an AES-GCM encrypted received-vault store, and projected through
+  an injectable store as read-only `label`, `username`, and `websiteOrigin`
+  metadata. This is repo-level/simulator code proof; it does not prove
+  physical-device local open, the default app-start received-vault loader,
+  real LAN discovery, camera QR scanning, or a complete mobile workflow.
 - LAN-address pairing smoke proof is available through:
   `pnpm test:pairing-lan-smoke`
   This resolves or accepts `UNUVAULT_PAIRING_LAN_HOST`, starts the proof-mode
@@ -373,9 +400,9 @@ For the native Mac companion proof:
   that non-loopback LAN IPv4 address, posts a target-device claim over real
   HTTP to `/v1/pairing/claim`, receives only AES-GCM wrapped handoff material,
   and proves replay fails without exposing credential ids, usernames, passwords,
-  bridge bearer tokens, or vault plaintext. It still does not claim camera QR
-  scanning, physical iPhone receipt, local decrypt/import, or full mobile
-  adapter adoption.
+  bridge bearer tokens, or vault plaintext. This LAN smoke alone does not prove
+  camera QR scanning, physical-iPhone local open or encrypted import, the
+  default app-start received-vault loader, or a complete mobile workflow.
 - Physical iPhone pairing receipt harness is available through:
   `pnpm test:pairing-physical-preflight`
   Use this preflight first when the iPhone is not connected yet or when signing
@@ -390,8 +417,9 @@ For the native Mac companion proof:
   `UnuVaultIOSHost`, launches it through a `unuvault-ioshost://pair` payload
   URL with a base64URL invite, and waits for
   `UNUVAULT_IOS_PAIRING_RECEIPT paired` in the device console. This is a
-  physical receipt harness only; camera QR scanning, local decrypt/import, and
-  full mobile adapter adoption remain separate claims. Recorded local hardware
+  physical pairing-transport receipt only; it does not prove physical-device
+  local open, encrypted import, or read-only reload. Camera QR scanning and a
+  complete mobile workflow remain separate claims. Recorded local hardware
   evidence: on 2026-07-08, `corepack pnpm test:pairing-physical-receipt`
   passed and captured
   `UNUVAULT_IOS_PAIRING_RECEIPT paired ... material=AES-GCM-256`.
@@ -409,9 +437,12 @@ For the native Mac companion proof:
   with no bridge bearer token, parse the Mac handoff response envelope, reject
   invalid, expired, status failed, or
   target-mismatched responses, and keep credential, password, and vault
-  plaintext out of the claim/response contract. It does not claim camera QR
-  scanning, real LAN discovery, local decrypt/import, or physical iPhone receipt
-  yet.
+  plaintext out of the claim/response contract. The complete XCTest suite also
+  proves repo-level/simulator claimant-key local open, AES-GCM encrypted
+  received-vault persistence, and an injectable-store projection of read-only
+  metadata. It does not prove those paths on a physical iPhone, the default
+  app-start received-vault loader, camera QR scanning, real LAN discovery, or a
+  complete mobile workflow.
 - iOS receive-invite visual proof is available through:
   `bash scripts/testing/run-ios-ui-host.sh`
   This uses XcodeGen to build a simulator host app for
@@ -421,8 +452,8 @@ For the native Mac companion proof:
   `docs/design/evidence/2026-05-29-ios-ui-host/`. It proves simulator launch,
   screenshot capture, and Dynamic Type visual evidence for the receive-invite
   surface, but it still does not claim physical iPhone receipt, camera QR
-  scanning, manual VoiceOver rotor proof, local decrypt/import, or full mobile
-  adapter adoption.
+  scanning, manual VoiceOver rotor proof, local open or encrypted import, or
+  full mobile adapter adoption from this visual frame alone.
 - current implementation evidence is recorded in
   `docs/design/mac-companion-mvp-evidence.md`
 
