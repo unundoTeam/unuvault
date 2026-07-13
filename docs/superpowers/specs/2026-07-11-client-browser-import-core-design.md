@@ -9,9 +9,32 @@ Build a client-side import core that can safely analyze Chrome and Edge password
 CSV exports and convert accepted rows into encrypted `VaultSyncItem` values
 without changing any page, component, API route, README, or Pencil authority.
 
-The first slice ends before network or persistence. A later approved product
-slice may choose whether the encrypted plan is sent to account sync, a Mac-local
-vault, or another client-owned destination.
+The original core slice ends before network or persistence. A separately
+approved receipt slice now records only its sanitized report; it does not choose
+whether the encrypted plan is sent to account sync, a Mac-local vault, or
+another client-owned destination.
+
+## Current Implementation Status
+
+The non-UI domain analyzer, encrypted Web import plan, camelCase-to-wire mapper,
+API/client primitive, and bearer-authenticated `POST /imports/browser` recorded
+report receipt are implemented and repo-tested. The receipt accepts only the
+sanitized source, counts, and row issue codes; it does not accept raw CSV,
+credential fields, encrypted vault items, or credential references.
+
+Receipt scope follows
+`Bearer token` -> identity `account_id` -> `users_profile.account_id` ->
+`profile.id` -> `import_jobs.user_profile_id`.
+Its `recorded` result has at-least-once semantics and no idempotency guarantee.
+It does not prove vault item persistence or `/vault/sync` acceptance and does
+not link the report to imported encrypted items.
+
+The browser UI call site, worker isolation, progress, cancellation, and
+representative Argon2 performance evidence remain open. `/vault/sync` linkage,
+database `CHECK` constraints and RLS, idempotency, and an end-to-end
+imported-item receipt also remain open. Production telemetry/on-call ownership
+and an external security review remain open as well. This status update does
+not approve or change any UI or Pencil authority.
 
 ## Design Gate
 
@@ -323,4 +346,6 @@ git diff --check
 - Every accepted password becomes a supported version-3 ciphertext before a
   plan is returned.
 - A failure on any item returns no partial plan.
-- No UI, API route, README, or Pencil file changes are present.
+- The original core implementation introduced no UI, API route, README, or
+  Pencil changes. The later report-receipt API and this documentation update are
+  separately approved slices and still introduce no UI or Pencil change.

@@ -53,6 +53,29 @@ The account layer must not be described as the reader of plaintext passwords.
 It exists to coordinate encrypted sync, device revocation, recent activity, and
 recovery flows; vault unlock remains the secret-release boundary.
 
+### Browser Import Report Receipt Boundary
+
+The browser-import path now has an implemented non-UI client core, encrypted
+Web import plan, camelCase-to-wire mapper, API/client primitive, and
+bearer-authenticated `POST /imports/browser` recorded report receipt. Server
+scope is derived only through:
+
+Bearer token -> authenticated identity user -> identity `account_id` ->
+`users_profile.account_id` -> `profile.id` -> `import_jobs.user_profile_id`
+
+The endpoint accepts only sanitized source, counts, and row-level reason codes;
+it does not accept raw CSV, raw credential fields, encrypted vault items, or
+credential references. A `201` response means only that the sanitized report
+receipt was inserted. It has at-least-once semantics with no idempotency
+guarantee, and `recorded` does not prove vault item persistence, `/vault/sync`
+acceptance, or linkage to encrypted items.
+
+An actual browser UI call site, worker isolation, progress, cancellation,
+representative Argon2 performance evidence, `/vault/sync` linkage, database
+`CHECK` constraints and RLS, idempotency, production telemetry and on-call
+ownership, and external security review remain open. This is not yet a complete
+browser-import workflow.
+
 ## What It Does Not Own
 
 - the shared identity and account platform owned by `unuidentity`

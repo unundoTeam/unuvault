@@ -99,4 +99,66 @@ describe("auth boundary contract", () => {
       "stays signed out when sign-in returns no access token",
     );
   });
+
+  it("records the browser import report receipt without overstating import maturity", () => {
+    const readme = readText("README.md");
+    const baselineDoc = readText(
+      "docs/architecture/0000-phase1-execution-baseline.md",
+    );
+    const boundaryDoc = readText("docs/architecture/0002-supabase-boundary.md");
+    const apiMap = readText("docs/architecture/0004-rest-api-map.md");
+    const clientCoreDesign = readText(
+      "docs/superpowers/specs/2026-07-11-client-browser-import-core-design.md",
+    );
+    const compactReadme = readme.replace(/\s+/g, " ");
+    const compactBaselineDoc = baselineDoc.replace(/\s+/g, " ");
+    const compactBoundaryDoc = boundaryDoc.replace(/\s+/g, " ");
+    const compactApiMap = apiMap.replace(/\s+/g, " ");
+    const compactClientCoreDesign = clientCoreDesign.replace(/\s+/g, " ");
+
+    expect(readme).toContain("recorded report receipt");
+    expect(readme).toContain("does not accept raw CSV");
+    expect(readme).toContain("does not prove vault item persistence");
+    expect(readme).toContain("at-least-once");
+    expect(compactReadme).toContain(
+      "Bearer token -> authenticated identity user -> identity `account_id` -> `users_profile.account_id` -> `profile.id` -> `import_jobs.user_profile_id`",
+    );
+
+    expect(compactBaselineDoc).toContain(
+      "non-UI client core, camelCase-to-wire mapper, API/client primitive, and authenticated recorded report receipt",
+    );
+    expect(compactBaselineDoc).toContain(
+      "Drizzle, Tailwind CSS, WXT, and Playwright as planned framework choices",
+    );
+    expect(compactBaselineDoc).toContain(
+      "They are not declared as direct, active dependencies",
+    );
+    expect(compactBaselineDoc).toContain(
+      "are not requirements for the implemented runtime",
+    );
+
+    expect(boundaryDoc).toContain("does not accept raw CSV");
+    expect(boundaryDoc).toContain("does not prove vault item persistence");
+    expect(boundaryDoc).toContain("at-least-once");
+    expect(compactBoundaryDoc).toContain(
+      "token -> `account_id` -> `users_profile.account_id` -> `profile.id` -> `import_jobs.user_profile_id`",
+    );
+
+    expect(apiMap).toContain("## Current Route Maturity");
+    expect(compactApiMap).toContain("authenticated recorded report receipt");
+    expect(compactApiMap).toContain("does not accept raw CSV");
+    expect(compactApiMap).toContain("does not prove vault item persistence");
+
+    expect(clientCoreDesign).toContain("## Current Implementation Status");
+    expect(clientCoreDesign).toContain("camelCase-to-wire mapper");
+    expect(clientCoreDesign).toContain("at-least-once");
+    expect(clientCoreDesign).toContain("does not accept raw CSV");
+    expect(clientCoreDesign).toContain("does not prove vault item persistence");
+    expect(compactClientCoreDesign).toContain(
+      "UI call site, worker isolation, progress, cancellation, and representative Argon2 performance evidence",
+    );
+    expect(compactClientCoreDesign).toContain(
+      "`/vault/sync` linkage, database `CHECK` constraints and RLS, idempotency, and an end-to-end imported-item receipt",
+    );
+  });
 });

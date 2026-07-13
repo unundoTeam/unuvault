@@ -112,9 +112,16 @@ delivery order is controlled by
   metadata from the encrypted received-vault store. Physical-device execution
   of those paths is not proved, and the default app-start loader remains
   unimplemented.
-- Devices, recent activity, and browser import still contain scaffold-level
-  surfaces and require dedicated product slices before they are described as
-  complete workflows.
+- Browser import now has an implemented non-UI client core,
+  camelCase-to-wire mapper, API/client primitive, and authenticated recorded
+  report receipt. That receipt accepts only a sanitized report and does not
+  prove encrypted item persistence or a complete import workflow.
+- Browser import still needs an actual browser UI call site,
+  worker/progress/cancellation and representative Argon2 evidence,
+  `/vault/sync` linkage, database `CHECK` constraints/RLS, idempotency,
+  telemetry/on-call ownership, and external security review.
+- Devices and recent activity still contain scaffold-level surfaces and require
+  dedicated product slices before they are described as complete workflows.
 
 New work should start from the root README, the current architecture decisions,
 and a current dated implementation plan rather than replaying the original M1
