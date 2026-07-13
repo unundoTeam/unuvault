@@ -3,17 +3,27 @@
 This directory holds the SwiftUI iPhone app, AutoFill onboarding flows, and the
 repo-owned Mac pairing receive flow for unuvault.
 
-Current pairing proof is receive-side only. The iOS package exposes a SwiftUI
-paste-invite flow from `current/unuvault/ios-pairing-invite-receive-v2`, parses
-the Mac companion invite envelope and QR payload, rejects expired, malformed, or
-unsupported-endpoint payloads, shows the recognized Mac, hides raw invite session
-details after recognition, shows invite expiry instead of a raw endpoint URL,
-builds a target-device identity claim with `deviceId`, `displayName`, and
+The iOS package exposes a SwiftUI paste-invite flow from
+`current/unuvault/ios-pairing-invite-receive-v2`. It parses the Mac companion
+invite envelope and QR payload, rejects expired, malformed, or unsupported
+endpoint payloads, shows the recognized Mac, hides raw invite session details
+after recognition, shows invite expiry instead of a raw endpoint URL, builds a
+target-device identity claim with `deviceId`, `displayName`, and
 `publicKeyFingerprint`, posts that claim to the invite-provided Mac pairing
-endpoint without a bridge bearer token, and parses the Mac handoff response
-envelope while rejecting invalid, expired, status-failed, or target-mismatched
-responses. It does not claim camera QR scanning, real LAN discovery, or local
-decrypt/import. Repo-level
+endpoint without a bridge bearer token, and rejects invalid, expired,
+status-failed, or target-mismatched handoff responses.
+
+The current local receive path opens the handoff on the iPhone with the private
+key for the claimant-provided P256 identity. It persists the received vault as
+an AES-GCM encrypted file using a 256-bit key held in Keychain, and the store
+supports reloading `label`, `username`, and `websiteOrigin` into the read-only
+vault list without exposing passwords in that list model. The default app-start
+received-vault loader is not wired yet, so this is not a claim of automatic
+reload in the shipped flow. It also does not claim camera QR scanning,
+automatic discovery, password reveal or copy, editing, search, biometric
+unlock, cloud sync, or a full mobile vault.
+
+Repo-level
 `pnpm test:pairing-lan-smoke` now proves the Mac runtime can accept the target
 claim through a non-loopback LAN IPv4 base URL, but that command is still not a
 physical iPhone receipt or camera QR scan proof.
@@ -35,8 +45,9 @@ host, installs `UnuVaultIOSHost` on the device, launches it with a
 recorded hardware run on 2026-07-08 passed with
 `handoffId=physical-receipt-session-25B426DF-4FB2-4AA3-B51F-0022286AB270`,
 `targetDeviceId=ios-device-d5185f1f-c612-4987-9a68-6a90a3ab8313`, and
-`material=AES-GCM-256`; it still does not claim camera QR scanning or local
-decrypt/import.
+`material=AES-GCM-256`. That recorded receipt proves the physical pairing
+transport only; it does not prove physical-device local open, encrypted import,
+or read-only reload, and it still does not claim camera QR scanning.
 
 Run:
 
