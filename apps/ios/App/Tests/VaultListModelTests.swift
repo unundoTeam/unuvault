@@ -68,6 +68,22 @@ final class VaultListModelTests: XCTestCase {
         XCTAssertTrue(renderedBody.contains("Pair with your Mac to receive local vault metadata."))
     }
 
+    @MainActor
+    func testVaultListViewDefaultInitializerExecutesMetadataOnlyLoading() throws {
+        let view = VaultListView()
+        let encodedItems = try JSONEncoder().encode(view.model.items)
+        let serializedItems = try JSONSerialization.jsonObject(
+            with: encodedItems
+        ) as? [[String: Any]]
+
+        XCTAssertNotNil(serializedItems)
+        XCTAssertTrue(
+            serializedItems?.allSatisfy {
+                Set($0.keys) == ["id", "label", "username", "websiteOrigin"]
+            } ?? false
+        )
+    }
+
     func testVaultListModelReadsImportedMetadataWithoutPasswords() throws {
         let storeURL = try temporaryEncryptedStoreURL()
         let encryptionKey = SymmetricKey(size: .bits256)
@@ -129,6 +145,119 @@ final class VaultListModelTests: XCTestCase {
         XCTAssertFalse(encodedModel.contains("secret-bank"))
         XCTAssertFalse(encodedModel.contains("secret-github"))
         XCTAssertFalse(encodedModel.contains("password"))
+    }
+
+    func testReceivedVaultLoaderReadsPersistedMetadataWithoutPasswords() throws {
+        let storeURL = try temporaryEncryptedStoreURL()
+        let encryptionKey = SymmetricKey(size: .bits256)
+        try persistReceivedVault(at: storeURL, encryptionKey: encryptionKey)
+        let configuration = PairingReceivedVaultStoreConfiguration(
+            encryptedStoreURL: storeURL,
+            encryptionKeyProvider: { encryptionKey }
+        )
+
+        let model = VaultListModel.loadReceivedVault(from: configuration)
+
+        XCTAssertEqual(model.items, expectedVaultListItems())
+        let encodedItems = String(
+            data: try JSONEncoder().encode(model.items),
+            encoding: .utf8
+        ) ?? ""
+        XCTAssertFalse(encodedItems.contains("secret-bank"))
+        XCTAssertFalse(encodedItems.contains("secret-github"))
+        XCTAssertFalse(encodedItems.contains("password"))
+    }
+
+    @MainActor
+    func testVaultListViewLoadsPersistedMetadataThroughReceivedVaultConfiguration() throws {
+        let storeURL = try temporaryEncryptedStoreURL()
+        let encryptionKey = SymmetricKey(size: .bits256)
+        try persistReceivedVault(at: storeURL, encryptionKey: encryptionKey)
+        let configuration = PairingReceivedVaultStoreConfiguration(
+            encryptedStoreURL: storeURL,
+            encryptionKeyProvider: { encryptionKey }
+        )
+
+        let view = VaultListView(receivedVaultStoreConfiguration: configuration)
+
+        XCTAssertEqual(view.model.items, expectedVaultListItems())
+    }
+
+    func testReceivedVaultLoaderFailsClosedWhenStoreIsMissing() throws {
+        let storeURL = try temporaryEncryptedStoreURL()
+        let encryptionKey = SymmetricKey(size: .bits256)
+        let configuration = PairingReceivedVaultStoreConfiguration(
+            encryptedStoreURL: storeURL,
+            encryptionKeyProvider: { encryptionKey }
+        )
+
+        let model = VaultListModel.loadReceivedVault(from: configuration)
+
+        XCTAssertEqual(model.items, [])
+    }
+
+    func testReceivedVaultLoaderFailsClosedWhenStoreIsUnreadable() throws {
+        let storeURL = try temporaryEncryptedStoreURL()
+        try Data("not-an-encrypted-vault-envelope".utf8).write(to: storeURL)
+        let encryptionKey = SymmetricKey(size: .bits256)
+        let configuration = PairingReceivedVaultStoreConfiguration(
+            encryptedStoreURL: storeURL,
+            encryptionKeyProvider: { encryptionKey }
+        )
+
+        let model = VaultListModel.loadReceivedVault(from: configuration)
+
+        XCTAssertEqual(model.items, [])
+    }
+
+    private func persistReceivedVault(
+        at storeURL: URL,
+        encryptionKey: SymmetricKey
+    ) throws {
+        var importStore = try PairingHandoffImportStore(
+            encryptedStoreURL: storeURL,
+            encryptionKey: encryptionKey
+        )
+        _ = try importStore.importPayload(
+            PairingHandoffOpenedPayload(
+                items: [
+                    PairingImportedCredential(
+                        id: "github-login",
+                        label: "github.com",
+                        username: "yuchen",
+                        password: "secret-github",
+                        profileId: "personal",
+                        websiteOrigin: "https://github.com"
+                    ),
+                    PairingImportedCredential(
+                        id: "bank-login",
+                        label: "Bank",
+                        username: "me@example.com",
+                        password: "secret-bank",
+                        profileId: "personal",
+                        websiteOrigin: "https://bank.example"
+                    )
+                ]
+            ),
+            from: makeHandoff()
+        )
+    }
+
+    private func expectedVaultListItems() -> [VaultListItem] {
+        [
+            VaultListItem(
+                id: "bank-login",
+                label: "Bank",
+                username: "me@example.com",
+                websiteOrigin: "https://bank.example"
+            ),
+            VaultListItem(
+                id: "github-login",
+                label: "github.com",
+                username: "yuchen",
+                websiteOrigin: "https://github.com"
+            )
+        ]
     }
 
     private func temporaryEncryptedStoreURL() throws -> URL {

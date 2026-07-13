@@ -390,9 +390,13 @@ For the native Mac companion proof:
   in this gate also proves the claimant-key-bound handoff can be opened locally,
   persisted to an AES-GCM encrypted received-vault store, and projected through
   an injectable store as read-only `label`, `username`, and `websiteOrigin`
-  metadata. This is repo-level/simulator code proof; it does not prove
-  physical-device local open, the default app-start received-vault loader,
-  real LAN discovery, camera QR scanning, or a complete mobile workflow.
+  metadata. When `VaultListView` is initialized through its default/no-argument
+  path, it attempts `.appDefault()` received-vault loading and fails closed when
+  storage is missing or unreadable. This is component-level,
+  repo-level/simulator code proof; no product app composition is proven. It
+  does not prove physical-device local open or reload, real LAN discovery,
+  camera QR scanning, password reveal or copy, editing, sync, or a complete
+  daily-use mobile vault.
 - LAN-address pairing smoke proof is available through:
   `pnpm test:pairing-lan-smoke`
   This resolves or accepts `UNUVAULT_PAIRING_LAN_HOST`, starts the proof-mode
@@ -401,8 +405,8 @@ For the native Mac companion proof:
   HTTP to `/v1/pairing/claim`, receives only AES-GCM wrapped handoff material,
   and proves replay fails without exposing credential ids, usernames, passwords,
   bridge bearer tokens, or vault plaintext. This LAN smoke alone does not prove
-  camera QR scanning, physical-iPhone local open or encrypted import, the
-  default app-start received-vault loader, or a complete mobile workflow.
+  camera QR scanning, physical-iPhone local open or encrypted import, or a
+  complete mobile workflow.
 - Physical iPhone pairing receipt harness is available through:
   `pnpm test:pairing-physical-preflight`
   Use this preflight first when the iPhone is not connected yet or when signing
@@ -439,10 +443,11 @@ For the native Mac companion proof:
   target-mismatched responses, and keep credential, password, and vault
   plaintext out of the claim/response contract. The complete XCTest suite also
   proves repo-level/simulator claimant-key local open, AES-GCM encrypted
-  received-vault persistence, and an injectable-store projection of read-only
-  metadata. It does not prove those paths on a physical iPhone, the default
-  app-start received-vault loader, camera QR scanning, real LAN discovery, or a
-  complete mobile workflow.
+  received-vault persistence, read-only metadata projection, and default
+  `VaultListView()` component loading that attempts `.appDefault()` and fails
+  closed on missing or unreadable storage. This does not prove product app
+  composition, physical-device reload, camera QR scanning, real LAN discovery,
+  editing, sync, password reveal or copy, or a complete daily-use mobile vault.
 - iOS receive-invite visual proof is available through:
   `bash scripts/testing/run-ios-ui-host.sh`
   This uses XcodeGen to build a simulator host app for
