@@ -23,10 +23,10 @@ reload in the shipped flow. It also does not claim camera QR scanning,
 automatic discovery, password reveal or copy, editing, search, biometric
 unlock, cloud sync, or a full mobile vault.
 
-Repo-level
-`pnpm test:pairing-lan-smoke` now proves the Mac runtime can accept the target
-claim through a non-loopback LAN IPv4 base URL, but that command is still not a
-physical iPhone receipt or camera QR scan proof.
+Repo-level `pnpm test:pairing-lan-smoke` now proves the Mac runtime can accept
+the target claim through a non-loopback LAN IPv4 base URL. This LAN smoke alone
+does not prove physical-device local open, encrypted import, read-only reload,
+or camera QR scanning.
 
 Physical receipt proof is available only when a real trusted iPhone is
 connected:

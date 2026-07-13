@@ -41,15 +41,19 @@ local-first, Mac-first posture.
   current local-first split: Mac local vault, browser fill, Web management, and
   iPhone receive/view come before optional Cloud and Sync expansion.
 
-### Infrastructure Baseline
+### Optional Cloud and Sync Infrastructure Baseline
 
-- Use Supabase for Auth and Postgres as the initial managed backend foundation.
-- Keep core vault business logic in the product's TypeScript API layer instead of pushing domain logic into Supabase directly.
+- For the optional Cloud and Sync layer, use Supabase for Auth and Postgres as
+  the initial managed backend foundation. Neither is a dependency of the local
+  Mac vault, browser-fill, or iPhone receive/view core.
+- Keep Cloud and Sync vault business logic in the product's TypeScript API
+  layer instead of pushing domain logic into Supabase directly.
 
 ### Current Implemented Tech Stack
 
 - Workspace: pnpm monorepo
-- Backend: Node.js, TypeScript, Fastify, PostgreSQL, Supabase JavaScript client
+- Optional Cloud and Sync backend: Node.js, TypeScript, Fastify, PostgreSQL,
+  Supabase JavaScript client
 - Web: Next.js, React, repo-local CSS
 - Browser extension: TypeScript, React, esbuild, generated Manifest V3 assets
 - iPhone: SwiftUI
@@ -86,7 +90,12 @@ must not be read as proof that they are part of the current stack.
 - Browser import should live under `/imports/browser`.
 - Shared client access for web and extension should live in `packages/api-client`.
 
-### Canonical Delivery Sequence
+### Historical Milestone Sequence
+
+The March 2026 milestone order is retained for traceability only. Current
+delivery order is controlled by
+`docs/architecture/0008-personal-local-first-product-split.md` and the root
+`README.md`; new work must not treat this historical sequence as canonical.
 
 1. Milestone M1: workspace, schema boundary, and client-side security model
 2. Milestone M2: API skeleton and web trust shell
@@ -98,9 +107,11 @@ must not be read as proof that they are part of the current stack.
 - The M1 workspace, schema, and shared security skeleton exists.
 - Web vault management, the browser-extension fill path, and the Mac local
   vault have active implementations and repo-owned tests.
-- iOS pairing can locally open and persist a claimant-key-bound handoff, while
-  its read-only list model can project metadata from the encrypted
-  received-vault store. The default app-start loader remains unimplemented.
+- Repo-level iOS code and XCTest prove pairing can locally open and persist a
+  claimant-key-bound handoff, while its read-only list model can project
+  metadata from the encrypted received-vault store. Physical-device execution
+  of those paths is not proved, and the default app-start loader remains
+  unimplemented.
 - Devices, recent activity, and browser import still contain scaffold-level
   surfaces and require dedicated product slices before they are described as
   complete workflows.
