@@ -1,5 +1,4 @@
 import type {
-  FastifyError,
   FastifyPluginAsync,
   FastifyReply,
   FastifyRequest,
@@ -40,19 +39,29 @@ function sendStaticError(
 }
 
 function mapImportRouteParseError(
-  error: FastifyError,
+  error: unknown,
   _request: FastifyRequest,
   reply: FastifyReply,
 ): void {
-  if (error.code === "FST_ERR_CTP_BODY_TOO_LARGE") {
+  let code: unknown;
+  let statusCode: unknown;
+  try {
+    code = (error as { code?: unknown }).code;
+    statusCode = (error as { statusCode?: unknown }).statusCode;
+  } catch {
+    sendStaticError(reply, 500, "import_report_create_failed");
+    return;
+  }
+
+  if (code === "FST_ERR_CTP_BODY_TOO_LARGE") {
     sendStaticError(reply, 413, "import_report_too_large");
     return;
   }
-  if (error.code === "FST_ERR_CTP_INVALID_MEDIA_TYPE") {
+  if (code === "FST_ERR_CTP_INVALID_MEDIA_TYPE") {
     sendStaticError(reply, 415, "unsupported_media_type");
     return;
   }
-  if (error.statusCode === 400) {
+  if (statusCode === 400) {
     sendStaticError(reply, 400, "invalid_import_report");
     return;
   }
@@ -61,16 +70,21 @@ function mapImportRouteParseError(
 }
 
 function mapStableImportError(error: unknown, reply: FastifyReply): void {
-  if (error instanceof ImportReportValidationError) {
-    sendStaticError(reply, 400, "invalid_import_report");
-    return;
-  }
-  if (error instanceof ImportReportUnauthorizedError) {
-    sendStaticError(reply, 401, "invalid_token");
-    return;
-  }
-  if (error instanceof ImportReportProfileNotFoundError) {
-    sendStaticError(reply, 404, "profile_not_found");
+  try {
+    if (error instanceof ImportReportValidationError) {
+      sendStaticError(reply, 400, "invalid_import_report");
+      return;
+    }
+    if (error instanceof ImportReportUnauthorizedError) {
+      sendStaticError(reply, 401, "invalid_token");
+      return;
+    }
+    if (error instanceof ImportReportProfileNotFoundError) {
+      sendStaticError(reply, 404, "profile_not_found");
+      return;
+    }
+  } catch {
+    sendStaticError(reply, 500, "import_report_create_failed");
     return;
   }
 

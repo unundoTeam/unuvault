@@ -1,4 +1,5 @@
 import Fastify from "fastify";
+import { Readable } from "node:stream";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createImportRoutes,
@@ -183,6 +184,40 @@ describe("POST /imports/browser", () => {
     }
   });
 
+  it("contains poisoned service failures behind the static route error", async () => {
+    const canary = "INSTANCEOF_POISON_CANARY";
+    let poisonedError: object;
+    poisonedError = new Proxy(Object.create(null) as object, {
+      get() {
+        throw new Error(canary);
+      },
+      getPrototypeOf() {
+        throw poisonedError;
+      },
+    });
+    const deps = createDependencies();
+    vi.mocked(deps.recordBrowserImportReport).mockRejectedValue(poisonedError);
+    const app = await buildImportApp(deps);
+
+    try {
+      const response = await app.inject({
+        method: "POST",
+        url: "/imports/browser",
+        headers: { authorization: "Bearer jwt-token" },
+        payload: VALID_REQUEST,
+      });
+
+      expect(response.statusCode).toBe(500);
+      expect(response.json()).toEqual({
+        ok: false,
+        error: "import_report_create_failed",
+      });
+      expect(response.body).not.toContain(canary);
+    } finally {
+      await app.close();
+    }
+  });
+
   it("maps malformed JSON to the static validation error", async () => {
     const deps = createDependencies();
     const app = await buildImportApp(deps);
@@ -203,6 +238,65 @@ describe("POST /imports/browser", () => {
         ok: false,
         error: "invalid_import_report",
       });
+      expect(deps.recordBrowserImportReport).not.toHaveBeenCalled();
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("accepts application/json with a UTF-8 charset parameter", async () => {
+    const deps = createDependencies();
+    const app = await buildImportApp(deps);
+
+    try {
+      const response = await app.inject({
+        method: "POST",
+        url: "/imports/browser",
+        headers: {
+          authorization: "Bearer jwt-token",
+          "content-type": "application/json; charset=utf-8",
+        },
+        payload: JSON.stringify(VALID_REQUEST),
+      });
+
+      expect(response.statusCode).toBe(201);
+      expect(response.json()).toEqual(RECEIPT);
+      expect(deps.recordBrowserImportReport).toHaveBeenCalledWith(
+        "jwt-token",
+        VALID_REQUEST,
+      );
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("maps request body stream failures to the static validation error", async () => {
+    const streamCanary = "STREAM_READ_CANARY";
+    const deps = createDependencies();
+    const app = await buildImportApp(deps);
+    const payload = new Readable({
+      read() {
+        this.destroy(new Error(streamCanary));
+      },
+    });
+
+    try {
+      const response = await app.inject({
+        method: "POST",
+        url: "/imports/browser",
+        headers: {
+          authorization: "Bearer jwt-token",
+          "content-type": "application/json",
+        },
+        payload,
+      });
+
+      expect(response.statusCode).toBe(400);
+      expect(response.json()).toEqual({
+        ok: false,
+        error: "invalid_import_report",
+      });
+      expect(response.body).not.toContain(streamCanary);
       expect(deps.recordBrowserImportReport).not.toHaveBeenCalled();
     } finally {
       await app.close();
