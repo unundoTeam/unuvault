@@ -7,6 +7,9 @@ const MAX_PLAINTEXT_BYTES = 1_048_576;
 const AEAD_TAG_BYTES = 16;
 const MAX_CIPHERTEXT_BYTES = MAX_PLAINTEXT_BYTES + AEAD_TAG_BYTES;
 const BASE64URL = /^[A-Za-z0-9_-]+$/;
+const LEGACY_BASE64 = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/][AQgw]==|[A-Za-z0-9+/]{2}[AEIMQUYcgkosw048]=)?$/;
+const LEGACY_BASE64_WITHOUT_PADDING = /^[A-Za-z0-9+/]+$/;
+const LEGACY_TAG_HEX = /^[0-9a-f]{8}$/;
 const ARGON2ID_VERIFIER = /^\$argon2id\$v=([0-9]+)\$m=([0-9]+),t=([0-9]+),p=([0-9]+)\$([A-Za-z0-9+/]{22})\$([A-Za-z0-9+/]{43})$/;
 
 export const ARGON2ID_V3_POLICY = Object.freeze({
@@ -27,8 +30,37 @@ export const ARGON2ID_V3_POLICY = Object.freeze({
 export const MAX_PASSWORD_ENVELOPE_JSON_CHARACTERS =
   ARGON2ID_V3_POLICY.maxCiphertextBase64URLCharacters + 2_048;
 
+export const LEGACY_XOR_ENVELOPE_POLICY = Object.freeze({
+  saltBase64Characters: 16,
+  maxPayloadBytes: MAX_PLAINTEXT_BYTES,
+  maxPayloadBase64Characters: 4 * Math.ceil(MAX_PLAINTEXT_BYTES / 3),
+});
+
 function isFiniteSafeInteger(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value) && Number.isSafeInteger(value);
+}
+
+export function isSupportedLegacyXorEnvelope(
+  encryptedPayload: string,
+  salt: string,
+  tag: string,
+): boolean {
+  const hasCanonicalPayloadEncoding =
+    encryptedPayload.length % 4 === 0 &&
+    LEGACY_BASE64.test(encryptedPayload);
+  const payloadPaddingBytes = encryptedPayload.endsWith("==")
+    ? 2
+    : encryptedPayload.endsWith("=")
+      ? 1
+      : 0;
+  const payloadBytes = (encryptedPayload.length / 4) * 3 - payloadPaddingBytes;
+
+  return salt.length === LEGACY_XOR_ENVELOPE_POLICY.saltBase64Characters &&
+    LEGACY_BASE64_WITHOUT_PADDING.test(salt) &&
+    encryptedPayload.length <= LEGACY_XOR_ENVELOPE_POLICY.maxPayloadBase64Characters &&
+    hasCanonicalPayloadEncoding &&
+    payloadBytes <= LEGACY_XOR_ENVELOPE_POLICY.maxPayloadBytes &&
+    LEGACY_TAG_HEX.test(tag);
 }
 
 function decodeCanonicalBase64URL(

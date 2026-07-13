@@ -18,6 +18,9 @@ import {
 
 const jsonBound =
   ARGON2ID_V3_POLICY.maxCiphertextBase64URLCharacters + 2_048;
+const legacyXorPayloadBound = 4 * Math.ceil(ARGON2ID_V3_POLICY.maxPlaintextBytes / 3);
+const legacyXorPayloadAtByteBound =
+  "A".repeat(legacyXorPayloadBound - 4) + "AA==";
 
 describe("vault envelope helpers", () => {
   afterEach(() => {
@@ -127,6 +130,122 @@ describe("vault envelope helpers", () => {
         LEGACY_FIXTURE_MASTER_PASSWORD,
       ),
     ).resolves.toBe("hunter2");
+  });
+
+  it("rejects an oversized legacy XOR payload before decoding it", async () => {
+    const decode = vi.fn(() => {
+      throw new Error("legacy payload must not be decoded");
+    });
+    vi.stubGlobal("atob", decode);
+    const oversizedPayload = "A".repeat(legacyXorPayloadBound + 4);
+
+    await expect(
+      openVaultPassword(
+        JSON.stringify({
+          version: 2,
+          cipher: "xor-stream-v1",
+          encryptedPayload: oversizedPayload,
+          keyDerivation: "unlock-passphrase-v1",
+          unlockSalt: "AQIDBAUGBwgJCgsM",
+          unlockTag: "00000000",
+        }),
+        LEGACY_FIXTURE_MASTER_PASSWORD,
+      ),
+    ).resolves.toBe("");
+    expect(decode).not.toHaveBeenCalled();
+  });
+
+  it("allows a legacy XOR payload at the supported size boundary to be decoded", async () => {
+    const decode = vi.fn(() => {
+      throw new Error("boundary payload was decoded");
+    });
+    vi.stubGlobal("atob", decode);
+
+    await expect(
+      openVaultPassword(
+        JSON.stringify({
+          version: 2,
+          cipher: "xor-stream-v1",
+          encryptedPayload: legacyXorPayloadAtByteBound,
+          keyDerivation: "unlock-passphrase-v1",
+          unlockSalt: "AQIDBAUGBwgJCgsM",
+          unlockTag: "00000000",
+        }),
+        LEGACY_FIXTURE_MASTER_PASSWORD,
+      ),
+    ).resolves.toBe("");
+    expect(decode).toHaveBeenCalledOnce();
+  });
+
+  it("rejects a legacy XOR payload that exceeds the byte bound at the character limit", async () => {
+    const decode = vi.fn(() => {
+      throw new Error("legacy payload must not be decoded");
+    });
+    vi.stubGlobal("atob", decode);
+
+    await expect(
+      openVaultPassword(
+        JSON.stringify({
+          version: 2,
+          cipher: "xor-stream-v1",
+          encryptedPayload: "A".repeat(legacyXorPayloadBound),
+          keyDerivation: "unlock-passphrase-v1",
+          unlockSalt: "AQIDBAUGBwgJCgsM",
+          unlockTag: "00000000",
+        }),
+        LEGACY_FIXTURE_MASTER_PASSWORD,
+      ),
+    ).resolves.toBe("");
+    expect(decode).not.toHaveBeenCalled();
+  });
+
+  it("rejects an oversized legacy XOR salt before decoding its payload", async () => {
+    const decode = vi.fn(() => {
+      throw new Error("legacy payload must not be decoded");
+    });
+    vi.stubGlobal("atob", decode);
+
+    await expect(
+      openVaultPassword(
+        JSON.stringify({
+          version: 2,
+          cipher: "xor-stream-v1",
+          encryptedPayload: "AAAA",
+          keyDerivation: "unlock-passphrase-v1",
+          unlockSalt: "AQIDBAUGBwgJCgsMA",
+          unlockTag: "00000000",
+        }),
+        LEGACY_FIXTURE_MASTER_PASSWORD,
+      ),
+    ).resolves.toBe("");
+    expect(decode).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["a payload whose length is not a multiple of four", "AAA", "00000000"],
+    ["a payload with invalid Base64 padding", "AA=A", "00000000"],
+    ["a payload with non-canonical Base64 pad bits", "AB==", "00000000"],
+    ["a tag outside exact lowercase eight-hex syntax", "AAAA", "ABCDEF12"],
+  ])("rejects legacy XOR input with %s before decoding", async (_reason, encryptedPayload, unlockTag) => {
+    const decode = vi.fn(() => {
+      throw new Error("legacy payload must not be decoded");
+    });
+    vi.stubGlobal("atob", decode);
+
+    await expect(
+      openVaultPassword(
+        JSON.stringify({
+          version: 2,
+          cipher: "xor-stream-v1",
+          encryptedPayload,
+          keyDerivation: "unlock-passphrase-v1",
+          unlockSalt: "AQIDBAUGBwgJCgsM",
+          unlockTag,
+        }),
+        LEGACY_FIXTURE_MASTER_PASSWORD,
+      ),
+    ).resolves.toBe("");
+    expect(decode).not.toHaveBeenCalled();
   });
 
   it("fails closed for broken envelope-like storage values", async () => {

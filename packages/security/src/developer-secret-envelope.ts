@@ -3,7 +3,10 @@ import {
   sealWithPassword,
   type PasswordDerivedCiphertext,
 } from "./sodium";
-import { MAX_PASSWORD_ENVELOPE_JSON_CHARACTERS } from "./argon2-policy";
+import {
+  isSupportedLegacyXorEnvelope,
+  MAX_PASSWORD_ENVELOPE_JSON_CHARACTERS,
+} from "./argon2-policy";
 
 type LegacyDeveloperSecretEnvelope = {
   version: 1;
@@ -86,7 +89,12 @@ function isLegacyDeveloperSecretEnvelope(
       "master-password-v1" &&
     typeof (value as Partial<LegacyDeveloperSecretEnvelope>).encryptedPayload === "string" &&
     typeof (value as Partial<LegacyDeveloperSecretEnvelope>).salt === "string" &&
-    typeof (value as Partial<LegacyDeveloperSecretEnvelope>).tag === "string"
+    typeof (value as Partial<LegacyDeveloperSecretEnvelope>).tag === "string" &&
+    isSupportedLegacyXorEnvelope(
+      (value as LegacyDeveloperSecretEnvelope).encryptedPayload,
+      (value as LegacyDeveloperSecretEnvelope).salt,
+      (value as LegacyDeveloperSecretEnvelope).tag,
+    )
   );
 }
 

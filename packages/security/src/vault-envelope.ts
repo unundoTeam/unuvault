@@ -9,7 +9,10 @@ import {
   sealWithPassword,
   type PasswordDerivedCiphertext,
 } from "./sodium";
-import { MAX_PASSWORD_ENVELOPE_JSON_CHARACTERS } from "./argon2-policy";
+import {
+  isSupportedLegacyXorEnvelope,
+  MAX_PASSWORD_ENVELOPE_JSON_CHARACTERS,
+} from "./argon2-policy";
 
 /**
  * @deprecated Version 1 stores the password as plaintext and only exists for explicit
@@ -114,7 +117,12 @@ function isPassphraseEnvelope(
     value.keyDerivation === "unlock-passphrase-v1" &&
     typeof value.encryptedPayload === "string" &&
     typeof value.unlockSalt === "string" &&
-    typeof value.unlockTag === "string"
+    typeof value.unlockTag === "string" &&
+    isSupportedLegacyXorEnvelope(
+      value.encryptedPayload,
+      value.unlockSalt,
+      value.unlockTag,
+    )
   );
 }
 

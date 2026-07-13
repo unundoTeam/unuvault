@@ -13,6 +13,9 @@ import { ARGON2ID_V3_POLICY } from "../src/argon2-policy";
 
 const jsonBound =
   ARGON2ID_V3_POLICY.maxCiphertextBase64URLCharacters + 2_048;
+const legacyXorPayloadBound = 4 * Math.ceil(ARGON2ID_V3_POLICY.maxPlaintextBytes / 3);
+const legacyXorPayloadAtByteBound =
+  "A".repeat(legacyXorPayloadBound - 4) + "AA==";
 
 describe("developer secret envelope helpers", () => {
   afterEach(() => {
@@ -77,6 +80,122 @@ describe("developer secret envelope helpers", () => {
         LEGACY_FIXTURE_MASTER_PASSWORD,
       ),
     ).resolves.toBe(LEGACY_FIXTURE_DEV_SECRET_DOTENV);
+  });
+
+  it("rejects an oversized legacy XOR payload before decoding it", async () => {
+    const decode = vi.fn(() => {
+      throw new Error("legacy payload must not be decoded");
+    });
+    vi.stubGlobal("atob", decode);
+    const oversizedPayload = "A".repeat(legacyXorPayloadBound + 4);
+
+    await expect(
+      openDeveloperSecretBlob(
+        JSON.stringify({
+          version: 1,
+          cipher: "xor-stream-v1",
+          encryptedPayload: oversizedPayload,
+          keyDerivation: "master-password-v1",
+          salt: "AQIDBAUGBwgJCgsM",
+          tag: "00000000",
+        }),
+        LEGACY_FIXTURE_MASTER_PASSWORD,
+      ),
+    ).resolves.toBe("");
+    expect(decode).not.toHaveBeenCalled();
+  });
+
+  it("allows a legacy XOR payload at the supported size boundary to be decoded", async () => {
+    const decode = vi.fn(() => {
+      throw new Error("boundary payload was decoded");
+    });
+    vi.stubGlobal("atob", decode);
+
+    await expect(
+      openDeveloperSecretBlob(
+        JSON.stringify({
+          version: 1,
+          cipher: "xor-stream-v1",
+          encryptedPayload: legacyXorPayloadAtByteBound,
+          keyDerivation: "master-password-v1",
+          salt: "AQIDBAUGBwgJCgsM",
+          tag: "00000000",
+        }),
+        LEGACY_FIXTURE_MASTER_PASSWORD,
+      ),
+    ).resolves.toBe("");
+    expect(decode).toHaveBeenCalledOnce();
+  });
+
+  it("rejects a legacy XOR payload that exceeds the byte bound at the character limit", async () => {
+    const decode = vi.fn(() => {
+      throw new Error("legacy payload must not be decoded");
+    });
+    vi.stubGlobal("atob", decode);
+
+    await expect(
+      openDeveloperSecretBlob(
+        JSON.stringify({
+          version: 1,
+          cipher: "xor-stream-v1",
+          encryptedPayload: "A".repeat(legacyXorPayloadBound),
+          keyDerivation: "master-password-v1",
+          salt: "AQIDBAUGBwgJCgsM",
+          tag: "00000000",
+        }),
+        LEGACY_FIXTURE_MASTER_PASSWORD,
+      ),
+    ).resolves.toBe("");
+    expect(decode).not.toHaveBeenCalled();
+  });
+
+  it("rejects an oversized legacy XOR salt before decoding its payload", async () => {
+    const decode = vi.fn(() => {
+      throw new Error("legacy payload must not be decoded");
+    });
+    vi.stubGlobal("atob", decode);
+
+    await expect(
+      openDeveloperSecretBlob(
+        JSON.stringify({
+          version: 1,
+          cipher: "xor-stream-v1",
+          encryptedPayload: "AAAA",
+          keyDerivation: "master-password-v1",
+          salt: "AQIDBAUGBwgJCgsMA",
+          tag: "00000000",
+        }),
+        LEGACY_FIXTURE_MASTER_PASSWORD,
+      ),
+    ).resolves.toBe("");
+    expect(decode).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["a payload whose length is not a multiple of four", "AAA", "00000000"],
+    ["a payload with invalid Base64 padding", "AA=A", "00000000"],
+    ["a payload with non-canonical Base64 pad bits", "AB==", "00000000"],
+    ["a tag outside exact lowercase eight-hex syntax", "AAAA", "ABCDEF12"],
+  ])("rejects legacy XOR input with %s before decoding", async (_reason, encryptedPayload, tag) => {
+    const decode = vi.fn(() => {
+      throw new Error("legacy payload must not be decoded");
+    });
+    vi.stubGlobal("atob", decode);
+
+    await expect(
+      openDeveloperSecretBlob(
+        JSON.stringify({
+          version: 1,
+          cipher: "xor-stream-v1",
+          encryptedPayload,
+          keyDerivation: "master-password-v1",
+          salt: "AQIDBAUGBwgJCgsM",
+          tag,
+        }),
+        LEGACY_FIXTURE_MASTER_PASSWORD,
+      ),
+    ).resolves.toBe("");
+    expect(decode).not.toHaveBeenCalled();
   });
 
   it("fails closed when the master password is wrong", async () => {
