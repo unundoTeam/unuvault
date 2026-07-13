@@ -109,9 +109,11 @@ delivery order is controlled by
   vault have active implementations and repo-owned tests.
 - Repo-level iOS code and XCTest prove pairing can locally open and persist a
   claimant-key-bound handoff, while its read-only list model can project
-  metadata from the encrypted received-vault store. The default `VaultListView`
-  initialization loads that store at app start and fails closed when it is
-  missing or unreadable. Physical-device execution of those paths is not
+  metadata from the encrypted received-vault store. The default
+  `VaultListView()` path attempts `.appDefault()` loading and fails closed when
+  storage is missing or unreadable. This is component-level wiring only; no
+  product app composition is proved. Physical-device reload, editing, sync,
+  password reveal or copy, and a complete daily-use mobile vault are not
   proved.
 - Browser import now has an implemented non-UI client core,
   camelCase-to-wire mapper, API/client primitive, and authenticated recorded

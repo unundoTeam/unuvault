@@ -274,11 +274,12 @@ hygiene cleanup.
   iPhone target-claim client contract to the Mac runtime `/v1/pairing/claim`
   contract. Its complete iOS XCTest suite also proves repo-level/simulator
   claimant-key local open, AES-GCM encrypted received-vault persistence, and an
-  injectable-store projection of read-only metadata. The default `VaultListView`
-  initialization also loads that store at app start and fails closed on missing
-  or unreadable storage. It still avoids claims for physical-device local open
-  or reload, real LAN discovery, camera QR scanning, or a complete mobile
-  workflow.
+  injectable-store projection of read-only metadata. The default
+  `VaultListView()` path attempts `.appDefault()` loading and fails closed on
+  missing or unreadable storage. This is component-level wiring only; no product
+  app composition is proved. It still avoids claims for physical-device local
+  open or reload, real LAN discovery, camera QR scanning, password reveal or
+  copy, editing, sync, or a complete daily-use mobile vault.
 - `pnpm test:pairing-lan-smoke` resolves or accepts
   `UNUVAULT_PAIRING_LAN_HOST`, starts the proof-mode Mac companion bridge on
   `0.0.0.0`, emits an invite with the non-loopback LAN IPv4 base URL, posts a
@@ -323,10 +324,11 @@ hygiene cleanup.
   handoff response envelopes, and rejects invalid, expired, status-failed, or
   target-mismatched responses. The complete XCTest suite also proves
   repo-level/simulator claimant-key local open, AES-GCM encrypted received-vault
-  persistence, read-only metadata projection, and default `VaultListView`
-  app-start loading that fails closed on missing or unreadable storage. It does
-  not prove those paths on a physical iPhone, camera QR scanning, real LAN
-  discovery, or a complete mobile workflow.
+  persistence, read-only metadata projection, and the default `VaultListView()`
+  component path, which attempts `.appDefault()` loading and fails closed on
+  missing or unreadable storage. It does not prove product app composition,
+  physical-device reload, camera QR scanning, real LAN discovery, password
+  reveal or copy, editing, sync, or a complete daily-use mobile vault.
 - `pnpm test:macos:recovery-boundary` proves encrypted local vault backup data
   contains only an AES-GCM envelope, does not contain the credential id,
   username, or password as plaintext, cannot be opened with account-only or
@@ -371,10 +373,12 @@ production app bundle.
   scanning, full mobile adapter adoption, or a shipped iPhone vault workflow.
 - Current repo-level iOS code and XCTest prove claimant-key local open,
   AES-GCM encrypted received-vault persistence, injectable-store read-only
-  metadata projection, and default `VaultListView` app-start loading that fails
-  closed on missing or unreadable storage. Physical-device execution of those
-  paths, LAN discovery, QR code rendering/scanning, simulator/device visual
-  parity, and a shipped iPhone vault workflow remain unclaimed.
+  metadata projection, and the default `VaultListView()` component path, which
+  attempts `.appDefault()` loading and fails closed on missing or unreadable
+  storage. No product app composition is proved. Physical-device reload, LAN
+  discovery, QR code rendering/scanning, simulator/device visual parity,
+  password reveal or copy, editing, sync, and a complete daily-use mobile vault
+  remain unclaimed.
 - Automatic Account/Web sync into the Mac local vault is not claimed yet; the
   current proof covers a Web/account unlocked vault payload import receipt into
   the encrypted Mac vault, plus direct native menu local-save and manual menu

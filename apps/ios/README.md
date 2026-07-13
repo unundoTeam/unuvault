@@ -18,11 +18,12 @@ key for the claimant-provided P256 identity. It persists the received vault as
 an AES-GCM encrypted file using a 256-bit key held in Keychain, and the store
 supports reloading `label`, `username`, and `websiteOrigin` into the read-only
 vault list without exposing passwords in that list model. The default
-`VaultListView` initialization loads that received-vault store at app start and
-fails closed to an empty list when the store is missing or unreadable. This
-repo-level/simulator wiring does not claim physical-device reload, camera QR
-scanning, automatic discovery, password reveal or copy, editing, search,
-biometric unlock, cloud sync, or a full mobile vault.
+`VaultListView()` path attempts `.appDefault()` received-vault loading and
+fails closed to an empty list when the store is missing or unreadable. This is
+component-level wiring only; no product app composition is proven. It does not
+claim physical-device reload, camera QR scanning, automatic discovery, password
+reveal or copy, editing, search, biometric unlock, cloud sync, or a full mobile
+vault.
 
 Repo-level `pnpm test:pairing-lan-smoke` now proves the Mac runtime can accept
 the target claim through a non-loopback LAN IPv4 base URL. This LAN smoke alone

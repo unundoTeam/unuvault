@@ -60,7 +60,7 @@ evidence backlog, but it does not claim mobile/native adapter adoption.
 | Native implementation path | Minimal SwiftUI views, an iOS Swift package, a Mac pairing invite/payload parser, a target-claim model, a Mac handoff response parser, an iOS pairing exchange client, and a receive-invite ViewModel/View exist. | partial |
 | Platform token mapping | The receive-invite view uses repo-local neutral gray, secure green, danger red, radius, and typography constants aligned with the approved source frame; formal mobile primitive mapping is not claimed. | partial |
 | Safe-area and touch target behavior | The approved receive-invite frame and SwiftUI view use a single scrollable safe-area stack. `PairingInviteAccessibilityContract` pins a 44pt minimum touch target, a 48pt primary action minimum, and a 104pt invite editor minimum; `bash scripts/testing/run-ios-ui-host.sh` launches the screen in an iPhone simulator and captures screenshot evidence for visual review. | partial |
-| Auth or vault action review/recovery mapping | The receive-invite flow disables pairing until invite validation, fails closed on expired invites, and records error copy. Repo-level XCTest proves claimant-key local open, AES-GCM encrypted received-vault persistence, read-only metadata projection through an injectable store, and default `VaultListView` app-start loading that fails closed on missing or unreadable storage; physical-device execution, password reveal/copy, editing, and recovery UI remain out of scope. | partial |
+| Auth or vault action review/recovery mapping | The receive-invite flow disables pairing until invite validation, fails closed on expired invites, and records error copy. Repo-level XCTest proves claimant-key local open, AES-GCM encrypted received-vault persistence, read-only metadata projection through an injectable store, and the default `VaultListView()` component path that attempts `.appDefault()` loading and fails closed on missing or unreadable storage. No product app composition is proved; physical-device reload, password reveal/copy, editing, sync, recovery UI, and a complete daily-use mobile vault remain out of scope. | partial |
 | Repo-owned iOS verification command | `bash scripts/testing/run-ios.sh` runs the Swift package tests on an available iPhone simulator; `pnpm test:pairing-boundary` runs that iOS receive/client proof with the Mac companion pairing-boundary proof as one repo-level gate; `pnpm test:pairing-lan-smoke` proves the Mac runtime can accept a target claim through a non-loopback LAN IPv4 base URL; `pnpm test:pairing-physical-receipt` is the connected-device receipt harness; `bash scripts/testing/run-ios-ui-host.sh` builds and launches the receive-invite host app for screenshot proof. | available |
 | Physical iPhone receipt evidence | On 2026-07-08, a local hardware run of `corepack pnpm test:pairing-physical-receipt` passed against a connected, unlocked, trusted iPhone and captured `UNUVAULT_IOS_PAIRING_RECEIPT paired handoffId=physical-receipt-session-25B426DF-4FB2-4AA3-B51F-0022286AB270 targetDeviceId=ios-device-d5185f1f-c612-4987-9a68-6a90a3ab8313 material=AES-GCM-256`; the source commit under test, `ec20f52`, also passed GitHub Actions CI run `28897875643` (`js / Node Verify`) on `main`. | recorded |
 | Visual/accessibility proof | `current/unuvault/ios-pairing-invite-receive-v2` is promoted, the SwiftUI receive flow exposes labels for the invite field, recognized Mac summary, Pair button, and status panel, hides raw invite session details after recognition, shows invite expiry instead of a raw endpoint URL, uses `@ScaledMetric` font and target metrics, and the UI host captures normal and `accessibility3` simulator screenshot evidence; no manual VoiceOver rotor run is recorded yet. | partial |
@@ -97,13 +97,15 @@ size, VoiceOver labels, and 44pt-plus target metrics in
 `PairingInviteAccessibilityContract`. The complete XCTest suite additionally
 proves claimant-key local open, AES-GCM encrypted received-vault persistence,
 and read-only `label`, `username`, and `websiteOrigin` projection through an
-injectable store. The default `VaultListView` initialization also loads that
-store at app start and fails closed on missing or unreadable storage. That
-repo-level/simulator proof does not establish physical-device execution. The UI host
-launches `PairingInviteReceiveView` with deterministic sample invite data and
-records the normal and `accessibility3` simulator screenshot paths above. It
-does not itself prove native primitive adoption, camera QR scanning, real LAN
-discovery, local open or encrypted import, or a shipped iPhone vault workflow.
+injectable store. The default `VaultListView()` component path attempts
+`.appDefault()` loading and fails closed on missing or unreadable storage. That
+repo-level/simulator proof does not establish product app composition or
+physical-device reload. The UI host launches `PairingInviteReceiveView` with
+deterministic sample invite data and records the normal and `accessibility3`
+simulator screenshot paths above. It does not itself prove native primitive
+adoption, camera QR scanning, real LAN discovery, local open or encrypted
+import, password reveal or copy, editing, sync, or a complete daily-use mobile
+vault.
 `pnpm test:pairing-boundary` is the combined contract proof that runs the iOS
 target-claim client tests and the Mac runtime `/v1/pairing/claim` tests in one
 gate, so the two sides cannot silently drift while still avoiding a physical

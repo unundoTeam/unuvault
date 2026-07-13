@@ -68,6 +68,22 @@ final class VaultListModelTests: XCTestCase {
         XCTAssertTrue(renderedBody.contains("Pair with your Mac to receive local vault metadata."))
     }
 
+    @MainActor
+    func testVaultListViewDefaultInitializerExecutesMetadataOnlyLoading() throws {
+        let view = VaultListView()
+        let encodedItems = try JSONEncoder().encode(view.model.items)
+        let serializedItems = try JSONSerialization.jsonObject(
+            with: encodedItems
+        ) as? [[String: Any]]
+
+        XCTAssertNotNil(serializedItems)
+        XCTAssertTrue(
+            serializedItems?.allSatisfy {
+                Set($0.keys) == ["id", "label", "username", "websiteOrigin"]
+            } ?? false
+        )
+    }
+
     func testVaultListModelReadsImportedMetadataWithoutPasswords() throws {
         let storeURL = try temporaryEncryptedStoreURL()
         let encryptionKey = SymmetricKey(size: .bits256)
