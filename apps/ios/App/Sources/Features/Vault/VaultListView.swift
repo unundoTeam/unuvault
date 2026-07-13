@@ -26,13 +26,31 @@ struct VaultListModel: Equatable, Sendable {
             }
         )
     }
+
+    static func loadReceivedVault(
+        from configuration: PairingReceivedVaultStoreConfiguration = .appDefault()
+    ) -> VaultListModel {
+        do {
+            return VaultListModel(importStore: try configuration.makeImportStore())
+        } catch {
+            return VaultListModel()
+        }
+    }
 }
 
 struct VaultListView: View {
     let model: VaultListModel
 
-    init(model: VaultListModel = VaultListModel()) {
+    init(model: VaultListModel) {
         self.model = model
+    }
+
+    init(
+        receivedVaultStoreConfiguration: PairingReceivedVaultStoreConfiguration = .appDefault()
+    ) {
+        self.model = VaultListModel.loadReceivedVault(
+            from: receivedVaultStoreConfiguration
+        )
     }
 
     var body: some View {
