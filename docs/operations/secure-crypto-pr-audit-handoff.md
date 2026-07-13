@@ -25,8 +25,12 @@ authorization, owner-approval, or restart-persistent replay concerns.
   and master-password verifier `v1`. The serialized envelope bound applies to
   legacy input too; over-limit recovery requires the preceding trusted release
   in an offline environment followed by resealing, not an unbounded fallback.
-- Source implementation commits for this extraction are `bfdc8b2`, `8cbfa25`,
-  `354380b`, and `8952a82`.
+- Source implementation commits map into this clean extraction as
+  `bfdc8b2` -> `c775c25`, `8cbfa25` -> `5c769b8`, `354380b` -> `6b10af4`, and
+  `8952a82` -> `b54a083`. The complete clean-extraction range is
+  `c775c25^..b8a6e91`; its later checkpoints are `9b78f24` (Web verifier test
+  fixture alignment), `6db3a42` (bounded-policy documentation), and `b8a6e91`
+  (legacy Argon2 input-bound closure).
 - Repo gate for this docs checkpoint: `git diff --check`, `pnpm lint`, and
   `pnpm test`.
 
