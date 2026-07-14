@@ -68,22 +68,6 @@ final class VaultListModelTests: XCTestCase {
         XCTAssertTrue(renderedBody.contains("Pair with your Mac to receive local vault metadata."))
     }
 
-    @MainActor
-    func testVaultListViewDefaultInitializerExecutesMetadataOnlyLoading() throws {
-        let view = VaultListView()
-        let encodedItems = try JSONEncoder().encode(view.model.items)
-        let serializedItems = try JSONSerialization.jsonObject(
-            with: encodedItems
-        ) as? [[String: Any]]
-
-        XCTAssertNotNil(serializedItems)
-        XCTAssertTrue(
-            serializedItems?.allSatisfy {
-                Set($0.keys) == ["id", "label", "username", "websiteOrigin"]
-            } ?? false
-        )
-    }
-
     func testVaultListModelReadsImportedMetadataWithoutPasswords() throws {
         let storeURL = try temporaryEncryptedStoreURL()
         let encryptionKey = SymmetricKey(size: .bits256)
@@ -156,7 +140,7 @@ final class VaultListModelTests: XCTestCase {
             encryptionKeyProvider: { encryptionKey }
         )
 
-        let model = VaultListModel.loadReceivedVault(from: configuration)
+        let model = try VaultListModel.loadReceivedVault(from: configuration)
 
         XCTAssertEqual(model.items, expectedVaultListItems())
         let encodedItems = String(
@@ -168,22 +152,7 @@ final class VaultListModelTests: XCTestCase {
         XCTAssertFalse(encodedItems.contains("password"))
     }
 
-    @MainActor
-    func testVaultListViewLoadsPersistedMetadataThroughReceivedVaultConfiguration() throws {
-        let storeURL = try temporaryEncryptedStoreURL()
-        let encryptionKey = SymmetricKey(size: .bits256)
-        try persistReceivedVault(at: storeURL, encryptionKey: encryptionKey)
-        let configuration = PairingReceivedVaultStoreConfiguration(
-            encryptedStoreURL: storeURL,
-            encryptionKeyProvider: { encryptionKey }
-        )
-
-        let view = VaultListView(receivedVaultStoreConfiguration: configuration)
-
-        XCTAssertEqual(view.model.items, expectedVaultListItems())
-    }
-
-    func testReceivedVaultLoaderFailsClosedWhenStoreIsMissing() throws {
+    func testReceivedVaultLoaderReturnsEmptyModelWhenStoreIsMissing() throws {
         let storeURL = try temporaryEncryptedStoreURL()
         let encryptionKey = SymmetricKey(size: .bits256)
         let configuration = PairingReceivedVaultStoreConfiguration(
@@ -191,23 +160,48 @@ final class VaultListModelTests: XCTestCase {
             encryptionKeyProvider: { encryptionKey }
         )
 
-        let model = VaultListModel.loadReceivedVault(from: configuration)
+        let model = try VaultListModel.loadReceivedVault(from: configuration)
 
         XCTAssertEqual(model.items, [])
     }
 
-    func testReceivedVaultLoaderFailsClosedWhenStoreIsUnreadable() throws {
+    func testReceivedVaultLoaderThrowsForCorruptStoreWithoutLeakingBytes() throws {
         let storeURL = try temporaryEncryptedStoreURL()
-        try Data("not-an-encrypted-vault-envelope".utf8).write(to: storeURL)
+        let corruptBytes = Data("test-secret-password-corrupt-store".utf8)
+        try corruptBytes.write(to: storeURL)
         let encryptionKey = SymmetricKey(size: .bits256)
         let configuration = PairingReceivedVaultStoreConfiguration(
             encryptedStoreURL: storeURL,
             encryptionKeyProvider: { encryptionKey }
         )
 
-        let model = VaultListModel.loadReceivedVault(from: configuration)
+        var capturedError: Error?
+        XCTAssertThrowsError(
+            try VaultListModel.loadReceivedVault(from: configuration)
+        ) { error in
+            capturedError = error
+            XCTAssertEqual(
+                error as? PairingHandoffImportError,
+                .invalidEncryptedStore
+            )
+        }
 
-        XCTAssertEqual(model.items, [])
+        let encodedErrorState = String(
+            data: try JSONEncoder().encode(
+                ["error": String(describing: capturedError)]
+            ),
+            encoding: .utf8
+        ) ?? ""
+        XCTAssertFalse(encodedErrorState.contains("password"))
+        XCTAssertFalse(encodedErrorState.contains("test-secret"))
+        XCTAssertFalse(
+            encodedErrorState.contains(
+                String(decoding: corruptBytes, as: UTF8.self)
+            )
+        )
+        XCTAssertFalse(
+            encodedErrorState.contains(corruptBytes.base64EncodedString())
+        )
     }
 
     private func persistReceivedVault(

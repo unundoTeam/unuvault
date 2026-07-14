@@ -29,51 +29,46 @@ struct VaultListModel: Equatable, Sendable {
 
     static func loadReceivedVault(
         from configuration: PairingReceivedVaultStoreConfiguration = .appDefault()
-    ) -> VaultListModel {
-        do {
-            return VaultListModel(importStore: try configuration.makeImportStore())
-        } catch {
-            return VaultListModel()
-        }
+    ) throws -> VaultListModel {
+        VaultListModel(importStore: try configuration.makeImportStore())
     }
 }
 
 struct VaultListView: View {
+    enum Copy {
+        static let title = "Vault"
+        static let readOnlyContext =
+            "Local items received from your Mac. Sensitive values stay hidden until a future action is approved."
+        static let importedItems = "Imported items"
+        static let emptyTitle = "No imported vault items yet"
+        static let emptyBody = "Pair with your Mac to receive local vault metadata."
+    }
+
     let model: VaultListModel
 
     init(model: VaultListModel) {
         self.model = model
     }
 
-    init(
-        receivedVaultStoreConfiguration: PairingReceivedVaultStoreConfiguration = .appDefault()
-    ) {
-        self.model = VaultListModel.loadReceivedVault(
-            from: receivedVaultStoreConfiguration
-        )
-    }
-
     var body: some View {
         List {
             Section {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Vault")
+                    Text(Copy.title)
                         .font(.largeTitle.bold())
-                    Text(
-                        "Local items received from your Mac. Sensitive values stay hidden until a future action is approved."
-                    )
+                    Text(Copy.readOnlyContext)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                 }
                 .listRowBackground(Color.clear)
             }
 
-            Section("Imported items") {
+            Section(Copy.importedItems) {
                 if model.items.isEmpty {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("No imported vault items yet")
+                        Text(Copy.emptyTitle)
                             .font(.headline)
-                        Text("Pair with your Mac to receive local vault metadata.")
+                        Text(Copy.emptyBody)
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
