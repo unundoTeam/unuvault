@@ -1,4 +1,5 @@
 import XCTest
+import UIKit
 @testable import App
 
 @MainActor
@@ -57,6 +58,114 @@ final class IOSProductCompositionTests: XCTestCase {
         XCTAssertEqual(selectedPairing.label, "Pairing")
         XCTAssertEqual(selectedPairing.value, "Selected")
         XCTAssertNotEqual(selectedVault.value, unselectedVault.value)
+    }
+
+    func testDestinationPresentationChangesSymbolAndEmphasisWithSelection() {
+        let selectedVault = IOSProductCompositionUIContract.vault.presentation(
+            isSelected: true
+        )
+        let unselectedVault = IOSProductCompositionUIContract.vault.presentation(
+            isSelected: false
+        )
+        let selectedPairing = IOSProductCompositionUIContract.pairing.presentation(
+            isSelected: true
+        )
+        let unselectedPairing = IOSProductCompositionUIContract.pairing.presentation(
+            isSelected: false
+        )
+
+        XCTAssertEqual(selectedVault.systemImage, "lock.fill")
+        XCTAssertEqual(unselectedVault.systemImage, "lock")
+        XCTAssertEqual(selectedPairing.systemImage, "link.circle.fill")
+        XCTAssertEqual(unselectedPairing.systemImage, "link")
+        XCTAssertEqual(selectedVault.emphasis, .selected)
+        XCTAssertEqual(unselectedVault.emphasis, .unselected)
+        XCTAssertNotEqual(selectedVault, unselectedVault)
+        XCTAssertNotEqual(selectedPairing, unselectedPairing)
+    }
+
+    func testAnnouncementContractEmitsVisibleCopyExactlyOncePerTransition() {
+        let stateSequence: [ReceivedVaultLoadState] = [
+            .idle,
+            .loading,
+            .failed,
+            .loading,
+            .failed,
+        ]
+        let announcements = zip(stateSequence, stateSequence.dropFirst()).compactMap {
+            IOSProductCompositionUIContract.receivedVaultAnnouncement(
+                from: $0,
+                to: $1
+            )
+        }
+        let loadingAnnouncement = [
+            IOSProductCompositionUIContract.loadingTitle,
+            IOSProductCompositionUIContract.loadingBody,
+        ].joined(separator: " ")
+        let failureAnnouncement = [
+            IOSProductCompositionUIContract.loadFailureTitle,
+            IOSProductCompositionUIContract.loadFailureBody,
+        ].joined(separator: " ")
+
+        XCTAssertEqual(
+            announcements,
+            [loadingAnnouncement, failureAnnouncement, failureAnnouncement]
+        )
+        XCTAssertNil(
+            IOSProductCompositionUIContract.receivedVaultAnnouncement(
+                from: .failed,
+                to: .loading
+            )
+        )
+        XCTAssertFalse(announcements.joined().localizedCaseInsensitiveContains("error"))
+        XCTAssertFalse(announcements.joined().contains("secret-store-bytes"))
+    }
+
+    func testPostImportAnnouncementContractEmitsOnceOnEachFalseToTrueTransition() {
+        let failureSequence = [false, true, true, false, true]
+        let announcements = zip(failureSequence, failureSequence.dropFirst()).compactMap {
+            IOSProductCompositionUIContract.postImportAnnouncement(
+                wasFailed: $0,
+                isFailed: $1
+            )
+        }
+        let expectedAnnouncement = [
+            IOSProductCompositionUIContract.postImportReloadFailure,
+            IOSProductCompositionUIContract.postImportReloadRecovery,
+        ].joined(separator: " ")
+
+        XCTAssertEqual(announcements, [expectedAnnouncement, expectedAnnouncement])
+        XCTAssertFalse(announcements.joined().localizedCaseInsensitiveContains("error"))
+        XCTAssertFalse(announcements.joined().contains("secret-store-bytes"))
+    }
+
+    func testPairButtonUsesReadableSemanticColorPairsInLightAndDarkModes() {
+        let enabled = PairingInviteUIContract.pairButtonPresentation(isEnabled: true)
+        let disabled = PairingInviteUIContract.pairButtonPresentation(isEnabled: false)
+
+        XCTAssertEqual(enabled.foreground, .inverseForeground)
+        XCTAssertEqual(enabled.background, .inverseBackground)
+        XCTAssertEqual(disabled.foreground, .disabledForeground)
+        XCTAssertEqual(disabled.background, .disabledBackground)
+        XCTAssertNotEqual(enabled, disabled)
+
+        for style in [UIUserInterfaceStyle.light, .dark] {
+            let traits = UITraitCollection(userInterfaceStyle: style)
+            XCTAssertGreaterThanOrEqual(
+                contrastRatio(
+                    enabled.foreground.uiColor.resolvedColor(with: traits),
+                    enabled.background.uiColor.resolvedColor(with: traits)
+                ),
+                4.5
+            )
+            XCTAssertGreaterThanOrEqual(
+                contrastRatio(
+                    disabled.foreground.uiColor.resolvedColor(with: traits),
+                    disabled.background.uiColor.resolvedColor(with: traits)
+                ),
+                4.5
+            )
+        }
     }
 
     func testStartPublishesLoadingThenSelectsVaultForReceivedMetadata() async throws {
@@ -509,4 +618,28 @@ private final class QueuedReceivedVaultLoader {
 
 private struct SecretBearingLoadError: Error, CustomStringConvertible {
     let description = "secret-store-bytes"
+}
+
+private func contrastRatio(_ foreground: UIColor, _ background: UIColor) -> CGFloat {
+    let lighter = max(relativeLuminance(foreground), relativeLuminance(background))
+    let darker = min(relativeLuminance(foreground), relativeLuminance(background))
+    return (lighter + 0.05) / (darker + 0.05)
+}
+
+private func relativeLuminance(_ color: UIColor) -> CGFloat {
+    var red: CGFloat = 0
+    var green: CGFloat = 0
+    var blue: CGFloat = 0
+    var alpha: CGFloat = 0
+    XCTAssertTrue(color.getRed(&red, green: &green, blue: &blue, alpha: &alpha))
+
+    func linearize(_ component: CGFloat) -> CGFloat {
+        component <= 0.04045
+            ? component / 12.92
+            : pow((component + 0.055) / 1.055, 2.4)
+    }
+
+    return 0.2126 * linearize(red)
+        + 0.7152 * linearize(green)
+        + 0.0722 * linearize(blue)
 }

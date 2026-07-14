@@ -2,6 +2,49 @@ import Foundation
 import SwiftUI
 import UIKit
 
+enum PairingInviteUIContract {
+    enum SemanticColorRole: Equatable {
+        case inverseForeground
+        case inverseBackground
+        case disabledForeground
+        case disabledBackground
+
+        var uiColor: UIColor {
+            switch self {
+            case .inverseForeground:
+                .systemBackground
+            case .inverseBackground:
+                .label
+            case .disabledForeground:
+                .label
+            case .disabledBackground:
+                .systemGray5
+            }
+        }
+
+        var color: Color {
+            Color(uiColor: uiColor)
+        }
+    }
+
+    struct PairButtonPresentation: Equatable {
+        let foreground: SemanticColorRole
+        let background: SemanticColorRole
+    }
+
+    static func pairButtonPresentation(isEnabled: Bool) -> PairButtonPresentation {
+        isEnabled
+            ? PairButtonPresentation(
+                foreground: .inverseForeground,
+                background: .inverseBackground
+            )
+            : PairButtonPresentation(
+                foreground: .disabledForeground,
+                background: .disabledBackground
+            )
+    }
+}
+
 enum PairingInviteFlowState: Equatable {
     case empty
     case ready
@@ -472,7 +515,11 @@ struct PairingInviteReceiveView: View {
     }
 
     private var pairButton: some View {
-        Button {
+        let presentation = PairingInviteUIContract.pairButtonPresentation(
+            isEnabled: viewModel.canPair
+        )
+
+        return Button {
             Task {
                 await viewModel.pair()
             }
@@ -485,8 +532,8 @@ struct PairingInviteReceiveView: View {
                 .frame(minHeight: primaryActionMinHeight)
         }
         .buttonStyle(.plain)
-        .foregroundStyle(Color.white)
-        .background(viewModel.canPair ? PairingInviteStyle.ink : PairingInviteStyle.disabled)
+        .foregroundStyle(presentation.foreground.color)
+        .background(presentation.background.color)
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .disabled(!viewModel.canPair)
         .accessibilityLabel(PairingInviteAccessibilityContract.pair)
@@ -544,7 +591,6 @@ private enum PairingInviteStyle {
     static let card = Color(uiColor: .systemBackground)
     static let danger = Color.red
     static let dangerSurface = Color.red.opacity(0.12)
-    static let disabled = Color.secondary
     static let ink = Color.primary
     static let input = Color(uiColor: .secondarySystemBackground)
     static let secure = Color.green

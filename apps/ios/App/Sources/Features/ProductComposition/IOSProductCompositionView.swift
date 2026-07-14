@@ -3,6 +3,16 @@ import UIKit
 
 enum IOSProductCompositionUIContract {
     struct DestinationRole: Equatable {
+        struct Presentation: Equatable {
+            enum Emphasis: Equatable {
+                case selected
+                case unselected
+            }
+
+            let systemImage: String
+            let emphasis: Emphasis
+        }
+
         struct AccessibilityRole: Equatable {
             let label: String
             let value: String
@@ -10,6 +20,15 @@ enum IOSProductCompositionUIContract {
 
         let title: String
         let systemImage: String
+        let selectedSystemImage: String
+        let unselectedSystemImage: String
+
+        func presentation(isSelected: Bool) -> Presentation {
+            Presentation(
+                systemImage: isSelected ? selectedSystemImage : unselectedSystemImage,
+                emphasis: isSelected ? .selected : .unselected
+            )
+        }
 
         func accessibility(isSelected: Bool) -> AccessibilityRole {
             AccessibilityRole(
@@ -19,8 +38,18 @@ enum IOSProductCompositionUIContract {
         }
     }
 
-    static let vault = DestinationRole(title: "Vault", systemImage: "lock.fill")
-    static let pairing = DestinationRole(title: "Pairing", systemImage: "link")
+    static let vault = DestinationRole(
+        title: "Vault",
+        systemImage: "lock.fill",
+        selectedSystemImage: "lock.fill",
+        unselectedSystemImage: "lock"
+    )
+    static let pairing = DestinationRole(
+        title: "Pairing",
+        systemImage: "link",
+        selectedSystemImage: "link.circle.fill",
+        unselectedSystemImage: "link"
+    )
 
     static let selectedValue = "Selected"
     static let notSelectedValue = "Not selected"
@@ -44,6 +73,31 @@ enum IOSProductCompositionUIContract {
         "Imported, but the received vault could not be reloaded."
     static let postImportReloadRecovery =
         "Try the local reload again. Pairing remains available."
+
+    static func receivedVaultAnnouncement(
+        from oldState: ReceivedVaultLoadState,
+        to newState: ReceivedVaultLoadState
+    ) -> String? {
+        switch (oldState, newState) {
+        case (.idle, .loading):
+            [loadingTitle, loadingBody].joined(separator: " ")
+        case (.loading, .failed):
+            [loadFailureTitle, loadFailureBody].joined(separator: " ")
+        default:
+            nil
+        }
+    }
+
+    static func postImportAnnouncement(
+        wasFailed: Bool,
+        isFailed: Bool
+    ) -> String? {
+        guard !wasFailed, isFailed else {
+            return nil
+        }
+        return [postImportReloadFailure, postImportReloadRecovery]
+            .joined(separator: " ")
+    }
 }
 
 enum IOSProductDestination: Hashable {
@@ -194,20 +248,26 @@ struct IOSProductCompositionView: View {
             await viewModel.start()
         }
         .onChange(of: viewModel.receivedVaultState) { oldState, newState in
-            guard oldState == .idle, newState == .loading else {
+            guard let announcement =
+                IOSProductCompositionUIContract.receivedVaultAnnouncement(
+                    from: oldState,
+                    to: newState
+                )
+            else {
                 return
             }
-            AccessibilityNotification.Announcement(
-                IOSProductCompositionUIContract.loadingTitle
-            ).post()
+            AccessibilityNotification.Announcement(announcement).post()
         }
         .onChange(of: viewModel.postImportReloadFailed) { wasFailed, isFailed in
-            guard !wasFailed, isFailed else {
+            guard let announcement =
+                IOSProductCompositionUIContract.postImportAnnouncement(
+                    wasFailed: wasFailed,
+                    isFailed: isFailed
+                )
+            else {
                 return
             }
-            AccessibilityNotification.Announcement(
-                IOSProductCompositionUIContract.postImportReloadFailure
-            ).post()
+            AccessibilityNotification.Announcement(announcement).post()
         }
     }
 
@@ -343,11 +403,12 @@ struct IOSProductCompositionView: View {
         _ role: IOSProductCompositionUIContract.DestinationRole,
         destination: IOSProductDestination
     ) -> some View {
-        let accessibility = role.accessibility(
-            isSelected: viewModel.selectedDestination == destination
-        )
+        let isSelected = viewModel.selectedDestination == destination
+        let presentation = role.presentation(isSelected: isSelected)
+        let accessibility = role.accessibility(isSelected: isSelected)
 
-        return Label(role.title, systemImage: role.systemImage)
+        return Label(role.title, systemImage: presentation.systemImage)
+            .fontWeight(presentation.emphasis == .selected ? .bold : .regular)
             .accessibilityLabel(accessibility.label)
             .accessibilityValue(accessibility.value)
     }
