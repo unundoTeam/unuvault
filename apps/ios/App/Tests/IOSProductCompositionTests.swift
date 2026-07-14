@@ -5,6 +5,48 @@ import UIKit
 
 @MainActor
 final class IOSProductCompositionTests: XCTestCase {
+    func testHostFixtureContractParsesOnlyApprovedCompositionStates() {
+        XCTAssertEqual(IOSProductCompositionFixtureState(rawValue: "empty"), .empty)
+        XCTAssertEqual(IOSProductCompositionFixtureState(rawValue: "vault"), .vault)
+        XCTAssertEqual(
+            IOSProductCompositionFixtureState(rawValue: "reload-failed"),
+            .reloadFailed
+        )
+        XCTAssertNil(IOSProductCompositionFixtureState(rawValue: "loading"))
+        XCTAssertNil(IOSProductCompositionFixtureState(rawValue: "secret"))
+    }
+
+    func testHostFixtureLoadersAreDeterministicAndMetadataOnly() async throws {
+        let emptyModel = try await IOSProductCompositionFixtureState.empty
+            .makeReceivedVaultLoader()()
+        let vaultModel = try await IOSProductCompositionFixtureState.vault
+            .makeReceivedVaultLoader()()
+        let reloadFailedLoader = IOSProductCompositionFixtureState.reloadFailed
+            .makeReceivedVaultLoader()
+
+        XCTAssertTrue(emptyModel.items.isEmpty)
+        XCTAssertEqual(vaultModel.items, IOSProductCompositionFixtureState.vaultItems)
+        let reloadFailedInitialModel = try await reloadFailedLoader()
+        XCTAssertTrue(reloadFailedInitialModel.items.isEmpty)
+        do {
+            _ = try await reloadFailedLoader()
+            XCTFail("Expected the second reload-failed fixture load to throw")
+        } catch {
+            XCTAssertEqual(
+                error as? IOSProductCompositionFixtureLoadError,
+                .reloadFailed
+            )
+        }
+
+        let encoded = try JSONEncoder().encode(vaultModel.items)
+        let visibleFixture = String(decoding: encoded, as: UTF8.self).lowercased()
+        XCTAssertFalse(visibleFixture.contains("password"))
+        XCTAssertFalse(visibleFixture.contains("secret"))
+        XCTAssertFalse(visibleFixture.contains("invite"))
+        XCTAssertFalse(visibleFixture.contains("endpoint"))
+        XCTAssertFalse(visibleFixture.contains("handoff"))
+    }
+
     func testPairingDeepLinkDecodesAcceptedBase64URLInvite() throws {
         let inviteText = try inviteJSON(makeInvite())
         let url = makePairingDeepLink(inviteText: inviteText)

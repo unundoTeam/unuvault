@@ -216,6 +216,52 @@ enum ReceivedVaultLoadState: Equatable {
 typealias ReceivedVaultLoader = @MainActor () async throws -> VaultListModel
 typealias PairingImportCompletion = @MainActor (PairingHandoffImportReceipt) async -> Void
 
+enum IOSProductCompositionFixtureLoadError: Error, Equatable {
+    case reloadFailed
+}
+
+enum IOSProductCompositionFixtureState: String, Equatable {
+    case empty
+    case vault
+    case reloadFailed = "reload-failed"
+
+    static let vaultItems = [
+        VaultListItem(
+            id: "github-login",
+            label: "GitHub",
+            username: "yuchen",
+            websiteOrigin: "github.com"
+        ),
+        VaultListItem(
+            id: "notion-login",
+            label: "Notion",
+            username: "yuchen@example.com",
+            websiteOrigin: "notion.so"
+        ),
+    ]
+
+    @MainActor
+    func makeReceivedVaultLoader() -> ReceivedVaultLoader {
+        var loadCount = 0
+
+        return {
+            loadCount += 1
+
+            switch self {
+            case .empty:
+                return VaultListModel()
+            case .vault:
+                return VaultListModel(items: Self.vaultItems)
+            case .reloadFailed:
+                guard loadCount > 1 else {
+                    return VaultListModel()
+                }
+                throw IOSProductCompositionFixtureLoadError.reloadFailed
+            }
+        }
+    }
+}
+
 @MainActor
 final class IOSProductCompositionViewModel: ObservableObject {
     @Published private(set) var receivedVaultState: ReceivedVaultLoadState
