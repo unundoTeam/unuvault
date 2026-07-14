@@ -2,6 +2,49 @@ import Combine
 import SwiftUI
 import UIKit
 
+enum IOSPairingDeepLink {
+    static func inviteText(from url: URL) -> String? {
+        guard url.scheme == "unuvault-ioshost",
+              url.host == "pair",
+              let components = URLComponents(
+                  url: url,
+                  resolvingAgainstBaseURL: false
+              ),
+              let invite = components.queryItems?
+                  .first(where: { $0.name == "invite" })?
+                  .value,
+              let data = decodeBase64URL(invite)
+        else {
+            return nil
+        }
+
+        return String(data: data, encoding: .utf8)
+    }
+
+    private static func decodeBase64URL(_ value: String) -> Data? {
+        let allowedCharacters = CharacterSet(
+            charactersIn:
+                "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
+        )
+        guard !value.isEmpty,
+              value.unicodeScalars.allSatisfy(allowedCharacters.contains),
+              value.count % 4 != 1
+        else {
+            return nil
+        }
+
+        var base64 = value
+            .replacingOccurrences(of: "-", with: "+")
+            .replacingOccurrences(of: "_", with: "/")
+        let padding = base64.count % 4
+        if padding > 0 {
+            base64.append(String(repeating: "=", count: 4 - padding))
+        }
+
+        return Data(base64Encoded: base64)
+    }
+}
+
 enum IOSProductCompositionUIContract {
     struct DestinationRole: Equatable {
         struct Presentation: Equatable {

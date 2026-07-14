@@ -5,6 +5,79 @@ import UIKit
 
 @MainActor
 final class IOSProductCompositionTests: XCTestCase {
+    func testPairingDeepLinkDecodesAcceptedBase64URLInvite() throws {
+        let inviteText = try inviteJSON(makeInvite())
+        let url = makePairingDeepLink(inviteText: inviteText)
+
+        XCTAssertEqual(IOSPairingDeepLink.inviteText(from: url), inviteText)
+    }
+
+    func testPairingDeepLinkRejectsWrongSchemeAndHost() {
+        let encodedInvite = Data("invite".utf8).base64URLEncodedString()
+
+        XCTAssertNil(
+            IOSPairingDeepLink.inviteText(
+                from: URL(string: "https://pair?invite=\(encodedInvite)")!
+            )
+        )
+        XCTAssertNil(
+            IOSPairingDeepLink.inviteText(
+                from: URL(string: "unuvault-ioshost://other?invite=\(encodedInvite)")!
+            )
+        )
+    }
+
+    func testPairingDeepLinkRejectsMissingInvite() {
+        XCTAssertNil(
+            IOSPairingDeepLink.inviteText(
+                from: URL(string: "unuvault-ioshost://pair")!
+            )
+        )
+    }
+
+    func testPairingDeepLinkRejectsInvalidBase64URL() {
+        XCTAssertNil(
+            IOSPairingDeepLink.inviteText(
+                from: URL(string: "unuvault-ioshost://pair?invite=not*base64url")!
+            )
+        )
+    }
+
+    func testPairingDeepLinkRejectsNonUTF8Invite() {
+        let encodedInvite = Data([0xFF, 0xFE]).base64URLEncodedString()
+
+        XCTAssertNil(
+            IOSPairingDeepLink.inviteText(
+                from: URL(string: "unuvault-ioshost://pair?invite=\(encodedInvite)")!
+            )
+        )
+    }
+
+    func testAcceptedPairingDeepLinkSelectsPairingAndParsesOnce() throws {
+        let compositionViewModel = IOSProductCompositionViewModel(
+            initialDestination: .vault
+        )
+        let pairingViewModel = PairingInviteViewModel(
+            now: { Date(timeIntervalSince1970: 1_060) }
+        )
+        var stateTransitions: [PairingInviteFlowState] = []
+        let cancellable = pairingViewModel.$state
+            .dropFirst()
+            .sink { stateTransitions.append($0) }
+        let url = makePairingDeepLink(inviteText: try inviteJSON(makeInvite()))
+
+        let inviteText = try XCTUnwrap(IOSPairingDeepLink.inviteText(from: url))
+        compositionViewModel.acceptDeepLinkInvite(
+            inviteText,
+            into: pairingViewModel
+        )
+
+        XCTAssertEqual(compositionViewModel.selectedDestination, .pairing)
+        XCTAssertEqual(pairingViewModel.state, .ready)
+        XCTAssertEqual(stateTransitions, [.ready])
+        withExtendedLifetime(cancellable) {}
+    }
+
     func testPromotedCompositionUIContractUsesExactRolesAndSafeCopy() {
         XCTAssertEqual(IOSProductCompositionUIContract.vault.title, "Vault")
         XCTAssertEqual(IOSProductCompositionUIContract.vault.systemImage, "lock.fill")
@@ -575,6 +648,13 @@ final class IOSProductCompositionTests: XCTestCase {
         String(data: try JSONEncoder().encode(invite), encoding: .utf8) ?? ""
     }
 
+    private func makePairingDeepLink(inviteText: String) -> URL {
+        URL(
+            string: "unuvault-ioshost://pair?invite="
+                + Data(inviteText.utf8).base64URLEncodedString()
+        )!
+    }
+
     private func waitForExchangeCallCount(
         _ expected: Int,
         exchange: CompositionSuspendedPairingExchange,
@@ -585,6 +665,15 @@ final class IOSProductCompositionTests: XCTestCase {
             await Task.yield()
         }
         XCTAssertEqual(exchange.callCount, expected, file: file, line: line)
+    }
+}
+
+private extension Data {
+    func base64URLEncodedString() -> String {
+        base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "")
     }
 }
 
