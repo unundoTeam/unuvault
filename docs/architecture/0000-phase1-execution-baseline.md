@@ -107,14 +107,17 @@ delivery order is controlled by
 - The M1 workspace, schema, and shared security skeleton exists.
 - Web vault management, the browser-extension fill path, and the Mac local
   vault have active implementations and repo-owned tests.
-- Repo-level iOS code and XCTest prove pairing can locally open and persist a
-  claimant-key-bound handoff, while its read-only list model can project
-  metadata from the encrypted received-vault store. The default
-  `VaultListView()` path attempts `.appDefault()` loading and fails closed when
-  storage is missing or unreadable. This is component-level wiring only; no
-  product app composition is proved. Physical-device reload, editing, sync,
-  password reveal or copy, and a complete daily-use mobile vault are not
-  proved.
+- The iOS composition app is implemented. At startup, it loads the app-default
+  encrypted received-vault store: nonempty metadata selects Vault, a missing or
+  empty store selects Pairing, and a corrupt or unreadable store enters an
+  explicit `.failed` safe error state with Retry. After import, only a fresh
+  reload that returns nonempty metadata switches to Vault; import success alone
+  does not change the selected destination. Vault and Pairing remain reachable
+  throughout, and the surface remains metadata-only. Repo-level Swift and
+  XCTest also cover claimant-key-bound invite import and encrypted store
+  persistence. A current physical-device imported receipt, editing, search,
+  sync, password reveal or copy, biometric unlock, cloud-backed behavior, and a
+  complete daily-use mobile vault are not proved.
 - Browser import now has an implemented non-UI client core,
   camelCase-to-wire mapper, API/client primitive, and authenticated recorded
   report receipt. That receipt accepts only a sanitized report and does not
