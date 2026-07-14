@@ -272,14 +272,10 @@ hygiene cleanup.
 - `pnpm test:pairing-boundary` runs both the iOS receive/client proof and the
   Mac companion pairing-boundary proof as one repo-level gate. This ties the
   iPhone target-claim client contract to the Mac runtime `/v1/pairing/claim`
-  contract. Its complete iOS XCTest suite also proves repo-level/simulator
-  claimant-key local open, AES-GCM encrypted received-vault persistence, and an
-  injectable-store projection of read-only metadata. The default
-  `VaultListView()` path attempts `.appDefault()` loading and fails closed on
-  missing or unreadable storage. This is component-level wiring only; no product
-  app composition is proved. It still avoids claims for physical-device local
-  open or reload, real LAN discovery, camera QR scanning, password reveal or
-  copy, editing, sync, or a complete daily-use mobile vault.
+  contract and includes the iOS package's claimant-bound local decrypt,
+  encrypted import, and reload proof, while still avoiding claims for automatic
+  LAN discovery, camera QR scanning, a current physical iPhone import receipt,
+  or full mobile adapter adoption.
 - `pnpm test:pairing-lan-smoke` resolves or accepts
   `UNUVAULT_PAIRING_LAN_HOST`, starts the proof-mode Mac companion bridge on
   `0.0.0.0`, emits an invite with the non-loopback LAN IPv4 base URL, posts a
@@ -297,10 +293,10 @@ hygiene cleanup.
   Mac LAN address, installs the XcodeGen-backed `UnuVaultIOSHost` on a
   connected trusted iPhone, launches it through `xcrun devicectl` with a
   `unuvault-ioshost://pair` payload URL containing a base64URL invite, and
-  waits for `UNUVAULT_IOS_PAIRING_RECEIPT paired` in the device console. The
-  harness is the first physical pairing-transport receipt gate; it does not
-  prove physical-device local open, encrypted import, or read-only reload.
-  Camera QR scanning and a complete mobile workflow remain separate claims.
+  waits for `UNUVAULT_IOS_PAIRING_RECEIPT imported` in the device console. A
+  fresh successful run would prove physical-device local open and encrypted
+  import; no such current run is recorded. Camera QR scanning and a complete
+  mobile workflow remain separate claims.
   On 2026-07-08, a local hardware run of
   `corepack pnpm test:pairing-physical-receipt` passed against a connected,
   unlocked, trusted iPhone and captured
@@ -309,26 +305,32 @@ hygiene cleanup.
   `targetDeviceId=ios-device-d5185f1f-c612-4987-9a68-6a90a3ab8313`, and
   `material=AES-GCM-256`. The source commit under test, `ec20f52`
   (`test: reuse iOS pairing identity in host app`), also passed GitHub Actions
-  CI run `28897875643` (`js / Node Verify`) on `main`.
-- `bash scripts/testing/run-ios.sh` proves the iPhone package can parse the Mac
-  pairing invite envelope and QR payload, reject expired, invalid-version,
-  malformed, or unsupported-endpoint payloads, and build a target-device
-  identity claim with `deviceId`, `displayName`, and `publicKeyFingerprint`
-  without encoding credential, password, or vault material. It also proves the
-  approved `current/unuvault/ios-pairing-invite-receive-v2` SwiftUI receive
-  flow accepts invite text before validation, shows the recognized Mac, hides raw
-  invite session details after recognition, shows invite expiry instead of a raw
-  endpoint URL, disables pairing until invite validation, fails closed on expired
-  invites, posts the claim to the
-  invite-provided Mac pairing endpoint without a bridge bearer token, parses Mac
-  handoff response envelopes, and rejects invalid, expired, status-failed, or
-  target-mismatched responses. The complete XCTest suite also proves
-  repo-level/simulator claimant-key local open, AES-GCM encrypted received-vault
-  persistence, read-only metadata projection, and the default `VaultListView()`
-  component path, which attempts `.appDefault()` loading and fails closed on
-  missing or unreadable storage. It does not prove product app composition,
-  physical-device reload, camera QR scanning, real LAN discovery, password
-  reveal or copy, editing, sync, or a complete daily-use mobile vault.
+  CI run `28897875643` (`js / Node Verify`) on `main`. This historical
+  `paired` record predates the import receipt and must not be cited as physical
+  decrypt/import proof.
+- `bash scripts/testing/run-ios.sh` runs the current 72-test iOS package gate.
+  It proves the approved `current/unuvault/ios-product-composition-v1` and
+  `current/unuvault/ios-pairing-invite-receive-v3` SwiftUI flows keep Vault and
+  Pairing reachable, load the app-default received-vault store, select Pairing
+  for missing or empty metadata, and expose an explicit `.failed` state with a
+  safe error and Retry when that store is unreadable. Import success alone does
+  not switch destinations; only a fresh successful reload with non-empty
+  metadata selects Vault. The same gate parses the Mac pairing invite envelope
+  and QR payload, rejects expired, invalid-version, malformed, or
+  unsupported-endpoint payloads, builds a target-device identity claim without
+  credential, password, or vault material, and posts that claim without a
+  bridge bearer token. It also proves claimant-key-bound handoff open, AES-GCM
+  persistence, reload, and read-only metadata projection without passwords.
+  Current simulator proof for the composition is recorded at:
+  - `docs/design/evidence/2026-07-14-ios-product-composition/ios-product-composition-empty.png`
+  - `docs/design/evidence/2026-07-14-ios-product-composition/ios-product-composition-vault.png`
+  - `docs/design/evidence/2026-07-14-ios-product-composition/ios-product-composition-reload-failed.png`
+  - `docs/design/evidence/2026-07-14-ios-product-composition/ios-product-composition-accessibility3.png`
+  These screenshots cover the composition's empty, vault, reload-failed, and
+  `accessibility3` fixtures. They do not claim a manual VoiceOver rotor run,
+  camera QR scanning, automatic LAN discovery, password reveal/copy, editing,
+  search, biometric unlock, cloud sync, or a current physical iPhone import
+  receipt.
 - `pnpm test:macos:recovery-boundary` proves encrypted local vault backup data
   contains only an AES-GCM envelope, does not contain the credential id,
   username, or password as plaintext, cannot be opened with account-only or
@@ -367,18 +369,18 @@ production app bundle.
   product-ready localized product-named local capture above. Future prompt
   wording, app bundle naming, cancel copy, or macOS authentication UI changes
   should refresh that receipt. The default receipt gate remains non-prompting.
-- Physical iPhone pairing receipt harness proof is recorded for the 2026-07-08
-  local hardware run above. That historical receipt proves pairing transport,
-  not physical-device local open, encrypted import, read-only reload, camera QR
-  scanning, full mobile adapter adoption, or a shipped iPhone vault workflow.
-- Current repo-level iOS code and XCTest prove claimant-key local open,
-  AES-GCM encrypted received-vault persistence, injectable-store read-only
-  metadata projection, and the default `VaultListView()` component path, which
-  attempts `.appDefault()` loading and fails closed on missing or unreadable
-  storage. No product app composition is proved. Physical-device reload, LAN
-  discovery, QR code rendering/scanning, simulator/device visual parity,
-  password reveal or copy, editing, sync, and a complete daily-use mobile vault
-  remain unclaimed.
+- Physical iPhone transport/target-identity receipt proof is recorded for the
+  2026-07-08 local hardware run above. The current harness now waits for an
+  `imported` receipt, but no current physical decrypt/import run is recorded.
+  Camera QR scanning, full mobile adapter adoption, and a shipped iPhone vault
+  workflow remain unclaimed.
+- The current package proof covers local handoff decrypt, encrypted import,
+  reload, and read-only metadata projection. Automatic LAN discovery, QR code
+  rendering/scanning, password reveal/copy, editing, search, biometric unlock,
+  cloud sync, manual VoiceOver rotor behavior, physical-device visual parity,
+  and a shipped full iPhone vault workflow remain unclaimed. Simulator
+  composition and `accessibility3` layout proof is recorded in the four
+  2026-07-14 screenshots above.
 - Automatic Account/Web sync into the Mac local vault is not claimed yet; the
   current proof covers a Web/account unlocked vault payload import receipt into
   the encrypted Mac vault, plus direct native menu local-save and manual menu

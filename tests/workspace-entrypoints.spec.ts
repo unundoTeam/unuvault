@@ -217,6 +217,12 @@ describe("workspace entrypoints", () => {
       );
       expect(entrypoint).toMatch(/not broad\s+Pencil or current UI authority/);
     }
+
+    expect(agents).toContain("current/unuvault/ios-product-composition-v1");
+    expect(agents).toContain("current/unuvault/ios-pairing-invite-receive-v3");
+    expect(agents).not.toContain(
+      "`current/unuvault/ios-vault-home-native-locked-v1`\n  and `current/unuvault/ios-pairing-invite-receive-v2`.",
+    );
   });
 
   it("records the current iOS mobile adapter evidence boundary", () => {
@@ -234,15 +240,68 @@ describe("workspace entrypoints", () => {
       "apps/ios/App/Sources/Features/Autofill/AutofillOnboardingView.swift",
     );
     expect(evidence).toContain("apps/ios/App/Sources/Features/Pairing/PairingInviteReceiveView.swift");
-    expect(evidence).toContain("current/unuvault/ios-pairing-invite-receive-v2");
+    const currentEvidence = evidence.split("## Claim Boundary")[0];
+    const screenshotPaths = [
+      "docs/design/evidence/2026-07-14-ios-product-composition/ios-product-composition-empty.png",
+      "docs/design/evidence/2026-07-14-ios-product-composition/ios-product-composition-vault.png",
+      "docs/design/evidence/2026-07-14-ios-product-composition/ios-product-composition-reload-failed.png",
+      "docs/design/evidence/2026-07-14-ios-product-composition/ios-product-composition-accessibility3.png",
+    ];
+
+    expect(currentEvidence).toContain("current/unuvault/ios-product-composition-v1");
+    expect(currentEvidence).toContain("current/unuvault/ios-pairing-invite-receive-v3");
+    expect(currentEvidence).not.toContain("current/unuvault/ios-pairing-invite-receive-v2");
+    expect(evidence).toContain("IOSProductCompositionView");
+    expect(evidence).toContain("72-test");
+    expect(evidence).toContain("explicit `.failed` state");
+    expect(evidence).toContain("Retry");
+    for (const screenshotPath of screenshotPaths) {
+      expect(evidence).toContain(screenshotPath);
+    }
     expect(evidence).toContain("hides raw invite session details after recognition");
-    expect(evidence).toContain("shows invite expiry instead of a raw endpoint URL");
+    expect(evidence).toMatch(/shows invite\s+expiry instead of a raw endpoint URL/);
     expect(evidence).toContain("bash scripts/testing/run-ios.sh");
     expect(evidence).toContain("bash scripts/testing/run-ios-ui-host.sh");
     expect(evidence).toContain("No `adapter-mapped` or `adopted` claim");
     expect(evidence).toContain("Dynamic Type");
     expect(evidence).toContain("VoiceOver");
     expect(evidence).toContain("44pt");
+    expect(evidence).not.toContain("docs/design/evidence/2026-05-29-ios-ui-host");
+    expect(evidence).not.toContain(
+      "fails closed to an empty list when the received-vault store is missing or unreadable",
+    );
+    expect(evidence).not.toContain(
+      "launches `PairingInviteReceiveView` with deterministic sample invite data",
+    );
+    expect(evidence).toContain(
+      "Superseded current frame `retained/unuvault/ios-pairing-invite-receive-v1-superseded-by-v2`",
+    );
+  });
+
+  it("records current iOS composition proof in the Mac companion evidence", () => {
+    const evidence = readText("docs/design/mac-companion-mvp-evidence.md");
+    const screenshotPaths = [
+      "docs/design/evidence/2026-07-14-ios-product-composition/ios-product-composition-empty.png",
+      "docs/design/evidence/2026-07-14-ios-product-composition/ios-product-composition-vault.png",
+      "docs/design/evidence/2026-07-14-ios-product-composition/ios-product-composition-reload-failed.png",
+      "docs/design/evidence/2026-07-14-ios-product-composition/ios-product-composition-accessibility3.png",
+    ];
+
+    expect(evidence).toContain("current/unuvault/ios-product-composition-v1");
+    expect(evidence).toContain("current/unuvault/ios-pairing-invite-receive-v3");
+    expect(evidence).toContain("fresh successful reload");
+    expect(evidence).toContain("explicit `.failed` state");
+    expect(evidence).toContain("Retry");
+    expect(evidence).toContain("72-test");
+    for (const screenshotPath of screenshotPaths) {
+      expect(evidence).toContain(screenshotPath);
+    }
+    expect(evidence).not.toContain(
+      "approved `current/unuvault/ios-pairing-invite-receive-v2` SwiftUI receive",
+    );
+    expect(evidence).toContain(
+      "This historical\n  `paired` record predates the import receipt and must not be cited as physical\n  decrypt/import proof.",
+    );
   });
 
   it("records the Mac companion security-boundary smoke entrypoint", () => {
