@@ -13,9 +13,7 @@ struct UnuVaultIOSHostApp: SwiftUI.App {
 private struct IOSProductHostRootView: View {
     @StateObject private var compositionViewModel: IOSProductCompositionViewModel
     @StateObject private var pairingViewModel: PairingInviteViewModel
-    @State private var acceptedPhysicalPairingURL = false
-    @State private var pendingPhysicalInviteText: String?
-    @State private var physicalPairingStarted = false
+    @State private var physicalPairingAttempt = IOSPhysicalPairingAttemptPolicy()
 
     @MainActor
     init() {
@@ -52,45 +50,51 @@ private struct IOSProductHostRootView: View {
     }
 
     private func handlePairingURL(_ url: URL) {
-        guard !acceptedPhysicalPairingURL else {
+        guard !physicalPairingAttempt.isActive else {
             return
         }
         guard let inviteText = IOSPairingDeepLink.inviteText(from: url) else {
+            resetPhysicalPairingAttempt()
             print("UNUVAULT_IOS_PAIRING_RECEIPT failed reason=invalid_deeplink")
             return
         }
+        guard physicalPairingAttempt.begin(inviteText: inviteText) else {
+            return
+        }
 
-        acceptedPhysicalPairingURL = true
-        pendingPhysicalInviteText = inviteText
         forwardPendingPhysicalInviteIfPossible()
     }
 
     private func forwardPendingPhysicalInviteIfPossible() {
         guard compositionViewModel.receivedVaultState != .idle,
               compositionViewModel.receivedVaultState != .loading,
-              let inviteText = pendingPhysicalInviteText,
-              !physicalPairingStarted
+              let inviteText = physicalPairingAttempt.pendingInviteText
         else {
             return
         }
 
-        pendingPhysicalInviteText = nil
         compositionViewModel.acceptDeepLinkInvite(
             inviteText,
             into: pairingViewModel
         )
 
-        guard pairingViewModel.state == .ready else {
+        guard physicalPairingAttempt.markForwarded(
+            parserState: pairingViewModel.state
+        ) else {
+            resetPhysicalPairingAttempt()
             print("UNUVAULT_IOS_PAIRING_RECEIPT failed reason=invalid_invite")
             return
         }
 
-        physicalPairingStarted = true
-
         Task {
             await pairingViewModel.pair()
             reportPairingFailureIfNeeded()
+            resetPhysicalPairingAttempt()
         }
+    }
+
+    private func resetPhysicalPairingAttempt() {
+        physicalPairingAttempt.finish()
     }
 
     private func reportPairingFailureIfNeeded() {

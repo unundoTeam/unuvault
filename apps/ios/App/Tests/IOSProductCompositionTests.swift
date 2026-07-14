@@ -35,6 +35,42 @@ final class IOSProductCompositionTests: XCTestCase {
         )
     }
 
+    func testPairingDeepLinkRejectsNonExactURLShapes() {
+        let encodedInvite = Data("invite".utf8).base64URLEncodedString()
+        let rejectedURLs = [
+            "unuvault-ioshost://user@pair?invite=\(encodedInvite)",
+            "unuvault-ioshost://user:password@pair?invite=\(encodedInvite)",
+            "unuvault-ioshost://pair:443?invite=\(encodedInvite)",
+            "unuvault-ioshost://pair/?invite=\(encodedInvite)",
+            "unuvault-ioshost://pair/path?invite=\(encodedInvite)",
+            "unuvault-ioshost://pair?invite=\(encodedInvite)#fragment",
+        ]
+
+        for rejectedURL in rejectedURLs {
+            XCTAssertNil(
+                IOSPairingDeepLink.inviteText(from: URL(string: rejectedURL)!),
+                rejectedURL
+            )
+        }
+    }
+
+    func testPairingDeepLinkRequiresExactlyOneNonEmptyInviteQueryItem() {
+        let encodedInvite = Data("invite".utf8).base64URLEncodedString()
+        let rejectedURLs = [
+            "unuvault-ioshost://pair?invite",
+            "unuvault-ioshost://pair?invite=",
+            "unuvault-ioshost://pair?invite=\(encodedInvite)&extra=value",
+            "unuvault-ioshost://pair?invite=\(encodedInvite)&invite=\(encodedInvite)",
+        ]
+
+        for rejectedURL in rejectedURLs {
+            XCTAssertNil(
+                IOSPairingDeepLink.inviteText(from: URL(string: rejectedURL)!),
+                rejectedURL
+            )
+        }
+    }
+
     func testPairingDeepLinkRejectsInvalidBase64URL() {
         XCTAssertNil(
             IOSPairingDeepLink.inviteText(
@@ -49,6 +85,20 @@ final class IOSProductCompositionTests: XCTestCase {
         XCTAssertNil(
             IOSPairingDeepLink.inviteText(
                 from: URL(string: "unuvault-ioshost://pair?invite=\(encodedInvite)")!
+            )
+        )
+    }
+
+    func testPairingDeepLinkRejectsNonCanonicalBase64URLPadBits() {
+        XCTAssertEqual(
+            IOSPairingDeepLink.inviteText(
+                from: URL(string: "unuvault-ioshost://pair?invite=Zg")!
+            ),
+            "f"
+        )
+        XCTAssertNil(
+            IOSPairingDeepLink.inviteText(
+                from: URL(string: "unuvault-ioshost://pair?invite=Zh")!
             )
         )
     }
@@ -76,6 +126,38 @@ final class IOSProductCompositionTests: XCTestCase {
         XCTAssertEqual(pairingViewModel.state, .ready)
         XCTAssertEqual(stateTransitions, [.ready])
         withExtendedLifetime(cancellable) {}
+    }
+
+    func testPhysicalPairingAttemptIgnoresSecondInviteUntilTerminalReset() {
+        var attempt = IOSPhysicalPairingAttemptPolicy()
+
+        XCTAssertTrue(attempt.begin(inviteText: "first-invite"))
+        XCTAssertEqual(attempt.pendingInviteText, "first-invite")
+        XCTAssertTrue(attempt.isActive)
+        XCTAssertFalse(attempt.begin(inviteText: "second-invite"))
+
+        XCTAssertTrue(attempt.markForwarded(parserState: .ready))
+        XCTAssertNil(attempt.pendingInviteText)
+        XCTAssertTrue(attempt.isActive)
+        XCTAssertFalse(attempt.markForwarded(parserState: .ready))
+        XCTAssertFalse(attempt.begin(inviteText: "second-invite"))
+
+        attempt.finish()
+
+        XCTAssertFalse(attempt.isActive)
+        XCTAssertTrue(attempt.begin(inviteText: "fresh-invite"))
+        XCTAssertEqual(attempt.pendingInviteText, "fresh-invite")
+    }
+
+    func testPhysicalPairingAttemptReleasesInvalidParsedInvite() {
+        var attempt = IOSPhysicalPairingAttemptPolicy()
+
+        XCTAssertTrue(attempt.begin(inviteText: "invalid-invite"))
+        XCTAssertFalse(attempt.markForwarded(parserState: .invalid))
+
+        XCTAssertFalse(attempt.isActive)
+        XCTAssertNil(attempt.pendingInviteText)
+        XCTAssertTrue(attempt.begin(inviteText: "fresh-invite"))
     }
 
     func testPromotedCompositionUIContractUsesExactRolesAndSafeCopy() {

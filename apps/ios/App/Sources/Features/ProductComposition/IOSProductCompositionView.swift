@@ -4,15 +4,22 @@ import UIKit
 
 enum IOSPairingDeepLink {
     static func inviteText(from url: URL) -> String? {
-        guard url.scheme == "unuvault-ioshost",
-              url.host == "pair",
-              let components = URLComponents(
+        guard let components = URLComponents(
                   url: url,
                   resolvingAgainstBaseURL: false
               ),
-              let invite = components.queryItems?
-                  .first(where: { $0.name == "invite" })?
-                  .value,
+              components.scheme == "unuvault-ioshost",
+              components.host == "pair",
+              components.user == nil,
+              components.password == nil,
+              components.port == nil,
+              components.percentEncodedPath.isEmpty,
+              components.fragment == nil,
+              let queryItems = components.queryItems,
+              queryItems.count == 1,
+              queryItems[0].name == "invite",
+              let invite = queryItems[0].value,
+              !invite.isEmpty,
               let data = decodeBase64URL(invite)
         else {
             return nil
@@ -41,7 +48,67 @@ enum IOSPairingDeepLink {
             base64.append(String(repeating: "=", count: 4 - padding))
         }
 
-        return Data(base64Encoded: base64)
+        guard let data = Data(base64Encoded: base64),
+              encodeBase64URL(data) == value
+        else {
+            return nil
+        }
+
+        return data
+    }
+
+    private static func encodeBase64URL(_ data: Data) -> String {
+        data.base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "")
+    }
+}
+
+struct IOSPhysicalPairingAttemptPolicy {
+    private enum Phase: Equatable {
+        case idle
+        case pending(String)
+        case pairing
+    }
+
+    private var phase: Phase = .idle
+
+    var isActive: Bool {
+        phase != .idle
+    }
+
+    var pendingInviteText: String? {
+        guard case let .pending(inviteText) = phase else {
+            return nil
+        }
+        return inviteText
+    }
+
+    mutating func begin(inviteText: String) -> Bool {
+        guard phase == .idle else {
+            return false
+        }
+
+        phase = .pending(inviteText)
+        return true
+    }
+
+    mutating func markForwarded(parserState: PairingInviteFlowState) -> Bool {
+        guard case .pending = phase else {
+            return false
+        }
+        guard parserState == .ready else {
+            finish()
+            return false
+        }
+
+        phase = .pairing
+        return true
+    }
+
+    mutating func finish() {
+        phase = .idle
     }
 }
 
