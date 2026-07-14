@@ -17,9 +17,10 @@ dashboard, automated alerting, or an operating on-call program.
 
 ## Event Contract
 
-The API emits one allowlist-only completion event per HTTP request. Error and
-response hooks share a request-local duplicate guard, so a thrown error cannot
-produce two events.
+The API emits one allowlist-only completion event per completed HTTP response.
+A single Fastify `onResponse` hook runs after the final response is sent, so
+thrown and custom-mapped errors use the final status and completion latency
+without relying on an earlier error-hook event.
 
 | Field | Allowed values or boundary |
 | --- | --- |
@@ -65,8 +66,9 @@ values cannot become telemetry dimensions.
 ## Evidence And Remaining Gate
 
 Repo-owned tests cover status and latency classifications, request-ID bounds,
-Fastify route-template use, unmatched routes, error/response de-duplication,
-secret canaries, and sink-failure isolation.
+Fastify route-template use, unmatched routes, thrown and custom-mapped error
+completion timing, exactly-once emission, secret canaries, and sink-failure
+isolation.
 
 The telemetry maturity row remains `open` until a decision owner records all of
 the following:

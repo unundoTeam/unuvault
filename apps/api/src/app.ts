@@ -22,7 +22,6 @@ export function buildApp(options: BuildAppOptions = {}) {
   const observabilitySink =
     options.observabilitySink ?? NOOP_OBSERVABILITY_SINK;
   const requestStartedAt = new WeakMap<object, number>();
-  const emittedRequests = new WeakSet<object>();
 
   function emitRequestEvent(
     request: {
@@ -32,11 +31,6 @@ export function buildApp(options: BuildAppOptions = {}) {
     },
     statusCode: number,
   ) {
-    if (emittedRequests.has(request)) {
-      return;
-    }
-
-    emittedRequests.add(request);
     const startedAt = requestStartedAt.get(request) ?? Date.now();
     const event = createHttpObservabilityEvent({
       routeTemplate: request.routeOptions.url,
@@ -55,13 +49,6 @@ export function buildApp(options: BuildAppOptions = {}) {
 
   app.addHook("onRequest", async (request) => {
     requestStartedAt.set(request, Date.now());
-  });
-
-  app.addHook("onError", async (request, reply, error) => {
-    const statusCode =
-      typeof error.statusCode === "number" ? error.statusCode : reply.statusCode;
-
-    emitRequestEvent(request, statusCode >= 400 ? statusCode : 500);
   });
 
   app.addHook("onResponse", async (request, reply) => {

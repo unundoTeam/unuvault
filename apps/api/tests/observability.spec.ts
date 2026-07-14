@@ -152,6 +152,47 @@ describe("API observability contract", () => {
     expect(JSON.stringify(events[0])).not.toContain("raw-error-message-canary");
   });
 
+  it("waits for the final error response before emitting its completion event", async () => {
+    const events: ObservabilityEvent[] = [];
+    const app = makeApp(events);
+    let markErrorHandlerStarted: () => void = () => undefined;
+    const errorHandlerStarted = new Promise<void>((resolve) => {
+      markErrorHandlerStarted = resolve;
+    });
+    let releaseErrorHandler: () => void = () => undefined;
+    const errorHandlerGate = new Promise<void>((resolve) => {
+      releaseErrorHandler = resolve;
+    });
+
+    app.setErrorHandler(async (_error, _request, reply) => {
+      markErrorHandlerStarted();
+      await errorHandlerGate;
+      return reply.code(422).send({ ok: false, error: "mapped_error" });
+    });
+    app.get("/observability-mapped-error", async () => {
+      throw new Error("raw-mapped-error-canary");
+    });
+
+    const responsePromise = app.inject({
+      method: "GET",
+      url: "/observability-mapped-error",
+    });
+    await errorHandlerStarted;
+    const eventsBeforeCompletion = [...events];
+    releaseErrorHandler();
+    const response = await responsePromise;
+
+    expect(eventsBeforeCompletion).toHaveLength(0);
+    expect(response.statusCode).toBe(422);
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
+      routeTemplate: "/observability-mapped-error",
+      method: "GET",
+      statusClass: "4xx",
+    });
+    expect(JSON.stringify(events[0])).not.toContain("raw-mapped-error-canary");
+  });
+
   it("does not let a rejected sink break the request", async () => {
     const app = buildApp({
       async observabilitySink() {

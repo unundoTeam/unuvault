@@ -137,6 +137,12 @@ describe("runtime authority contract", () => {
     expect(telemetryContract).toContain("raw URL");
     expect(telemetryContract).toContain("default no-op sink");
     expect(telemetryContract).toContain("Provider/export status: `open`");
+    expect(telemetryContract).toContain("per completed HTTP response");
+    expect(telemetryContract).toContain("`onResponse`");
+    expect(telemetryContract).not.toContain(
+      "Error and response hooks share a request-local duplicate guard",
+    );
+    expect(telemetryContract).not.toContain("error/response de-duplication");
 
     expect(alertingPolicy).toContain("Test-alert delivery status: `open`");
     expect(alertingPolicy).toContain("Alert destination status: `open`");
