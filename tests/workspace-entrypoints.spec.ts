@@ -88,10 +88,19 @@ describe("workspace entrypoints", () => {
     expect(hostSpec).toContain(
       "../App/Sources/Features/Pairing/PairingInviteReceiveView.swift",
     );
+    expect(hostSpec).toContain(
+      "../App/Sources/Features/ProductComposition/IOSProductCompositionView.swift",
+    );
+    expect(hostSpec).toContain(
+      "../App/Sources/Features/Vault/VaultListView.swift",
+    );
     expect(hostSpec).toContain("../App/Sources/Pairing/PairingPayload.swift");
-    expect(hostApp).toContain("PairingInviteReceiveView");
+    expect(hostApp).toContain("IOSProductCompositionView");
     expect(wrapper).toContain("xcodegen");
-    expect(wrapper).toContain("ios-pairing-invite-host.png");
+    expect(wrapper).toContain("ios-product-composition-empty.png");
+    expect(wrapper).toContain("ios-product-composition-vault.png");
+    expect(wrapper).toContain("ios-product-composition-reload-failed.png");
+    expect(wrapper).toContain("ios-product-composition-accessibility3.png");
   });
 
   it("adds a stable macOS companion test wrapper", () => {
@@ -394,7 +403,7 @@ describe("workspace entrypoints", () => {
     expect(hostSpec).toContain("unuvault-ioshost");
     expect(hostApp).toContain(".onOpenURL");
     expect(hostApp).toContain("UNUVAULT_IOS_PAIRING_RECEIPT");
-    expect(hostApp).toContain("base64URL");
+    expect(hostApp).toContain("IOSPairingDeepLink.inviteText");
     expect(macPackage).toContain("MacPairingReceiptHost");
     expect(macHost).toContain("UNUVAULT_PAIRING_RECEIPT_DEEPLINK");
     expect(macHost).toContain("UNUVAULT_PAIRING_RECEIPT_INVITE_BASE64URL");

@@ -15,6 +15,7 @@
     "smoke:web-save-to-mac-companion": "node scripts/smoke/web-save-to-mac-companion.mjs",
     "smoke:local-credential-bridge-server": "tsx scripts/smoke/local-credential-bridge-server.ts",
     "test": "bash scripts/testing/test-runner.sh",
+    "test:ios": "bash scripts/testing/run-ios.sh",
     "test:ios:ui-host": "bash scripts/testing/run-ios-ui-host.sh",
     "test:macos": "bash scripts/testing/run-macos.sh",
     "test:macos:security-preflight": "bash scripts/testing/run-mac-security-preflight.sh",
