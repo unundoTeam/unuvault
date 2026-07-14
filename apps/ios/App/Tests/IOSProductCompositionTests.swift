@@ -1,3 +1,4 @@
+import Combine
 import XCTest
 import UIKit
 @testable import App
@@ -84,20 +85,13 @@ final class IOSProductCompositionTests: XCTestCase {
         XCTAssertNotEqual(selectedPairing, unselectedPairing)
     }
 
-    func testAnnouncementContractEmitsVisibleCopyExactlyOncePerTransition() {
-        let stateSequence: [ReceivedVaultLoadState] = [
-            .idle,
-            .loading,
-            .failed,
-            .loading,
-            .failed,
-        ]
-        let announcements = zip(stateSequence, stateSequence.dropFirst()).compactMap {
-            IOSProductCompositionUIContract.receivedVaultAnnouncement(
-                from: $0,
-                to: $1
-            )
-        }
+    func testImmediateStartupFailurePublishesLoadingAndOneSafeFailureEvent() async {
+        let loader = QueuedReceivedVaultLoader([.failure(SecretBearingLoadError())])
+        let viewModel = IOSProductCompositionViewModel(receivedVaultLoader: loader.load)
+        var events: [IOSProductCompositionAccessibilityAnnouncement] = []
+        let cancellable = viewModel.$accessibilityAnnouncement
+            .compactMap { $0 }
+            .sink { events.append($0) }
         let loadingAnnouncement = [
             IOSProductCompositionUIContract.loadingTitle,
             IOSProductCompositionUIContract.loadingBody,
@@ -107,36 +101,72 @@ final class IOSProductCompositionTests: XCTestCase {
             IOSProductCompositionUIContract.loadFailureBody,
         ].joined(separator: " ")
 
+        await viewModel.start()
+
         XCTAssertEqual(
-            announcements,
-            [loadingAnnouncement, failureAnnouncement, failureAnnouncement]
+            events.map(\.message),
+            [loadingAnnouncement, failureAnnouncement]
         )
-        XCTAssertNil(
-            IOSProductCompositionUIContract.receivedVaultAnnouncement(
-                from: .failed,
-                to: .loading
-            )
+        XCTAssertEqual(events.map(\.sequence), [1, 2])
+        XCTAssertFalse(
+            events.map(\.message).joined().localizedCaseInsensitiveContains("error")
         )
-        XCTAssertFalse(announcements.joined().localizedCaseInsensitiveContains("error"))
-        XCTAssertFalse(announcements.joined().contains("secret-store-bytes"))
+        XCTAssertFalse(events.map(\.message).joined().contains("secret-store-bytes"))
+        withExtendedLifetime(cancellable) {}
     }
 
-    func testPostImportAnnouncementContractEmitsOnceOnEachFalseToTrueTransition() {
-        let failureSequence = [false, true, true, false, true]
-        let announcements = zip(failureSequence, failureSequence.dropFirst()).compactMap {
-            IOSProductCompositionUIContract.postImportAnnouncement(
-                wasFailed: $0,
-                isFailed: $1
-            )
-        }
+    func testSuspendedPostImportFailurePublishesOnlyOnePostImportEvent() async {
+        let loader = QueuedReceivedVaultLoader([.suspended])
+        let viewModel = IOSProductCompositionViewModel(receivedVaultLoader: loader.load)
+        var events: [IOSProductCompositionAccessibilityAnnouncement] = []
+        let cancellable = viewModel.$accessibilityAnnouncement
+            .compactMap { $0 }
+            .sink { events.append($0) }
         let expectedAnnouncement = [
             IOSProductCompositionUIContract.postImportReloadFailure,
             IOSProductCompositionUIContract.postImportReloadRecovery,
         ].joined(separator: " ")
 
-        XCTAssertEqual(announcements, [expectedAnnouncement, expectedAnnouncement])
-        XCTAssertFalse(announcements.joined().localizedCaseInsensitiveContains("error"))
-        XCTAssertFalse(announcements.joined().contains("secret-store-bytes"))
+        let reloadTask = Task { await viewModel.reloadAfterImport(makeReceipt()) }
+        await waitForCallCount(1, loader: loader)
+        XCTAssertTrue(events.isEmpty)
+
+        loader.resumeNext(with: .failure(SecretBearingLoadError()))
+        await reloadTask.value
+
+        XCTAssertEqual(events.map(\.message), [expectedAnnouncement])
+        XCTAssertEqual(events.map(\.sequence), [1])
+        XCTAssertFalse(events.map(\.message).joined().contains("secret-store-bytes"))
+        withExtendedLifetime(cancellable) {}
+    }
+
+    func testConsecutivePostImportRetryFailuresPublishANewEventEveryTime() async {
+        let loader = QueuedReceivedVaultLoader([
+            .failure(SecretBearingLoadError()),
+            .failure(SecretBearingLoadError()),
+            .failure(SecretBearingLoadError()),
+        ])
+        let viewModel = IOSProductCompositionViewModel(receivedVaultLoader: loader.load)
+        var events: [IOSProductCompositionAccessibilityAnnouncement] = []
+        let cancellable = viewModel.$accessibilityAnnouncement
+            .compactMap { $0 }
+            .sink { events.append($0) }
+        let expectedAnnouncement = [
+            IOSProductCompositionUIContract.postImportReloadFailure,
+            IOSProductCompositionUIContract.postImportReloadRecovery,
+        ].joined(separator: " ")
+
+        await viewModel.reloadAfterImport(makeReceipt())
+        await viewModel.retryPostImportReload()
+        await viewModel.retryPostImportReload()
+
+        XCTAssertEqual(events.map(\.sequence), [1, 2, 3])
+        XCTAssertEqual(
+            events.map(\.message),
+            Array(repeating: expectedAnnouncement, count: 3)
+        )
+        XCTAssertTrue(viewModel.postImportReloadFailed)
+        withExtendedLifetime(cancellable) {}
     }
 
     func testPairButtonUsesReadableSemanticColorPairsInLightAndDarkModes() {

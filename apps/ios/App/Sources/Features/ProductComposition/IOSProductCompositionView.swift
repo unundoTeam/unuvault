@@ -1,3 +1,4 @@
+import Combine
 import SwiftUI
 import UIKit
 
@@ -74,30 +75,19 @@ enum IOSProductCompositionUIContract {
     static let postImportReloadRecovery =
         "Try the local reload again. Pairing remains available."
 
-    static func receivedVaultAnnouncement(
-        from oldState: ReceivedVaultLoadState,
-        to newState: ReceivedVaultLoadState
-    ) -> String? {
-        switch (oldState, newState) {
-        case (.idle, .loading):
-            [loadingTitle, loadingBody].joined(separator: " ")
-        case (.loading, .failed):
-            [loadFailureTitle, loadFailureBody].joined(separator: " ")
-        default:
-            nil
-        }
-    }
+    static let startupLoadingAnnouncement =
+        [loadingTitle, loadingBody].joined(separator: " ")
+    static let startupFailureAnnouncement =
+        [loadFailureTitle, loadFailureBody].joined(separator: " ")
+    static let postImportFailureAnnouncement =
+        [postImportReloadFailure, postImportReloadRecovery].joined(separator: " ")
+}
 
-    static func postImportAnnouncement(
-        wasFailed: Bool,
-        isFailed: Bool
-    ) -> String? {
-        guard !wasFailed, isFailed else {
-            return nil
-        }
-        return [postImportReloadFailure, postImportReloadRecovery]
-            .joined(separator: " ")
-    }
+struct IOSProductCompositionAccessibilityAnnouncement: Equatable, Identifiable {
+    let sequence: UInt64
+    let message: String
+
+    var id: UInt64 { sequence }
 }
 
 enum IOSProductDestination: Hashable {
@@ -121,6 +111,8 @@ final class IOSProductCompositionViewModel: ObservableObject {
     @Published private(set) var receivedVaultState: ReceivedVaultLoadState
     @Published var selectedDestination: IOSProductDestination
     @Published private(set) var postImportReloadFailed: Bool
+    @Published private(set) var accessibilityAnnouncement:
+        IOSProductCompositionAccessibilityAnnouncement?
 
     private enum LoadContext {
         case startup
@@ -128,6 +120,7 @@ final class IOSProductCompositionViewModel: ObservableObject {
     }
 
     private let receivedVaultLoader: ReceivedVaultLoader
+    private var nextAccessibilityAnnouncementSequence: UInt64 = 0
 
     init(
         receivedVaultLoader: @escaping ReceivedVaultLoader =
@@ -138,6 +131,7 @@ final class IOSProductCompositionViewModel: ObservableObject {
         receivedVaultState = .idle
         selectedDestination = initialDestination
         postImportReloadFailed = false
+        accessibilityAnnouncement = nil
     }
 
     func start() async {
@@ -180,6 +174,11 @@ final class IOSProductCompositionViewModel: ObservableObject {
         receivedVaultState = .loading
         selectedDestination = .pairing
         postImportReloadFailed = false
+        if context == .startup {
+            publishAccessibilityAnnouncement(
+                IOSProductCompositionUIContract.startupLoadingAnnouncement
+            )
+        }
 
         do {
             let model = try await receivedVaultLoader()
@@ -188,6 +187,11 @@ final class IOSProductCompositionViewModel: ObservableObject {
                 receivedVaultState = .empty
                 selectedDestination = .pairing
                 postImportReloadFailed = context == .postImport
+                if context == .postImport {
+                    publishAccessibilityAnnouncement(
+                        IOSProductCompositionUIContract.postImportFailureAnnouncement
+                    )
+                }
             } else {
                 receivedVaultState = .available(model)
                 selectedDestination = .vault
@@ -197,7 +201,20 @@ final class IOSProductCompositionViewModel: ObservableObject {
             receivedVaultState = .failed
             selectedDestination = .pairing
             postImportReloadFailed = context == .postImport
+            publishAccessibilityAnnouncement(
+                context == .startup
+                    ? IOSProductCompositionUIContract.startupFailureAnnouncement
+                    : IOSProductCompositionUIContract.postImportFailureAnnouncement
+            )
         }
+    }
+
+    private func publishAccessibilityAnnouncement(_ message: String) {
+        nextAccessibilityAnnouncementSequence += 1
+        accessibilityAnnouncement = IOSProductCompositionAccessibilityAnnouncement(
+            sequence: nextAccessibilityAnnouncementSequence,
+            message: message
+        )
     }
 }
 
@@ -205,6 +222,7 @@ final class IOSProductCompositionViewModel: ObservableObject {
 struct IOSProductCompositionView: View {
     @StateObject private var viewModel: IOSProductCompositionViewModel
     @StateObject private var pairingViewModel: PairingInviteViewModel
+    @State private var lastAccessibilityAnnouncementSequence: UInt64 = 0
 
     init(
         viewModel: IOSProductCompositionViewModel = IOSProductCompositionViewModel(),
@@ -247,27 +265,12 @@ struct IOSProductCompositionView: View {
         .task {
             await viewModel.start()
         }
-        .onChange(of: viewModel.receivedVaultState) { oldState, newState in
-            guard let announcement =
-                IOSProductCompositionUIContract.receivedVaultAnnouncement(
-                    from: oldState,
-                    to: newState
-                )
-            else {
+        .onReceive(viewModel.$accessibilityAnnouncement.compactMap { $0 }) { event in
+            guard event.sequence > lastAccessibilityAnnouncementSequence else {
                 return
             }
-            AccessibilityNotification.Announcement(announcement).post()
-        }
-        .onChange(of: viewModel.postImportReloadFailed) { wasFailed, isFailed in
-            guard let announcement =
-                IOSProductCompositionUIContract.postImportAnnouncement(
-                    wasFailed: wasFailed,
-                    isFailed: isFailed
-                )
-            else {
-                return
-            }
-            AccessibilityNotification.Announcement(announcement).post()
+            lastAccessibilityAnnouncementSequence = event.sequence
+            AccessibilityNotification.Announcement(event.message).post()
         }
     }
 
