@@ -3,6 +3,62 @@ import XCTest
 
 @MainActor
 final class IOSProductCompositionTests: XCTestCase {
+    func testPromotedCompositionUIContractUsesExactRolesAndSafeCopy() {
+        XCTAssertEqual(IOSProductCompositionUIContract.vault.title, "Vault")
+        XCTAssertEqual(IOSProductCompositionUIContract.vault.systemImage, "lock.fill")
+        XCTAssertEqual(IOSProductCompositionUIContract.pairing.title, "Pairing")
+        XCTAssertEqual(IOSProductCompositionUIContract.pairing.systemImage, "link")
+        XCTAssertEqual(
+            IOSProductCompositionUIContract.loadingTitle,
+            "Loading received vault…"
+        )
+        XCTAssertEqual(
+            IOSProductCompositionUIContract.loadFailureTitle,
+            "Vault metadata unavailable"
+        )
+        XCTAssertEqual(IOSProductCompositionUIContract.retryTitle, "Retry")
+        XCTAssertEqual(
+            IOSProductCompositionUIContract.postImportReloadFailure,
+            "Imported, but the received vault could not be reloaded."
+        )
+
+        let visibleCopy = [
+            IOSProductCompositionUIContract.loadingTitle,
+            IOSProductCompositionUIContract.loadFailureTitle,
+            IOSProductCompositionUIContract.loadFailureBody,
+            IOSProductCompositionUIContract.postImportReloadFailure,
+            IOSProductCompositionUIContract.postImportReloadRecovery,
+        ].joined(separator: " ").lowercased()
+        XCTAssertFalse(visibleCopy.contains("password"))
+        XCTAssertFalse(visibleCopy.contains("secret"))
+        XCTAssertFalse(visibleCopy.contains("invite"))
+    }
+
+    func testPromotedCompositionUIContractHasAccessibleActionsAndSelectedState() {
+        XCTAssertGreaterThanOrEqual(
+            IOSProductCompositionUIContract.minimumActionHeight,
+            44
+        )
+
+        let selectedVault = IOSProductCompositionUIContract.vault.accessibility(
+            isSelected: true
+        )
+        let unselectedVault = IOSProductCompositionUIContract.vault.accessibility(
+            isSelected: false
+        )
+        let selectedPairing = IOSProductCompositionUIContract.pairing.accessibility(
+            isSelected: true
+        )
+
+        XCTAssertEqual(selectedVault.label, "Vault")
+        XCTAssertEqual(selectedVault.value, "Selected")
+        XCTAssertEqual(unselectedVault.label, "Vault")
+        XCTAssertEqual(unselectedVault.value, "Not selected")
+        XCTAssertEqual(selectedPairing.label, "Pairing")
+        XCTAssertEqual(selectedPairing.value, "Selected")
+        XCTAssertNotEqual(selectedVault.value, unselectedVault.value)
+    }
+
     func testStartPublishesLoadingThenSelectsVaultForReceivedMetadata() async throws {
         let model = makeVaultModel()
         let loader = QueuedReceivedVaultLoader([.suspended])

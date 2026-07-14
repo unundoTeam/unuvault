@@ -1,4 +1,50 @@
 import SwiftUI
+import UIKit
+
+enum IOSProductCompositionUIContract {
+    struct DestinationRole: Equatable {
+        struct AccessibilityRole: Equatable {
+            let label: String
+            let value: String
+        }
+
+        let title: String
+        let systemImage: String
+
+        func accessibility(isSelected: Bool) -> AccessibilityRole {
+            AccessibilityRole(
+                label: title,
+                value: isSelected ? selectedValue : notSelectedValue
+            )
+        }
+    }
+
+    static let vault = DestinationRole(title: "Vault", systemImage: "lock.fill")
+    static let pairing = DestinationRole(title: "Pairing", systemImage: "link")
+
+    static let selectedValue = "Selected"
+    static let notSelectedValue = "Not selected"
+    static let minimumActionHeight: CGFloat = 48
+
+    static let loadingTitle = "Loading received vault…"
+    static let loadingBody =
+        "Vault or Pairing will open as soon as local metadata is checked."
+    static let loadingStatus = "Checking local metadata"
+
+    static let emptyTitle = "No vault received yet"
+    static let emptyBody =
+        "Open Pairing to import read-only metadata from a trusted Mac."
+
+    static let loadFailureTitle = "Vault metadata unavailable"
+    static let loadFailureBody =
+        "Try the local reload again. Pairing remains available."
+    static let retryTitle = "Retry"
+
+    static let postImportReloadFailure =
+        "Imported, but the received vault could not be reloaded."
+    static let postImportReloadRecovery =
+        "Try the local reload again. Pairing remains available."
+}
 
 enum IOSProductDestination: Hashable {
     case vault
@@ -121,6 +167,221 @@ struct IOSProductCompositionView: View {
     }
 
     var body: some View {
-        EmptyView()
+        TabView(selection: $viewModel.selectedDestination) {
+            NavigationStack {
+                vaultContent
+            }
+            .tabItem {
+                destinationLabel(
+                    IOSProductCompositionUIContract.vault,
+                    destination: .vault
+                )
+            }
+            .tag(IOSProductDestination.vault)
+
+            NavigationStack {
+                pairingContent
+            }
+            .tabItem {
+                destinationLabel(
+                    IOSProductCompositionUIContract.pairing,
+                    destination: .pairing
+                )
+            }
+            .tag(IOSProductDestination.pairing)
+        }
+        .task {
+            await viewModel.start()
+        }
+        .onChange(of: viewModel.receivedVaultState) { oldState, newState in
+            guard oldState == .idle, newState == .loading else {
+                return
+            }
+            AccessibilityNotification.Announcement(
+                IOSProductCompositionUIContract.loadingTitle
+            ).post()
+        }
+        .onChange(of: viewModel.postImportReloadFailed) { wasFailed, isFailed in
+            guard !wasFailed, isFailed else {
+                return
+            }
+            AccessibilityNotification.Announcement(
+                IOSProductCompositionUIContract.postImportReloadFailure
+            ).post()
+        }
+    }
+
+    @ViewBuilder
+    private var vaultContent: some View {
+        switch viewModel.receivedVaultState {
+        case .idle, .loading:
+            stateContainer {
+                VStack(spacing: 12) {
+                    ProgressView()
+                        .controlSize(.large)
+                        .tint(.accentColor)
+                        .accessibilityHidden(true)
+                    Text(IOSProductCompositionUIContract.loadingTitle)
+                        .font(.headline)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(nil)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(IOSProductCompositionUIContract.loadingBody)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(nil)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(24)
+                .frame(maxWidth: .infinity)
+                .background(Color(uiColor: .secondarySystemGroupedBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 14))
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel(IOSProductCompositionUIContract.loadingTitle)
+                .accessibilityValue(IOSProductCompositionUIContract.loadingStatus)
+            }
+        case let .available(model):
+            VaultListView(model: model)
+        case .empty:
+            stateContainer {
+                VStack(alignment: .leading, spacing: 8) {
+                    Image(systemName: "archivebox")
+                        .font(.title2)
+                        .foregroundStyle(.secondary)
+                        .accessibilityHidden(true)
+                    Text(IOSProductCompositionUIContract.emptyTitle)
+                        .font(.headline)
+                        .lineLimit(nil)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(IOSProductCompositionUIContract.emptyBody)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(nil)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(20)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color(uiColor: .secondarySystemGroupedBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 14))
+                .accessibilityElement(children: .combine)
+            }
+        case .failed:
+            stateContainer {
+                VStack(alignment: .leading, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label(
+                            IOSProductCompositionUIContract.loadFailureTitle,
+                            systemImage: "exclamationmark.triangle.fill"
+                        )
+                        .font(.headline)
+                        .foregroundStyle(.red)
+                        .lineLimit(nil)
+                        .fixedSize(horizontal: false, vertical: true)
+                        Text(IOSProductCompositionUIContract.loadFailureBody)
+                            .font(.subheadline)
+                            .foregroundStyle(.red)
+                            .lineLimit(nil)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(16)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.red.opacity(0.12))
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel(
+                        IOSProductCompositionUIContract.loadFailureTitle
+                    )
+
+                    retryButton {
+                        await viewModel.start()
+                    }
+                }
+            }
+        }
+    }
+
+    private var pairingContent: some View {
+        VStack(spacing: 0) {
+            PairingInviteReceiveView(viewModel: pairingViewModel)
+
+            if viewModel.postImportReloadFailed {
+                VStack(alignment: .leading, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(IOSProductCompositionUIContract.postImportReloadFailure)
+                            .font(.headline)
+                            .foregroundStyle(.red)
+                            .lineLimit(nil)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Text(IOSProductCompositionUIContract.postImportReloadRecovery)
+                            .font(.subheadline)
+                            .foregroundStyle(.red)
+                            .lineLimit(nil)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(14)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.red.opacity(0.12))
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel(
+                        IOSProductCompositionUIContract.postImportReloadFailure
+                    )
+
+                    retryButton {
+                        await viewModel.retryPostImportReload()
+                    }
+                }
+                .padding([.horizontal, .bottom], 20)
+                .background(Color(uiColor: .systemGroupedBackground))
+            }
+        }
+        .background(Color(uiColor: .systemGroupedBackground))
+    }
+
+    private func destinationLabel(
+        _ role: IOSProductCompositionUIContract.DestinationRole,
+        destination: IOSProductDestination
+    ) -> some View {
+        let accessibility = role.accessibility(
+            isSelected: viewModel.selectedDestination == destination
+        )
+
+        return Label(role.title, systemImage: role.systemImage)
+            .accessibilityLabel(accessibility.label)
+            .accessibilityValue(accessibility.value)
+    }
+
+    private func stateContainer<Content: View>(
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        ScrollView {
+            content()
+                .padding(20)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(Color(uiColor: .systemGroupedBackground))
+    }
+
+    private func retryButton(
+        action: @escaping @MainActor () async -> Void
+    ) -> some View {
+        Button {
+            Task {
+                await action()
+            }
+        } label: {
+            Label(
+                IOSProductCompositionUIContract.retryTitle,
+                systemImage: "arrow.clockwise"
+            )
+            .font(.headline)
+            .lineLimit(nil)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity)
+            .frame(minHeight: IOSProductCompositionUIContract.minimumActionHeight)
+        }
+        .buttonStyle(.borderedProminent)
+        .accessibilityLabel(IOSProductCompositionUIContract.retryTitle)
     }
 }

@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import UIKit
 
 enum PairingInviteFlowState: Equatable {
     case empty
@@ -427,7 +428,7 @@ struct PairingInviteReceiveView: View {
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.white)
+        .background(PairingInviteStyle.card)
         .clipShape(RoundedRectangle(cornerRadius: 14))
         .overlay(
             RoundedRectangle(cornerRadius: 14)
@@ -537,13 +538,14 @@ struct PairingInviteReceiveView: View {
 }
 
 private enum PairingInviteStyle {
-    static let body = Color(red: 0.29, green: 0.33, blue: 0.39)
-    static let border = Color(red: 0.78, green: 0.80, blue: 0.83)
-    static let canvas = Color(red: 0.96, green: 0.96, blue: 0.96)
-    static let danger = Color(red: 0.60, green: 0.11, blue: 0.11)
-    static let dangerSurface = Color(red: 1.00, green: 0.95, blue: 0.95)
-    static let disabled = Color(red: 0.42, green: 0.45, blue: 0.50)
-    static let ink = Color(red: 0.07, green: 0.09, blue: 0.14)
-    static let input = Color(red: 0.98, green: 0.98, blue: 0.98)
-    static let secure = Color(red: 0.25, green: 0.46, blue: 0.40)
+    static let body = Color.secondary
+    static let border = Color.secondary.opacity(0.3)
+    static let canvas = Color(uiColor: .systemGroupedBackground)
+    static let card = Color(uiColor: .systemBackground)
+    static let danger = Color.red
+    static let dangerSurface = Color.red.opacity(0.12)
+    static let disabled = Color.secondary
+    static let ink = Color.primary
+    static let input = Color(uiColor: .secondarySystemBackground)
+    static let secure = Color.green
 }

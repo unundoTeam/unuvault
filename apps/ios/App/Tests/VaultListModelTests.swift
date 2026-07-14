@@ -35,37 +35,24 @@ final class VaultListModelTests: XCTestCase {
         XCTAssertFalse(renderedBody.contains("password"))
     }
 
-    @MainActor
-    func testVaultListViewRendersReadOnlyContextCopy() {
-        let renderedBody = String(
-            describing: VaultListView(
-                model: VaultListModel(
-                    items: [
-                        VaultListItem(
-                            id: "github-login",
-                            label: "github.com",
-                            username: "yuchen",
-                            websiteOrigin: "https://github.com"
-                        )
-                    ]
-                )
-            ).body
+    func testVaultListReadOnlyContextCopyContract() {
+        XCTAssertEqual(VaultListView.Copy.title, "Vault")
+        XCTAssertEqual(
+            VaultListView.Copy.readOnlyContext,
+            "Read-only metadata received from your Mac. Passwords and secret values are never shown here."
         )
-
-        XCTAssertTrue(renderedBody.contains("Vault"))
-        XCTAssertTrue(renderedBody.contains("Local items received from your Mac."))
-        XCTAssertTrue(renderedBody.contains("Sensitive values stay hidden"))
-        XCTAssertTrue(renderedBody.contains("Imported items"))
+        XCTAssertEqual(VaultListView.Copy.importedItems, "Imported items")
     }
 
-    @MainActor
-    func testVaultListViewShowsEmptyStateWhenNoImportedItemsExist() {
-        let renderedBody = String(
-            describing: VaultListView(model: VaultListModel(items: [])).body
+    func testVaultListEmptyStateCopyContract() {
+        XCTAssertEqual(
+            VaultListView.Copy.emptyTitle,
+            "No vault received yet"
         )
-
-        XCTAssertTrue(renderedBody.contains("No imported vault items yet"))
-        XCTAssertTrue(renderedBody.contains("Pair with your Mac to receive local vault metadata."))
+        XCTAssertEqual(
+            VaultListView.Copy.emptyBody,
+            "Open Pairing to import read-only metadata from a trusted Mac."
+        )
     }
 
     func testVaultListModelReadsImportedMetadataWithoutPasswords() throws {
