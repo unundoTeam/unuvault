@@ -56,7 +56,12 @@ final class IOSProductCompositionViewModel: ObservableObject {
         _ inviteText: String,
         into pairingViewModel: PairingInviteViewModel
     ) {
-        // Task 3 owns deep-link coordination and input single-flight behavior.
+        guard receivedVaultState != .loading, !pairingViewModel.isBusy else {
+            return
+        }
+
+        selectedDestination = .pairing
+        pairingViewModel.replaceInviteText(inviteText)
     }
 
     static func appDefaultLoader(
@@ -99,14 +104,20 @@ final class IOSProductCompositionViewModel: ObservableObject {
 @MainActor
 struct IOSProductCompositionView: View {
     @StateObject private var viewModel: IOSProductCompositionViewModel
-    private let pairingViewModel: PairingInviteViewModel?
+    @StateObject private var pairingViewModel: PairingInviteViewModel
 
     init(
         viewModel: IOSProductCompositionViewModel = IOSProductCompositionViewModel(),
         pairingViewModel: PairingInviteViewModel? = nil
     ) {
         _viewModel = StateObject(wrappedValue: viewModel)
-        self.pairingViewModel = pairingViewModel
+        _pairingViewModel = StateObject(
+            wrappedValue: pairingViewModel ?? PairingInviteViewModel(
+                onImportSucceeded: { receipt in
+                    await viewModel.reloadAfterImport(receipt)
+                }
+            )
+        )
     }
 
     var body: some View {

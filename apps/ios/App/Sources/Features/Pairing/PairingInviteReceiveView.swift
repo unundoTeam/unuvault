@@ -37,6 +37,7 @@ final class PairingInviteViewModel: ObservableObject {
 
     private let exchange: PairingInviteExchange
     private let handoffImporter: PairingHandoffImporter
+    private let onImportSucceeded: PairingImportCompletion
     private let now: @Sendable () -> Date
     private let targetIdentityProvider: PairingTargetIdentityProvider
     private var invite: MacPairingInvite?
@@ -45,17 +46,23 @@ final class PairingInviteViewModel: ObservableObject {
         state == .ready
     }
 
+    var isBusy: Bool {
+        state == .pairing
+    }
+
     convenience init(
         now: @escaping @Sendable () -> Date = Date.init,
         targetIdentity: PairingTargetIdentity,
         exchange: PairingInviteExchange? = nil,
-        handoffImporter: PairingHandoffImporter? = nil
+        handoffImporter: PairingHandoffImporter? = nil,
+        onImportSucceeded: @escaping PairingImportCompletion = { _ in }
     ) {
         self.init(
             now: now,
             targetIdentityProvider: { targetIdentity },
             exchange: exchange,
-            handoffImporter: handoffImporter
+            handoffImporter: handoffImporter,
+            onImportSucceeded: onImportSucceeded
         )
     }
 
@@ -65,15 +72,21 @@ final class PairingInviteViewModel: ObservableObject {
             try DefaultPairingTargetIdentityProvider().makeIdentity()
         },
         exchange: PairingInviteExchange? = nil,
-        handoffImporter: PairingHandoffImporter? = nil
+        handoffImporter: PairingHandoffImporter? = nil,
+        onImportSucceeded: @escaping PairingImportCompletion = { _ in }
     ) {
         self.exchange = exchange ?? Self.defaultExchange(now: now)
         self.handoffImporter = handoffImporter ?? Self.defaultHandoffImporter(now: now)
+        self.onImportSucceeded = onImportSucceeded
         self.now = now
         self.targetIdentityProvider = targetIdentityProvider
     }
 
     func replaceInviteText(_ text: String) {
+        guard !isBusy else {
+            return
+        }
+
         inviteText = text
         handoff = nil
         importReceipt = nil
@@ -106,7 +119,7 @@ final class PairingInviteViewModel: ObservableObject {
     }
 
     func pair() async {
-        guard let invite, canPair else {
+        guard !isBusy, let invite, canPair else {
             return
         }
 
@@ -125,6 +138,7 @@ final class PairingInviteViewModel: ObservableObject {
                 pairingFailureDiagnostic = receipt.diagnostic
                 state = .imported
                 statusMessage = receipt.statusText
+                await onImportSucceeded(receipt)
             } catch {
                 importReceipt = nil
                 pairingFailureDiagnostic = Self.importFailureDiagnostic(for: error)

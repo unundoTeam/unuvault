@@ -94,6 +94,87 @@ final class PairingInviteFlowTests: XCTestCase {
         XCTAssertFalse(viewModel.statusMessage.contains("password"))
     }
 
+    func testImportCompletionRunsOnceAfterSafeImportedStateIsPublished() async throws {
+        let invite = makeInvite()
+        let target = makeTarget()
+        let expectedHandoff = makeHandoff(invite: invite, target: target)
+        let expectedReceipt = makeImportReceipt(handoff: expectedHandoff)
+        var completionCallCount = 0
+        var stateObservedByCompletion: PairingInviteFlowState?
+        var receiptObservedByCompletion: PairingHandoffImportReceipt?
+        var viewModel: PairingInviteViewModel!
+        viewModel = PairingInviteViewModel(
+            now: { Date(timeIntervalSince1970: 1_060) },
+            targetIdentity: target,
+            exchange: { _, _ in expectedHandoff },
+            handoffImporter: { _, _ in expectedReceipt },
+            onImportSucceeded: { receipt in
+                completionCallCount += 1
+                stateObservedByCompletion = viewModel.state
+                receiptObservedByCompletion = viewModel.importReceipt
+                XCTAssertEqual(receipt, expectedReceipt)
+            }
+        )
+        viewModel.replaceInviteText(try inviteJSON(invite))
+
+        await viewModel.pair()
+
+        XCTAssertEqual(completionCallCount, 1)
+        XCTAssertEqual(stateObservedByCompletion, .imported)
+        XCTAssertEqual(receiptObservedByCompletion, expectedReceipt)
+        XCTAssertEqual(viewModel.importReceipt, expectedReceipt)
+    }
+
+    func testPairingIsSingleFlightAndKeepsAcceptedInviteWhileExchangeIsSuspended() async throws {
+        let acceptedInvite = makeInvite()
+        var replacementInvite = makeInvite()
+        replacementInvite = MacPairingInvite(
+            version: replacementInvite.version,
+            macBaseURL: replacementInvite.macBaseURL,
+            pairing: MacPairingQRCodePayload(
+                version: replacementInvite.pairing.version,
+                sessionId: "pairing-session-2",
+                sessionNonce: "pairing-nonce-2",
+                sourceDeviceId: "mac-device-2",
+                sourceDeviceDisplayName: "Other Mac",
+                createdAt: replacementInvite.pairing.createdAt,
+                expiresAt: replacementInvite.pairing.expiresAt
+            )
+        )
+        let target = makeTarget()
+        let exchange = SuspendedPairingExchange()
+        let viewModel = PairingInviteViewModel(
+            now: { Date(timeIntervalSince1970: 1_060) },
+            targetIdentity: target,
+            exchange: exchange.call,
+            handoffImporter: { handoff, _ in
+                self.makeImportReceipt(handoff: handoff)
+            }
+        )
+        let acceptedInviteText = try inviteJSON(acceptedInvite)
+        viewModel.replaceInviteText(acceptedInviteText)
+
+        let firstPairTask = Task { await viewModel.pair() }
+        await waitForExchangeCallCount(1, exchange: exchange)
+
+        XCTAssertTrue(viewModel.isBusy)
+        XCTAssertEqual(viewModel.state, .pairing)
+
+        let secondPairTask = Task { await viewModel.pair() }
+        await secondPairTask.value
+        viewModel.replaceInviteText(try inviteJSON(replacementInvite))
+
+        XCTAssertEqual(exchange.callCount, 1)
+        XCTAssertEqual(viewModel.inviteText, acceptedInviteText)
+        XCTAssertEqual(viewModel.macDisplayName, "Yuchen Mac")
+
+        exchange.resume(with: makeHandoff(invite: acceptedInvite, target: target))
+        await firstPairTask.value
+
+        XCTAssertFalse(viewModel.isBusy)
+        XCTAssertEqual(viewModel.state, .imported)
+    }
+
     func testPairingImportFailureKeepsPlaintextFreeDiagnostic() async throws {
         let invite = makeInvite()
         let target = makeTarget()
@@ -317,6 +398,39 @@ final class PairingInviteFlowTests: XCTestCase {
 
     private func inviteJSON(_ invite: MacPairingInvite) throws -> String {
         String(data: try JSONEncoder().encode(invite), encoding: .utf8) ?? ""
+    }
+
+    private func waitForExchangeCallCount(
+        _ expected: Int,
+        exchange: SuspendedPairingExchange,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) async {
+        for _ in 0..<100 where exchange.callCount < expected {
+            await Task.yield()
+        }
+        XCTAssertEqual(exchange.callCount, expected, file: file, line: line)
+    }
+}
+
+@MainActor
+private final class SuspendedPairingExchange {
+    private var continuation: CheckedContinuation<MacPairingHandoff, any Error>?
+    private(set) var callCount = 0
+
+    func call(
+        _ invite: MacPairingInvite,
+        _ target: PairingTargetIdentity
+    ) async throws -> MacPairingHandoff {
+        callCount += 1
+        return try await withCheckedThrowingContinuation { continuation in
+            self.continuation = continuation
+        }
+    }
+
+    func resume(with handoff: MacPairingHandoff) {
+        continuation?.resume(returning: handoff)
+        continuation = nil
     }
 }
 
