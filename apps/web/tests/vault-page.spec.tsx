@@ -2111,13 +2111,28 @@ describe("VaultPage", () => {
     render(<VaultPage />);
 
     await unlockVaultSuccessfully("correct horse");
-    fireEvent.click(
-      await screen.findByRole("button", { name: "Copy username GitHub" }),
-    );
+    const copyButton = await screen.findByRole("button", {
+      name: "Copy username GitHub",
+    });
+
+    vi.useFakeTimers();
+
+    await act(async () => {
+      fireEvent.click(copyButton);
+      await Promise.resolve();
+    });
 
     expect(writeText).toHaveBeenCalledWith("alice@example.com");
     expect(
-      await screen.findByRole("button", { name: "Copied GitHub" }),
+      screen.getByRole("button", { name: "Copied GitHub" }),
+    ).toBeInTheDocument();
+
+    act(() => {
+      vi.advanceTimersByTime(1500);
+    });
+
+    expect(
+      screen.getByRole("button", { name: "Copy username GitHub" }),
     ).toBeInTheDocument();
   });
 
