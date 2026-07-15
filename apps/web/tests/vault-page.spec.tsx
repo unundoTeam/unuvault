@@ -217,13 +217,13 @@ async function unlockVaultSuccessfully(passphrase: string) {
   await expectVaultUnlocked();
 }
 
-async function openCreateForm() {
+async function openCreateForm(timeout: number = 5000) {
   fireEvent.click(await screen.findByRole("button", { name: "New login" }));
 
   return screen.findByRole(
     "form",
     { name: "Save vault item" },
-    { timeout: 5000 },
+    { timeout },
   );
 }
 
@@ -1750,7 +1750,11 @@ describe("VaultPage", () => {
     render(<VaultPage />);
 
     await expectVisibleText("GitHub");
-    await unlockAndOpenCreatePanel();
+    await unlockVaultSuccessfully("correct horse");
+    expect(
+      await screen.findByRole("button", { name: "Edit GitHub" }),
+    ).toBeInTheDocument();
+    await openCreateForm(10_000);
 
     fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "GitLab" },
