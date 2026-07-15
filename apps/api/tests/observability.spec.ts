@@ -207,6 +207,20 @@ describe("API observability contract", () => {
     expect(response.json()).toEqual({ ok: true });
   });
 
+  it("does not let a synchronously thrown sink break the request", async () => {
+    const app = buildApp({
+      observabilitySink() {
+        throw new Error("sink unavailable");
+      },
+    });
+    apps.push(app);
+
+    const response = await app.inject({ method: "GET", url: "/health" });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ ok: true });
+  });
+
   it("does not wait for a slow sink before completing an error response", async () => {
     let releaseSink: () => void = () => undefined;
     const sinkResult = new Promise<void>((resolve) => {
