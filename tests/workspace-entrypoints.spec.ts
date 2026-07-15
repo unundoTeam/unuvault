@@ -135,6 +135,14 @@ describe("workspace entrypoints", () => {
     expect(testRunner).toContain("--exclude='.worktrees/**'");
   });
 
+  it("fails fast when the root Vitest phase fails", () => {
+    const testRunner = readText("scripts/testing/test-runner.sh");
+
+    expect(testRunner).toMatch(
+      /bash -c "\s*set -euo pipefail\s+\\"\\\$1\\" exec vitest/u,
+    );
+  });
+
   it("serializes root, native, and UI test entrypoints through the shared lock", () => {
     const sharedLockRunnerPath =
       "scripts/testing/run-with-shared-test-lock.sh";
