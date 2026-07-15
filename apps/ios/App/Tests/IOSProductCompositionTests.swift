@@ -51,7 +51,7 @@ final class IOSProductCompositionTests: XCTestCase {
         let inviteText = try inviteJSON(makeInvite())
         let url = makePairingDeepLink(inviteText: inviteText)
 
-        XCTAssertEqual(IOSPairingDeepLink.inviteText(from: url), inviteText)
+        XCTAssertTrue(IOSPairingDeepLink.inviteText(from: url) == inviteText)
     }
 
     func testPairingDeepLinkRejectsWrongSchemeAndHost() {
@@ -629,7 +629,7 @@ final class IOSProductCompositionTests: XCTestCase {
         )
 
         XCTAssertEqual(exchange.callCount, 1)
-        XCTAssertEqual(pairingViewModel.inviteText, firstInviteText)
+        XCTAssertTrue(pairingViewModel.inviteText == firstInviteText)
         XCTAssertEqual(pairingViewModel.macDisplayName, "Yuchen Mac")
 
         exchange.resume(with: makeHandoff(invite: firstInvite, target: target))
@@ -662,7 +662,7 @@ final class IOSProductCompositionTests: XCTestCase {
 
         XCTAssertEqual(compositionViewModel.receivedVaultState, .loading)
         XCTAssertEqual(compositionViewModel.selectedDestination, .pairing)
-        XCTAssertEqual(pairingViewModel.inviteText, firstInviteText)
+        XCTAssertTrue(pairingViewModel.inviteText == firstInviteText)
         XCTAssertEqual(pairingViewModel.macDisplayName, "Yuchen Mac")
 
         loader.resumeNext(with: .success(VaultListModel()))

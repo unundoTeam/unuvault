@@ -212,7 +212,7 @@ final class PairingInviteFlowTests: XCTestCase {
         viewModel.replaceInviteText(try inviteJSON(replacementInvite))
 
         XCTAssertEqual(exchange.callCount, 1)
-        XCTAssertEqual(viewModel.inviteText, acceptedInviteText)
+        XCTAssertTrue(viewModel.inviteText == acceptedInviteText)
         XCTAssertEqual(viewModel.macDisplayName, "Yuchen Mac")
 
         exchange.resume(with: makeHandoff(invite: acceptedInvite, target: target))
