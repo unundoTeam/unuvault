@@ -8,9 +8,11 @@ fi
 host_root="$repo_root/apps/ios/HostApp"
 derived_data="$repo_root/.derived-data/ios-ui-host"
 bundle_id="com.unuvault.ioshost"
-output_dir="$repo_root/docs/design/evidence/2026-05-29-ios-ui-host"
-normal_output_path="$output_dir/ios-pairing-invite-host.png"
-dynamic_type_output_path="$output_dir/ios-pairing-invite-host-accessibility3.png"
+output_dir="$repo_root/docs/design/evidence/2026-07-14-ios-product-composition"
+empty_output_path="$output_dir/ios-product-composition-empty.png"
+vault_output_path="$output_dir/ios-product-composition-vault.png"
+reload_failed_output_path="$output_dir/ios-product-composition-reload-failed.png"
+accessibility3_output_path="$output_dir/ios-product-composition-accessibility3.png"
 
 run_with_timeout() {
   local timeout_seconds="$1"
@@ -38,6 +40,8 @@ launch_and_capture() {
   local output_path="$1"
   shift
 
+  rm -f "$output_path"
+
   run_with_timeout 10 xcrun simctl terminate "$simulator_id" "$bundle_id" >/dev/null 2>&1 || true
 
   local launched=0
@@ -56,6 +60,10 @@ launch_and_capture() {
 
   sleep 6
   run_with_timeout 20 xcrun simctl io "$simulator_id" screenshot "$output_path"
+  if [[ ! -s "$output_path" ]]; then
+    echo "Simulator screenshot was not written: $output_path" >&2
+    exit 1
+  fi
 }
 
 if ! command -v xcodegen >/dev/null 2>&1; then
@@ -153,8 +161,24 @@ if [[ "$installed" != "1" ]]; then
   exit 1
 fi
 
-launch_and_capture "$normal_output_path" --unuvault-dynamic-type large
-launch_and_capture "$dynamic_type_output_path" --unuvault-dynamic-type accessibility3
+launch_and_capture \
+  "$empty_output_path" \
+  --unuvault-composition-state empty \
+  --unuvault-dynamic-type large
+launch_and_capture \
+  "$vault_output_path" \
+  --unuvault-composition-state vault \
+  --unuvault-dynamic-type large
+launch_and_capture \
+  "$reload_failed_output_path" \
+  --unuvault-composition-state reload-failed \
+  --unuvault-dynamic-type large
+launch_and_capture \
+  "$accessibility3_output_path" \
+  --unuvault-composition-state empty \
+  --unuvault-dynamic-type accessibility3
 
-echo "iOS UI host screenshot: $normal_output_path"
-echo "iOS UI host Dynamic Type screenshot: $dynamic_type_output_path"
+echo "iOS product composition empty screenshot: $empty_output_path"
+echo "iOS product composition vault screenshot: $vault_output_path"
+echo "iOS product composition reload failure screenshot: $reload_failed_output_path"
+echo "iOS product composition Accessibility 3 screenshot: $accessibility3_output_path"

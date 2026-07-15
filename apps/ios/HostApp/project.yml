@@ -26,7 +26,9 @@ targets:
         UILaunchScreen: {}
     sources:
       - path: Sources
+      - path: ../App/Sources/Features/ProductComposition/IOSProductCompositionView.swift
       - path: ../App/Sources/Features/Pairing/PairingInviteReceiveView.swift
+      - path: ../App/Sources/Features/Vault/VaultListView.swift
       - path: ../App/Sources/Pairing/DefaultPairingHandoffImporter.swift
       - path: ../App/Sources/Pairing/DefaultPairingTargetIdentityProvider.swift
       - path: ../App/Sources/Pairing/PairingHandoffImportStore.swift

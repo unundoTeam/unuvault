@@ -29,69 +29,78 @@ struct VaultListModel: Equatable, Sendable {
 
     static func loadReceivedVault(
         from configuration: PairingReceivedVaultStoreConfiguration = .appDefault()
-    ) -> VaultListModel {
-        do {
-            return VaultListModel(importStore: try configuration.makeImportStore())
-        } catch {
-            return VaultListModel()
-        }
+    ) throws -> VaultListModel {
+        VaultListModel(importStore: try configuration.makeImportStore())
     }
 }
 
 struct VaultListView: View {
+    enum Copy {
+        static let title = "Vault"
+        static let readOnlyContext =
+            "Read-only metadata received from your Mac. Passwords and secret values are never shown here."
+        static let importedItems = "Imported items"
+        static let emptyTitle = "No vault received yet"
+        static let emptyBody =
+            "Open Pairing to import read-only metadata from a trusted Mac."
+    }
+
     let model: VaultListModel
 
     init(model: VaultListModel) {
         self.model = model
     }
 
-    init(
-        receivedVaultStoreConfiguration: PairingReceivedVaultStoreConfiguration = .appDefault()
-    ) {
-        self.model = VaultListModel.loadReceivedVault(
-            from: receivedVaultStoreConfiguration
-        )
-    }
-
     var body: some View {
         List {
             Section {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Vault")
+                    Text(Copy.title)
                         .font(.largeTitle.bold())
-                    Text(
-                        "Local items received from your Mac. Sensitive values stay hidden until a future action is approved."
-                    )
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    Text(Copy.readOnlyContext)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(nil)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 .listRowBackground(Color.clear)
             }
 
-            Section("Imported items") {
+            Section(Copy.importedItems) {
                 if model.items.isEmpty {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("No imported vault items yet")
+                        Text(Copy.emptyTitle)
                             .font(.headline)
-                        Text("Pair with your Mac to receive local vault metadata.")
+                            .lineLimit(nil)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Text(Copy.emptyBody)
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
+                            .lineLimit(nil)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 } else {
                     ForEach(model.items) { item in
                         VStack(alignment: .leading, spacing: 4) {
                             Text(item.label)
                                 .font(.headline)
+                                .lineLimit(nil)
+                                .fixedSize(horizontal: false, vertical: true)
                             Text(item.username)
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
+                                .lineLimit(nil)
+                                .fixedSize(horizontal: false, vertical: true)
                             Text(item.websiteOrigin)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
+                                .lineLimit(nil)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
                     }
                 }
             }
         }
+        .listStyle(.insetGrouped)
     }
 }

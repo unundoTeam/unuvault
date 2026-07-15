@@ -4,8 +4,7 @@ import XCTest
 @testable import App
 
 final class VaultListModelTests: XCTestCase {
-    @MainActor
-    func testVaultListViewRendersMetadataWithoutPasswords() {
+    func testVaultListModelCarriesMetadataWithoutPasswords() throws {
         let model = VaultListModel(
             items: [
                 VaultListItem(
@@ -23,65 +22,49 @@ final class VaultListModelTests: XCTestCase {
             ]
         )
 
-        let renderedBody = String(describing: VaultListView(model: model).body)
+        XCTAssertEqual(model.items.count, 2)
+        let encodedItems = String(
+            data: try JSONEncoder().encode(model.items),
+            encoding: .utf8
+        ) ?? ""
+        XCTAssertFalse(encodedItems.contains("secret"))
+        XCTAssertFalse(encodedItems.contains("password"))
+    }
 
-        XCTAssertTrue(renderedBody.contains("github.com"))
-        XCTAssertTrue(renderedBody.contains("yuchen"))
-        XCTAssertTrue(renderedBody.contains("https://github.com"))
-        XCTAssertTrue(renderedBody.contains("Bank"))
-        XCTAssertTrue(renderedBody.contains("me@example.com"))
-        XCTAssertTrue(renderedBody.contains("https://bank.example"))
-        XCTAssertFalse(renderedBody.contains("secret"))
-        XCTAssertFalse(renderedBody.contains("password"))
+    func testVaultListReadOnlyContextCopyContract() {
+        XCTAssertEqual(VaultListView.Copy.title, "Vault")
+        XCTAssertEqual(
+            VaultListView.Copy.readOnlyContext,
+            "Read-only metadata received from your Mac. Passwords and secret values are never shown here."
+        )
+        XCTAssertEqual(VaultListView.Copy.importedItems, "Imported items")
+    }
+
+    func testVaultListEmptyStateCopyContract() {
+        XCTAssertEqual(
+            VaultListView.Copy.emptyTitle,
+            "No vault received yet"
+        )
+        XCTAssertEqual(
+            VaultListView.Copy.emptyBody,
+            "Open Pairing to import read-only metadata from a trusted Mac."
+        )
     }
 
     @MainActor
-    func testVaultListViewRendersReadOnlyContextCopy() {
-        let renderedBody = String(
-            describing: VaultListView(
-                model: VaultListModel(
-                    items: [
-                        VaultListItem(
-                            id: "github-login",
-                            label: "github.com",
-                            username: "yuchen",
-                            websiteOrigin: "https://github.com"
-                        )
-                    ]
+    func testVaultListViewRetainsInjectedModel() {
+        let model = VaultListModel(
+            items: [
+                VaultListItem(
+                    id: "github-login",
+                    label: "github.com",
+                    username: "yuchen",
+                    websiteOrigin: "https://github.com"
                 )
-            ).body
+            ]
         )
 
-        XCTAssertTrue(renderedBody.contains("Vault"))
-        XCTAssertTrue(renderedBody.contains("Local items received from your Mac."))
-        XCTAssertTrue(renderedBody.contains("Sensitive values stay hidden"))
-        XCTAssertTrue(renderedBody.contains("Imported items"))
-    }
-
-    @MainActor
-    func testVaultListViewShowsEmptyStateWhenNoImportedItemsExist() {
-        let renderedBody = String(
-            describing: VaultListView(model: VaultListModel(items: [])).body
-        )
-
-        XCTAssertTrue(renderedBody.contains("No imported vault items yet"))
-        XCTAssertTrue(renderedBody.contains("Pair with your Mac to receive local vault metadata."))
-    }
-
-    @MainActor
-    func testVaultListViewDefaultInitializerExecutesMetadataOnlyLoading() throws {
-        let view = VaultListView()
-        let encodedItems = try JSONEncoder().encode(view.model.items)
-        let serializedItems = try JSONSerialization.jsonObject(
-            with: encodedItems
-        ) as? [[String: Any]]
-
-        XCTAssertNotNil(serializedItems)
-        XCTAssertTrue(
-            serializedItems?.allSatisfy {
-                Set($0.keys) == ["id", "label", "username", "websiteOrigin"]
-            } ?? false
-        )
+        XCTAssertEqual(VaultListView(model: model).model, model)
     }
 
     func testVaultListModelReadsImportedMetadataWithoutPasswords() throws {
@@ -156,7 +139,7 @@ final class VaultListModelTests: XCTestCase {
             encryptionKeyProvider: { encryptionKey }
         )
 
-        let model = VaultListModel.loadReceivedVault(from: configuration)
+        let model = try VaultListModel.loadReceivedVault(from: configuration)
 
         XCTAssertEqual(model.items, expectedVaultListItems())
         let encodedItems = String(
@@ -168,22 +151,7 @@ final class VaultListModelTests: XCTestCase {
         XCTAssertFalse(encodedItems.contains("password"))
     }
 
-    @MainActor
-    func testVaultListViewLoadsPersistedMetadataThroughReceivedVaultConfiguration() throws {
-        let storeURL = try temporaryEncryptedStoreURL()
-        let encryptionKey = SymmetricKey(size: .bits256)
-        try persistReceivedVault(at: storeURL, encryptionKey: encryptionKey)
-        let configuration = PairingReceivedVaultStoreConfiguration(
-            encryptedStoreURL: storeURL,
-            encryptionKeyProvider: { encryptionKey }
-        )
-
-        let view = VaultListView(receivedVaultStoreConfiguration: configuration)
-
-        XCTAssertEqual(view.model.items, expectedVaultListItems())
-    }
-
-    func testReceivedVaultLoaderFailsClosedWhenStoreIsMissing() throws {
+    func testReceivedVaultLoaderReturnsEmptyModelWhenStoreIsMissing() throws {
         let storeURL = try temporaryEncryptedStoreURL()
         let encryptionKey = SymmetricKey(size: .bits256)
         let configuration = PairingReceivedVaultStoreConfiguration(
@@ -191,23 +159,48 @@ final class VaultListModelTests: XCTestCase {
             encryptionKeyProvider: { encryptionKey }
         )
 
-        let model = VaultListModel.loadReceivedVault(from: configuration)
+        let model = try VaultListModel.loadReceivedVault(from: configuration)
 
         XCTAssertEqual(model.items, [])
     }
 
-    func testReceivedVaultLoaderFailsClosedWhenStoreIsUnreadable() throws {
+    func testReceivedVaultLoaderThrowsForCorruptStoreWithoutLeakingBytes() throws {
         let storeURL = try temporaryEncryptedStoreURL()
-        try Data("not-an-encrypted-vault-envelope".utf8).write(to: storeURL)
+        let corruptBytes = Data("test-secret-password-corrupt-store".utf8)
+        try corruptBytes.write(to: storeURL)
         let encryptionKey = SymmetricKey(size: .bits256)
         let configuration = PairingReceivedVaultStoreConfiguration(
             encryptedStoreURL: storeURL,
             encryptionKeyProvider: { encryptionKey }
         )
 
-        let model = VaultListModel.loadReceivedVault(from: configuration)
+        var capturedError: Error?
+        XCTAssertThrowsError(
+            try VaultListModel.loadReceivedVault(from: configuration)
+        ) { error in
+            capturedError = error
+            XCTAssertEqual(
+                error as? PairingHandoffImportError,
+                .invalidEncryptedStore
+            )
+        }
 
-        XCTAssertEqual(model.items, [])
+        let encodedErrorState = String(
+            data: try JSONEncoder().encode(
+                ["error": String(describing: capturedError)]
+            ),
+            encoding: .utf8
+        ) ?? ""
+        XCTAssertFalse(encodedErrorState.contains("password"))
+        XCTAssertFalse(encodedErrorState.contains("test-secret"))
+        XCTAssertFalse(
+            encodedErrorState.contains(
+                String(decoding: corruptBytes, as: UTF8.self)
+            )
+        )
+        XCTAssertFalse(
+            encodedErrorState.contains(corruptBytes.base64EncodedString())
+        )
     }
 
     private func persistReceivedVault(

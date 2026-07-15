@@ -1,5 +1,49 @@
 import Foundation
 import SwiftUI
+import UIKit
+
+enum PairingInviteUIContract {
+    enum SemanticColorRole: Equatable {
+        case inverseForeground
+        case inverseBackground
+        case disabledForeground
+        case disabledBackground
+
+        var uiColor: UIColor {
+            switch self {
+            case .inverseForeground:
+                .systemBackground
+            case .inverseBackground:
+                .label
+            case .disabledForeground:
+                .label
+            case .disabledBackground:
+                .systemGray5
+            }
+        }
+
+        var color: Color {
+            Color(uiColor: uiColor)
+        }
+    }
+
+    struct PairButtonPresentation: Equatable {
+        let foreground: SemanticColorRole
+        let background: SemanticColorRole
+    }
+
+    static func pairButtonPresentation(isEnabled: Bool) -> PairButtonPresentation {
+        isEnabled
+            ? PairButtonPresentation(
+                foreground: .inverseForeground,
+                background: .inverseBackground
+            )
+            : PairButtonPresentation(
+                foreground: .disabledForeground,
+                background: .disabledBackground
+            )
+    }
+}
 
 enum PairingInviteFlowState: Equatable {
     case empty
@@ -37,6 +81,7 @@ final class PairingInviteViewModel: ObservableObject {
 
     private let exchange: PairingInviteExchange
     private let handoffImporter: PairingHandoffImporter
+    private let onImportSucceeded: PairingImportCompletion
     private let now: @Sendable () -> Date
     private let targetIdentityProvider: PairingTargetIdentityProvider
     private var invite: MacPairingInvite?
@@ -45,17 +90,23 @@ final class PairingInviteViewModel: ObservableObject {
         state == .ready
     }
 
+    var isBusy: Bool {
+        state == .pairing
+    }
+
     convenience init(
         now: @escaping @Sendable () -> Date = Date.init,
         targetIdentity: PairingTargetIdentity,
         exchange: PairingInviteExchange? = nil,
-        handoffImporter: PairingHandoffImporter? = nil
+        handoffImporter: PairingHandoffImporter? = nil,
+        onImportSucceeded: @escaping PairingImportCompletion = { _ in }
     ) {
         self.init(
             now: now,
             targetIdentityProvider: { targetIdentity },
             exchange: exchange,
-            handoffImporter: handoffImporter
+            handoffImporter: handoffImporter,
+            onImportSucceeded: onImportSucceeded
         )
     }
 
@@ -65,15 +116,21 @@ final class PairingInviteViewModel: ObservableObject {
             try DefaultPairingTargetIdentityProvider().makeIdentity()
         },
         exchange: PairingInviteExchange? = nil,
-        handoffImporter: PairingHandoffImporter? = nil
+        handoffImporter: PairingHandoffImporter? = nil,
+        onImportSucceeded: @escaping PairingImportCompletion = { _ in }
     ) {
         self.exchange = exchange ?? Self.defaultExchange(now: now)
         self.handoffImporter = handoffImporter ?? Self.defaultHandoffImporter(now: now)
+        self.onImportSucceeded = onImportSucceeded
         self.now = now
         self.targetIdentityProvider = targetIdentityProvider
     }
 
     func replaceInviteText(_ text: String) {
+        guard !isBusy else {
+            return
+        }
+
         inviteText = text
         handoff = nil
         importReceipt = nil
@@ -106,7 +163,7 @@ final class PairingInviteViewModel: ObservableObject {
     }
 
     func pair() async {
-        guard let invite, canPair else {
+        guard !isBusy, let invite, canPair else {
             return
         }
 
@@ -125,16 +182,18 @@ final class PairingInviteViewModel: ObservableObject {
                 pairingFailureDiagnostic = receipt.diagnostic
                 state = .imported
                 statusMessage = receipt.statusText
+                await onImportSucceeded(receipt)
             } catch {
-                importReceipt = nil
-                pairingFailureDiagnostic = Self.importFailureDiagnostic(for: error)
+                let diagnostic = Self.importFailureDiagnostic(for: error)
+                discardFailedAttempt()
+                pairingFailureDiagnostic = diagnostic
                 state = .importFailed
                 statusMessage = "Import failed. Generate a fresh invite on your Mac."
             }
         } catch let PairingExchangeClientError.httpStatus(status) {
-            handoff = nil
-            importReceipt = nil
-            pairingFailureDiagnostic = "httpStatus(\(status))"
+            let diagnostic = "httpStatus(\(status))"
+            discardFailedAttempt()
+            pairingFailureDiagnostic = diagnostic
 
             if status == 410 {
                 state = .invalid
@@ -144,12 +203,22 @@ final class PairingInviteViewModel: ObservableObject {
                 statusMessage = "Pairing failed. Generate a fresh invite on your Mac."
             }
         } catch {
-            handoff = nil
-            importReceipt = nil
-            pairingFailureDiagnostic = Self.pairingFailureDiagnostic(for: error)
+            let diagnostic = Self.pairingFailureDiagnostic(for: error)
+            discardFailedAttempt()
+            pairingFailureDiagnostic = diagnostic
             state = .failed
             statusMessage = "Pairing failed. Generate a fresh invite on your Mac."
         }
+    }
+
+    private func discardFailedAttempt() {
+        inviteText = ""
+        invite = nil
+        handoff = nil
+        importReceipt = nil
+        macDisplayName = ""
+        macEndpointText = ""
+        macInviteDetailText = ""
     }
 
     private func clearInvite() {
@@ -413,7 +482,7 @@ struct PairingInviteReceiveView: View {
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.white)
+        .background(PairingInviteStyle.card)
         .clipShape(RoundedRectangle(cornerRadius: 14))
         .overlay(
             RoundedRectangle(cornerRadius: 14)
@@ -457,7 +526,11 @@ struct PairingInviteReceiveView: View {
     }
 
     private var pairButton: some View {
-        Button {
+        let presentation = PairingInviteUIContract.pairButtonPresentation(
+            isEnabled: viewModel.canPair
+        )
+
+        return Button {
             Task {
                 await viewModel.pair()
             }
@@ -470,8 +543,8 @@ struct PairingInviteReceiveView: View {
                 .frame(minHeight: primaryActionMinHeight)
         }
         .buttonStyle(.plain)
-        .foregroundStyle(Color.white)
-        .background(viewModel.canPair ? PairingInviteStyle.ink : PairingInviteStyle.disabled)
+        .foregroundStyle(presentation.foreground.color)
+        .background(presentation.background.color)
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .disabled(!viewModel.canPair)
         .accessibilityLabel(PairingInviteAccessibilityContract.pair)
@@ -523,13 +596,13 @@ struct PairingInviteReceiveView: View {
 }
 
 private enum PairingInviteStyle {
-    static let body = Color(red: 0.29, green: 0.33, blue: 0.39)
-    static let border = Color(red: 0.78, green: 0.80, blue: 0.83)
-    static let canvas = Color(red: 0.96, green: 0.96, blue: 0.96)
-    static let danger = Color(red: 0.60, green: 0.11, blue: 0.11)
-    static let dangerSurface = Color(red: 1.00, green: 0.95, blue: 0.95)
-    static let disabled = Color(red: 0.42, green: 0.45, blue: 0.50)
-    static let ink = Color(red: 0.07, green: 0.09, blue: 0.14)
-    static let input = Color(red: 0.98, green: 0.98, blue: 0.98)
-    static let secure = Color(red: 0.25, green: 0.46, blue: 0.40)
+    static let body = Color.secondary
+    static let border = Color.secondary.opacity(0.3)
+    static let canvas = Color(uiColor: .systemGroupedBackground)
+    static let card = Color(uiColor: .systemBackground)
+    static let danger = Color.red
+    static let dangerSurface = Color.red.opacity(0.12)
+    static let ink = Color.primary
+    static let input = Color(uiColor: .secondarySystemBackground)
+    static let secure = Color.green
 }

@@ -161,4 +161,37 @@ describe("auth boundary contract", () => {
       "`/vault/sync` linkage, database `CHECK` constraints and RLS, idempotency, and an end-to-end imported-item receipt",
     );
   });
+
+  it("records the current iOS composition without overstating mobile maturity", () => {
+    const baselineDoc = readText(
+      "docs/architecture/0000-phase1-execution-baseline.md",
+    );
+    const currentStatus =
+      baselineDoc.split("## Current Implementation Status")[1] ?? "";
+    const compactCurrentStatus = currentStatus.replace(/\s+/g, " ");
+
+    expect(compactCurrentStatus).toContain(
+      "The iOS composition app is implemented",
+    );
+    expect(compactCurrentStatus).toContain(
+      "At startup, it loads the app-default encrypted received-vault store",
+    );
+    expect(compactCurrentStatus).toContain(
+      "nonempty metadata selects Vault, a missing or empty store selects Pairing, and a corrupt or unreadable store enters an explicit `.failed` safe error state with Retry",
+    );
+    expect(compactCurrentStatus).toContain(
+      "After import, only a fresh reload that returns nonempty metadata switches to Vault",
+    );
+    expect(compactCurrentStatus).toContain(
+      "Vault and Pairing remain reachable",
+    );
+    expect(compactCurrentStatus).toContain("surface remains metadata-only");
+    expect(compactCurrentStatus).toContain(
+      "A current physical-device imported receipt, editing, search, sync, password reveal or copy, biometric unlock, cloud-backed behavior, and a complete daily-use mobile vault are not proved",
+    );
+
+    expect(currentStatus).not.toContain("`VaultListView()` path");
+    expect(currentStatus).not.toContain("storage is missing or unreadable");
+    expect(currentStatus).not.toContain("no product app composition is proved");
+  });
 });

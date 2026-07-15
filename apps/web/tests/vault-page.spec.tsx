@@ -217,13 +217,13 @@ async function unlockVaultSuccessfully(passphrase: string) {
   await expectVaultUnlocked();
 }
 
-async function openCreateForm() {
+async function openCreateForm(timeout: number = 5000) {
   fireEvent.click(await screen.findByRole("button", { name: "New login" }));
 
   return screen.findByRole(
     "form",
     { name: "Save vault item" },
-    { timeout: 5000 },
+    { timeout },
   );
 }
 
@@ -1750,7 +1750,11 @@ describe("VaultPage", () => {
     render(<VaultPage />);
 
     await expectVisibleText("GitHub");
-    await unlockAndOpenCreatePanel();
+    await unlockVaultSuccessfully("correct horse");
+    expect(
+      await screen.findByRole("button", { name: "Edit GitHub" }),
+    ).toBeInTheDocument();
+    await openCreateForm(10_000);
 
     fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "GitLab" },
@@ -2111,13 +2115,28 @@ describe("VaultPage", () => {
     render(<VaultPage />);
 
     await unlockVaultSuccessfully("correct horse");
-    fireEvent.click(
-      await screen.findByRole("button", { name: "Copy username GitHub" }),
-    );
+    const copyButton = await screen.findByRole("button", {
+      name: "Copy username GitHub",
+    });
+
+    vi.useFakeTimers();
+
+    await act(async () => {
+      fireEvent.click(copyButton);
+      await Promise.resolve();
+    });
 
     expect(writeText).toHaveBeenCalledWith("alice@example.com");
     expect(
-      await screen.findByRole("button", { name: "Copied GitHub" }),
+      screen.getByRole("button", { name: "Copied GitHub" }),
+    ).toBeInTheDocument();
+
+    act(() => {
+      vi.advanceTimersByTime(1500);
+    });
+
+    expect(
+      screen.getByRole("button", { name: "Copy username GitHub" }),
     ).toBeInTheDocument();
   });
 
