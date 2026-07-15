@@ -308,7 +308,7 @@ hygiene cleanup.
   CI run `28897875643` (`js / Node Verify`) on `main`. This historical
   `paired` record predates the import receipt and must not be cited as physical
   decrypt/import proof.
-- `bash scripts/testing/run-ios.sh` runs the current 72-test iOS package gate.
+- `bash scripts/testing/run-ios.sh` runs the current iOS package gate.
   It proves the approved `current/unuvault/ios-product-composition-v1` and
   `current/unuvault/ios-pairing-invite-receive-v3` SwiftUI flows keep Vault and
   Pairing reachable, load the app-default received-vault store, select Pairing

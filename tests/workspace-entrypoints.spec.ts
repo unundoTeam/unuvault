@@ -260,7 +260,9 @@ describe("workspace entrypoints", () => {
     expect(currentEvidence).toContain("current/unuvault/ios-pairing-invite-receive-v3");
     expect(currentEvidence).not.toContain("current/unuvault/ios-pairing-invite-receive-v2");
     expect(evidence).toContain("IOSProductCompositionView");
-    expect(evidence).toContain("72-test");
+    expect(evidence).toContain("current iOS package gate");
+    expect(evidence).toContain("current Swift package gate");
+    expect(evidence).not.toMatch(/\b\d+-test\b/);
     expect(evidence).toContain("explicit `.failed` state");
     expect(evidence).toContain("Retry");
     for (const screenshotPath of screenshotPaths) {
@@ -300,7 +302,8 @@ describe("workspace entrypoints", () => {
     expect(evidence).toContain("fresh successful reload");
     expect(evidence).toContain("explicit `.failed` state");
     expect(evidence).toContain("Retry");
-    expect(evidence).toContain("72-test");
+    expect(evidence).toContain("current iOS package gate");
+    expect(evidence).not.toMatch(/\b\d+-test\b/);
     for (const screenshotPath of screenshotPaths) {
       expect(evidence).toContain(screenshotPath);
     }
