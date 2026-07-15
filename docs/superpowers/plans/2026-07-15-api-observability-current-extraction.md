@@ -46,12 +46,13 @@ Run:
 
 ```bash
 git status --short
-git rev-parse HEAD
+git merge-base --is-ancestor origin/main HEAD
+git diff --name-status origin/main..HEAD
 git log --format='%H %s%n%b' origin/main..codex/api-observability-clean-extraction
 git diff --name-status origin/main...codex/api-observability-clean-extraction
 ```
 
-Expected: status is clean; `HEAD` is `be941437f6f9b9be79b39c71e39431e05ccbddbd`; the source contains exactly the two commits listed in Global Constraints; the diff contains exactly the nine files listed above.
+Expected: status is clean; `origin/main` is an ancestor of `HEAD`; the current pre-implementation diff from `origin/main` modifies only this plan file. Pre-implementation history may contain the plan commit and one or more plan-fix commits, without requiring fixed commit SHAs or a fixed commit count. The source contains exactly the two commits listed in Global Constraints, and its diff contains exactly the nine files listed above.
 
 - [ ] **Step 2: Apply the provider-neutral foundation commit without rewriting provenance**
 
@@ -126,7 +127,7 @@ git diff --name-status origin/main...HEAD
 git status --short
 ```
 
-Expected: after this plan commit, the implementation history contains the two source commits in their original order and retains the `Source-Commit` trailer; the implementation diff is limited to the nine declared files; status is clean.
+Expected: `origin/main..HEAD` contains the planning commits first and the two source commits afterward; the two source commits retain their relative order and the `Source-Commit` trailer, without requiring a fixed planning-commit count; the implementation diff is limited to the nine declared files; status is clean.
 
 ---
 
