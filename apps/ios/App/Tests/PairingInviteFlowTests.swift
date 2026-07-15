@@ -452,12 +452,12 @@ final class PairingInviteFlowTests: XCTestCase {
         file: StaticString = #filePath,
         line: UInt = #line
     ) {
-        XCTAssertEqual(viewModel.inviteText, "", file: file, line: line)
-        XCTAssertNil(viewModel.handoff, file: file, line: line)
-        XCTAssertNil(viewModel.importReceipt, file: file, line: line)
-        XCTAssertEqual(viewModel.macDisplayName, "", file: file, line: line)
-        XCTAssertEqual(viewModel.macEndpointText, "", file: file, line: line)
-        XCTAssertEqual(viewModel.macInviteDetailText, "", file: file, line: line)
+        XCTAssertTrue(viewModel.inviteText.isEmpty, file: file, line: line)
+        XCTAssertTrue(viewModel.handoff == nil, file: file, line: line)
+        XCTAssertTrue(viewModel.importReceipt == nil, file: file, line: line)
+        XCTAssertTrue(viewModel.macDisplayName.isEmpty, file: file, line: line)
+        XCTAssertTrue(viewModel.macEndpointText.isEmpty, file: file, line: line)
+        XCTAssertTrue(viewModel.macInviteDetailText.isEmpty, file: file, line: line)
         XCTAssertFalse(viewModel.canPair, file: file, line: line)
 
         let renderedBody = String(describing: PairingInviteReceiveView(viewModel: viewModel).body)
