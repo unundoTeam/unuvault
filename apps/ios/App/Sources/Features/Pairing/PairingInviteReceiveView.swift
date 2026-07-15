@@ -184,15 +184,16 @@ final class PairingInviteViewModel: ObservableObject {
                 statusMessage = receipt.statusText
                 await onImportSucceeded(receipt)
             } catch {
-                importReceipt = nil
-                pairingFailureDiagnostic = Self.importFailureDiagnostic(for: error)
+                let diagnostic = Self.importFailureDiagnostic(for: error)
+                discardFailedAttempt()
+                pairingFailureDiagnostic = diagnostic
                 state = .importFailed
                 statusMessage = "Import failed. Generate a fresh invite on your Mac."
             }
         } catch let PairingExchangeClientError.httpStatus(status) {
-            handoff = nil
-            importReceipt = nil
-            pairingFailureDiagnostic = "httpStatus(\(status))"
+            let diagnostic = "httpStatus(\(status))"
+            discardFailedAttempt()
+            pairingFailureDiagnostic = diagnostic
 
             if status == 410 {
                 state = .invalid
@@ -202,12 +203,22 @@ final class PairingInviteViewModel: ObservableObject {
                 statusMessage = "Pairing failed. Generate a fresh invite on your Mac."
             }
         } catch {
-            handoff = nil
-            importReceipt = nil
-            pairingFailureDiagnostic = Self.pairingFailureDiagnostic(for: error)
+            let diagnostic = Self.pairingFailureDiagnostic(for: error)
+            discardFailedAttempt()
+            pairingFailureDiagnostic = diagnostic
             state = .failed
             statusMessage = "Pairing failed. Generate a fresh invite on your Mac."
         }
+    }
+
+    private func discardFailedAttempt() {
+        inviteText = ""
+        invite = nil
+        handoff = nil
+        importReceipt = nil
+        macDisplayName = ""
+        macEndpointText = ""
+        macInviteDetailText = ""
     }
 
     private func clearInvite() {
