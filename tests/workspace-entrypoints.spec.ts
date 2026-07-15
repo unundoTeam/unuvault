@@ -468,8 +468,19 @@ describe("workspace entrypoints", () => {
     expect(macHost).toContain("UNUVAULT_PAIRING_RECEIPT_INVITE_BASE64URL");
     expect(readme).toContain("pnpm test:pairing-physical-receipt");
     expect(readme).toContain("pnpm test:pairing-physical-preflight");
+    expect(readme).toContain("`UNUVAULT_IOS_PAIRING_RECEIPT imported`");
+    expect(readme).toContain("on 2026-07-08");
+    expect(readme).toContain(
+      "`UNUVAULT_IOS_PAIRING_RECEIPT paired ... material=AES-GCM-256`",
+    );
+    expect(readme).toContain("physical pairing-transport receipt only");
     expect(iosReadme).toContain("pnpm test:pairing-physical-receipt");
     expect(iosReadme).toContain("pnpm test:pairing-physical-preflight");
+    expect(iosReadme).toContain("`UNUVAULT_IOS_PAIRING_RECEIPT imported`");
+    expect(iosReadme).toContain(
+      "The latest recorded hardware run on 2026-07-08 passed",
+    );
+    expect(iosReadme).toContain("physical pairing transport only");
     expect(mobileEvidence).toContain("pnpm test:pairing-physical-receipt");
     expect(mobileEvidence).toContain("pnpm test:pairing-physical-preflight");
     expect(macEvidence).toContain("pnpm test:pairing-physical-receipt");

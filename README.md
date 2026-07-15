@@ -419,13 +419,13 @@ For the native Mac companion proof:
   signing. It starts `MacPairingReceiptHost` on the Mac LAN address, installs
   `UnuVaultIOSHost`, launches it through a `unuvault-ioshost://pair` payload
   URL with a base64URL invite, and waits for
-  `UNUVAULT_IOS_PAIRING_RECEIPT paired` in the device console. This is a
-  physical pairing-transport receipt only; it does not prove physical-device
-  local open, encrypted import, or read-only reload. Camera QR scanning and a
-  complete mobile workflow remain separate claims. Recorded local hardware
-  evidence: on 2026-07-08, `corepack pnpm test:pairing-physical-receipt`
-  passed and captured
-  `UNUVAULT_IOS_PAIRING_RECEIPT paired ... material=AES-GCM-256`.
+  `UNUVAULT_IOS_PAIRING_RECEIPT imported` in the iPhone console. Camera QR
+  scanning and a complete mobile workflow remain separate claims. Recorded
+  local hardware evidence: on 2026-07-08,
+  `corepack pnpm test:pairing-physical-receipt` passed and captured
+  `UNUVAULT_IOS_PAIRING_RECEIPT paired ... material=AES-GCM-256`. That
+  historical record was a physical pairing-transport receipt only; it did not
+  prove physical-device local open, encrypted import, or read-only reload.
 - iOS Mac pairing receive proof is available through:
   `pnpm test:ios`
   This proves the iPhone app can parse the Mac pairing invite envelope and QR
