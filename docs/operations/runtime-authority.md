@@ -52,11 +52,13 @@ authority page:
 
 - [Incident And Observability Authority](incident-observability-authority.md)
 - [Production-Ops And Observability Closeout](production-ops-observability-closeout.md)
+- [API Telemetry Contract](telemetry-contract.md)
 
 The honest status is still limited: the repo now has a first-layer authority
-page and a minimal phase-1 closeout layer, but it does not yet claim a mature
-observability program, dedicated telemetry stack, on-call coverage, or
-automated alerting.
+page, a minimal phase-1 closeout layer, and a provider-neutral redacted API
+event contract with a default no-op sink. It does not yet claim a configured
+telemetry provider or export, mature observability program, on-call coverage,
+or automated alerting.
 
 ## Production Readiness
 

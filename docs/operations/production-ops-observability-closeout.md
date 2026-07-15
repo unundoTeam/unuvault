@@ -1,6 +1,6 @@
 # Production-Ops And Observability Closeout
 
-> Updated: 2026-07-07
+> Updated: 2026-07-10
 > Status: Minimal phase-1 / beta-rehearsal closeout
 
 ## Purpose
@@ -117,3 +117,32 @@ This closeout intentionally leaves these items open:
 - no live hosted inventory, callback payload, secret value, or live execution
   log published in this repo
 
+## Next Maturity Gate
+
+Status: `open`
+
+The repo now has three provider-neutral foundation documents:
+
+- [API Telemetry Contract](telemetry-contract.md)
+- [Alerting Policy](alerting-policy.md)
+- [Incident Rehearsal Template](incident-rehearsal-template.md)
+
+They define a redacted event boundary and the evidence shape for later work.
+They do not select or configure a provider, export an event, deliver a test
+alert, name responders, publish a schedule, or execute a rehearsal.
+
+The minimal rehearsal closeout above is not a mature production operating
+model. Close this gate only when every row has named ownership and durable
+evidence; choosing a vendor or writing a policy alone is not sufficient.
+
+| Capability | Required decision and implementation | Required evidence | Status |
+| --- | --- | --- | --- |
+| Telemetry | Select a telemetry provider and retention policy, define privacy-safe event and error fields, and configure the production environment without committing secrets. | Captured non-secret test signal, query or dashboard link, redaction check, and retention configuration record. | `open` |
+| Automated alerting | Define alert thresholds or SLOs, destination, severity routing, and ownership for auth, sync, client-security, and availability signals. | Test alert delivery receipt with timestamp, destination, acknowledged owner, and recovery confirmation. | `open` |
+| On-call | Record named primary and backup responders, coverage window, acknowledgement target, and escalation path. | Published schedule or handoff record that names both responders and the decision owner. | `open` |
+| Incident rehearsal | Exercise one representative signal through detection, acknowledgement, classification, mitigation or launch hold, and closeout. | Incident rehearsal record with timestamps, evidence links, decisions, owner, and follow-up items. | `open` |
+
+Until all rows close, launch material must continue to say that telemetry,
+automated alerting, and formal on-call are not mature. Real provider setup,
+alert delivery, schedules, or external coordination require the corresponding
+credentials and named human owners; repo edits cannot manufacture that proof.
