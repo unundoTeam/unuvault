@@ -399,10 +399,10 @@ describe("launch packet contract", () => {
     );
     expect(replayRejection).toContain("`handoff_response_not_ready`");
     expect(replayRejection).toMatch(
-      /starts\s+only\s+when\s+the\s+durable\s+record\s+atomically\s+enters\s+`ready`/u,
+      /begins\s+only\s+when\s+the\s+durable\s+reservation\s+atomically\s+transitions\s+to\s+`ready`/u,
     );
     expect(replayRejection).toMatch(
-      /minimum\s+of\s+`readyAt \+ 30 seconds`\s+and\s+the\s+original\s+invitation\s+expiry/u,
+      /immutable\s+deadline\s+is\s+`min\(readyAt \+ 30 seconds, original invitation expiry\)`/u,
     );
     expect(replayRejection).toMatch(
       /If\s+either\s+`claimId`\s+or\s+`handoffId`\s+already\s+exists\s+in\s+the\s+consumed-ID\s+store/u,
@@ -433,32 +433,47 @@ describe("launch packet contract", () => {
     );
 
     const authorities = [
-      [
-        markdownSection(
-          recoveryDesign,
-          "### Single Use, Persistent Replay Rejection, And No Downgrade",
+      {
+        name: "recovery design",
+        text: [
+          markdownSection(
+            recoveryDesign,
+            "### Single Use, Persistent Replay Rejection, And No Downgrade",
+          ),
+          markdownSection(
+            recoveryDesign,
+            "### Terminal Cleanup And Bounded Recovery",
+          ),
+        ].join("\n"),
+      },
+      {
+        name: "recovery plan",
+        text: markdownSection(
+          recoveryPlan,
+          "### Task 1: Recover The UnuVault Pairing Security Authority",
         ),
-        markdownSection(
-          recoveryDesign,
-          "### Terminal Cleanup And Bounded Recovery",
-        ),
-      ].join("\n"),
-      markdownSection(recoveryPlan, "### Task 1: Recover The UnuVault Pairing Security Authority"),
-      [
-        markdownSection(protocol, "## Target-Claim Authentication"),
-        markdownSection(protocol, "## Single Use And Persistent Replay Rejection"),
-        markdownSection(protocol, "## Terminal Cleanup And Bounded Recovery"),
-      ].join("\n"),
+      },
+      {
+        name: "current protocol",
+        text: [
+          markdownSection(protocol, "## Target-Claim Authentication"),
+          markdownSection(
+            protocol,
+            "## Single Use And Persistent Replay Rejection",
+          ),
+          markdownSection(protocol, "## Terminal Cleanup And Bounded Recovery"),
+        ].join("\n"),
+      },
     ];
 
     const canonicalSecretLifecycle = normalizeWhitespace(
       "`claimAuthKey` is key-equivalent secret material. It is never logged, returned, or persisted in plaintext.",
     );
     const canonicalMacTerminalCleanup = normalizeWhitespace(
-      "Fresh owner denial or cancellation; owner-authentication unavailability or `LAContext` evaluation or system error; invitation expiry; lock, revoke, lost-device state, or capability failure; snapshot or seal failure; and restart before `ready` are Mac terminal paths that clear `claimAuthKey` while preserving required terminal tombstones.",
+      "Every pre-ready terminal path above clears `claimAuthKey` and the reservation's other owned secret material while preserving required terminal tombstones; the ready-window deadline instead clears the retained sealed response, retry identity, and encrypted `claimAuthKey` while preserving the consumed tombstone.",
     );
     const canonicalReadyWindowBehavior = normalizeWhitespace(
-      "Before that deadline, the initial response, a byte-identical retry, a different valid authenticated retry identity, and an invalid authenticator do not transition `ready` to `consumed`, move `readyAt`, or shorten or extend the window.",
+      "Before the immutable deadline, the initial response, a byte-identical retry, a different valid authenticated retry identity, and an invalid authenticator do not transition `ready` to `consumed`, move `readyAt`, or shorten or extend the window.",
     );
     const canonicalReadyOnlyDeadlineTransition = normalizeWhitespace(
       "Once a record is `ready`, only reaching that immutable deadline may transition it, and the transition target is `consumed`.",
@@ -466,8 +481,14 @@ describe("launch packet contract", () => {
     const canonicalReadyWindowCleanup = normalizeWhitespace(
       "At the immutable deadline, one atomic `ready` to `consumed` transition clears the retained sealed response, retry identity, and encrypted `claimAuthKey` and leaves only the minimum durable identifiers and consumed tombstone required for replay rejection.",
     );
+    const canonicalReadyWindowDefinition = normalizeWhitespace(
+      "The ready recovery window begins only when the durable reservation atomically transitions to `ready`; `readyAt` is the timestamp written by that same transaction, and the immutable deadline is `min(readyAt + 30 seconds, original invitation expiry)`.",
+    );
+    const canonicalTerminalMutationClassification = normalizeWhitespace(
+      "The only state-owning terminal mutations are exclusive and classified as follows: fresh owner denial or cancellation records `denied`; invitation expiry records `expired`; owner-authentication unavailability or `LAContext` evaluation or system error records `invalidated`; lock, revoke, lost-device, or capability invalidation records `invalidated`; reservation identity, vault session identity, or authenticated-target recheck failure records `invalidated`, while expiry and lifecycle outcomes discovered by that recheck remain classified under their preceding categories; internal read or snapshot, key-derivation, sealing, persistence, or process failure before `ready` records `invalidated` when the worker can commit the terminal write; restart recovery of unfinished `authorizing` or `sealing` work records `invalidated` when a process failure prevented that write; and reaching the immutable ready-window deadline performs the sole `ready` to `consumed` transition.",
+    );
 
-    for (const authority of authorities) {
+    for (const { name, text: authority } of authorities) {
       const normalizedAuthority = normalizeWhitespace(authority);
 
       expect(authority).toMatch(
@@ -478,9 +499,6 @@ describe("launch packet contract", () => {
       );
       expect(authority).toMatch(
         /Only\s+the\s+reserved\s+byte-identical\s+retry\s+may\s+observe\s+pending\s+or\s+ready\s+behavior\./u,
-      );
-      expect(authority).toMatch(
-        /The\s+only\s+state-owning\s+terminal\s+mutations\s+are\s+fresh\s+owner\s+denial\s+or\s+cancellation;\s+owner-authentication\s+unavailability\s+or\s+`LAContext`\s+evaluation\s+or\s+system\s+error;\s+invitation\s+expiry;\s+lock,\s+revoke,\s+lost-device,\s+or\s+capability\s+invalidation;\s+internal\s+snapshot,\s+sealing,\s+or\s+persistence\s+failure;\s+restart\s+recovery\s+of\s+unfinished\s+pre-ready\s+work;\s+and\s+the\s+immutable\s+ready-window\s+deadline\s+transition\s+from\s+`ready`\s+to\s+`consumed`\./u,
       );
       expect(authority).toMatch(
         /`claimAuthKey`\s+is\s+a\s+32-byte,\s+session-bound,\s+domain-separated\s+key\s+derived\s+from\s+the\s+raw\s+`pairingSecret`\s+with\s+HKDF-SHA256\./u,
@@ -505,6 +523,10 @@ describe("launch packet contract", () => {
       expect(normalizedAuthority).toContain(canonicalReadyWindowBehavior);
       expect(normalizedAuthority).toContain(canonicalReadyOnlyDeadlineTransition);
       expect(normalizedAuthority).toContain(canonicalReadyWindowCleanup);
+      expect(normalizedAuthority, name).toContain(canonicalReadyWindowDefinition);
+      expect(normalizedAuthority, name).toContain(
+        canonicalTerminalMutationClassification,
+      );
       expect(authority).not.toMatch(
         /(?:\bor\s+consume\b|\bconsume\s+or\b)/iu,
       );
@@ -518,6 +540,13 @@ describe("launch packet contract", () => {
         /clear\s+pending\s+capabilities\/material\s+on[\s\S]{0,160}conflict/iu,
       );
     }
+
+    const normalizedRecoveryDesign = normalizeWhitespace(recoveryDesign);
+    expect(normalizedRecoveryDesign).not.toContain(
+      normalizeWhitespace(
+        "Before that deadline, the initial response, a byte-identical retry, a different valid authenticated retry identity, and an invalid authenticator",
+      ),
+    );
 
     const targetAuthentication = markdownSection(
       protocol,
@@ -544,7 +573,7 @@ describe("launch packet contract", () => {
     );
     expect(normalizedRecoveryPlanTask).toContain(
       normalizeWhitespace(
-        "The ready retry window starts only at the atomic `ready` transition, with immutable deadline `min(readyAt + 30 seconds, original invitation expiry)`.",
+        "The ready recovery window begins only when the durable reservation atomically transitions to `ready`; `readyAt` is the timestamp written by that same transaction, and the immutable deadline is `min(readyAt + 30 seconds, original invitation expiry)`.",
       ),
     );
 
