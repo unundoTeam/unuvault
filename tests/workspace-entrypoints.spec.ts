@@ -19,6 +19,28 @@ function readText(pathFromRepoRoot: string): string {
   return readFileSync(resolve(repoRoot, pathFromRepoRoot), "utf8");
 }
 
+function markdownSection(document: string, heading: string): string {
+  const headingLine = `${heading}\n`;
+  const startIndex = document.indexOf(headingLine);
+
+  if (startIndex === -1) {
+    throw new Error(`Missing Markdown section: ${heading}`);
+  }
+
+  const headingLevel = heading.match(/^#+/u)?.[0].length;
+  if (headingLevel === undefined) {
+    throw new Error(`Invalid Markdown heading: ${heading}`);
+  }
+
+  const contentStart = startIndex + headingLine.length;
+  const nextHeading = new RegExp(`^#{1,${headingLevel}}\\s`, "mu");
+  const relativeEnd = document.slice(contentStart).search(nextHeading);
+
+  return relativeEnd === -1
+    ? document.slice(contentStart)
+    : document.slice(contentStart, contentStart + relativeEnd);
+}
+
 describe("workspace entrypoints", () => {
   it("uses stable root test and lint wrappers", () => {
     const rootPackage = readJson<PackageManifest>("package.json");
@@ -203,8 +225,12 @@ describe("workspace entrypoints", () => {
   it("keeps agent design entrypoints aligned with portfolio routing", () => {
     const readme = readText("README.md");
     const agents = readText("AGENTS.md");
+    const currentRoutes = [
+      markdownSection(readme, "## Design Authority"),
+      markdownSection(agents, "## Design Authority"),
+    ];
 
-    for (const entrypoint of [readme, agents]) {
+    for (const entrypoint of currentRoutes) {
       expect(entrypoint).toContain(
         "/Users/yuchen/Code/unu/unuOS/docs/portfolio/design-operating-index.md",
       );
@@ -231,6 +257,15 @@ describe("workspace entrypoints", () => {
         "`current-routed` for Pairing V2 protocol/security semantics only",
       );
       expect(entrypoint).toContain("not broad Pencil/current-UI authority");
+      expect(entrypoint).not.toMatch(
+        /Pairing V2 (?:implementation|exact-target security re-review) (?:is |are )?(?:complete|cleared|approved)/iu,
+      );
+      expect(entrypoint).not.toMatch(
+        /Pairing V2 (?:is|serves as) (?:the )?(?:broad Pencil|current[- ]UI) authority/iu,
+      );
+      expect(entrypoint).not.toMatch(
+        /(?:at or after|latest main|46ae0c655deef0ef15cb0cd180b4844a32cac43d)/u,
+      );
     }
 
     expect(agents).toContain("current/unuvault/ios-product-composition-v1");
@@ -408,6 +443,8 @@ describe("workspace entrypoints", () => {
     const iosReadme = readText("apps/ios/README.md");
     const mobileEvidence = readText("docs/design/mobile-native-adapter-evidence.md");
     const macEvidence = readText("docs/design/mac-companion-mvp-evidence.md");
+    const readmeRoute = markdownSection(readme, "## Design Authority");
+    const agentRoute = markdownSection(agentNotes, "## Design Authority");
 
     expect(existsSync(resolve(repoRoot, wrapperPath))).toBe(true);
     expect(rootPackage.scripts?.["test:pairing-boundary"]).toBe(
@@ -427,7 +464,7 @@ describe("workspace entrypoints", () => {
     expect(iosReadme).toContain(
       "The current V1 claim does not authenticate that claimant as the intended iPhone.",
     );
-    for (const entrypoint of [readme, agentNotes, iosReadme]) {
+    for (const entrypoint of [readmeRoute, agentRoute, iosReadme]) {
       expect(entrypoint).toContain(
         "docs/superpowers/specs/2026-07-10-authenticated-pairing-approval-design.md",
       );

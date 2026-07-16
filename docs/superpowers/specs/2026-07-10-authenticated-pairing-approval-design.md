@@ -53,19 +53,77 @@ fail closed without downgrading to V1.
 
 ## Canonical Encoding
 
-The normative length-prefix primitive is:
+The following byte definitions are normative. `ASCII(s)` is the exact ASCII
+byte sequence for `s`; `NFC-UTF8(s)` is the UTF-8 encoding of Unicode text
+after NFC normalization; `u16be`, `u32be`, and `u64be` are fixed-width unsigned
+big-endian integers; `||` is byte concatenation. The length-prefix primitive
+is:
 
 ```text
 LP(bytes) = u32be(byteLength) || bytes
 ```
 
-Every variable-length transcript field is encoded with `LP`. Each transcript
-has one fixed ASCII domain and one fixed field order; fields must never be
-sorted, omitted, duplicated, or accepted through an alternate spelling.
+Every component shown in a transcript below is wrapped in exactly one `LP`,
+including fixed-width integers, fixed-size nonces, hashes, authenticators, and
+domain strings. The bytes inside `LP(...)` are raw bytes; an implementation
+must not put a base64url string, JSON spelling, field name, separator, or a
+second length prefix inside the component unless the definition explicitly
+says so. Fields must never be sorted, omitted, duplicated, or accepted through
+an alternate spelling.
+
+The protocol constants are:
+
+```text
+PAIRING_VERSION = u16be(2)
+CLAIM_DOMAIN = ASCII("unuvault-pairing-claim-v2")
+P256_SPKI_DER = canonical DER SubjectPublicKeyInfo for one P-256 public key
+```
+
+`P256_SPKI_DER` is one DER `SubjectPublicKeyInfo` container. Its
+`AlgorithmIdentifier` is exactly `id-ecPublicKey` (`1.2.840.10045.2.1`) with
+the named-curve parameter `prime256v1` (`1.2.840.10045.3.1.7`). Its subject
+public-key BIT STRING has zero unused bits and contains exactly the 65-byte
+ANSI X9.63 uncompressed point `0x04 || X || Y`, where `X` and `Y` are each
+32-byte unsigned big-endian coordinates. The point must be on P-256, must not
+be the point at infinity, and must use minimal definite-length DER with no
+trailing bytes. Parse-and-reserialize must reproduce the input byte-for-byte.
+Both `canonicalTargetIdentityDER` and `canonicalEphemeralPublicKeyDER` below
+use this same container and no other public-key representation.
+
+Binary values cross JSON or QR boundaries only as strict unpadded base64url.
+A decoder rejects padding, non-URL alphabet characters, non-minimal encodings,
+the wrong decoded length, or any value whose decode-and-re-encode result is not
+byte-identical to the input. `clientNonce` is exactly 32 cryptographically
+random bytes. Identifiers and display text use `NFC-UTF8`; expiry is
+`u64be(expiresAtEpochMilliseconds)` and must be a non-negative integer with no
+fractional or alternate textual form before conversion to bytes.
+
+`canonicalMacBaseURL` is produced by this single algorithm:
+
+1. Accept at most 255 ASCII bytes and parse them as one absolute URI. Reject
+   any percent-encoded octet.
+2. Require the scheme to be the lowercase ASCII string `http` or `https`.
+3. Reject user info. Require one explicit decimal port in `1...65535`, with no
+   sign or leading zero.
+4. Require the host to be either (a) canonical dotted-decimal IPv4 with four
+   decimal octets and no leading zero, limited to RFC 1918 private or
+   `169.254.0.0/16` link-local space, or (b) a lowercase ASCII `.local` DNS
+   name whose labels are 1...63 bytes, whose total host length is at most 253
+   bytes, and whose labels contain only `a-z`, `0-9`, or an interior hyphen.
+   Reject `localhost`, a trailing dot, Unicode/IDNA input, IPv6, unspecified,
+   loopback, multicast, and public addresses in this V2 encoding.
+5. Require an empty path and reject query and fragment components. A trailing
+   slash is therefore not an alternate accepted spelling.
+6. Serialize exactly `scheme || ASCII("://") || host || ASCII(":") ||
+   shortestDecimal(port)`. The input must already equal this serialization
+   byte-for-byte; there is no second accepted URL spelling.
+
+URL canonicalization bounds the transcript representation; it does not make
+the host, source IP, or LAN reachability an authenticator.
 
 The canonical claim transcript is the concatenation of these fields in order:
 
-1. `LP(ASCII("unuvault-pairing-claim-v2"))`
+1. `LP(CLAIM_DOMAIN)`
 2. `LP(NFC-UTF8(inviteSessionId))`
 3. `LP(u64be(expiresAtEpochMilliseconds))`
 4. `LP(ASCII(canonicalMacBaseURL))`
@@ -73,16 +131,6 @@ The canonical claim transcript is the concatenation of these fields in order:
 6. `LP(NFC-UTF8(targetDeviceId))`
 7. `LP(NFC-UTF8(targetDisplayName))`
 8. `LP(clientNonce)`
-
-Binary fields use strict unpadded base64url on JSON/QR boundaries. A decoder
-must reject padding, non-URL alphabet characters, non-minimal encodings, or any
-value whose decode-and-re-encode result differs byte-for-byte from the input.
-The P256 public key is accepted only when parsing and reserializing its
-canonical DER produces the identical bytes. Human text is NFC-normalized UTF-8.
-Time is an unsigned canonical epoch-millisecond value. The LAN URL must have a
-supported scheme, a canonical host and explicit bounded port, no user info,
-query, fragment, dot segments, or trailing alternate representation, and must
-round-trip to one bounded canonical base URL.
 
 The claim transcript owns the invite session, expiry, and Mac URL fields. A
 client echo cannot replace any server-owned invitation value.
@@ -124,14 +172,70 @@ state, or read failure creates no handoff and writes no plaintext to logs.
 
 For each authorized handoff, the Mac creates a fresh ephemeral P256 key and
 performs P256 ECDH with the authenticated target identity. HKDF-SHA256 derives
-one 256-bit key from the ECDH secret with a QR-secret-bound canonical salt and
-the fixed session, claim, target, and ephemeral-key context.
+one 256-bit key. The ECDH input keying material is the raw 32-byte unsigned
+big-endian P-256 shared-point X coordinate; it is not a DER object, encoded
+point, or base64url text.
+
+The KDF and AAD constants are:
+
+```text
+ALGORITHM_ID = ASCII("P256-HKDF-SHA256-AES-GCM-256-V2")
+HKDF_SALT_DOMAIN = ASCII("unuvault-pairing-hkdf-salt-v2")
+HKDF_INFO_DOMAIN = ASCII("unuvault-pairing-handoff-key-v2")
+HANDOFF_AAD_DOMAIN = ASCII("unuvault-pairing-handoff-aad-v2")
+AES_GCM_NONCE_BYTES = 12
+```
+
+The exact HKDF-SHA256 salt is:
+
+```text
+LP(HKDF_SALT_DOMAIN) ||
+LP(pairingSecret)
+```
+
+`pairingSecret` is the raw 32-byte QR secret, not its base64url spelling. The
+exact HKDF-SHA256 `info` is the following ordered concatenation:
+
+```text
+LP(HKDF_INFO_DOMAIN) ||
+LP(ALGORITHM_ID) ||
+LP(PAIRING_VERSION) ||
+LP(NFC-UTF8(inviteSessionId)) ||
+LP(NFC-UTF8(claimId)) ||
+LP(NFC-UTF8(handoffId)) ||
+LP(u64be(expiresAtEpochMilliseconds)) ||
+LP(canonicalTargetIdentityDER) ||
+LP(canonicalEphemeralPublicKeyDER) ||
+LP(clientNonce)
+```
+
+HKDF expands exactly 32 output bytes and does not apply an additional label,
+separator, hash, string encoding, or length prefix beyond the salt and `info`
+above.
 
 AES-GCM seals one versioned vault snapshot. Its canonical AAD binds the exact
 algorithm identifier, protocol version, invite session, claim, handoff,
 authenticated target identity, expiry, and ephemeral public key in a fixed
-domain and field order. The algorithm identifier is exactly
-`P256-HKDF-SHA256-AES-GCM-256-V2`.
+domain and field order. The exact AAD is:
+
+```text
+LP(HANDOFF_AAD_DOMAIN) ||
+LP(ALGORITHM_ID) ||
+LP(PAIRING_VERSION) ||
+LP(NFC-UTF8(inviteSessionId)) ||
+LP(NFC-UTF8(claimId)) ||
+LP(NFC-UTF8(handoffId)) ||
+LP(canonicalTargetIdentityDER) ||
+LP(u64be(expiresAtEpochMilliseconds)) ||
+LP(canonicalEphemeralPublicKeyDER)
+```
+
+The Mac generates a fresh uniformly random 12-byte AES-GCM nonce for the one
+sealed handoff. The raw 12 bytes are passed to AES-GCM; the response field is
+their strict unpadded base64url spelling. `sealedCiphertext` is strict unpadded
+base64url of `ciphertext || tag`, with the 16-byte GCM authentication tag last.
+The nonce is not prepended to `sealedCiphertext`, not derived from an
+identifier, and never reused with the derived key.
 
 The public response contains only the version, algorithm, identifiers, expiry,
 canonical ephemeral public key, AES-GCM nonce, ciphertext, and fields required
@@ -141,10 +245,37 @@ plaintext, or password.
 
 ## Single Use And Persistent Replay Rejection
 
-Successful consume uses one atomic reservation. An authenticated retry with
-the same nonce may receive the byte-identical sealed response for at most 30
-seconds. A different nonce after reservation receives terminal
-`handoff_consumed` and cannot replace or extend the reservation.
+The retry-identity domain is:
+
+```text
+RETRY_IDENTITY_DOMAIN = ASCII("unuvault-pairing-retry-identity-v2")
+```
+
+After successful target-claim authentication, the exact retry identity is:
+
+```text
+LP(RETRY_IDENTITY_DOMAIN) ||
+LP(canonicalClaimTranscript) ||
+LP(claimAuthenticator)
+```
+
+`canonicalClaimTranscript` is the complete byte string defined above and
+`claimAuthenticator` is the raw 32-byte HMAC-SHA256 output, not either value's
+base64url or JSON spelling. Successful consume uses one atomic reservation
+bound to those exact retry-identity bytes, the original authenticated `clientNonce`
+contained in the transcript, the original reservation time, and the exact
+serialized sealed-response bytes.
+
+A retry is eligible only if its canonical claim transcript and authenticator
+are each byte-identical to the reservation, including the original
+authenticated `clientNonce`. Within at most 30 seconds measured from the
+original reservation, the retained sealed response, including its AES-GCM nonce, is reused byte-for-byte;
+the response is not reserialized or resealed,
+and a retry never extends the deadline. After reservation, a different
+`clientNonce` or any changed authenticated field produces a different retry
+identity and receives terminal `handoff_consumed`; it cannot replace the
+reservation. An invalid authenticator still receives only the generic
+authentication failure and does not disclose reservation state.
 
 iOS must atomically persist the consumed `handoffId` and `claimId` in the
 encrypted received-vault snapshot in the same transaction as credential
