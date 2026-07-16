@@ -20,19 +20,26 @@ function readText(pathFromRepoRoot: string): string {
 }
 
 function markdownSection(document: string, heading: string): string {
-  const headingLine = `${heading}\n`;
-  const startIndex = document.indexOf(headingLine);
-
-  if (startIndex === -1) {
-    throw new Error(`Missing Markdown section: ${heading}`);
-  }
-
-  const headingLevel = heading.match(/^#+/u)?.[0].length;
-  if (headingLevel === undefined) {
+  const headingMatch = /^(#+) [^\r\n]+$/u.exec(heading);
+  if (headingMatch === null) {
     throw new Error(`Invalid Markdown heading: ${heading}`);
   }
 
-  const contentStart = startIndex + headingLine.length;
+  const headingLevel = headingMatch[1].length;
+  const escapedHeading = heading.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+  const matches = [
+    ...document.matchAll(new RegExp(`^${escapedHeading}$`, "gmu")),
+  ];
+
+  if (matches.length === 0) {
+    throw new Error(`Missing Markdown section: ${heading}`);
+  }
+  if (matches.length > 1) {
+    throw new Error(`Duplicate Markdown section: ${heading}`);
+  }
+
+  const headingEnd = (matches[0].index ?? 0) + matches[0][0].length;
+  const contentStart = document[headingEnd] === "\n" ? headingEnd + 1 : headingEnd;
   const nextHeading = new RegExp(`^#{1,${headingLevel}}\\s`, "mu");
   const relativeEnd = document.slice(contentStart).search(nextHeading);
 
@@ -42,6 +49,21 @@ function markdownSection(document: string, heading: string): string {
 }
 
 describe("workspace entrypoints", () => {
+  it("rejects missing and duplicate exact Markdown section headings", () => {
+    expect(() => markdownSection("## Other\nbody\n", "## Required")).toThrow(
+      "Missing Markdown section: ## Required",
+    );
+    expect(() =>
+      markdownSection(
+        "## Required\nfirst\n## Other\nbody\n## Required\nsecond\n",
+        "## Required",
+      ),
+    ).toThrow("Duplicate Markdown section: ## Required");
+    expect(() =>
+      markdownSection("prefix ## Required\nbody\n", "## Required"),
+    ).toThrow("Missing Markdown section: ## Required");
+  });
+
   it("uses stable root test and lint wrappers", () => {
     const rootPackage = readJson<PackageManifest>("package.json");
 
@@ -257,6 +279,12 @@ describe("workspace entrypoints", () => {
         "`current-routed` for Pairing V2 protocol/security semantics only",
       );
       expect(entrypoint).toContain("not broad Pencil/current-UI authority");
+      expect(entrypoint.match(/^- Current design status: `[^`]+`\.$/gmu)).toEqual([
+        "- Current design status: `registered`.",
+      ]);
+      expect(entrypoint).toMatch(
+        /`docs\/superpowers\/specs\/2026-07-10-authenticated-pairing-approval-design\.md`\s+is `current-routed` for Pairing V2 protocol\/security semantics only\. Pairing\s+V2 implementation and exact-target security re-review remain pending\. It is\s+not broad Pencil\/current-UI authority\./u,
+      );
       expect(entrypoint).not.toMatch(
         /Pairing V2 (?:implementation|exact-target security re-review) (?:is |are )?(?:complete|cleared|approved)/iu,
       );
