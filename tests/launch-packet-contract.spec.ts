@@ -399,7 +399,7 @@ describe("launch packet contract", () => {
     );
   });
 
-  it("aligns reservation anti-DoS authority and pairing-secret ownership", () => {
+  it("aligns reservation anti-DoS, claim-auth-key, and terminal-cleanup authority", () => {
     const recoveryDesign = readText(
       "docs/superpowers/specs/2026-07-16-pairing-security-authority-recovery-design.md",
     );
@@ -431,25 +431,43 @@ describe("launch packet contract", () => {
 
     for (const authority of authorities) {
       expect(authority).toMatch(
-        /An unauthenticated or malformed request receives the same generic authentication failure, with no state disclosure or mutation\./u,
+        /An\s+unauthenticated\s+or\s+malformed\s+request\s+receives\s+the\s+same\s+generic\s+authentication\s+failure,\s+with\s+no\s+state\s+disclosure\s+or\s+mutation\./u,
       );
       expect(authority).toMatch(
-        /A different valid authenticated retry identity after reservation receives terminal `handoff_consumed` and cannot mutate, replace, or extend the reservation\./u,
+        /A\s+different\s+valid\s+authenticated\s+retry\s+identity\s+after\s+reservation\s+receives\s+terminal\s+`handoff_consumed`\s+and\s+cannot\s+mutate,\s+replace,\s+or\s+extend\s+the\s+reservation\./u,
       );
       expect(authority).toMatch(
-        /Only the reserved byte-identical retry may observe pending or ready behavior\./u,
+        /Only\s+the\s+reserved\s+byte-identical\s+retry\s+may\s+observe\s+pending\s+or\s+ready\s+behavior\./u,
       );
       expect(authority).toMatch(
-        /The only state-owning terminal mutations are fresh owner denial or cancellation; invitation expiry; lock, revoke, lost-device, or capability invalidation; internal snapshot, sealing, or persistence failure; and restart recovery of unfinished pre-ready work\./u,
+        /The\s+only\s+state-owning\s+terminal\s+mutations\s+are\s+fresh\s+owner\s+denial\s+or\s+cancellation;\s+owner-authentication\s+unavailability\s+or\s+`LAContext`\s+evaluation\s+or\s+system\s+error;\s+invitation\s+expiry;\s+lock,\s+revoke,\s+lost-device,\s+or\s+capability\s+invalidation;\s+internal\s+snapshot,\s+sealing,\s+or\s+persistence\s+failure;\s+and\s+restart\s+recovery\s+of\s+unfinished\s+pre-ready\s+work\./u,
+      );
+      expect(authority).toMatch(
+        /`claimAuthKey`\s+is\s+a\s+32-byte,\s+session-bound,\s+domain-separated\s+key\s+derived\s+from\s+the\s+raw\s+`pairingSecret`\s+with\s+HKDF-SHA256\./u,
+      );
+      expect(authority).toMatch(
+        /`claimAuthenticator`\s*=\s*HMAC-SHA256\(`claimAuthKey`,\s*`canonicalClaimTranscript`\)/u,
+      );
+      expect(authority).toMatch(
+        /encrypted\s+`claimAuthKey`[\s\S]{0,240}ready\s+retry\s+window/u,
+      );
+      expect(authority).toMatch(
+        /raw\s+`pairingSecret`[\s\S]{0,200}cleared[\s\S]{0,120}`ready`/u,
+      );
+      expect(authority).toMatch(
+        /consume\s+or\s+retry-window\s+expiry[\s\S]{0,200}clears[\s\S]{0,120}`claimAuthKey`/u,
+      );
+      expect(authority).toMatch(
+        /owner-authentication\s+unavailability\s+or\s+`LAContext`\s+evaluation\s+or\s+system\s+error[\s\S]{0,200}`invalidated`/iu,
       );
       expect(authority).not.toMatch(
-        /conflicting target[\s\S]{0,120}(?:clear|invalidat)[\s\S]{0,80}(?:pending|reserved|reservation|workflow|capability|handoff)/iu,
+        /conflicting\s+target[\s\S]{0,120}(?:clear|invalidat)[\s\S]{0,80}(?:pending|reserved|reservation|workflow|capability|handoff)/iu,
       );
       expect(authority).not.toMatch(
-        /invalid authenticated request[\s\S]{0,120}(?:clear|invalidat)[\s\S]{0,80}(?:pending|reserved|reservation|workflow|capability|handoff)/iu,
+        /invalid\s+authenticated\s+request[\s\S]{0,120}(?:clear|invalidat)[\s\S]{0,80}(?:pending|reserved|reservation|workflow|capability|handoff)/iu,
       );
       expect(authority).not.toMatch(
-        /clear pending capabilities\/material on[^\n]*conflict/iu,
+        /clear\s+pending\s+capabilities\/material\s+on[\s\S]{0,160}conflict/iu,
       );
     }
 
@@ -466,38 +484,58 @@ describe("launch packet contract", () => {
       "## Terminal Cleanup And Bounded Recovery",
     );
 
+    expect(targetAuthentication).toContain(
+      'CLAIM_AUTH_SALT_DOMAIN = ASCII("unuvault-pairing-claim-auth-salt-v2")',
+    );
+    expect(targetAuthentication).toContain(
+      'CLAIM_AUTH_INFO_DOMAIN = ASCII("unuvault-pairing-claim-auth-key-v2")',
+    );
+    expect(targetAuthentication).toContain("CLAIM_AUTH_KEY_BYTES = 32");
     expect(targetAuthentication).toMatch(
-      /The Mac owns the mutable QR-secret buffer from invite and claim authentication through sealing/u,
+      /LP\(CLAIM_AUTH_SALT_DOMAIN\)\s+\|\|\s+LP\(PAIRING_VERSION\)\s+\|\|\s+LP\(NFC-UTF8\(inviteSessionId\)\)\s+\|\|\s+LP\(u64be\(expiresAtEpochMilliseconds\)\)\s+\|\|\s+LP\(ASCII\(canonicalMacBaseURL\)\)/u,
     );
     expect(targetAuthentication).toMatch(
-      /used only for HMAC verification and HKDF/u,
+      /LP\(CLAIM_AUTH_INFO_DOMAIN\)\s+\|\|\s+LP\(PAIRING_VERSION\)/u,
     );
     expect(targetAuthentication).toMatch(
-      /never logged or included in a response or persistent general storage/u,
+      /HKDF-SHA256\(\s*IKM\s*=\s*pairingSecret,\s*salt\s*=\s*claimAuthSalt,\s*info\s*=\s*claimAuthInfo,\s*L\s*=\s*CLAIM_AUTH_KEY_BYTES\s*\)/u,
+    );
+    expect(targetAuthentication).toMatch(
+      /The\s+claim-authentication\s+HKDF\s+and\s+the\s+handoff-encryption\s+HKDF\s+use\s+different\s+domain\s+constants,\s+input\s+keying\s+material,\s+salt,\s+and\s+info/u,
+    );
+
+    expect(targetAuthentication).toMatch(
+      /The\s+Mac\s+owns\s+the\s+mutable\s+QR-secret\s+buffer\s+from\s+invite\s+and\s+claim\s+authentication\s+through\s+sealing/u,
+    );
+    expect(targetAuthentication).toMatch(
+      /used\s+only\s+for\s+claim-authentication\s+HKDF\s+and\s+handoff-encryption\s+HKDF/u,
+    );
+    expect(targetAuthentication).toMatch(
+      /never\s+logged\s+or\s+included\s+in\s+a\s+response\s+or\s+persistent\s+general\s+storage/u,
     );
     expect(terminalCleanup).toMatch(
-      /At the atomic `ready` transition, the sealed byte-identical response and minimum retry identity are durable; the raw `pairingSecret` is no longer required and is best-effort cleared immediately/u,
+      /At\s+the\s+atomic\s+`ready`\s+transition,[\s\S]{0,240}raw\s+`pairingSecret`[\s\S]{0,160}best-effort\s+cleared\s+immediately/u,
     );
     expect(terminalCleanup).toMatch(
-      /not retained through the 30-second retry window/u,
+      /not\s+retained\s+through\s+the\s+30-second\s+retry\s+window/u,
     );
     expect(terminalCleanup).toMatch(
-      /At retry-window end or consume, the Mac clears the retained sealed response and retry identity, leaving only minimum durable replay and tombstone metadata/u,
+      /At\s+retry-window\s+end\s+or\s+consume,[\s\S]{0,240}clears[\s\S]{0,160}`claimAuthKey`[\s\S]{0,240}minimum\s+durable\s+replay\s+and\s+tombstone\s+metadata/u,
     );
     expect(replayRejection).toMatch(
-      /Ready retry uses the stored exact request and retry identity with the sealed response; it does not require retaining or reconstructing the raw `pairingSecret` after `ready`/u,
+      /Ready\s+retry[\s\S]{0,240}encrypted\s+`claimAuthKey`[\s\S]{0,240}does\s+not\s+require\s+retaining\s+or\s+reconstructing\s+the\s+raw\s+`pairingSecret`\s+after\s+`ready`/u,
     );
     expect(terminalCleanup).toMatch(
-      /The iOS scanner or parser owns the received secret initially and transfers ownership exactly once to the pending import operation/u,
+      /The\s+iOS\s+scanner\s+or\s+parser\s+owns\s+the\s+received\s+secret\s+initially\s+and\s+transfers\s+ownership\s+exactly\s+once\s+to\s+the\s+pending\s+import\s+operation/u,
     );
     expect(terminalCleanup).toMatch(
-      /holds that secret only until response authentication and open succeed and the encrypted received-vault plus both consumed IDs commit atomically, then clears it immediately/u,
+      /holds\s+the\s+raw\s+secret\s+only\s+until\s+response\s+authentication\s+and\s+open\s+succeed\s+and\s+the\s+encrypted\s+received-vault\s+plus\s+both\s+consumed\s+IDs\s+commit\s+atomically,\s+then\s+clears\s+it\s+immediately/u,
     );
     expect(terminalCleanup).toMatch(
-      /cancel, parse, authentication, open, import, or persistence error, expiry, or restart before commit clears the owned secret and requires a fresh invite/u,
+      /cancel,\s+parse,\s+authentication,\s+open,\s+import,\s+or\s+persistence\s+error,\s+expiry,\s+or\s+restart\s+before\s+commit\s+clears\s+every\s+owned\s+raw\s+or\s+derived\s+secret\s+and\s+requires\s+a\s+fresh\s+invite/u,
     );
     expect(terminalCleanup).toMatch(
-      /best-effort cleanup of owned mutable buffers, not guaranteed zeroization of copies created by the Swift runtime/u,
+      /best-effort\s+cleanup\s+of\s+owned\s+mutable\s+buffers,\s+not\s+guaranteed\s+zeroization\s+of\s+copies\s+created\s+by\s+the\s+Swift\s+runtime/u,
     );
   });
 });

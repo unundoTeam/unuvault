@@ -154,20 +154,61 @@ Each invitation contains a fresh cryptographically random 32-byte
 `pairingSecret` delivered through the QR camera channel. The target creates a
 fresh P256 key-agreement identity and a fresh client nonce for the claim.
 
-The target sends:
+The claim-authentication KDF constants are:
 
 ```text
-claimAuthenticator = HMAC-SHA256(pairingSecret, canonicalClaimTranscript)
+CLAIM_AUTH_SALT_DOMAIN = ASCII("unuvault-pairing-claim-auth-salt-v2")
+CLAIM_AUTH_INFO_DOMAIN = ASCII("unuvault-pairing-claim-auth-key-v2")
+CLAIM_AUTH_KEY_BYTES = 32
 ```
+
+The exact HKDF-SHA256 salt and `info` are these ordered concatenations:
+
+```text
+claimAuthSalt =
+LP(CLAIM_AUTH_SALT_DOMAIN) ||
+LP(PAIRING_VERSION) ||
+LP(NFC-UTF8(inviteSessionId)) ||
+LP(u64be(expiresAtEpochMilliseconds)) ||
+LP(ASCII(canonicalMacBaseURL))
+
+claimAuthInfo =
+LP(CLAIM_AUTH_INFO_DOMAIN) ||
+LP(PAIRING_VERSION)
+```
+
+The fixed invitation-owned fields make the derivation session-bound without
+depending on any target-controlled claim field or on the authenticator itself.
+Both peers derive exactly:
+
+```text
+claimAuthKey = HKDF-SHA256(
+  IKM = pairingSecret,
+  salt = claimAuthSalt,
+  info = claimAuthInfo,
+  L = CLAIM_AUTH_KEY_BYTES
+)
+claimAuthenticator = HMAC-SHA256(claimAuthKey, canonicalClaimTranscript)
+```
+
+`claimAuthKey` is a 32-byte, session-bound, domain-separated key derived from
+the raw `pairingSecret` with HKDF-SHA256. Normatively, `claimAuthenticator` =
+HMAC-SHA256(`claimAuthKey`, `canonicalClaimTranscript`). The
+claim-authentication HKDF and the handoff-encryption HKDF use different domain
+constants, input keying material, salt, and info: claim authentication uses
+the QR secret as IKM, while handoff encryption uses the P256 ECDH shared X
+coordinate as IKM and binds the QR secret only inside its separately labeled
+salt. Neither derivation output may substitute for the other.
 
 The Mac reconstructs the transcript from server-owned invite fields plus the
 submitted canonical target fields, recomputes the target fingerprint from the
-canonical DER, and verifies the HMAC in constant time. Expired, malformed,
+canonical DER, derives the same `claimAuthKey`, and verifies the HMAC in
+constant time. Expired, malformed,
 unknown-session, fingerprint-mismatch, transcript-mismatch, and HMAC-mismatch
 paths return one generic authentication failure and disclose no comparison
 detail.
 
-An unauthenticated or malformed request receives the same generic authentication failure, with no state disclosure or mutation. The Mac owns the mutable QR-secret buffer from invite and claim authentication through sealing. The secret is used only for HMAC verification and HKDF and is never logged or included in a response or persistent general storage.
+An unauthenticated or malformed request receives the same generic authentication failure, with no state disclosure or mutation. The Mac owns the mutable QR-secret buffer from invite and claim authentication through sealing. The secret is used only for claim-authentication HKDF and handoff-encryption HKDF and is never logged or included in a response or persistent general storage. After the first valid claim, the reservation retains the `claimAuthKey` only in encrypted storage as key-equivalent authentication material; it is never logged, returned, or persisted in plaintext.
 
 ## Fresh Mac Owner Authorization
 
@@ -177,11 +218,19 @@ evaluates `deviceOwnerAuthentication`, allowing Touch ID or the Mac login
 password according to the platform policy. An already unlocked vault session
 is necessary but not sufficient authorization.
 
+Fresh owner denial or cancellation ends the reserved workflow as `denied`.
+Owner-authentication unavailability or `LAContext` evaluation or system error
+ends the reserved workflow as `invalidated`. Both outcomes are terminal
+state-owning mutations for that reservation and clear its pending capability,
+raw secret, derived keys, private-key material, and plaintext buffers while
+preserving the required terminal tombstone.
+
 After successful authentication, the Mac rechecks the vault session identity,
 authenticated target, expiry, lock state, revoked or lost-device state, and
 the pending capability. Only then may it perform exactly one in-memory vault
-snapshot read. Cancellation, denial, unavailable authentication, changed
-state, or read failure creates no handoff and writes no plaintext to logs.
+snapshot read. Cancellation, denial, unavailable authentication, evaluation
+or system error, changed state, or read failure creates no handoff and writes
+no plaintext to logs.
 
 ## Target-Bound Handoff
 
@@ -307,8 +356,10 @@ The reservation state machine is normative. Its success path is
    no state disclosure or mutation.
 2. For the first valid request, one encrypted-store transaction rechecks the
    unreserved and unexpired invitation, allocates `claimId`, persists the exact
-   retry identity and original authenticated `clientNonce`, consumes the
-   invitation, and atomically creates the durable reservation before fresh owner authorization by entering `authorizing`. No retry window starts here.
+   retry identity, original authenticated `clientNonce`, and encrypted
+   `claimAuthKey`, consumes the invitation, and atomically creates the durable
+   reservation before fresh owner authorization by entering `authorizing`. No
+   retry window starts here.
 3. Exactly one worker for that reservation creates the fresh `LAContext`. A
    byte-identical authenticated request received in `authorizing` or `sealing`
    does not start another authorization, snapshot read, or seal; it receives
@@ -332,11 +383,11 @@ The reservation state machine is normative. Its success path is
    publishes no handoff. A recovered `authorizing` or `sealing` record is
    changed to `invalidated`; it is never resumed from volatile material.
 
-The ready retry window starts only when the durable record atomically enters `ready`, never at reservation or owner-authorization time. Its immutable deadline is the minimum of `readyAt + 30 seconds` and the original invitation expiry. During that window, only a request whose
+The ready retry window starts only when the durable record atomically enters `ready`, never at reservation or owner-authorization time. Its immutable deadline is the minimum of `readyAt + 30 seconds` and the original invitation expiry. During that window, the Mac uses the encrypted `claimAuthKey` to authenticate every canonical request before comparing its retry identity. Only a request whose
 canonical claim transcript and authenticator
 are each byte-identical to the reservation, including the original authenticated `clientNonce`, receives the retained serialized response. The sealed response, including its AES-GCM nonce, is reused byte-for-byte; it is not reserialized or resealed, and retry does not move `readyAt` or extend the deadline. A different valid authenticated retry identity receives terminal `handoff_consumed` without mutating, replacing, or extending the reservation. Before the deadline, an encrypted durable `ready` record and its response survive Mac process restart. At the deadline, one atomic transition removes the sealed response and retry identity, records `consumed`, and retains only the identifiers and consumed tombstone needed for persistent replay rejection.
 
-Ready retry uses the stored exact request and retry identity with the sealed response; it does not require retaining or reconstructing the raw `pairingSecret` after `ready`.
+Ready retry uses the encrypted `claimAuthKey` to distinguish a different valid authenticated transcript from an invalid authenticator, then uses the stored exact request and retry identity to select the sealed response. It does not require retaining or reconstructing the raw `pairingSecret` after `ready`.
 
 iOS verifies and imports in one encrypted-store transaction. If either `claimId` or `handoffId` already exists in the consumed-ID store, iOS rejects
 the entire response as replay even when the other identifier is new. Otherwise
@@ -354,20 +405,22 @@ for a V1 claim.
 
 ## Terminal Cleanup And Bounded Recovery
 
-`consumed`, `denied`, `expired`, and `invalidated` are terminal states. The only state-owning terminal mutations are fresh owner denial or cancellation; invitation expiry; lock, revoke, lost-device, or capability invalidation; internal snapshot, sealing, or persistence failure; and restart recovery of unfinished pre-ready work. Each such mutation clears the pending capability and unsealed handoff material while preserving required durable terminal tombstones.
+`consumed`, `denied`, `expired`, and `invalidated` are terminal states. The only state-owning terminal mutations are fresh owner denial or cancellation; owner-authentication unavailability or `LAContext` evaluation or system error; invitation expiry; lock, revoke, lost-device, or capability invalidation; internal snapshot, sealing, or persistence failure; and restart recovery of unfinished pre-ready work. Fresh owner denial or cancellation records `denied`; owner-authentication unavailability or `LAContext` evaluation or system error records `invalidated`. Each such mutation clears the pending capability and unsealed handoff material while preserving required durable terminal tombstones.
 
 An unauthenticated or malformed request receives the same generic authentication failure, with no state disclosure or mutation. A different valid authenticated retry identity after reservation receives terminal `handoff_consumed` and cannot mutate, replace, or extend the reservation. Only the reserved byte-identical retry may observe pending or ready behavior.
 
 During the ready identical-retry window, the Mac retains only the encrypted
-sealed response, exact retry-identity bytes, identifiers, immutable timestamps,
-state, and minimum authentication metadata. It does not retain the plaintext
+sealed response, encrypted `claimAuthKey`, exact retry-identity bytes,
+identifiers, immutable timestamps, state, and minimum authentication metadata.
+The encrypted `claimAuthKey` remains key-equivalent secret material and exists
+only to verify arbitrary claims during the ready retry window. It does not retain the plaintext
 snapshot, private ephemeral key, ECDH secret, or derived handoff key. When the
 window ends, the sealed response is removed while the durable consumed
 tombstone remains.
 
-At the atomic `ready` transition, the sealed byte-identical response and minimum retry identity are durable; the raw `pairingSecret` is no longer required and is best-effort cleared immediately, not retained through the 30-second retry window. On denial, cancellation, expiry, lock, revoke, lost-device state, capability failure, snapshot or seal failure, or restart before `ready`, the Mac best-effort clears its owned secret, derived-key, private-key, and plaintext buffers while preserving only required terminal tombstones. At retry-window end or consume, the Mac clears the retained sealed response and retry identity, leaving only minimum durable replay and tombstone metadata.
+At the atomic `ready` transition, the sealed byte-identical response, encrypted `claimAuthKey`, and minimum retry identity are durable. The raw `pairingSecret` is best-effort cleared immediately when the record enters `ready`; it is not retained through the 30-second retry window. On denial, cancellation, owner-authentication unavailability, `LAContext` evaluation or system error, expiry, lock, revoke, lost-device state, capability failure, snapshot or seal failure, or restart before `ready`, the Mac best-effort clears its owned raw secret, `claimAuthKey`, handoff key, private-key, and plaintext buffers while preserving only required terminal tombstones. At retry-window end or consume, the Mac clears the retained sealed response, retry identity, and encrypted `claimAuthKey`, leaving only minimum durable replay and tombstone metadata. A consume or retry-window expiry transition clears the encrypted `claimAuthKey` before committing the durable terminal state.
 
-The iOS scanner or parser owns the received secret initially and transfers ownership exactly once to the pending import operation. That operation may use the secret for claim HMAC and HKDF/AEAD open, but never persists or logs it. iOS holds that secret only until response authentication and open succeed and the encrypted received-vault plus both consumed IDs commit atomically, then clears it immediately. Any cancel, parse, authentication, open, import, or persistence error, expiry, or restart before commit clears the owned secret and requires a fresh invite.
+The iOS scanner or parser owns the received secret initially and transfers ownership exactly once to the pending import operation. That operation derives `claimAuthKey`, uses it only to create the claim HMAC, and may reuse the raw secret only for handoff HKDF/AEAD open; it never persists or logs either secret. The serialized byte-identical request, not `claimAuthKey`, is retained for pending retries. iOS clears `claimAuthKey` after claim serialization and holds the raw secret only until response authentication and open succeed and the encrypted received-vault plus both consumed IDs commit atomically, then clears it immediately. Any cancel, parse, authentication, open, import, or persistence error, expiry, or restart before commit clears every owned raw or derived secret and requires a fresh invite.
 
 All cleanup is best-effort cleanup of owned mutable buffers, not guaranteed zeroization of copies created by the Swift runtime. Recovery never mints a new capability, extends the invite TTL, changes the authenticated target, permits downgrade, or removes required durable reservation, replay, or terminal tombstones.
 
