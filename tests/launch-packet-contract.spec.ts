@@ -11,38 +11,62 @@ function readText(pathFromRepoRoot: string): string {
 }
 
 describe("launch packet contract", () => {
-  it("keeps the deferred third-party crypto request reopen-ready", () => {
+  it("keeps historical crypto review evidence separate from the current cross-platform gate", () => {
     const request = readText("docs/operations/third-party-crypto-review-request.md");
+    const gate = readText("docs/operations/crypto-review-gate.md");
+    const exception = readText(
+      "docs/operations/crypto-review-launch-exception.md",
+    );
     const checklist = readText("docs/launch/phase1-launch-checklist.md");
     const architecture = readText("docs/architecture/0005-secure-password-crypto.md");
+    const handoff = readText(
+      "docs/operations/secure-crypto-pr-audit-handoff.md",
+    );
 
-    expect(request).toContain("# Third-Party Crypto Review Request");
-    expect(request).toContain(
-      "Use this only when a real external reviewer or vendor path is reopened",
+    expect(request).toContain("dispatch state: `not dispatched`");
+    expect(request).toContain("exact merged implementation SHA: `not yet assigned`");
+    expect(request).toContain("historical PR `#59` target cannot substitute");
+    expect(request).not.toMatch(
+      /at or after\s+`46ae0c655deef0ef15cb0cd180b4844a32cac43d`/,
     );
-    expect(request).toContain("current launch path defers third-party crypto review");
-    expect(request).toContain("iterative review gate");
-    expect(request).toContain("## Forwardable Reviewer Brief");
-    expect(request).toContain("## Operator Dispatch Checklist");
-    expect(request).toContain("external review path has been");
-    expect(request).toContain("Please return the review result in this exact shape:");
-    expect(request).toContain("docs/operations/secure-crypto-pr-audit-handoff.md");
-    expect(request).toContain("docs/operations/crypto-review-gate.md");
-    expect(request).toContain("docs/operations/crypto-review-launch-exception.md");
-    expect(request).toContain("docs/launch/phase1-launch-checklist.md");
-    expect(request).toContain("46ae0c655deef0ef15cb0cd180b4844a32cac43d");
-    expect(checklist).toContain("## Carry-Forward Before GA/Public Launch");
-    expect(checklist).toContain("Internal iterative crypto review loop");
-    expect(checklist).toContain("Third-party crypto review is deferred");
-    expect(checklist).toContain("docs/operations/crypto-review-launch-exception.md");
-    expect(checklist).toContain("production landing routing was rechecked on 2026-04-25");
+
+    expect(gate).toContain(
+      "Current cross-platform internal review status: `blocked pending remediation and exact-target re-review`",
+    );
+    expect(gate).toContain("Bounded Argon2 checkpoint: `resolved`");
+    expect(gate).toContain("Pairing target-claim authentication: `pending on main`");
+    expect(gate).toContain("Fresh Mac owner authorization: `pending on main`");
+    expect(gate).toContain(
+      "Restart-persistent iOS replay rejection: `pending on main`",
+    );
+    expect(gate).toContain("Local bridge authorization: `separate open blocker`");
+
+    expect(exception).toContain("## Historical Exception Status (2026-04-25)");
+    expect(exception).toContain("46ae0c655deef0ef15cb0cd180b4844a32cac43d");
+    expect(exception).toContain(
+      "does not authorize the later native/cross-platform boundary",
+    );
+
     expect(checklist).toContain(
-      "unuidentity/docs/operations/production-landing-completion.md",
+      "Current preliminary cross-platform review verdict: `blocked`",
     );
-    expect(architecture).toContain("repo-backed internal iterative review gate");
-    expect(architecture).toContain("docs/operations/crypto-review-launch-exception.md");
-    expect(architecture).not.toContain(
-      "Independent review is still required before GA/public launch",
+    expect(checklist).toContain(
+      "Historical PR `#59` clearance remains scoped to its recorded target",
+    );
+    expect(checklist).not.toContain(
+      "current GA/public-launch crypto gate as an internal",
+    );
+
+    expect(architecture).toContain("## Two Crypto Substrates");
+    expect(architecture).toContain(
+      "Pairing V2 does not resolve local bridge authorization",
+    );
+    expect(architecture).not.toContain("share one crypto substrate");
+
+    expect(handoff).toContain("Bounded Argon2 checkpoint: `resolved`");
+    expect(handoff).toContain("Cross-platform preliminary verdict: `blocked`");
+    expect(handoff).toContain(
+      "No independent third-party verdict exists for the expanded scope",
     );
   });
 });

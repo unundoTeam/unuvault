@@ -2,26 +2,28 @@
 
 ## Purpose
 
-This gate defines the repo-backed internal iterative crypto review required for
-the current `unuvault` launch path. The previous independent third-party crypto
-review requirement is now explicitly deferred through
-`docs/operations/crypto-review-launch-exception.md`.
+This gate separates the historical PR `#59` JavaScript review record from the
+current expanded native/cross-platform security boundary. Historical internal
+clearance and its 2026-04-25 exception remain evidence for their exact target;
+they do not clear Pairing V2 or the later Mac/iOS boundary.
 
 This gate does not allow `unuvault` to claim that the crypto boundary is
 independently reviewed or third-party reviewed.
 
 ## Current Gate State
 
-- Internal implementation work is complete enough to run a launch-facing review
-  loop.
-- Repo-backed internal preflight and follow-up confirmation replies are recorded
-  for the packet.
-- The attempted third-party request path did not produce a real independent
-  reviewer or vendor verdict.
-- The decision owner approved replacing the current third-party requirement with
-  an internal iterative review gate on `2026-04-25`.
-- Current internal iterative review status: `cleared for current scope`.
-- Third-party crypto review status: `deferred by explicit launch exception`.
+- Current cross-platform internal review status: `blocked pending remediation and exact-target re-review`
+- Bounded Argon2 checkpoint: `resolved`
+- Pairing target-claim authentication: `pending on main`
+- Fresh Mac owner authorization: `pending on main`
+- Restart-persistent iOS replay rejection: `pending on main`
+- Local bridge authorization: `separate open blocker`
+- Exact merged implementation SHA: `not yet assigned`
+- Independent third-party review for the expanded scope: `not dispatched`
+
+The current gate requires remediation of the four implementation/security
+blockers, then one repo-backed cross-platform review against one exact merged
+implementation SHA. A branch, range, or historical target cannot substitute.
 
 ## Bounded Argon2 Checkpoint
 
@@ -46,17 +48,17 @@ It does not approve Pairing V2 or produce an independent third-party verdict,
 and it does not alter the broader gate state recorded in this document. Public
 copy must not claim independent or third-party review from this checkpoint.
 
-## Current Review Target
+## Historical PR #59 Review Target
 
 - GitHub PR: `#59` `[codex] finalize unuvault phase-1 launch packet`
 - PR URL: `https://github.com/unundoTeam/unuvault/pull/59`
-- Current base branch: `main`
+- Recorded base branch: `main`
 - Merge commit on `main`: `46ae0c655deef0ef15cb0cd180b4844a32cac43d`
-- The internal iterative review should anchor to the merged `main` state at or
-  after that commit, plus any later commits that update this gate or review
-  evidence.
+- This exact historical target covers the recorded Web, browser-extension, CLI,
+  and `packages/security` JavaScript substrate only. It is not the current
+  Pairing V2 or expanded native/cross-platform review target.
 
-## Internal Iterative Review Status
+## Historical Internal Iterative Review Status
 
 - Review loop status: `completed for current scope`
 - Reviewer: `Codex repo-backed review loop`
@@ -98,10 +100,11 @@ copy must not claim independent or third-party review from this checkpoint.
     review did not change legacy reader formats or storage keys
 - Launch checklist still matches the reviewed crypto boundary: `yes`
 
-As of `2026-04-25`, the replacement internal iterative review loop has completed
-for the current scope. It does not create an independent third-party verdict.
+As of `2026-04-25`, that internal iterative review loop completed for its
+recorded historical scope. It does not create an independent third-party
+verdict or clear the expanded cross-platform gate.
 
-## Third-Party Review Deferral
+## Historical Third-Party Review Deferral
 
 - Deferral authority: `docs/operations/crypto-review-launch-exception.md`
 - Deferral date: `2026-04-25`
@@ -113,7 +116,8 @@ for the current scope. It does not create an independent third-party verdict.
   GA/public-launch approval`
 - GitHub metadata audit on `2026-04-25`: no PR reviews or issue comments on
   `unundoTeam/unuvault#59` can be treated as an external crypto verdict.
-- Result: third-party crypto review is deferred, not completed.
+- Result: third-party crypto review was deferred for the recorded historical
+  scope, not completed. The exception does not authorize the expanded scope.
 
 ## Recorded Thread Reply (2026-04-23)
 
@@ -152,13 +156,14 @@ treated as a third-party verdict.
 - Targeted tests for read, write, and failure behavior
 - Documentation of residual risks and migration expectations
 
-## Required Internal Review Inputs
+## Required Exact-Target Review Inputs
 
-The following inputs must travel together for the internal iterative review
-loop:
+The following inputs must travel together for the future exact-target
+cross-platform review:
 
 - `docs/operations/secure-crypto-pr-audit-handoff.md`
 - `docs/operations/crypto-review-launch-exception.md`
+- `docs/superpowers/specs/2026-07-10-authenticated-pairing-approval-design.md`
 - `docs/operations/crypto-legacy-smoke-checklist.md`
 - the current phase-1 launch checklist under `docs/launch/phase1-launch-checklist.md`
 - fresh repo-owned verification evidence for:
@@ -170,10 +175,19 @@ loop:
   `docs/launch/phase1-launch-checklist.md`
 - any current repo-wide verification blocker discovered while refreshing the
   packet
+- the one exact merged implementation SHA after all required remediation lands
+- target-claim, fresh owner-authorization, persistent replay, and local bridge
+  authorization evidence for that exact target
 
-## Internal Review Scope
+## Exact-Target Review Scope
 
-- Review the CLI provider, web unlock paths, and browser extension read paths together
+- Review the historical Web/browser-extension/CLI substrate and native Mac/iOS
+  P256/HKDF/AES-GCM pairing substrate together without collapsing them into one
+  substrate
+- Confirm target-claim authentication and fresh owner authorization fail closed
+- Confirm replay rejection survives restart and V2 cannot downgrade to V1
+- Confirm local bridge authorization is independently resolved or remains a
+  blocking finding
 - Confirm failures are fail-closed and do not leak plaintext to stderr or logs
 - Confirm new writes only emit the newest secure envelope formats
 - Confirm any migration or remediation notes are captured before launch
@@ -182,49 +196,54 @@ loop:
 
 ## Expected Internal Review Output
 
-The internal iterative review output should record:
+The exact-target cross-platform review output should record:
 
 - reviewer identity plus review date
-- verdict: `internal iterative review cleared for current scope`,
-  `cleared with follow-up`, or `blocked`
+- verdict: `cleared`, `cleared with follow-up`, or `blocked`
 - reviewed surfaces and call chains
 - any findings, required remediation, or accepted follow-up limits
 - confirmation that the launch checklist still matches the current crypto
   boundary
 
 Use `docs/operations/secure-crypto-pr-audit-handoff.md` to record each review
-pass and any remediation. Copy the final current-scope result back into this
-gate.
+pass and any remediation. Copy the exact reviewed SHA and final result back into
+this gate.
 
 ## Gate Clears For GA/Public Launch When
 
 All of the following are true:
 
-- the internal iterative review loop has completed with no unresolved blockers
+- Pairing target-claim authentication is implemented
+- fresh Mac owner authorization protects the single snapshot read
+- iOS replay rejection persists across restart and V2 fails closed without a
+  V1 downgrade
+- the local bridge authorization blocker is resolved
+- one exact merged implementation SHA is recorded
+- the cross-platform exact-target review has no unresolved blockers
 - legacy compatibility evidence is attached and still reflects the current
   secure boundary
 - no new plaintext, XOR, or custom-hash write path remains on the active launch
   surface
 - the launch checklist and audit handoff are updated consistently
-- any blocking findings are resolved or an explicit launch exception is
-  documented
-- third-party review remains deferred under
-  `docs/operations/crypto-review-launch-exception.md`
+- any blocking findings are resolved; a renewed exception, if proposed, must
+  name and justify the same exact target
+- a real independent verdict exists before any independent-security or
+  higher-risk public/paid launch claim
 - no outward-facing copy claims that the crypto boundary is independently
-  reviewed
+  reviewed before that verdict exists
 
 ## Re-Trigger Conditions For Third-Party Review
 
-Follow `docs/operations/crypto-review-launch-exception.md` when deciding whether
-a real independent reviewer or vendor must be reopened. The short rule is:
-large-scale public risk, paid/enterprise/compliance claims, material crypto
-boundary changes, or crypto incidents should reopen real third-party review.
+The expanded native/cross-platform boundary is already a material
+crypto-boundary change. A real independent reviewer remains required before
+large-scale public risk, paid/enterprise/compliance claims, independent-security
+claims, or after a crypto incident.
 
 ## Notes
 
 - This gate is narrower than a general incident or observability runbook.
 - It exists to separate internal implementation completion from current-scope
   launch approval.
-- `docs/operations/third-party-crypto-review-request.md` remains available only
-  if a real external reviewer path is reopened under the re-trigger conditions
-  in `docs/operations/crypto-review-launch-exception.md`.
+- `docs/operations/third-party-crypto-review-request.md` is preparation only.
+  It remains `not dispatched` until one exact merged implementation SHA and the
+  local remediation/re-review evidence are attached.

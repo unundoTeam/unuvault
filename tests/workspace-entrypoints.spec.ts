@@ -224,6 +224,13 @@ describe("workspace entrypoints", () => {
         "`current-routed` product scope and trust posture context",
       );
       expect(entrypoint).toMatch(/not broad\s+Pencil or current UI authority/);
+      expect(entrypoint).toContain(
+        "docs/superpowers/specs/2026-07-10-authenticated-pairing-approval-design.md",
+      );
+      expect(entrypoint).toContain(
+        "`current-routed` for Pairing V2 protocol/security semantics only",
+      );
+      expect(entrypoint).toContain("not broad Pencil/current-UI authority");
     }
 
     expect(agents).toContain("current/unuvault/ios-product-composition-v1");
@@ -397,6 +404,8 @@ describe("workspace entrypoints", () => {
     const rootPackage = readJson<PackageManifest>("package.json");
     const wrapperPath = "scripts/testing/run-pairing-boundary.sh";
     const readme = readText("README.md");
+    const agentNotes = readText("AGENTS.md");
+    const iosReadme = readText("apps/ios/README.md");
     const mobileEvidence = readText("docs/design/mobile-native-adapter-evidence.md");
     const macEvidence = readText("docs/design/mac-companion-mvp-evidence.md");
 
@@ -412,6 +421,26 @@ describe("workspace entrypoints", () => {
     expect(readme).toContain("pnpm test:pairing-boundary");
     expect(mobileEvidence).toContain("pnpm test:pairing-boundary");
     expect(macEvidence).toContain("pnpm test:pairing-boundary");
+    expect(readme).toMatch(
+      /claimant-key-bound handoff\s+open, AES-GCM encrypted local persistence, fresh reload, and read-only/,
+    );
+    expect(iosReadme).toContain(
+      "The current V1 claim does not authenticate that claimant as the intended iPhone.",
+    );
+    for (const entrypoint of [readme, agentNotes, iosReadme]) {
+      expect(entrypoint).toContain(
+        "docs/superpowers/specs/2026-07-10-authenticated-pairing-approval-design.md",
+      );
+    }
+    expect(readme).toContain("Pairing V1 remains the implemented proof boundary");
+    expect(readme).toContain(
+      "Pairing V2 implementation and exact-target security re-review remain pending",
+    );
+    expect(agentNotes).not.toContain(
+      "current/unuvault/mac-companion-pairing-approval-v2",
+    );
+    expect(agentNotes).toContain("current/unuvault/ios-product-composition-v1");
+    expect(agentNotes).toContain("current/unuvault/ios-pairing-invite-receive-v3");
   });
 
   it("records the LAN-address pairing smoke proof entrypoint", () => {
