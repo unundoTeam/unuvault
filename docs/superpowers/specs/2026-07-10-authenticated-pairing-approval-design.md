@@ -210,6 +210,8 @@ detail.
 
 An unauthenticated or malformed request receives the same generic authentication failure, with no state disclosure or mutation. The Mac owns the mutable QR-secret buffer from invite and claim authentication through sealing. The secret is used only for claim-authentication HKDF and handoff-encryption HKDF and is never logged or included in a response or persistent general storage. After the first valid claim, the reservation retains the `claimAuthKey` only in encrypted storage as key-equivalent authentication material; it is never logged, returned, or persisted in plaintext.
 
+`claimAuthKey` is key-equivalent secret material. It is never logged, returned, or persisted in plaintext.
+
 ## Fresh Mac Owner Authorization
 
 Before any vault read, the Mac presents the authenticated target identity and
@@ -419,6 +421,8 @@ window ends, the sealed response is removed while the durable consumed
 tombstone remains.
 
 At the atomic `ready` transition, the sealed byte-identical response, encrypted `claimAuthKey`, and minimum retry identity are durable. The raw `pairingSecret` is best-effort cleared immediately when the record enters `ready`; it is not retained through the 30-second retry window. On denial, cancellation, owner-authentication unavailability, `LAContext` evaluation or system error, expiry, lock, revoke, lost-device state, capability failure, snapshot or seal failure, or restart before `ready`, the Mac best-effort clears its owned raw secret, `claimAuthKey`, handoff key, private-key, and plaintext buffers while preserving only required terminal tombstones. At retry-window end or consume, the Mac clears the retained sealed response, retry identity, and encrypted `claimAuthKey`, leaving only minimum durable replay and tombstone metadata. A consume or retry-window expiry transition clears the encrypted `claimAuthKey` before committing the durable terminal state.
+
+Fresh owner denial or cancellation; owner-authentication unavailability or `LAContext` evaluation or system error; invitation expiry; lock, revoke, lost-device state, or capability failure; snapshot or seal failure; and restart before `ready` are Mac terminal paths that clear `claimAuthKey` while preserving required terminal tombstones.
 
 The iOS scanner or parser owns the received secret initially and transfers ownership exactly once to the pending import operation. That operation derives `claimAuthKey`, uses it only to create the claim HMAC, and may reuse the raw secret only for handoff HKDF/AEAD open; it never persists or logs either secret. The serialized byte-identical request, not `claimAuthKey`, is retained for pending retries. iOS clears `claimAuthKey` after claim serialization and holds the raw secret only until response authentication and open succeed and the encrypted received-vault plus both consumed IDs commit atomically, then clears it immediately. Any cancel, parse, authentication, open, import, or persistence error, expiry, or restart before commit clears every owned raw or derived secret and requires a fresh invite.
 

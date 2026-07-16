@@ -49,6 +49,28 @@ function markdownSection(document: string, heading: string): string {
     : normalizedDocument.slice(contentStart, contentStart + relativeEnd);
 }
 
+function normalizeWhitespace(value: string): string {
+  return value.replace(/\s+/gu, " ").trim();
+}
+
+function fencedCodeBlocks(document: string, language: string): string[] {
+  const normalizedDocument = document.replace(/\r\n?/gu, "\n");
+  const blocks: string[] = [];
+  const fencePattern = /^```([^\n]*)\n([\s\S]*?)^```[ \t]*$/gmu;
+
+  for (const match of normalizedDocument.matchAll(fencePattern)) {
+    if (match[1].trim() === language) {
+      blocks.push(match[2]);
+    }
+  }
+
+  return blocks;
+}
+
+function normalizeCode(value: string): string {
+  return value.replace(/\s+/gu, "");
+}
+
 describe("launch packet contract", () => {
   it("detects line-wrapped prohibited active-authority phrases", () => {
     const lineWrappedFixtures = [
@@ -429,7 +451,16 @@ describe("launch packet contract", () => {
       ].join("\n"),
     ];
 
+    const canonicalSecretLifecycle = normalizeWhitespace(
+      "`claimAuthKey` is key-equivalent secret material. It is never logged, returned, or persisted in plaintext.",
+    );
+    const canonicalMacTerminalCleanup = normalizeWhitespace(
+      "Fresh owner denial or cancellation; owner-authentication unavailability or `LAContext` evaluation or system error; invitation expiry; lock, revoke, lost-device state, or capability failure; snapshot or seal failure; and restart before `ready` are Mac terminal paths that clear `claimAuthKey` while preserving required terminal tombstones.",
+    );
+
     for (const authority of authorities) {
+      const normalizedAuthority = normalizeWhitespace(authority);
+
       expect(authority).toMatch(
         /An\s+unauthenticated\s+or\s+malformed\s+request\s+receives\s+the\s+same\s+generic\s+authentication\s+failure,\s+with\s+no\s+state\s+disclosure\s+or\s+mutation\./u,
       );
@@ -460,6 +491,8 @@ describe("launch packet contract", () => {
       expect(authority).toMatch(
         /owner-authentication\s+unavailability\s+or\s+`LAContext`\s+evaluation\s+or\s+system\s+error[\s\S]{0,200}`invalidated`/iu,
       );
+      expect(normalizedAuthority).toContain(canonicalSecretLifecycle);
+      expect(normalizedAuthority).toContain(canonicalMacTerminalCleanup);
       expect(authority).not.toMatch(
         /conflicting\s+target[\s\S]{0,120}(?:clear|invalidat)[\s\S]{0,80}(?:pending|reserved|reservation|workflow|capability|handoff)/iu,
       );
@@ -484,6 +517,22 @@ describe("launch packet contract", () => {
       "## Terminal Cleanup And Bounded Recovery",
     );
 
+    const recoveryPlanTask = markdownSection(
+      recoveryPlan,
+      "### Task 1: Recover The UnuVault Pairing Security Authority",
+    );
+    const normalizedRecoveryPlanTask = normalizeWhitespace(recoveryPlanTask);
+    expect(normalizedRecoveryPlanTask).toContain(
+      normalizeWhitespace(
+        "During `authorizing` and `sealing`, only the reserved byte-identical retry may receive `handoff_response_not_ready`; no retry window exists before `ready`.",
+      ),
+    );
+    expect(normalizedRecoveryPlanTask).toContain(
+      normalizeWhitespace(
+        "The ready retry window starts only at the atomic `ready` transition, with immutable deadline `min(readyAt + 30 seconds, original invitation expiry)`.",
+      ),
+    );
+
     expect(targetAuthentication).toContain(
       'CLAIM_AUTH_SALT_DOMAIN = ASCII("unuvault-pairing-claim-auth-salt-v2")',
     );
@@ -491,15 +540,39 @@ describe("launch packet contract", () => {
       'CLAIM_AUTH_INFO_DOMAIN = ASCII("unuvault-pairing-claim-auth-key-v2")',
     );
     expect(targetAuthentication).toContain("CLAIM_AUTH_KEY_BYTES = 32");
-    expect(targetAuthentication).toMatch(
-      /LP\(CLAIM_AUTH_SALT_DOMAIN\)\s+\|\|\s+LP\(PAIRING_VERSION\)\s+\|\|\s+LP\(NFC-UTF8\(inviteSessionId\)\)\s+\|\|\s+LP\(u64be\(expiresAtEpochMilliseconds\)\)\s+\|\|\s+LP\(ASCII\(canonicalMacBaseURL\)\)/u,
-    );
-    expect(targetAuthentication).toMatch(
-      /LP\(CLAIM_AUTH_INFO_DOMAIN\)\s+\|\|\s+LP\(PAIRING_VERSION\)/u,
-    );
-    expect(targetAuthentication).toMatch(
-      /HKDF-SHA256\(\s*IKM\s*=\s*pairingSecret,\s*salt\s*=\s*claimAuthSalt,\s*info\s*=\s*claimAuthInfo,\s*L\s*=\s*CLAIM_AUTH_KEY_BYTES\s*\)/u,
-    );
+    const claimAuthParameterBlocks = fencedCodeBlocks(
+      targetAuthentication,
+      "text",
+    ).filter((block) => normalizeWhitespace(block).startsWith("claimAuthSalt ="));
+    expect(claimAuthParameterBlocks.map(normalizeCode)).toEqual([
+      normalizeCode(`
+claimAuthSalt =
+LP(CLAIM_AUTH_SALT_DOMAIN) ||
+LP(PAIRING_VERSION) ||
+LP(NFC-UTF8(inviteSessionId)) ||
+LP(u64be(expiresAtEpochMilliseconds)) ||
+LP(ASCII(canonicalMacBaseURL))
+
+claimAuthInfo =
+LP(CLAIM_AUTH_INFO_DOMAIN) ||
+LP(PAIRING_VERSION)
+`),
+    ]);
+    const claimAuthDerivationBlocks = fencedCodeBlocks(
+      targetAuthentication,
+      "text",
+    ).filter((block) => normalizeWhitespace(block).startsWith("claimAuthKey ="));
+    expect(claimAuthDerivationBlocks.map(normalizeCode)).toEqual([
+      normalizeCode(`
+claimAuthKey = HKDF-SHA256(
+  IKM = pairingSecret,
+  salt = claimAuthSalt,
+  info = claimAuthInfo,
+  L = CLAIM_AUTH_KEY_BYTES
+)
+claimAuthenticator = HMAC-SHA256(claimAuthKey, canonicalClaimTranscript)
+`),
+    ]);
     expect(targetAuthentication).toMatch(
       /The\s+claim-authentication\s+HKDF\s+and\s+the\s+handoff-encryption\s+HKDF\s+use\s+different\s+domain\s+constants,\s+input\s+keying\s+material,\s+salt,\s+and\s+info/u,
     );
