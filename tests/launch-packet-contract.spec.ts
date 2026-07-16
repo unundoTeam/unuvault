@@ -683,15 +683,38 @@ claimAuthenticator = HMAC-SHA256(claimAuthKey, canonicalClaimTranscript)
     const securityInvalidationRule = normalizeWhitespace(
       "An independent trusted local lock, revoke, lost-device, or capability invalidation event during `ready` atomically transitions the reservation to `invalidated` immediately and clears the retained sealed response, retry identity, and encrypted `claimAuthKey`; security revocation takes priority over the recovery deadline.",
     );
+    const normativeStateMachineRule = normalizeWhitespace(
+      "The normative state machine permits `invalidated` from `authorizing` or `sealing` for the terminal owners classified below, and from `ready` only for an independent trusted local lock, revoke, lost-device, or capability invalidation event.",
+    );
+    const noOtherReadyInvalidationRule = normalizeWhitespace(
+      "No other owner-authentication, internal, persistence, process, or request-processing outcome may transition `ready` early.",
+    );
 
     for (const authority of authorities) {
       const normalizedAuthority = normalizeWhitespace(authority);
       expect(normalizedAuthority).toContain(requestOnlyRule);
       expect(normalizedAuthority).toContain(securityInvalidationRule);
+      expect(normalizedAuthority).toContain(normativeStateMachineRule);
+      expect(normalizedAuthority).toContain(noOtherReadyInvalidationRule);
     }
+
+    const currentProtocolStateMachine = normalizeWhitespace(
+      markdownSection(
+        readText(
+          "docs/superpowers/specs/2026-07-10-authenticated-pairing-approval-design.md",
+        ),
+        "## Single Use And Persistent Replay Rejection",
+      ),
+    );
+    expect(currentProtocolStateMachine).toContain(normativeStateMachineRule);
+    expect(currentProtocolStateMachine).not.toContain(
+      normalizeWhitespace(
+        "`denied`, `expired`, and `invalidated` are alternate terminal states from `authorizing` or `sealing`:",
+      ),
+    );
   });
 
-  it("bounds hostile-LAN claim input before expensive authentication work", () => {
+  it("orders hostile-LAN claim validation before authenticated state lookup", () => {
     const authorities = [
       markdownSection(
         readText(
@@ -712,21 +735,28 @@ claimAuthenticator = HMAC-SHA256(claimAuthKey, canonicalClaimTranscript)
         "## Target-Claim Authentication",
       ),
     ];
-    const entityLimitRule = normalizeWhitespace(
-      "The raw HTTP claim entity body is limited to 4096 octets: a `Content-Length` greater than 4096 is rejected before reading the body, while chunked or unknown-length input uses a fixed-limit buffer and fails closed when the 4097th octet arrives.",
-    );
-    const textLimitRule = normalizeWhitespace(
-      "After JSON parsing, bounded normalization and length validation require `targetDeviceId` to be 1–128 bytes and `targetDisplayName` to be 1–256 bytes after NFC UTF-8 encoding.",
-    );
-    const validationOrderRule = normalizeWhitespace(
-      "Those text checks run before P256 DER parsing, HMAC verification, and reservation or state lookup; an empty, oversized, or malformed value receives the generic authentication failure with no state disclosure or mutation.",
+    const orderedPipeline = [
+      "Enforce the raw HTTP entity-body cap of 4096 octets. Reject `Content-Length` greater than 4096 before reading; for chunked or unknown-length input, use one fixed bounded buffer and fail closed when the 4097th octet arrives.",
+      "Perform JSON parsing, schema validation, strict base64url decoding, and required-field checks.",
+      "NFC-normalize text and enforce UTF-8 lengths of 1–128 bytes for `targetDeviceId` and 1–256 bytes for `targetDisplayName`.",
+      "Parse the target P256 SPKI DER and require canonical DER by exact re-serialization before accepting the public key.",
+      "Perform constant-shape verifier retrieval keyed only by the server-owned `inviteSessionId`: make one bounded indexed verifier-record read; decrypt the live encrypted `claimAuthKey` when present; for an absent, terminal, non-live, or missing record, substitute an independent 32-byte process-owned dummy key and continue through the same HMAC path. This step makes no reservation-lifecycle or state-dependent response decision, never returns, retains, or logs the dummy key, and never recreates a terminal verifier. It does not claim perfect constant-time storage I/O; it requires only a fixed bounded response and computation shape with one generic external result.",
+      "Compute HMAC-SHA256 with the candidate key and compare the supplied authenticator in constant time.",
+      "Only when the HMAC authenticates with a live verifier, load the full reservation state and apply the exact-retry, different-valid-retry, and ready-security-invalidation rules. A dummy-key or invalid-authenticator path returns the same generic authentication failure with no state disclosure or mutation.",
+    ].map(normalizeWhitespace);
+    const verifierBoundaryRule = normalizeWhitespace(
+      "Verifier retrieval is a minimal capability-key lookup, not an authenticated business-state lookup; the latter occurs only after HMAC authentication succeeds with a live verifier.",
     );
 
     for (const authority of authorities) {
       const normalizedAuthority = normalizeWhitespace(authority);
-      expect(normalizedAuthority).toContain(entityLimitRule);
-      expect(normalizedAuthority).toContain(textLimitRule);
-      expect(normalizedAuthority).toContain(validationOrderRule);
+      let previousStepEnd = -1;
+      for (const step of orderedPipeline) {
+        const stepStart = normalizedAuthority.indexOf(step);
+        expect(stepStart).toBeGreaterThan(previousStepEnd);
+        previousStepEnd = stepStart + step.length;
+      }
+      expect(normalizedAuthority).toContain(verifierBoundaryRule);
     }
   });
 

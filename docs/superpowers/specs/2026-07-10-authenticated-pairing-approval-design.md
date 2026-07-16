@@ -208,15 +208,37 @@ unknown-session, fingerprint-mismatch, transcript-mismatch, and HMAC-mismatch
 paths return one generic authentication failure and disclose no comparison
 detail.
 
-The raw HTTP claim entity body is limited to 4096 octets: a `Content-Length`
-greater than 4096 is rejected before reading the body, while chunked or
-unknown-length input uses a fixed-limit buffer and fails closed when the 4097th
-octet arrives. After JSON parsing, bounded normalization and length validation
-require `targetDeviceId` to be 1–128 bytes and `targetDisplayName` to be 1–256
-bytes after NFC UTF-8 encoding. Those text checks run before P256 DER parsing,
-HMAC verification, and reservation or state lookup; an empty, oversized, or
-malformed value receives the generic authentication failure with no state
-disclosure or mutation.
+The claim-validation pipeline is normative and ordered:
+
+1. Enforce the raw HTTP entity-body cap of 4096 octets. Reject `Content-Length`
+   greater than 4096 before reading; for chunked or unknown-length input, use
+   one fixed bounded buffer and fail closed when the 4097th octet arrives.
+2. Perform JSON parsing, schema validation, strict base64url decoding, and
+   required-field checks.
+3. NFC-normalize text and enforce UTF-8 lengths of 1–128 bytes for
+   `targetDeviceId` and 1–256 bytes for `targetDisplayName`.
+4. Parse the target P256 SPKI DER and require canonical DER by exact
+   re-serialization before accepting the public key.
+5. Perform constant-shape verifier retrieval keyed only by the server-owned
+   `inviteSessionId`: make one bounded indexed verifier-record read; decrypt
+   the live encrypted `claimAuthKey` when present; for an absent, terminal,
+   non-live, or missing record, substitute an independent 32-byte process-owned
+   dummy key and continue through the same HMAC path. This step makes no
+   reservation-lifecycle or state-dependent response decision, never returns,
+   retains, or logs the dummy key, and never recreates a terminal verifier. It
+   does not claim perfect constant-time storage I/O; it requires only a fixed
+   bounded response and computation shape with one generic external result.
+6. Compute HMAC-SHA256 with the candidate key and compare the supplied
+   authenticator in constant time.
+7. Only when the HMAC authenticates with a live verifier, load the full
+   reservation state and apply the exact-retry, different-valid-retry, and
+   ready-security-invalidation rules. A dummy-key or invalid-authenticator path
+   returns the same generic authentication failure with no state disclosure or
+   mutation.
+
+Verifier retrieval is a minimal capability-key lookup, not an authenticated
+business-state lookup; the latter occurs only after HMAC authentication
+succeeds with a live verifier.
 
 An unauthenticated or malformed request receives the same generic authentication failure, with no state disclosure or mutation. The Mac owns the mutable QR-secret buffer from invite and claim authentication through sealing. The secret is used only for claim-authentication HKDF and handoff-encryption HKDF and is never logged or included in a response or persistent general storage. After the first valid claim, the reservation retains the `claimAuthKey` only in encrypted storage as key-equivalent authentication material; it is never logged, returned, or persisted in plaintext.
 
@@ -359,9 +381,12 @@ authenticator byte-for-byte; a digest alone cannot substitute for the full
 identity.
 
 The reservation state machine is normative. Its success path is
-`unreserved` -> `authorizing` -> `sealing` -> `ready` -> `consumed`;
-`denied`, `expired`, and `invalidated` are alternate terminal states from
-`authorizing` or `sealing`:
+`unreserved` -> `authorizing` -> `sealing` -> `ready` -> `consumed`. The
+normative state machine permits `invalidated` from `authorizing` or `sealing`
+for the terminal owners classified below, and from `ready` only for an
+independent trusted local lock, revoke, lost-device, or capability invalidation
+event. No other owner-authentication, internal, persistence, process, or
+request-processing outcome may transition `ready` early.
 
 While an encrypted `claimAuthKey` verifier exists in `authorizing`, `sealing`,
 or pre-deadline `ready`, the Mac authenticates the canonical request before
@@ -431,6 +456,12 @@ for a V1 claim.
 ## Terminal Cleanup And Bounded Recovery
 
 `consumed`, `denied`, `expired`, and `invalidated` are terminal states. The only state-owning terminal mutations are exclusive and classified as follows: fresh owner denial or cancellation records `denied`; invitation expiry records `expired`; owner-authentication unavailability or `LAContext` evaluation or system error records `invalidated`; lock, revoke, lost-device, or capability invalidation records `invalidated`, including an immediate atomic `ready` to `invalidated` transition for an independent trusted local lifecycle event; reservation identity, vault session identity, or authenticated-target recheck failure records `invalidated`, while expiry and lifecycle outcomes discovered by that recheck remain classified under their preceding categories; internal read or snapshot, key-derivation, sealing, persistence, or process failure before `ready` records `invalidated` when the worker can commit the terminal write; restart recovery of unfinished `authorizing` or `sealing` work records `invalidated` when a process failure prevented that write; and reaching the immutable ready-window deadline transitions `ready` to `consumed` only if no prior security invalidation occurred. Each such mutation clears the pending capability and unsealed handoff material while preserving required durable terminal tombstones.
+
+The normative state machine permits `invalidated` from `authorizing` or
+`sealing` for the terminal owners classified below, and from `ready` only for
+an independent trusted local lock, revoke, lost-device, or capability
+invalidation event. No other owner-authentication, internal, persistence,
+process, or request-processing outcome may transition `ready` early.
 
 An unauthenticated or malformed request receives the same generic authentication failure, with no state disclosure or mutation. A different valid authenticated retry identity while the encrypted `claimAuthKey` verifier exists after reservation receives terminal `handoff_consumed` and cannot mutate, replace, or extend the reservation. Only the reserved byte-identical retry may observe pending or ready behavior.
 
