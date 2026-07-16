@@ -1,21 +1,23 @@
 # React/CSS Adapter Evidence
 
-This document records the repo-local React/CSS evidence for the `unuvault` Web
-vault surface. It supports the shared `unundo-interface` primitive evidence
-backlog, but it does not claim broad shared primitive adoption by itself.
+This document records partial repo-local React/CSS implementation evidence for
+the `unuvault` Web vault surface. It supports the shared `unundo-interface`
+primitive evidence backlog, but it does not establish current shared primitive
+adoption or visual parity by itself.
 
 ## Current Status
 
 - Adapter lane: React/CSS web adapter
 - Repo: `unuvault`
 - Surface: Web vault management
-- Status: React/CSS semantic proof, keyboard tab order, and focus-visible proof
-  recorded for this Web vault React/CSS surface; Pencil current and browser
-  visual proof now reflect the Mac companion status layer
-- Pencil current:
-  `/Users/yuchen/Design/unu/unuvault/unuvault.current.pen`
-- Pencil source frame: `current/unuvault/web-vault-management-v1`
-- Design-system frame: `current/unuvault/design-system-v1`
+- Current status: `blocked-needs-evidence`
+- Evidence boundary: repo code and tests record partial semantic, keyboard, and
+  focus-visible implementation evidence. This lane lacks fresh real-browser
+  visual and accessibility proof, so it cannot claim `adapter-mapped`,
+  `adopted`, or current parity.
+- Pencil boundary: Web frames, draft assets, and dated Pencil exports are
+  historical provenance only. They are not current Web adapter, adoption, or
+  parity authority. Native current frames do not support this Web lane.
 
 ## Adapter Implementation Paths
 
@@ -26,9 +28,9 @@ backlog, but it does not claim broad shared primitive adoption by itself.
   `apps/web/tests/react-css-adapter-evidence.spec.tsx`
 - Foundation variable test:
   `apps/web/tests/design-foundation-contract.spec.ts`
-- Browser visual evidence:
+- Historical browser visual evidence:
   `docs/design/evidence/2026-06-06-mac-companion-status/web-vault-browser.png`
-- Pencil source export:
+- Historical Pencil export:
   `docs/design/evidence/2026-06-06-mac-companion-status/4qsK6.png`
 
 ## Primitive Mapping
@@ -42,7 +44,7 @@ backlog, but it does not claim broad shared primitive adoption by itself.
 | State | Sync, Mac companion availability/lock, validation, error, empty | `role="status"` for sync and Mac companion state, `role="alert"` for validation/error state, visible empty copy |
 | Review / approval boundary | Copy/show/delete actions | Credential-revealing and destructive actions stay explicit and disabled when unavailable |
 | Foundation variables | Web CSS token layer | `globals.css` exposes shared spacing, radius, shadow, and motion variables |
-| Visual workspace | Web vault page shell | `.vault-page`, `.vault-shell`, `.vault-header`, `.vault-workspace`, `.vault-panel`, `.vault-card`, `.vault-items-list`, and `.vault-item-row` map the approved Pencil workspace into durable React/CSS selectors |
+| Visual workspace | Web vault page shell | `.vault-page`, `.vault-shell`, `.vault-header`, `.vault-workspace`, `.vault-panel`, `.vault-card`, `.vault-items-list`, and `.vault-item-row` are durable repo-local React/CSS selectors; any former Pencil mapping is historical provenance only |
 
 ## Verification
 
@@ -68,11 +70,11 @@ Current proof from this lane:
 - Mac companion status uses a semantic live-region role and neutral/secure
   state styling instead of danger styling for non-destructive unavailable states
 - shared foundation variables exist in the Web CSS layer
-- latest browser visual evidence records the authenticated unlocked vault
+- the historical `2026-06-06` browser capture records the authenticated unlocked vault
   surface with the Mac companion unlocked pill, explicit Save to this Mac
   action, item rows, selected-item detail panel, secure feedback, and
   destructive delete boundary at a `1440x920` viewport
-- latest Pencil current export records the Mac companion status pill, neutral
+- the historical `2026-06-06` Pencil export records the Mac companion status pill, neutral
   unavailable/locked boundary copy, and explicit disabled-until-ready import
   rule in `current/unuvault/web-vault-management-state-model-v2`
 
@@ -80,14 +82,14 @@ Current proof from this lane:
 
 | Evidence | Path | Notes |
 | --- | --- | --- |
-| Pencil state-model current export | `docs/design/evidence/2026-06-06-mac-companion-status/4qsK6.png` | Export of `current/unuvault/web-vault-management-state-model-v2` from `/Users/yuchen/Design/unu/unuvault/unuvault.current.pen` after Mac companion status-layer sync. |
-| Pencil legacy implementation export | `docs/design/evidence/2026-06-06-mac-companion-status/BnvkE.png` | Export of retained `current/unuvault/web-vault-management-v1` after Mac companion status-layer sync. |
-| Browser DOM capture | `docs/design/evidence/2026-06-06-mac-companion-status/web-vault-browser-dom.html` | Captured from a real local Next.js `/vault` browser render after seeding a Supabase SSR cookie, intercepting `POST /vault/sync`, and returning local Mac companion `unlocked` status. |
-| Browser visual capture | `docs/design/evidence/2026-06-06-mac-companion-status/web-vault-browser.png` | Rendered from the authenticated unlocked browser state with the repo CSS at a `1440x920` viewport. |
+| Historical Pencil state-model export | `docs/design/evidence/2026-06-06-mac-companion-status/4qsK6.png` | Historical export of `current/unuvault/web-vault-management-state-model-v2`; it is not current Web authority. |
+| Historical Pencil implementation export | `docs/design/evidence/2026-06-06-mac-companion-status/BnvkE.png` | Historical export of retained `current/unuvault/web-vault-management-v1`; it is not current Web authority. |
+| Historical browser DOM capture | `docs/design/evidence/2026-06-06-mac-companion-status/web-vault-browser-dom.html` | Dated capture from a local Next.js `/vault` render after seeding a Supabase SSR cookie, intercepting `POST /vault/sync`, and returning local Mac companion `unlocked` status. |
+| Historical browser visual capture | `docs/design/evidence/2026-06-06-mac-companion-status/web-vault-browser.png` | Dated authenticated browser capture with the repo CSS at a `1440x920` viewport; it is not fresh acceptance evidence. |
 | Previous Pencil current export | `docs/design/evidence/2026-05-23-react-css-visual-parity/pencil-current-web-vault.png` | Earlier export retained as historical visual-parity evidence before the Mac companion status layer. |
 | Previous browser visual capture | `docs/design/evidence/2026-05-23-react-css-visual-parity/web-vault-browser.png` | Historical authenticated browser capture before the Mac companion status layer. |
 
-Capture route used for this evidence:
+Historical capture route used for the `2026-06-06` evidence:
 
 1. Run the Web app with `pnpm --filter @unuvault/web dev`.
 2. Use headless Chrome through Playwright with a Supabase SSR auth cookie for
@@ -100,14 +102,13 @@ Capture route used for this evidence:
 
 ## Claim Boundary
 
-This evidence is enough to record the `unuvault` Web vault React/CSS lane as
-`adapter-mapped` for the represented surface, controls, and states. It does not
-make a repo-wide `adopted` claim, and it does not prove React/CSS categories
-that the Web vault surface does not expose, such as navigation, dialogs, or
-toast-style notifications.
-
-Current Pencil sync label for this lane:
-`current matches implementation`.
+The current `unuvault` Web vault React/CSS lane is
+`blocked-needs-evidence`. Repo code and tests are partial implementation
+evidence; the dated browser and Pencil captures are historical provenance only.
+Fresh real-browser visual and accessibility proof, plus applicable user
+confirmation, is required before this lane can claim `adapter-mapped`,
+`adopted`, or current parity. Active Native Pencil current frames remain Native
+authority only and do not establish any Web adapter status.
 
 Intentionally local values that must not be promoted into the shared library:
 
