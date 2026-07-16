@@ -26,9 +26,10 @@ function markdownSection(document: string, heading: string): string {
   }
 
   const headingLevel = headingMatch[1].length;
+  const normalizedDocument = document.replace(/\r\n?/gu, "\n");
   const escapedHeading = heading.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
   const matches = [
-    ...document.matchAll(new RegExp(`^${escapedHeading}$`, "gmu")),
+    ...normalizedDocument.matchAll(new RegExp(`^${escapedHeading}$`, "gmu")),
   ];
 
   if (matches.length === 0) {
@@ -39,17 +40,22 @@ function markdownSection(document: string, heading: string): string {
   }
 
   const headingEnd = (matches[0].index ?? 0) + matches[0][0].length;
-  const contentStart = document[headingEnd] === "\n" ? headingEnd + 1 : headingEnd;
+  const contentStart =
+    normalizedDocument[headingEnd] === "\n" ? headingEnd + 1 : headingEnd;
   const nextHeading = new RegExp(`^#{1,${headingLevel}}\\s`, "mu");
-  const relativeEnd = document.slice(contentStart).search(nextHeading);
+  const relativeEnd = normalizedDocument.slice(contentStart).search(nextHeading);
 
   return relativeEnd === -1
-    ? document.slice(contentStart)
-    : document.slice(contentStart, contentStart + relativeEnd);
+    ? normalizedDocument.slice(contentStart)
+    : normalizedDocument.slice(contentStart, contentStart + relativeEnd);
 }
 
 describe("workspace entrypoints", () => {
-  it("rejects missing and duplicate exact Markdown section headings", () => {
+  it("normalizes line endings and enforces exact unique Markdown sections", () => {
+    expect(
+      markdownSection("## Required\r\nbody\r## Other\r\nnext\r\n", "## Required"),
+    ).toBe("body\n");
+    expect(markdownSection("## Required", "## Required")).toBe("");
     expect(() => markdownSection("## Other\nbody\n", "## Required")).toThrow(
       "Missing Markdown section: ## Required",
     );
@@ -247,10 +253,9 @@ describe("workspace entrypoints", () => {
   it("keeps agent design entrypoints aligned with portfolio routing", () => {
     const readme = readText("README.md");
     const agents = readText("AGENTS.md");
-    const currentRoutes = [
-      markdownSection(readme, "## Design Authority"),
-      markdownSection(agents, "## Design Authority"),
-    ];
+    const readmeDesignAuthority = markdownSection(readme, "## Design Authority");
+    const agentDesignAuthority = markdownSection(agents, "## Design Authority");
+    const currentRoutes = [readmeDesignAuthority, agentDesignAuthority];
 
     for (const entrypoint of currentRoutes) {
       expect(entrypoint).toContain(
@@ -298,8 +303,11 @@ describe("workspace entrypoints", () => {
 
     expect(agents).toContain("current/unuvault/ios-product-composition-v1");
     expect(agents).toContain("current/unuvault/ios-pairing-invite-receive-v3");
-    expect(agents).not.toContain(
-      "`current/unuvault/ios-vault-home-native-locked-v1`\n  and `current/unuvault/ios-pairing-invite-receive-v2`.",
+    expect(agentDesignAuthority).not.toContain(
+      "current/unuvault/ios-vault-home-native-locked-v1",
+    );
+    expect(agentDesignAuthority).not.toContain(
+      "current/unuvault/ios-pairing-invite-receive-v2",
     );
   });
 
@@ -380,8 +388,8 @@ describe("workspace entrypoints", () => {
     expect(evidence).not.toContain(
       "approved `current/unuvault/ios-pairing-invite-receive-v2` SwiftUI receive",
     );
-    expect(evidence).toContain(
-      "This historical\n  `paired` record predates the import receipt and must not be cited as physical\n  decrypt/import proof.",
+    expect(evidence).toMatch(
+      /This historical\s+`paired` record predates the import receipt and must not be cited as physical\s+decrypt\/import proof\./u,
     );
   });
 

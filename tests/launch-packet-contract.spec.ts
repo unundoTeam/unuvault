@@ -22,9 +22,10 @@ function markdownSection(document: string, heading: string): string {
   }
 
   const headingLevel = headingMatch[1].length;
+  const normalizedDocument = document.replace(/\r\n?/gu, "\n");
   const escapedHeading = heading.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
   const matches = [
-    ...document.matchAll(new RegExp(`^${escapedHeading}$`, "gmu")),
+    ...normalizedDocument.matchAll(new RegExp(`^${escapedHeading}$`, "gmu")),
   ];
 
   if (matches.length === 0) {
@@ -35,17 +36,22 @@ function markdownSection(document: string, heading: string): string {
   }
 
   const headingEnd = (matches[0].index ?? 0) + matches[0][0].length;
-  const contentStart = document[headingEnd] === "\n" ? headingEnd + 1 : headingEnd;
+  const contentStart =
+    normalizedDocument[headingEnd] === "\n" ? headingEnd + 1 : headingEnd;
   const nextHeading = new RegExp(`^#{1,${headingLevel}}\\s`, "mu");
-  const relativeEnd = document.slice(contentStart).search(nextHeading);
+  const relativeEnd = normalizedDocument.slice(contentStart).search(nextHeading);
 
   return relativeEnd === -1
-    ? document.slice(contentStart)
-    : document.slice(contentStart, contentStart + relativeEnd);
+    ? normalizedDocument.slice(contentStart)
+    : normalizedDocument.slice(contentStart, contentStart + relativeEnd);
 }
 
 describe("launch packet contract", () => {
-  it("rejects missing and duplicate exact Markdown section headings", () => {
+  it("normalizes line endings and enforces exact unique Markdown sections", () => {
+    expect(
+      markdownSection("## Required\r\nbody\r## Other\r\nnext\r\n", "## Required"),
+    ).toBe("body\n");
+    expect(markdownSection("## Required", "## Required")).toBe("");
     expect(() => markdownSection("## Other\nbody\n", "## Required")).toThrow(
       "Missing Markdown section: ## Required",
     );
@@ -100,6 +106,14 @@ describe("launch packet contract", () => {
       handoff,
       "## Current Cross-Platform Preliminary Findings",
     );
+    const historicalLoop = markdownSection(
+      handoff,
+      "## Historical PR #59 Internal Iterative Review Loop",
+    );
+    const historicalResult = markdownSection(
+      handoff,
+      "## Historical PR #59 Internal Iterative Review Result (2026-04-25)",
+    );
 
     expect(requestStatus).toContain("dispatch state: `not dispatched`");
     expect(requestStatus).toContain(
@@ -119,8 +133,8 @@ describe("launch packet contract", () => {
       "- contact path: `not assigned`",
       "- verdict: `not available`",
     ]);
-    expect(requestedReviewScope).toContain(
-      'A branch name, tag without resolved commit, range,\nhistorical SHA, or "latest main" is not an acceptable target.',
+    expect(requestedReviewScope).toMatch(
+      /A branch name, tag without resolved commit, range,\s+historical SHA, or "latest main" is not an acceptable target\./u,
     );
     expect(dispatchWorksheet).toContain("dispatch state: `not dispatched`");
     expect(dispatchWorksheet).toContain(
@@ -221,6 +235,19 @@ describe("launch packet contract", () => {
     expect(
       currentFindings.match(/^Cross-platform preliminary verdict: `[^`]+`\.$/gmu),
     ).toEqual(["Cross-platform preliminary verdict: `blocked`."]);
+    expect(handoff).toMatch(
+      /Document authority:[\s\S]*?the current expanded native\/cross-platform gate is[\s\S]*?`blocked`[\s\S]*?2026-04 PR[\s\S]*?`#59`[\s\S]*?historical JavaScript-substrate evidence only/iu,
+    );
+    for (const historicalSection of [historicalLoop, historicalResult]) {
+      expect(historicalSection).toMatch(/historical PR `#59`/iu);
+      expect(historicalSection).toMatch(/then-current[\s\S]*JavaScript substrate/iu);
+      expect(historicalSection).toMatch(
+        /does\s+not clear the current expanded native\/cross-platform gate/iu,
+      );
+    }
+    expect(handoff).not.toMatch(
+      /current launch gate is the internal iterative review loop|completed for current scope|cleared for current scope|current launch policy|current internal iterative gate|Launch checklist updated to separate the current internal iterative review gate/iu,
+    );
   });
 
   it("pins interoperable pairing transcripts and bounded retry identity", () => {
@@ -242,15 +269,15 @@ describe("launch packet contract", () => {
       'CLAIM_DOMAIN = ASCII("unuvault-pairing-claim-v2")',
     );
     expect(canonicalEncoding).toContain("P256_SPKI_DER");
-    expect(canonicalEncoding).toContain(
-      '`id-ecPublicKey` (`1.2.840.10045.2.1`) with\nthe named-curve parameter `prime256v1` (`1.2.840.10045.3.1.7`)',
+    expect(canonicalEncoding).toMatch(
+      /`id-ecPublicKey` \(`1\.2\.840\.10045\.2\.1`\) with\s+the named-curve parameter `prime256v1` \(`1\.2\.840\.10045\.3\.1\.7`\)/u,
     );
-    expect(canonicalEncoding).toContain(
-      "exactly the 65-byte\nANSI X9.63 uncompressed point `0x04 || X || Y`",
+    expect(canonicalEncoding).toMatch(
+      /exactly the 65-byte\s+ANSI X9\.63 uncompressed point `0x04 \|\| X \|\| Y`/u,
     );
     expect(canonicalEncoding).toContain("canonicalMacBaseURL");
-    expect(canonicalEncoding).toContain(
-      'Serialize exactly `scheme || ASCII("://") || host || ASCII(":") ||\n   shortestDecimal(port)`',
+    expect(canonicalEncoding).toMatch(
+      /Serialize exactly `scheme \|\| ASCII\(":\/\/"\) \|\| host \|\| ASCII\(":"\) \|\|\s+shortestDecimal\(port\)`/u,
     );
     expect(canonicalEncoding).toContain(
       "canonical dotted-decimal IPv4, bracketed RFC 5952 IPv6, or a canonical DNS A-label host",
@@ -268,7 +295,7 @@ describe("launch packet contract", () => {
       /limited to RFC 1918|Reject .*IPv6|Reject .*public addresses/iu,
     );
     expect(canonicalEncoding).toMatch(
-      /1\. `LP\(CLAIM_DOMAIN\)`\n2\. `LP\(NFC-UTF8\(inviteSessionId\)\)`\n3\. `LP\(u64be\(expiresAtEpochMilliseconds\)\)`\n4\. `LP\(ASCII\(canonicalMacBaseURL\)\)`\n5\. `LP\(canonicalTargetIdentityDER\)`\n6\. `LP\(NFC-UTF8\(targetDeviceId\)\)`\n7\. `LP\(NFC-UTF8\(targetDisplayName\)\)`\n8\. `LP\(clientNonce\)`/u,
+      /1\. `LP\(CLAIM_DOMAIN\)`\s+2\. `LP\(NFC-UTF8\(inviteSessionId\)\)`\s+3\. `LP\(u64be\(expiresAtEpochMilliseconds\)\)`\s+4\. `LP\(ASCII\(canonicalMacBaseURL\)\)`\s+5\. `LP\(canonicalTargetIdentityDER\)`\s+6\. `LP\(NFC-UTF8\(targetDeviceId\)\)`\s+7\. `LP\(NFC-UTF8\(targetDisplayName\)\)`\s+8\. `LP\(clientNonce\)`/u,
     );
     expect(targetBoundHandoff).toContain(
       'HKDF_SALT_DOMAIN = ASCII("unuvault-pairing-hkdf-salt-v2")',
@@ -281,13 +308,13 @@ describe("launch packet contract", () => {
     );
     expect(targetBoundHandoff).toContain("AES_GCM_NONCE_BYTES = 12");
     expect(targetBoundHandoff).toMatch(
-      /LP\(HKDF_SALT_DOMAIN\) \|\|\nLP\(pairingSecret\)/u,
+      /LP\(HKDF_SALT_DOMAIN\) \|\|\s+LP\(pairingSecret\)/u,
     );
     expect(targetBoundHandoff).toMatch(
-      /LP\(HKDF_INFO_DOMAIN\) \|\|\nLP\(ALGORITHM_ID\) \|\|\nLP\(PAIRING_VERSION\) \|\|\nLP\(NFC-UTF8\(inviteSessionId\)\) \|\|\nLP\(claimId\) \|\|\nLP\(handoffId\) \|\|\nLP\(u64be\(expiresAtEpochMilliseconds\)\) \|\|\nLP\(canonicalTargetIdentityDER\) \|\|\nLP\(canonicalEphemeralPublicKeyDER\) \|\|\nLP\(clientNonce\)/u,
+      /LP\(HKDF_INFO_DOMAIN\) \|\|\s+LP\(ALGORITHM_ID\) \|\|\s+LP\(PAIRING_VERSION\) \|\|\s+LP\(NFC-UTF8\(inviteSessionId\)\) \|\|\s+LP\(claimId\) \|\|\s+LP\(handoffId\) \|\|\s+LP\(u64be\(expiresAtEpochMilliseconds\)\) \|\|\s+LP\(canonicalTargetIdentityDER\) \|\|\s+LP\(canonicalEphemeralPublicKeyDER\) \|\|\s+LP\(clientNonce\)/u,
     );
     expect(targetBoundHandoff).toMatch(
-      /LP\(HANDOFF_AAD_DOMAIN\) \|\|\nLP\(ALGORITHM_ID\) \|\|\nLP\(PAIRING_VERSION\) \|\|\nLP\(NFC-UTF8\(inviteSessionId\)\) \|\|\nLP\(claimId\) \|\|\nLP\(handoffId\) \|\|\nLP\(canonicalTargetIdentityDER\) \|\|\nLP\(u64be\(expiresAtEpochMilliseconds\)\) \|\|\nLP\(canonicalEphemeralPublicKeyDER\)/u,
+      /LP\(HANDOFF_AAD_DOMAIN\) \|\|\s+LP\(ALGORITHM_ID\) \|\|\s+LP\(PAIRING_VERSION\) \|\|\s+LP\(NFC-UTF8\(inviteSessionId\)\) \|\|\s+LP\(claimId\) \|\|\s+LP\(handoffId\) \|\|\s+LP\(canonicalTargetIdentityDER\) \|\|\s+LP\(u64be\(expiresAtEpochMilliseconds\)\) \|\|\s+LP\(canonicalEphemeralPublicKeyDER\)/u,
     );
     expect(targetBoundHandoff).toContain("CLAIM_ID_BYTES = 32");
     expect(targetBoundHandoff).toContain("HANDOFF_ID_BYTES = 32");
@@ -301,21 +328,21 @@ describe("launch packet contract", () => {
       "collision with any live, terminal, or retained tombstone record",
     );
     expect(targetBoundHandoff).toContain("at most 8 independent draws");
-    expect(targetBoundHandoff).toContain(
-      "The raw 12 bytes are passed to AES-GCM; the response field is\ntheir strict unpadded base64url spelling.",
+    expect(targetBoundHandoff).toMatch(
+      /The raw 12 bytes are passed to AES-GCM; the response field is\s+their strict unpadded base64url spelling\./u,
     );
-    expect(targetBoundHandoff).toContain(
-      "strict unpadded\nbase64url of `ciphertext || tag`, with the 16-byte GCM authentication tag last",
+    expect(targetBoundHandoff).toMatch(
+      /strict unpadded\s+base64url of `ciphertext \|\| tag`, with the 16-byte GCM authentication tag last/u,
     );
     expect(replayRejection).toContain(
       'RETRY_IDENTITY_DOMAIN = ASCII("unuvault-pairing-retry-identity-v2")',
     );
     expect(replayRejection).toMatch(
-      /LP\(RETRY_IDENTITY_DOMAIN\) \|\|\nLP\(canonicalClaimTranscript\) \|\|\nLP\(claimAuthenticator\)/u,
+      /LP\(RETRY_IDENTITY_DOMAIN\) \|\|\s+LP\(canonicalClaimTranscript\) \|\|\s+LP\(claimAuthenticator\)/u,
     );
     expect(replayRejection).toContain("original authenticated `clientNonce`");
-    expect(replayRejection).toContain(
-      "canonical claim transcript and authenticator\nare each byte-identical to the reservation",
+    expect(replayRejection).toMatch(
+      /canonical claim transcript and authenticator\s+are each byte-identical to the reservation/u,
     );
     expect(replayRejection).toContain(
       "including its AES-GCM nonce, is reused byte-for-byte",
