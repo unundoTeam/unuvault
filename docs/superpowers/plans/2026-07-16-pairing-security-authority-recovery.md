@@ -8,9 +8,13 @@
 
 **Tech Stack:** Markdown authority documents, TypeScript/Vitest contract tests, pnpm workspace verification, Python/pytest `unuOS` governance checks, Git worktrees, GitHub pull requests.
 
+Normative source design: `docs/superpowers/specs/2026-07-16-pairing-security-authority-recovery-design.md` as tracked on the current task branch; later reviewed amendments to that file remain authoritative.
+
+Commit `3af9dc50be9269f58f8e91407c68ba2a0d682e73` is a historical baseline only. It is not a standalone or current approved normative source and cannot override later amendments.
+
 ## Global Constraints
 
-- Approved source design: `/Users/yuchen/Code/unu/unuvault/.worktrees/pairing-security-authority-recovery/docs/superpowers/specs/2026-07-16-pairing-security-authority-recovery-design.md` at commit `3af9dc50be9269f58f8e91407c68ba2a0d682e73`.
+- Use the current tracked normative source design named above; the historical baseline commit is provenance only.
 - Pairing V1 remains the implemented proof boundary on `main`; Pairing V2 remains an approved protocol/security design whose implementation and exact-target security re-review are pending.
 - The current V1 proof includes claimant-key-bound handoff open, AES-GCM encrypted local persistence, fresh reload, and read-only metadata projection. It does not authenticate the intended target device and does not require fresh Mac owner authorization before a production whole-vault transfer.
 - The bounded Argon2 hostile-parameter policy is implemented and resolved. It does not clear Pairing V2, local bridge authorization, restart-persistent replay rejection, exact-target cross-platform re-review, independent review, or public-launch approval.
@@ -30,7 +34,7 @@
 
 | Repository | Isolated worktree | Branch | Planning base |
 | --- | --- | --- | --- |
-| `unuvault` | `/Users/yuchen/Code/unu/unuvault/.worktrees/pairing-security-authority-recovery` | `codex/pairing-security-authority-recovery` | `origin/main` at `16b0bfe3734cb2aa5233710e09b6b25684a5408e`; approved design commit `3af9dc50be9269f58f8e91407c68ba2a0d682e73` is already on the task branch |
+| `unuvault` | `/Users/yuchen/Code/unu/unuvault/.worktrees/pairing-security-authority-recovery` | `codex/pairing-security-authority-recovery` | `origin/main` at `16b0bfe3734cb2aa5233710e09b6b25684a5408e`; historical design-baseline commit `3af9dc50be9269f58f8e91407c68ba2a0d682e73` is already on the task branch, while the tracked design file remains normative |
 | `unuOS` | `/Users/yuchen/Code/unu/unuOS/.worktrees/unuvault-pairing-authority-inventory` | `codex/unuvault-pairing-authority-inventory` | `origin/main` at `f2ef04f52d863b27c2442fcf71909e02e4bc1e00`; Task 2 must fast-forward to the then-current `origin/main` after PR A merges and before editing |
 
 The root checkouts are out of scope. Do not switch them, clean them, stage their files, or reuse their dirty state.
@@ -90,7 +94,7 @@ git status --short
 git show --no-patch --format='%H %s' 3af9dc50be9269f58f8e91407c68ba2a0d682e73
 ```
 
-Expected: the branch and merge base match; status is clean; the approved design commit is present. Stop if unrelated changes appear.
+Expected: the branch and merge base match; status is clean; the historical design-baseline commit is present for provenance. Stop if unrelated changes appear.
 
 - [ ] **Step 2: Add the failing launch-packet contract**
 
@@ -179,7 +183,7 @@ Use these exact top-level sections and content boundaries:
 2. `Current V1 Boundary`: parse invite, claimant identity, `/v1/pairing/claim`, claimant-key-bound AES-GCM open, encrypted received-vault persistence, fresh reload, read-only metadata; explicitly state missing intended-target authentication and fresh Mac owner approval.
 3. `Threat Model And Security Invariants`: hostile LAN and racing local process; public invite fields, source IP, display name, target-provided fingerprint, LAN reachability, and an unlocked-vault session are not authentication.
 4. `Canonical Encoding`: normative `LP(bytes) = u32be(byteLength) || bytes`; fixed domain/order; strict unpadded base64url round-trip; canonical DER round-trip; NFC UTF-8; canonical epoch milliseconds; bounded canonical LAN URL.
-5. `Target-Claim Authentication`: fresh 32-byte `pairingSecret`, fresh P256 target identity and client nonce, a byte-exact 32-byte session-bound `claimAuthKey` derived by HKDF-SHA256, `HMAC-SHA256(claimAuthKey, canonicalClaimTranscript)`, constant-time verification, server-owned invite fields, and one generic authentication failure with no state disclosure or mutation.
+5. `Target-Claim Authentication`: fresh 32-byte `pairingSecret`, fresh P256 target identity and client nonce, a byte-exact 32-byte session-bound `claimAuthKey` derived by HKDF-SHA256, `HMAC-SHA256(claimAuthKey, canonicalClaimTranscript)`, constant-time verification, server-owned invite fields, bounded hostile-LAN request input, and one generic authentication failure with no state disclosure or mutation.
 6. `Fresh Mac Owner Authorization`: show target identity and expiry; fresh `LAContext` per `Confirm & send`; `deviceOwnerAuthentication`; recheck session/target/expiry/lock/revoke/lost-device/capability before exactly one in-memory snapshot read; owner denial/cancellation records `denied`, owner-authentication unavailability or evaluation/system error records `invalidated`, and every failure creates no handoff or plaintext log.
 7. `Target-Bound Handoff`: fresh ephemeral P256 ECDH; QR-secret-bound HKDF-SHA256 context; AES-GCM versioned snapshot and canonical AAD; exact algorithm `P256-HKDF-SHA256-AES-GCM-256-V2`; no secret/private/derived/capability/plaintext fields in the public response.
 8. `Single Use And Persistent Replay Rejection`: atomic reservation; during `authorizing` and `sealing`, only the reserved byte-identical retry can observe pending behavior and no retry window exists; the retry window starts only at the atomic `ready` transition, with deadline `min(readyAt + 30 seconds, original invitation expiry)`; a different valid authenticated retry identity gets `handoff_consumed` without mutating, replacing, or extending the reservation; encrypted-store atomic persistence of `handoffId` and `claimId`; rejection survives restart; no V2-to-V1 downgrade.
@@ -191,17 +195,23 @@ Use these exact top-level sections and content boundaries:
 Use these canonical reservation semantics in the recovered spec and every summary in this plan:
 
 - An unauthenticated or malformed request receives the same generic authentication failure, with no state disclosure or mutation.
-- A different valid authenticated retry identity after reservation receives terminal `handoff_consumed` and cannot mutate, replace, or extend the reservation.
+- A different valid authenticated retry identity while the encrypted `claimAuthKey` verifier exists after reservation receives terminal `handoff_consumed` and cannot mutate, replace, or extend the reservation.
 - Only the reserved byte-identical retry may observe pending or ready behavior.
+- While an encrypted `claimAuthKey` verifier exists in `authorizing`, `sealing`, or pre-deadline `ready`, the Mac authenticates the canonical request before selecting a state-dependent response: the reserved byte-identical identity receives only its allowed pending or ready behavior, while a different valid authenticated identity receives `handoff_consumed`.
+- An `inviteSessionId` lookup alone never authorizes `handoff_consumed`.
+- After `consumed`, `denied`, `expired`, or `invalidated` clears the verifier, every request receives the generic authentication failure with no state disclosure or mutation, even when its `inviteSessionId` matches a terminal tombstone.
 - During `authorizing` and `sealing`, only the reserved byte-identical retry may receive `handoff_response_not_ready`; no retry window exists before `ready`.
 - The ready recovery window begins only when the durable reservation atomically transitions to `ready`; `readyAt` is the timestamp written by that same transaction, and the immutable deadline is `min(readyAt + 30 seconds, original invitation expiry)`.
-- Before the immutable deadline, the initial response, a byte-identical retry, a different valid authenticated retry identity, and an invalid authenticator do not transition `ready` to `consumed`, move `readyAt`, or shorten or extend the window.
-- Once a record is `ready`, only reaching that immutable deadline may transition it, and the transition target is `consumed`.
-- The only state-owning terminal mutations are exclusive and classified as follows: fresh owner denial or cancellation records `denied`; invitation expiry records `expired`; owner-authentication unavailability or `LAContext` evaluation or system error records `invalidated`; lock, revoke, lost-device, or capability invalidation records `invalidated`; reservation identity, vault session identity, or authenticated-target recheck failure records `invalidated`, while expiry and lifecycle outcomes discovered by that recheck remain classified under their preceding categories; internal read or snapshot, key-derivation, sealing, persistence, or process failure before `ready` records `invalidated` when the worker can commit the terminal write; restart recovery of unfinished `authorizing` or `sealing` work records `invalidated` when a process failure prevented that write; and reaching the immutable ready-window deadline performs the sole `ready` to `consumed` transition.
+- Before the immutable deadline, processing the initial response, a byte-identical retry, a different valid authenticated retry identity, or an invalid authenticator does not by itself transition `ready` to `consumed` or `invalidated`, move `readyAt`, or shorten or extend the window.
+- An independent trusted local lock, revoke, lost-device, or capability invalidation event during `ready` atomically transitions the reservation to `invalidated` immediately and clears the retained sealed response, retry identity, and encrypted `claimAuthKey`; security revocation takes priority over the recovery deadline.
+- The only state-owning terminal mutations are exclusive and classified as follows: fresh owner denial or cancellation records `denied`; invitation expiry records `expired`; owner-authentication unavailability or `LAContext` evaluation or system error records `invalidated`; lock, revoke, lost-device, or capability invalidation records `invalidated`, including an immediate atomic `ready` to `invalidated` transition for an independent trusted local lifecycle event; reservation identity, vault session identity, or authenticated-target recheck failure records `invalidated`, while expiry and lifecycle outcomes discovered by that recheck remain classified under their preceding categories; internal read or snapshot, key-derivation, sealing, persistence, or process failure before `ready` records `invalidated` when the worker can commit the terminal write; restart recovery of unfinished `authorizing` or `sealing` work records `invalidated` when a process failure prevented that write; and reaching the immutable ready-window deadline transitions `ready` to `consumed` only if no prior security invalidation occurred.
 - These rules preserve no-downgrade behavior and every required durable reservation, replay, and terminal tombstone.
 
 Use this exact claim-authentication derivation and ownership model:
 
+- The raw HTTP claim entity body is limited to 4096 octets: a `Content-Length` greater than 4096 is rejected before reading the body, while chunked or unknown-length input uses a fixed-limit buffer and fails closed when the 4097th octet arrives.
+- After JSON parsing, bounded normalization and length validation require `targetDeviceId` to be 1–128 bytes and `targetDisplayName` to be 1–256 bytes after NFC UTF-8 encoding.
+- Those text checks run before P256 DER parsing, HMAC verification, and reservation or state lookup; an empty, oversized, or malformed value receives the generic authentication failure with no state disclosure or mutation.
 - `claimAuthKey` is a 32-byte, session-bound, domain-separated key derived from the raw `pairingSecret` with HKDF-SHA256.
 - Define `CLAIM_AUTH_SALT_DOMAIN = ASCII("unuvault-pairing-claim-auth-salt-v2")`, `CLAIM_AUTH_INFO_DOMAIN = ASCII("unuvault-pairing-claim-auth-key-v2")`, and `CLAIM_AUTH_KEY_BYTES = 32`. The exact salt is `LP(CLAIM_AUTH_SALT_DOMAIN) || LP(PAIRING_VERSION) || LP(NFC-UTF8(inviteSessionId)) || LP(u64be(expiresAtEpochMilliseconds)) || LP(ASCII(canonicalMacBaseURL))`; the exact `info` is `LP(CLAIM_AUTH_INFO_DOMAIN) || LP(PAIRING_VERSION)`; and the derivation is `HKDF-SHA256(IKM = pairingSecret, salt = claimAuthSalt, info = claimAuthInfo, L = CLAIM_AUTH_KEY_BYTES)`.
 - Normatively, `claimAuthenticator` = HMAC-SHA256(`claimAuthKey`, `canonicalClaimTranscript`). The claim-authentication HKDF and handoff-encryption HKDF must use separate domain constants, input keying material, salt, and `info`; neither output may substitute for the other.

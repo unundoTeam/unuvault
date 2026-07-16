@@ -208,6 +208,16 @@ unknown-session, fingerprint-mismatch, transcript-mismatch, and HMAC-mismatch
 paths return one generic authentication failure and disclose no comparison
 detail.
 
+The raw HTTP claim entity body is limited to 4096 octets: a `Content-Length`
+greater than 4096 is rejected before reading the body, while chunked or
+unknown-length input uses a fixed-limit buffer and fails closed when the 4097th
+octet arrives. After JSON parsing, bounded normalization and length validation
+require `targetDeviceId` to be 1–128 bytes and `targetDisplayName` to be 1–256
+bytes after NFC UTF-8 encoding. Those text checks run before P256 DER parsing,
+HMAC verification, and reservation or state lookup; an empty, oversized, or
+malformed value receives the generic authentication failure with no state
+disclosure or mutation.
+
 An unauthenticated or malformed request receives the same generic authentication failure, with no state disclosure or mutation. The Mac owns the mutable QR-secret buffer from invite and claim authentication through sealing. The secret is used only for claim-authentication HKDF and handoff-encryption HKDF and is never logged or included in a response or persistent general storage. After the first valid claim, the reservation retains the `claimAuthKey` only in encrypted storage as key-equivalent authentication material; it is never logged, returned, or persisted in plaintext.
 
 `claimAuthKey` is key-equivalent secret material. It is never logged, returned, or persisted in plaintext.
@@ -353,6 +363,16 @@ The reservation state machine is normative. Its success path is
 `denied`, `expired`, and `invalidated` are alternate terminal states from
 `authorizing` or `sealing`:
 
+While an encrypted `claimAuthKey` verifier exists in `authorizing`, `sealing`,
+or pre-deadline `ready`, the Mac authenticates the canonical request before
+selecting a state-dependent response: the reserved byte-identical identity
+receives only its allowed pending or ready behavior, while a different valid
+authenticated identity receives `handoff_consumed`. An `inviteSessionId`
+lookup alone never authorizes `handoff_consumed`. After `consumed`, `denied`,
+`expired`, or `invalidated` clears the verifier, every request receives the
+generic authentication failure with no state disclosure or mutation, even when
+its `inviteSessionId` matches a terminal tombstone.
+
 1. The Mac verifies the HMAC and canonical request first. An unauthenticated
    or malformed request receives the same generic authentication failure, with
    no state disclosure or mutation.
@@ -366,9 +386,10 @@ The reservation state machine is normative. Its success path is
    byte-identical authenticated request received in `authorizing` or `sealing`
    does not start another authorization, snapshot read, or seal; it receives
    `handoff_response_not_ready` with no handoff payload, identifiers, or timing
-   metadata. A different valid authenticated retry identity after reservation
-   receives terminal `handoff_consumed` and cannot mutate, replace, or extend
-   the reservation. An invalid authenticator still receives the same generic
+   metadata. A different valid authenticated retry identity while the encrypted
+   `claimAuthKey` verifier exists after reservation receives terminal
+   `handoff_consumed` and cannot mutate, replace, or extend the reservation. An
+   invalid authenticator still receives the same generic
    authentication failure without state disclosure or mutation. Only the
    reserved byte-identical retry may observe pending or ready behavior.
 4. After owner authorization succeeds, one atomic transaction rechecks the
@@ -389,7 +410,7 @@ The reservation state machine is normative. Its success path is
 
 The ready recovery window begins only when the durable reservation atomically transitions to `ready`; `readyAt` is the timestamp written by that same transaction, and the immutable deadline is `min(readyAt + 30 seconds, original invitation expiry)`. During that window, the Mac uses the encrypted `claimAuthKey` to authenticate every canonical request before comparing its retry identity. Only a request whose
 canonical claim transcript and authenticator
-are each byte-identical to the reservation, including the original authenticated `clientNonce`, receives the retained serialized response. The sealed response, including its AES-GCM nonce, is reused byte-for-byte; it is not reserialized or resealed, and retry does not move `readyAt` or extend the deadline. A different valid authenticated retry identity receives terminal `handoff_consumed` without mutating, replacing, or extending the reservation. Before the immutable deadline, the initial response, a byte-identical retry, a different valid authenticated retry identity, and an invalid authenticator do not transition `ready` to `consumed`, move `readyAt`, or shorten or extend the window. Once a record is `ready`, only reaching that immutable deadline may transition it, and the transition target is `consumed`. Before the deadline, an encrypted durable `ready` record and its response survive Mac process restart. At the immutable deadline, one atomic `ready` to `consumed` transition clears the retained sealed response, retry identity, and encrypted `claimAuthKey` and leaves only the minimum durable identifiers and consumed tombstone required for replay rejection.
+are each byte-identical to the reservation, including the original authenticated `clientNonce`, receives the retained serialized response. The sealed response, including its AES-GCM nonce, is reused byte-for-byte; it is not reserialized or resealed, and retry does not move `readyAt` or extend the deadline. A different valid authenticated retry identity receives terminal `handoff_consumed` without mutating, replacing, or extending the reservation. Before the immutable deadline, processing the initial response, a byte-identical retry, a different valid authenticated retry identity, or an invalid authenticator does not by itself transition `ready` to `consumed` or `invalidated`, move `readyAt`, or shorten or extend the window. An independent trusted local lock, revoke, lost-device, or capability invalidation event during `ready` atomically transitions the reservation to `invalidated` immediately and clears the retained sealed response, retry identity, and encrypted `claimAuthKey`; security revocation takes priority over the recovery deadline. Before the deadline, an encrypted durable `ready` record and its response survive Mac process restart unless such a trusted local security invalidation occurs. At the immutable deadline, one atomic `ready` to `consumed` transition clears the retained sealed response, retry identity, and encrypted `claimAuthKey` and leaves only the minimum durable identifiers and consumed tombstone required for replay rejection. A terminal `invalidated` record is not eligible for that deadline transition.
 
 Ready retry uses the encrypted `claimAuthKey` to distinguish a different valid authenticated transcript from an invalid authenticator, then uses the stored exact request and retry identity to select the sealed response. It does not require retaining or reconstructing the raw `pairingSecret` after `ready`.
 
@@ -409,9 +430,11 @@ for a V1 claim.
 
 ## Terminal Cleanup And Bounded Recovery
 
-`consumed`, `denied`, `expired`, and `invalidated` are terminal states. The only state-owning terminal mutations are exclusive and classified as follows: fresh owner denial or cancellation records `denied`; invitation expiry records `expired`; owner-authentication unavailability or `LAContext` evaluation or system error records `invalidated`; lock, revoke, lost-device, or capability invalidation records `invalidated`; reservation identity, vault session identity, or authenticated-target recheck failure records `invalidated`, while expiry and lifecycle outcomes discovered by that recheck remain classified under their preceding categories; internal read or snapshot, key-derivation, sealing, persistence, or process failure before `ready` records `invalidated` when the worker can commit the terminal write; restart recovery of unfinished `authorizing` or `sealing` work records `invalidated` when a process failure prevented that write; and reaching the immutable ready-window deadline performs the sole `ready` to `consumed` transition. Each such mutation clears the pending capability and unsealed handoff material while preserving required durable terminal tombstones.
+`consumed`, `denied`, `expired`, and `invalidated` are terminal states. The only state-owning terminal mutations are exclusive and classified as follows: fresh owner denial or cancellation records `denied`; invitation expiry records `expired`; owner-authentication unavailability or `LAContext` evaluation or system error records `invalidated`; lock, revoke, lost-device, or capability invalidation records `invalidated`, including an immediate atomic `ready` to `invalidated` transition for an independent trusted local lifecycle event; reservation identity, vault session identity, or authenticated-target recheck failure records `invalidated`, while expiry and lifecycle outcomes discovered by that recheck remain classified under their preceding categories; internal read or snapshot, key-derivation, sealing, persistence, or process failure before `ready` records `invalidated` when the worker can commit the terminal write; restart recovery of unfinished `authorizing` or `sealing` work records `invalidated` when a process failure prevented that write; and reaching the immutable ready-window deadline transitions `ready` to `consumed` only if no prior security invalidation occurred. Each such mutation clears the pending capability and unsealed handoff material while preserving required durable terminal tombstones.
 
-An unauthenticated or malformed request receives the same generic authentication failure, with no state disclosure or mutation. A different valid authenticated retry identity after reservation receives terminal `handoff_consumed` and cannot mutate, replace, or extend the reservation. Only the reserved byte-identical retry may observe pending or ready behavior.
+An unauthenticated or malformed request receives the same generic authentication failure, with no state disclosure or mutation. A different valid authenticated retry identity while the encrypted `claimAuthKey` verifier exists after reservation receives terminal `handoff_consumed` and cannot mutate, replace, or extend the reservation. Only the reserved byte-identical retry may observe pending or ready behavior.
+
+Before the immutable deadline, processing the initial response, a byte-identical retry, a different valid authenticated retry identity, or an invalid authenticator does not by itself transition `ready` to `consumed` or `invalidated`, move `readyAt`, or shorten or extend the window. An independent trusted local lock, revoke, lost-device, or capability invalidation event during `ready` atomically transitions the reservation to `invalidated` immediately and clears the retained sealed response, retry identity, and encrypted `claimAuthKey`; security revocation takes priority over the recovery deadline.
 
 During the ready identical-retry window, the Mac retains only the encrypted
 sealed response, encrypted `claimAuthKey`, exact retry-identity bytes,

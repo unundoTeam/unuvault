@@ -473,10 +473,10 @@ describe("launch packet contract", () => {
       "Every pre-ready terminal path above clears `claimAuthKey` and the reservation's other owned secret material while preserving required terminal tombstones; the ready-window deadline instead clears the retained sealed response, retry identity, and encrypted `claimAuthKey` while preserving the consumed tombstone.",
     );
     const canonicalReadyWindowBehavior = normalizeWhitespace(
-      "Before the immutable deadline, the initial response, a byte-identical retry, a different valid authenticated retry identity, and an invalid authenticator do not transition `ready` to `consumed`, move `readyAt`, or shorten or extend the window.",
+      "Before the immutable deadline, processing the initial response, a byte-identical retry, a different valid authenticated retry identity, or an invalid authenticator does not by itself transition `ready` to `consumed` or `invalidated`, move `readyAt`, or shorten or extend the window.",
     );
-    const canonicalReadyOnlyDeadlineTransition = normalizeWhitespace(
-      "Once a record is `ready`, only reaching that immutable deadline may transition it, and the transition target is `consumed`.",
+    const canonicalReadySecurityInvalidation = normalizeWhitespace(
+      "An independent trusted local lock, revoke, lost-device, or capability invalidation event during `ready` atomically transitions the reservation to `invalidated` immediately and clears the retained sealed response, retry identity, and encrypted `claimAuthKey`; security revocation takes priority over the recovery deadline.",
     );
     const canonicalReadyWindowCleanup = normalizeWhitespace(
       "At the immutable deadline, one atomic `ready` to `consumed` transition clears the retained sealed response, retry identity, and encrypted `claimAuthKey` and leaves only the minimum durable identifiers and consumed tombstone required for replay rejection.",
@@ -485,7 +485,7 @@ describe("launch packet contract", () => {
       "The ready recovery window begins only when the durable reservation atomically transitions to `ready`; `readyAt` is the timestamp written by that same transaction, and the immutable deadline is `min(readyAt + 30 seconds, original invitation expiry)`.",
     );
     const canonicalTerminalMutationClassification = normalizeWhitespace(
-      "The only state-owning terminal mutations are exclusive and classified as follows: fresh owner denial or cancellation records `denied`; invitation expiry records `expired`; owner-authentication unavailability or `LAContext` evaluation or system error records `invalidated`; lock, revoke, lost-device, or capability invalidation records `invalidated`; reservation identity, vault session identity, or authenticated-target recheck failure records `invalidated`, while expiry and lifecycle outcomes discovered by that recheck remain classified under their preceding categories; internal read or snapshot, key-derivation, sealing, persistence, or process failure before `ready` records `invalidated` when the worker can commit the terminal write; restart recovery of unfinished `authorizing` or `sealing` work records `invalidated` when a process failure prevented that write; and reaching the immutable ready-window deadline performs the sole `ready` to `consumed` transition.",
+      "The only state-owning terminal mutations are exclusive and classified as follows: fresh owner denial or cancellation records `denied`; invitation expiry records `expired`; owner-authentication unavailability or `LAContext` evaluation or system error records `invalidated`; lock, revoke, lost-device, or capability invalidation records `invalidated`, including an immediate atomic `ready` to `invalidated` transition for an independent trusted local lifecycle event; reservation identity, vault session identity, or authenticated-target recheck failure records `invalidated`, while expiry and lifecycle outcomes discovered by that recheck remain classified under their preceding categories; internal read or snapshot, key-derivation, sealing, persistence, or process failure before `ready` records `invalidated` when the worker can commit the terminal write; restart recovery of unfinished `authorizing` or `sealing` work records `invalidated` when a process failure prevented that write; and reaching the immutable ready-window deadline transitions `ready` to `consumed` only if no prior security invalidation occurred.",
     );
 
     for (const { name, text: authority } of authorities) {
@@ -495,7 +495,7 @@ describe("launch packet contract", () => {
         /An\s+unauthenticated\s+or\s+malformed\s+request\s+receives\s+the\s+same\s+generic\s+authentication\s+failure,\s+with\s+no\s+state\s+disclosure\s+or\s+mutation\./u,
       );
       expect(authority).toMatch(
-        /A\s+different\s+valid\s+authenticated\s+retry\s+identity\s+after\s+reservation\s+receives\s+terminal\s+`handoff_consumed`\s+and\s+cannot\s+mutate,\s+replace,\s+or\s+extend\s+the\s+reservation\./u,
+        /A\s+different\s+valid\s+authenticated\s+retry\s+identity\s+while\s+the\s+encrypted\s+`claimAuthKey`\s+verifier\s+exists\s+after\s+reservation\s+receives\s+terminal\s+`handoff_consumed`\s+and\s+cannot\s+mutate,\s+replace,\s+or\s+extend\s+the\s+reservation\./u,
       );
       expect(authority).toMatch(
         /Only\s+the\s+reserved\s+byte-identical\s+retry\s+may\s+observe\s+pending\s+or\s+ready\s+behavior\./u,
@@ -521,7 +521,7 @@ describe("launch packet contract", () => {
       expect(normalizedAuthority).toContain(canonicalSecretLifecycle);
       expect(normalizedAuthority).toContain(canonicalMacTerminalCleanup);
       expect(normalizedAuthority).toContain(canonicalReadyWindowBehavior);
-      expect(normalizedAuthority).toContain(canonicalReadyOnlyDeadlineTransition);
+      expect(normalizedAuthority).toContain(canonicalReadySecurityInvalidation);
       expect(normalizedAuthority).toContain(canonicalReadyWindowCleanup);
       expect(normalizedAuthority, name).toContain(canonicalReadyWindowDefinition);
       expect(normalizedAuthority, name).toContain(
@@ -653,6 +653,155 @@ claimAuthenticator = HMAC-SHA256(claimAuthKey, canonicalClaimTranscript)
     );
     expect(terminalCleanup).toMatch(
       /best-effort\s+cleanup\s+of\s+owned\s+mutable\s+buffers,\s+not\s+guaranteed\s+zeroization\s+of\s+copies\s+created\s+by\s+the\s+Swift\s+runtime/u,
+    );
+  });
+
+  it("makes trusted ready-state security invalidation immediate without request-driven mutation", () => {
+    const authorities = [
+      markdownSection(
+        readText(
+          "docs/superpowers/specs/2026-07-16-pairing-security-authority-recovery-design.md",
+        ),
+        "### Terminal Cleanup And Bounded Recovery",
+      ),
+      markdownSection(
+        readText(
+          "docs/superpowers/plans/2026-07-16-pairing-security-authority-recovery.md",
+        ),
+        "### Task 1: Recover The UnuVault Pairing Security Authority",
+      ),
+      markdownSection(
+        readText(
+          "docs/superpowers/specs/2026-07-10-authenticated-pairing-approval-design.md",
+        ),
+        "## Terminal Cleanup And Bounded Recovery",
+      ),
+    ];
+    const requestOnlyRule = normalizeWhitespace(
+      "Before the immutable deadline, processing the initial response, a byte-identical retry, a different valid authenticated retry identity, or an invalid authenticator does not by itself transition `ready` to `consumed` or `invalidated`, move `readyAt`, or shorten or extend the window.",
+    );
+    const securityInvalidationRule = normalizeWhitespace(
+      "An independent trusted local lock, revoke, lost-device, or capability invalidation event during `ready` atomically transitions the reservation to `invalidated` immediately and clears the retained sealed response, retry identity, and encrypted `claimAuthKey`; security revocation takes priority over the recovery deadline.",
+    );
+
+    for (const authority of authorities) {
+      const normalizedAuthority = normalizeWhitespace(authority);
+      expect(normalizedAuthority).toContain(requestOnlyRule);
+      expect(normalizedAuthority).toContain(securityInvalidationRule);
+    }
+  });
+
+  it("bounds hostile-LAN claim input before expensive authentication work", () => {
+    const authorities = [
+      markdownSection(
+        readText(
+          "docs/superpowers/specs/2026-07-16-pairing-security-authority-recovery-design.md",
+        ),
+        "### Target-Claim Authentication",
+      ),
+      markdownSection(
+        readText(
+          "docs/superpowers/plans/2026-07-16-pairing-security-authority-recovery.md",
+        ),
+        "### Task 1: Recover The UnuVault Pairing Security Authority",
+      ),
+      markdownSection(
+        readText(
+          "docs/superpowers/specs/2026-07-10-authenticated-pairing-approval-design.md",
+        ),
+        "## Target-Claim Authentication",
+      ),
+    ];
+    const entityLimitRule = normalizeWhitespace(
+      "The raw HTTP claim entity body is limited to 4096 octets: a `Content-Length` greater than 4096 is rejected before reading the body, while chunked or unknown-length input uses a fixed-limit buffer and fails closed when the 4097th octet arrives.",
+    );
+    const textLimitRule = normalizeWhitespace(
+      "After JSON parsing, bounded normalization and length validation require `targetDeviceId` to be 1–128 bytes and `targetDisplayName` to be 1–256 bytes after NFC UTF-8 encoding.",
+    );
+    const validationOrderRule = normalizeWhitespace(
+      "Those text checks run before P256 DER parsing, HMAC verification, and reservation or state lookup; an empty, oversized, or malformed value receives the generic authentication failure with no state disclosure or mutation.",
+    );
+
+    for (const authority of authorities) {
+      const normalizedAuthority = normalizeWhitespace(authority);
+      expect(normalizedAuthority).toContain(entityLimitRule);
+      expect(normalizedAuthority).toContain(textLimitRule);
+      expect(normalizedAuthority).toContain(validationOrderRule);
+    }
+  });
+
+  it("requires a live verifier before any state-dependent retry response", () => {
+    const authorities = [
+      markdownSection(
+        readText(
+          "docs/superpowers/specs/2026-07-16-pairing-security-authority-recovery-design.md",
+        ),
+        "### Single Use, Persistent Replay Rejection, And No Downgrade",
+      ),
+      markdownSection(
+        readText(
+          "docs/superpowers/plans/2026-07-16-pairing-security-authority-recovery.md",
+        ),
+        "### Task 1: Recover The UnuVault Pairing Security Authority",
+      ),
+      markdownSection(
+        readText(
+          "docs/superpowers/specs/2026-07-10-authenticated-pairing-approval-design.md",
+        ),
+        "## Single Use And Persistent Replay Rejection",
+      ),
+    ];
+    const liveVerifierRule = normalizeWhitespace(
+      "While an encrypted `claimAuthKey` verifier exists in `authorizing`, `sealing`, or pre-deadline `ready`, the Mac authenticates the canonical request before selecting a state-dependent response: the reserved byte-identical identity receives only its allowed pending or ready behavior, while a different valid authenticated identity receives `handoff_consumed`.",
+    );
+    const noSessionLookupRule = normalizeWhitespace(
+      "An `inviteSessionId` lookup alone never authorizes `handoff_consumed`.",
+    );
+    const terminalRule = normalizeWhitespace(
+      "After `consumed`, `denied`, `expired`, or `invalidated` clears the verifier, every request receives the generic authentication failure with no state disclosure or mutation, even when its `inviteSessionId` matches a terminal tombstone.",
+    );
+
+    for (const authority of authorities) {
+      const normalizedAuthority = normalizeWhitespace(authority);
+      expect(normalizedAuthority).toContain(liveVerifierRule);
+      expect(normalizedAuthority).toContain(noSessionLookupRule);
+      expect(normalizedAuthority).toContain(terminalRule);
+    }
+  });
+
+  it("keeps the tracked recovery design normative across reviewed amendments", () => {
+    const recoveryDesign = normalizeWhitespace(
+      markdownPreamble(
+        readText(
+          "docs/superpowers/specs/2026-07-16-pairing-security-authority-recovery-design.md",
+        ),
+      ),
+    );
+    const recoveryPlan = normalizeWhitespace(
+      markdownPreamble(
+        readText(
+          "docs/superpowers/plans/2026-07-16-pairing-security-authority-recovery.md",
+        ),
+      ),
+    );
+
+    expect(recoveryDesign).toContain(
+      normalizeWhitespace(
+        "This tracked file is the normative Pairing security authority-recovery design. Historical commits are provenance only and cannot override later reviewed amendments to this file.",
+      ),
+    );
+    expect(recoveryPlan).toContain(
+      normalizeWhitespace(
+        "Normative source design: `docs/superpowers/specs/2026-07-16-pairing-security-authority-recovery-design.md` as tracked on the current task branch; later reviewed amendments to that file remain authoritative.",
+      ),
+    );
+    expect(recoveryPlan).toContain(
+      normalizeWhitespace(
+        "Commit `3af9dc50be9269f58f8e91407c68ba2a0d682e73` is a historical baseline only. It is not a standalone or current approved normative source and cannot override later amendments.",
+      ),
+    );
+    expect(recoveryPlan).not.toMatch(
+      /Approved\s+source\s+design:[\s\S]{0,240}`3af9dc50be9269f58f8e91407c68ba2a0d682e73`/iu,
     );
   });
 });
