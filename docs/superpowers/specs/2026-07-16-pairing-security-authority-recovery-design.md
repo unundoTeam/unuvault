@@ -164,11 +164,10 @@ on main pending; exact-target security re-review pending`.
 
 ### Single Use, Persistent Replay Rejection, And No Downgrade
 
-- A successful consume is one atomic reservation. An exact authenticated retry
-  with the same nonce may receive the byte-identical sealed response during the
-  bounded 30-second recovery window.
-- A different nonce after reservation receives terminal `handoff_consumed` and
-  cannot replace the reservation.
+- A successful consume is one atomic reservation. Only the reserved byte-identical retry may observe pending or ready behavior.
+- An unauthenticated or malformed request receives the same generic authentication failure, with no state disclosure or mutation.
+- A different valid authenticated retry identity after reservation receives terminal `handoff_consumed` and cannot mutate, replace, or extend the reservation.
+- The reserved byte-identical retry may receive the byte-identical sealed response during the bounded 30-second recovery window, but retry does not extend the invitation or retry-window deadline.
 - iOS persists consumed `handoffId` and `claimId` records in the encrypted
   received-vault snapshot in the same atomic transaction as credential import.
 - Replay rejection must survive app/process restart. An in-memory set is not
@@ -183,18 +182,14 @@ on main pending; exact-target security re-review pending`.
 ### Terminal Cleanup And Bounded Recovery
 
 - `consumed`, `denied`, `expired`, and `invalidated` are terminal states.
-- Lock, revoke, lost-device state, restart, expiry, conflicting target, or
-  invalid authenticated request invalidates pending capability and handoff
-  material.
-- The Mac retains only the sealed response plus minimum replay/authentication
-  metadata during the bounded identical-retry window; it does not retain the
-  plaintext snapshot or derived handoff key.
-- Secret ownership is explicit. The QR-secret buffer is cleared on terminal
-  paths except for the minimum owned request-auth material required during the
-  bounded retry window, which is cleared when that window ends.
-- iOS transfers the received secret into the pending local import until AEAD
-  open and atomic persistence complete, then performs best-effort cleanup.
-  Documentation must not claim that Swift runtime copies are provably zeroized.
+- The only state-owning terminal mutations are fresh owner denial or cancellation; invitation expiry; lock, revoke, lost-device, or capability invalidation; internal snapshot, sealing, or persistence failure; and restart recovery of unfinished pre-ready work.
+- An unauthenticated or malformed request receives the same generic authentication failure, with no state disclosure or mutation. A different valid authenticated retry identity after reservation receives terminal `handoff_consumed` and cannot mutate, replace, or extend the reservation. Only the reserved byte-identical retry may observe pending or ready behavior.
+- The Mac owns the mutable QR-secret buffer from invite and claim authentication through sealing. It uses the secret only for HMAC verification and HKDF and never logs it or includes it in a response or persistent general storage.
+- At atomic `ready`, the sealed byte-identical response and minimum retry identity are durable. The raw `pairingSecret` is no longer required and is best-effort cleared immediately rather than retained through the 30-second retry window. Ready retry uses the stored exact request and retry identity with the sealed response and never reconstructs the raw secret.
+- On denial, cancellation, expiry, lock, revoke, lost-device state, capability failure, snapshot or seal failure, or restart before `ready`, the Mac best-effort clears its owned secret, derived-key, private-key, and plaintext buffers while preserving required terminal tombstones. At retry-window end or consume, it clears the retained sealed response and retry identity and leaves only minimum durable replay and tombstone metadata.
+- The iOS scanner or parser owns the received secret initially, then transfers ownership exactly once to the pending import operation. The import may use it only for claim HMAC and HKDF/AEAD open and never persists or logs it. iOS holds it only until response authentication and open succeed and the encrypted received-vault plus both consumed IDs commit atomically, then clears it immediately. Cancel, parse, authentication, open, import, or persistence error, expiry, or restart before commit clears the owned secret and requires a fresh invite.
+- Cleanup means best-effort cleanup of owned mutable buffers, not guaranteed zeroization of copies created by the Swift runtime.
+- No terminal mutation permits downgrade, and every path preserves the durable reservation, replay, or terminal tombstone metadata required to fail closed.
 - Recovery is bounded and fail-closed; it does not mint a new capability,
   extend the invite TTL, change the target, or permit downgrade.
 

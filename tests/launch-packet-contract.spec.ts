@@ -389,13 +389,115 @@ describe("launch packet contract", () => {
       /No\s+V2\s+failure\s+state\s+permits\s+a\s+V1\s+whole-vault\s+downgrade/u,
     );
     expect(terminalCleanup).toMatch(
-      /An\s+unauthenticated\s+or\s+different\s+authenticated\s+request\s+does\s+not\s+mutate\s+the\s+reserved\s+workflow/u,
+      /An\s+unauthenticated\s+or\s+malformed\s+request\s+receives\s+the\s+same\s+generic\s+authentication\s+failure,\s+with\s+no\s+state\s+disclosure\s+or\s+mutation/u,
     );
     expect(terminalCleanup).not.toContain(
       "invalid authenticated request clears pending capability",
     );
     expect(terminalCleanup).toMatch(
       /A\s+deployment\s+rollback\s+disables\s+new\s+whole-vault\s+transfer\s+and\s+preserves\s+every\s+durable\s+reservation\s+and\s+consumed-ID\s+tombstone/u,
+    );
+  });
+
+  it("aligns reservation anti-DoS authority and pairing-secret ownership", () => {
+    const recoveryDesign = readText(
+      "docs/superpowers/specs/2026-07-16-pairing-security-authority-recovery-design.md",
+    );
+    const recoveryPlan = readText(
+      "docs/superpowers/plans/2026-07-16-pairing-security-authority-recovery.md",
+    );
+    const protocol = readText(
+      "docs/superpowers/specs/2026-07-10-authenticated-pairing-approval-design.md",
+    );
+
+    const authorities = [
+      [
+        markdownSection(
+          recoveryDesign,
+          "### Single Use, Persistent Replay Rejection, And No Downgrade",
+        ),
+        markdownSection(
+          recoveryDesign,
+          "### Terminal Cleanup And Bounded Recovery",
+        ),
+      ].join("\n"),
+      markdownSection(recoveryPlan, "### Task 1: Recover The UnuVault Pairing Security Authority"),
+      [
+        markdownSection(protocol, "## Target-Claim Authentication"),
+        markdownSection(protocol, "## Single Use And Persistent Replay Rejection"),
+        markdownSection(protocol, "## Terminal Cleanup And Bounded Recovery"),
+      ].join("\n"),
+    ];
+
+    for (const authority of authorities) {
+      expect(authority).toMatch(
+        /An unauthenticated or malformed request receives the same generic authentication failure, with no state disclosure or mutation\./u,
+      );
+      expect(authority).toMatch(
+        /A different valid authenticated retry identity after reservation receives terminal `handoff_consumed` and cannot mutate, replace, or extend the reservation\./u,
+      );
+      expect(authority).toMatch(
+        /Only the reserved byte-identical retry may observe pending or ready behavior\./u,
+      );
+      expect(authority).toMatch(
+        /The only state-owning terminal mutations are fresh owner denial or cancellation; invitation expiry; lock, revoke, lost-device, or capability invalidation; internal snapshot, sealing, or persistence failure; and restart recovery of unfinished pre-ready work\./u,
+      );
+      expect(authority).not.toMatch(
+        /conflicting target[\s\S]{0,120}(?:clear|invalidat)[\s\S]{0,80}(?:pending|reserved|reservation|workflow|capability|handoff)/iu,
+      );
+      expect(authority).not.toMatch(
+        /invalid authenticated request[\s\S]{0,120}(?:clear|invalidat)[\s\S]{0,80}(?:pending|reserved|reservation|workflow|capability|handoff)/iu,
+      );
+      expect(authority).not.toMatch(
+        /clear pending capabilities\/material on[^\n]*conflict/iu,
+      );
+    }
+
+    const targetAuthentication = markdownSection(
+      protocol,
+      "## Target-Claim Authentication",
+    );
+    const replayRejection = markdownSection(
+      protocol,
+      "## Single Use And Persistent Replay Rejection",
+    );
+    const terminalCleanup = markdownSection(
+      protocol,
+      "## Terminal Cleanup And Bounded Recovery",
+    );
+
+    expect(targetAuthentication).toMatch(
+      /The Mac owns the mutable QR-secret buffer from invite and claim authentication through sealing/u,
+    );
+    expect(targetAuthentication).toMatch(
+      /used only for HMAC verification and HKDF/u,
+    );
+    expect(targetAuthentication).toMatch(
+      /never logged or included in a response or persistent general storage/u,
+    );
+    expect(terminalCleanup).toMatch(
+      /At the atomic `ready` transition, the sealed byte-identical response and minimum retry identity are durable; the raw `pairingSecret` is no longer required and is best-effort cleared immediately/u,
+    );
+    expect(terminalCleanup).toMatch(
+      /not retained through the 30-second retry window/u,
+    );
+    expect(terminalCleanup).toMatch(
+      /At retry-window end or consume, the Mac clears the retained sealed response and retry identity, leaving only minimum durable replay and tombstone metadata/u,
+    );
+    expect(replayRejection).toMatch(
+      /Ready retry uses the stored exact request and retry identity with the sealed response; it does not require retaining or reconstructing the raw `pairingSecret` after `ready`/u,
+    );
+    expect(terminalCleanup).toMatch(
+      /The iOS scanner or parser owns the received secret initially and transfers ownership exactly once to the pending import operation/u,
+    );
+    expect(terminalCleanup).toMatch(
+      /holds that secret only until response authentication and open succeed and the encrypted received-vault plus both consumed IDs commit atomically, then clears it immediately/u,
+    );
+    expect(terminalCleanup).toMatch(
+      /cancel, parse, authentication, open, import, or persistence error, expiry, or restart before commit clears the owned secret and requires a fresh invite/u,
+    );
+    expect(terminalCleanup).toMatch(
+      /best-effort cleanup of owned mutable buffers, not guaranteed zeroization of copies created by the Swift runtime/u,
     );
   });
 });

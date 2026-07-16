@@ -167,6 +167,8 @@ unknown-session, fingerprint-mismatch, transcript-mismatch, and HMAC-mismatch
 paths return one generic authentication failure and disclose no comparison
 detail.
 
+An unauthenticated or malformed request receives the same generic authentication failure, with no state disclosure or mutation. The Mac owns the mutable QR-secret buffer from invite and claim authentication through sealing. The secret is used only for HMAC verification and HKDF and is never logged or included in a response or persistent general storage.
+
 ## Fresh Mac Owner Authorization
 
 Before any vault read, the Mac presents the authenticated target identity and
@@ -301,8 +303,8 @@ The reservation state machine is normative. Its success path is
 `authorizing` or `sealing`:
 
 1. The Mac verifies the HMAC and canonical request first. An unauthenticated
-   request receives only the generic authentication failure and cannot learn
-   whether a reservation exists.
+   or malformed request receives the same generic authentication failure, with
+   no state disclosure or mutation.
 2. For the first valid request, one encrypted-store transaction rechecks the
    unreserved and unexpired invitation, allocates `claimId`, persists the exact
    retry identity and original authenticated `clientNonce`, consumes the
@@ -311,9 +313,11 @@ The reservation state machine is normative. Its success path is
    byte-identical authenticated request received in `authorizing` or `sealing`
    does not start another authorization, snapshot read, or seal; it receives
    `handoff_response_not_ready` with no handoff payload, identifiers, or timing
-   metadata. A different authenticated retry identity receives terminal
-   `handoff_consumed`. An invalid authenticator still receives the generic
-   authentication failure.
+   metadata. A different valid authenticated retry identity after reservation
+   receives terminal `handoff_consumed` and cannot mutate, replace, or extend
+   the reservation. An invalid authenticator still receives the same generic
+   authentication failure without state disclosure or mutation. Only the
+   reserved byte-identical retry may observe pending or ready behavior.
 4. After owner authorization succeeds, one atomic transaction rechecks the
    reservation identity, vault session identity, authenticated target, expiry,
    lock state, revoked or lost-device state, and pending capability. It then
@@ -330,7 +334,9 @@ The reservation state machine is normative. Its success path is
 
 The ready retry window starts only when the durable record atomically enters `ready`, never at reservation or owner-authorization time. Its immutable deadline is the minimum of `readyAt + 30 seconds` and the original invitation expiry. During that window, only a request whose
 canonical claim transcript and authenticator
-are each byte-identical to the reservation, including the original authenticated `clientNonce`, receives the retained serialized response. The sealed response, including its AES-GCM nonce, is reused byte-for-byte; it is not reserialized or resealed, and retry does not move `readyAt` or extend the deadline. A different authenticated request receives terminal `handoff_consumed`. Before the deadline, an encrypted durable `ready` record and its response survive Mac process restart. At the deadline, one atomic transition removes the sealed response, records `consumed`, and retains the identifiers and consumed tombstone needed for persistent replay rejection.
+are each byte-identical to the reservation, including the original authenticated `clientNonce`, receives the retained serialized response. The sealed response, including its AES-GCM nonce, is reused byte-for-byte; it is not reserialized or resealed, and retry does not move `readyAt` or extend the deadline. A different valid authenticated retry identity receives terminal `handoff_consumed` without mutating, replacing, or extending the reservation. Before the deadline, an encrypted durable `ready` record and its response survive Mac process restart. At the deadline, one atomic transition removes the sealed response and retry identity, records `consumed`, and retains only the identifiers and consumed tombstone needed for persistent replay rejection.
+
+Ready retry uses the stored exact request and retry identity with the sealed response; it does not require retaining or reconstructing the raw `pairingSecret` after `ready`.
 
 iOS verifies and imports in one encrypted-store transaction. If either `claimId` or `handoffId` already exists in the consumed-ID store, iOS rejects
 the entire response as replay even when the other identifier is new. Otherwise
@@ -348,11 +354,9 @@ for a V1 claim.
 
 ## Terminal Cleanup And Bounded Recovery
 
-`consumed`, `denied`, `expired`, and `invalidated` are terminal states. A lock,
-revoke, lost-device state, process restart while `authorizing` or `sealing`,
-expiry, or failure owned by the reserved workflow atomically enters the
-applicable terminal state and clears pending capability and unsealed handoff
-material. An unauthenticated or different authenticated request does not mutate the reserved workflow; it receives the response defined by the state machine above.
+`consumed`, `denied`, `expired`, and `invalidated` are terminal states. The only state-owning terminal mutations are fresh owner denial or cancellation; invitation expiry; lock, revoke, lost-device, or capability invalidation; internal snapshot, sealing, or persistence failure; and restart recovery of unfinished pre-ready work. Each such mutation clears the pending capability and unsealed handoff material while preserving required durable terminal tombstones.
+
+An unauthenticated or malformed request receives the same generic authentication failure, with no state disclosure or mutation. A different valid authenticated retry identity after reservation receives terminal `handoff_consumed` and cannot mutate, replace, or extend the reservation. Only the reserved byte-identical retry may observe pending or ready behavior.
 
 During the ready identical-retry window, the Mac retains only the encrypted
 sealed response, exact retry-identity bytes, identifiers, immutable timestamps,
@@ -361,10 +365,11 @@ snapshot, private ephemeral key, ECDH secret, or derived handoff key. When the
 window ends, the sealed response is removed while the durable consumed
 tombstone remains.
 
-Implementations perform best-effort cleanup of owned secret buffers on every
-terminal path. This requirement does not claim provable zeroization of copies
-created by the Swift runtime. Recovery never mints a new capability, extends
-the invite TTL, changes the authenticated target, or permits downgrade.
+At the atomic `ready` transition, the sealed byte-identical response and minimum retry identity are durable; the raw `pairingSecret` is no longer required and is best-effort cleared immediately, not retained through the 30-second retry window. On denial, cancellation, expiry, lock, revoke, lost-device state, capability failure, snapshot or seal failure, or restart before `ready`, the Mac best-effort clears its owned secret, derived-key, private-key, and plaintext buffers while preserving only required terminal tombstones. At retry-window end or consume, the Mac clears the retained sealed response and retry identity, leaving only minimum durable replay and tombstone metadata.
+
+The iOS scanner or parser owns the received secret initially and transfers ownership exactly once to the pending import operation. That operation may use the secret for claim HMAC and HKDF/AEAD open, but never persists or logs it. iOS holds that secret only until response authentication and open succeed and the encrypted received-vault plus both consumed IDs commit atomically, then clears it immediately. Any cancel, parse, authentication, open, import, or persistence error, expiry, or restart before commit clears the owned secret and requires a fresh invite.
+
+All cleanup is best-effort cleanup of owned mutable buffers, not guaranteed zeroization of copies created by the Swift runtime. Recovery never mints a new capability, extends the invite TTL, changes the authenticated target, permits downgrade, or removes required durable reservation, replay, or terminal tombstones.
 
 A deployment rollback disables new whole-vault transfer and preserves every durable reservation and consumed-ID tombstone until a security-compatible forward migration can read them. If the older build cannot read the V2 state, it fails closed instead of deleting replay history or re-enabling V1 whole-vault transfer.
 
