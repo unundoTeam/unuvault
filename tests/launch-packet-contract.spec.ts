@@ -6,6 +6,9 @@ import { describe, expect, it } from "vitest";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
+const prohibitedActiveAuthorityPattern =
+  /current\s+launch\s+gate\s+is\s+the\s+internal\s+iterative\s+review\s+loop|completed\s+for\s+current\s+scope|cleared\s+for\s+current\s+scope|current\s+launch\s+policy|current\s+internal\s+iterative\s+gate|Launch\s+checklist\s+updated\s+to\s+separate\s+the\s+current\s+internal\s+iterative\s+review\s+gate/iu;
+
 function readText(pathFromRepoRoot: string): string {
   return readFileSync(resolve(repoRoot, pathFromRepoRoot), "utf8");
 }
@@ -47,6 +50,21 @@ function markdownSection(document: string, heading: string): string {
 }
 
 describe("launch packet contract", () => {
+  it("detects line-wrapped prohibited active-authority phrases", () => {
+    const lineWrappedFixtures = [
+      "current\nlaunch gate is the internal iterative review loop",
+      "completed\nfor current scope",
+      "cleared for\ncurrent scope",
+      "current\nlaunch policy",
+      "current internal\niterative gate",
+      "Launch checklist updated to separate the current internal iterative\nreview gate",
+    ];
+
+    for (const fixture of lineWrappedFixtures) {
+      expect(fixture).toMatch(prohibitedActiveAuthorityPattern);
+    }
+  });
+
   it("normalizes line endings and enforces exact unique Markdown sections", () => {
     expect(
       markdownSection("## Required\r\nbody\r## Other\r\nnext\r\n", "## Required"),
@@ -245,9 +263,7 @@ describe("launch packet contract", () => {
         /does\s+not clear the current expanded native\/cross-platform gate/iu,
       );
     }
-    expect(handoff).not.toMatch(
-      /current launch gate is the internal iterative review loop|completed for current scope|cleared for current scope|current launch policy|current internal iterative gate|Launch checklist updated to separate the current internal iterative review gate/iu,
-    );
+    expect(handoff).not.toMatch(prohibitedActiveAuthorityPattern);
   });
 
   it("pins interoperable pairing transcripts and bounded retry identity", () => {
@@ -279,17 +295,17 @@ describe("launch packet contract", () => {
     expect(canonicalEncoding).toMatch(
       /Serialize exactly `scheme \|\| ASCII\(":\/\/"\) \|\| host \|\| ASCII\(":"\) \|\|\s+shortestDecimal\(port\)`/u,
     );
-    expect(canonicalEncoding).toContain(
-      "canonical dotted-decimal IPv4, bracketed RFC 5952 IPv6, or a canonical DNS A-label host",
+    expect(canonicalEncoding).toMatch(
+      /canonical\s+dotted-decimal\s+IPv4,\s+bracketed\s+RFC\s+5952\s+IPv6,\s+or\s+a\s+canonical\s+DNS\s+A-label\s+host/u,
     );
-    expect(canonicalEncoding).toContain(
-      "Endpoint reachability, address-family support, and private-versus-public address admission are separate implementation/security policy",
+    expect(canonicalEncoding).toMatch(
+      /Endpoint\s+reachability,\s+address-family\s+support,\s+and\s+private-versus-public\s+address\s+admission\s+are\s+separate\s+implementation\/security\s+policy/u,
     );
-    expect(canonicalEncoding).toContain(
-      "Scoped IPv6 endpoints require a separate endpoint-selection rule",
+    expect(canonicalEncoding).toMatch(
+      /Scoped\s+IPv6\s+endpoints\s+require\s+a\s+separate\s+endpoint-selection\s+rule/u,
     );
-    expect(canonicalEncoding).toContain(
-      "IPv4-embedded IPv6 addresses always use the eight 16-bit hexadecimal fields as input to the same RFC 5952 algorithm",
+    expect(canonicalEncoding).toMatch(
+      /IPv4-embedded\s+IPv6\s+addresses\s+always\s+use\s+the\s+eight\s+16-bit\s+hexadecimal\s+fields\s+as\s+input\s+to\s+the\s+same\s+RFC\s+5952\s+algorithm/u,
     );
     expect(canonicalEncoding).not.toMatch(
       /limited to RFC 1918|Reject .*IPv6|Reject .*public addresses/iu,
@@ -318,16 +334,16 @@ describe("launch packet contract", () => {
     );
     expect(targetBoundHandoff).toContain("CLAIM_ID_BYTES = 32");
     expect(targetBoundHandoff).toContain("HANDOFF_ID_BYTES = 32");
-    expect(targetBoundHandoff).toContain(
-      "The Mac generates both identifiers with a cryptographically secure random number generator",
+    expect(targetBoundHandoff).toMatch(
+      /The\s+Mac\s+generates\s+both\s+identifiers\s+with\s+a\s+cryptographically\s+secure\s+random\s+number\s+generator/u,
     );
-    expect(targetBoundHandoff).toContain(
-      "strict unpadded base64url of exactly 32 raw bytes",
+    expect(targetBoundHandoff).toMatch(
+      /strict\s+unpadded\s+base64url\s+of\s+exactly\s+32\s+raw\s+bytes/u,
     );
-    expect(targetBoundHandoff).toContain(
-      "collision with any live, terminal, or retained tombstone record",
+    expect(targetBoundHandoff).toMatch(
+      /collision\s+with\s+any\s+live,\s+terminal,\s+or\s+retained\s+tombstone\s+record/u,
     );
-    expect(targetBoundHandoff).toContain("at most 8 independent draws");
+    expect(targetBoundHandoff).toMatch(/at\s+most\s+8\s+independent\s+draws/u);
     expect(targetBoundHandoff).toMatch(
       /The raw 12 bytes are passed to AES-GCM; the response field is\s+their strict unpadded base64url spelling\./u,
     );
@@ -340,44 +356,46 @@ describe("launch packet contract", () => {
     expect(replayRejection).toMatch(
       /LP\(RETRY_IDENTITY_DOMAIN\) \|\|\s+LP\(canonicalClaimTranscript\) \|\|\s+LP\(claimAuthenticator\)/u,
     );
-    expect(replayRejection).toContain("original authenticated `clientNonce`");
+    expect(replayRejection).toMatch(
+      /original\s+authenticated\s+`clientNonce`/u,
+    );
     expect(replayRejection).toMatch(
       /canonical claim transcript and authenticator\s+are each byte-identical to the reservation/u,
     );
-    expect(replayRejection).toContain(
-      "including its AES-GCM nonce, is reused byte-for-byte",
+    expect(replayRejection).toMatch(
+      /including\s+its\s+AES-GCM\s+nonce,\s+is\s+reused\s+byte-for-byte/u,
     );
     expect(replayRejection).toContain("terminal `handoff_consumed`");
-    expect(replayRejection).toContain(
-      "atomically creates the durable reservation before fresh owner authorization",
+    expect(replayRejection).toMatch(
+      /atomically\s+creates\s+the\s+durable\s+reservation\s+before\s+fresh\s+owner\s+authorization/u,
     );
     expect(replayRejection).toMatch(
       /`unreserved` -> `authorizing` -> `sealing` -> `ready` -> `consumed`/u,
     );
-    expect(replayRejection).toContain(
-      "exactly one in-memory snapshot read after the `sealing` transition",
+    expect(replayRejection).toMatch(
+      /exactly\s+one\s+in-memory\s+snapshot\s+read\s+after\s+the\s+`sealing`\s+transition/u,
     );
     expect(replayRejection).toContain("`handoff_response_not_ready`");
-    expect(replayRejection).toContain(
-      "starts only when the durable record atomically enters `ready`",
+    expect(replayRejection).toMatch(
+      /starts\s+only\s+when\s+the\s+durable\s+record\s+atomically\s+enters\s+`ready`/u,
     );
-    expect(replayRejection).toContain(
-      "minimum of `readyAt + 30 seconds` and the original invitation expiry",
+    expect(replayRejection).toMatch(
+      /minimum\s+of\s+`readyAt \+ 30 seconds`\s+and\s+the\s+original\s+invitation\s+expiry/u,
     );
-    expect(replayRejection).toContain(
-      "If either `claimId` or `handoffId` already exists in the consumed-ID store",
+    expect(replayRejection).toMatch(
+      /If\s+either\s+`claimId`\s+or\s+`handoffId`\s+already\s+exists\s+in\s+the\s+consumed-ID\s+store/u,
     );
-    expect(replayRejection).toContain(
-      "No V2 failure state permits a V1 whole-vault downgrade",
+    expect(replayRejection).toMatch(
+      /No\s+V2\s+failure\s+state\s+permits\s+a\s+V1\s+whole-vault\s+downgrade/u,
     );
-    expect(terminalCleanup).toContain(
-      "An unauthenticated or different authenticated request does not mutate the reserved workflow",
+    expect(terminalCleanup).toMatch(
+      /An\s+unauthenticated\s+or\s+different\s+authenticated\s+request\s+does\s+not\s+mutate\s+the\s+reserved\s+workflow/u,
     );
     expect(terminalCleanup).not.toContain(
       "invalid authenticated request clears pending capability",
     );
-    expect(terminalCleanup).toContain(
-      "A deployment rollback disables new whole-vault transfer and preserves every durable reservation and consumed-ID tombstone",
+    expect(terminalCleanup).toMatch(
+      /A\s+deployment\s+rollback\s+disables\s+new\s+whole-vault\s+transfer\s+and\s+preserves\s+every\s+durable\s+reservation\s+and\s+consumed-ID\s+tombstone/u,
     );
   });
 });
