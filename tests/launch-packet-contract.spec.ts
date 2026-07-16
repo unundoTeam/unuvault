@@ -457,6 +457,15 @@ describe("launch packet contract", () => {
     const canonicalMacTerminalCleanup = normalizeWhitespace(
       "Fresh owner denial or cancellation; owner-authentication unavailability or `LAContext` evaluation or system error; invitation expiry; lock, revoke, lost-device state, or capability failure; snapshot or seal failure; and restart before `ready` are Mac terminal paths that clear `claimAuthKey` while preserving required terminal tombstones.",
     );
+    const canonicalReadyWindowBehavior = normalizeWhitespace(
+      "Before that deadline, the initial response, a byte-identical retry, a different valid authenticated retry identity, and an invalid authenticator do not transition `ready` to `consumed`, move `readyAt`, or shorten or extend the window.",
+    );
+    const canonicalReadyOnlyDeadlineTransition = normalizeWhitespace(
+      "Once a record is `ready`, only reaching that immutable deadline may transition it, and the transition target is `consumed`.",
+    );
+    const canonicalReadyWindowCleanup = normalizeWhitespace(
+      "At the immutable deadline, one atomic `ready` to `consumed` transition clears the retained sealed response, retry identity, and encrypted `claimAuthKey` and leaves only the minimum durable identifiers and consumed tombstone required for replay rejection.",
+    );
 
     for (const authority of authorities) {
       const normalizedAuthority = normalizeWhitespace(authority);
@@ -471,7 +480,7 @@ describe("launch packet contract", () => {
         /Only\s+the\s+reserved\s+byte-identical\s+retry\s+may\s+observe\s+pending\s+or\s+ready\s+behavior\./u,
       );
       expect(authority).toMatch(
-        /The\s+only\s+state-owning\s+terminal\s+mutations\s+are\s+fresh\s+owner\s+denial\s+or\s+cancellation;\s+owner-authentication\s+unavailability\s+or\s+`LAContext`\s+evaluation\s+or\s+system\s+error;\s+invitation\s+expiry;\s+lock,\s+revoke,\s+lost-device,\s+or\s+capability\s+invalidation;\s+internal\s+snapshot,\s+sealing,\s+or\s+persistence\s+failure;\s+and\s+restart\s+recovery\s+of\s+unfinished\s+pre-ready\s+work\./u,
+        /The\s+only\s+state-owning\s+terminal\s+mutations\s+are\s+fresh\s+owner\s+denial\s+or\s+cancellation;\s+owner-authentication\s+unavailability\s+or\s+`LAContext`\s+evaluation\s+or\s+system\s+error;\s+invitation\s+expiry;\s+lock,\s+revoke,\s+lost-device,\s+or\s+capability\s+invalidation;\s+internal\s+snapshot,\s+sealing,\s+or\s+persistence\s+failure;\s+restart\s+recovery\s+of\s+unfinished\s+pre-ready\s+work;\s+and\s+the\s+immutable\s+ready-window\s+deadline\s+transition\s+from\s+`ready`\s+to\s+`consumed`\./u,
       );
       expect(authority).toMatch(
         /`claimAuthKey`\s+is\s+a\s+32-byte,\s+session-bound,\s+domain-separated\s+key\s+derived\s+from\s+the\s+raw\s+`pairingSecret`\s+with\s+HKDF-SHA256\./u,
@@ -486,13 +495,19 @@ describe("launch packet contract", () => {
         /raw\s+`pairingSecret`[\s\S]{0,200}cleared[\s\S]{0,120}`ready`/u,
       );
       expect(authority).toMatch(
-        /consume\s+or\s+retry-window\s+expiry[\s\S]{0,200}clears[\s\S]{0,120}`claimAuthKey`/u,
+        /At\s+the\s+immutable\s+deadline,[\s\S]{0,160}`ready`\s+to\s+`consumed`[\s\S]{0,200}clears[\s\S]{0,160}`claimAuthKey`/u,
       );
       expect(authority).toMatch(
         /owner-authentication\s+unavailability\s+or\s+`LAContext`\s+evaluation\s+or\s+system\s+error[\s\S]{0,200}`invalidated`/iu,
       );
       expect(normalizedAuthority).toContain(canonicalSecretLifecycle);
       expect(normalizedAuthority).toContain(canonicalMacTerminalCleanup);
+      expect(normalizedAuthority).toContain(canonicalReadyWindowBehavior);
+      expect(normalizedAuthority).toContain(canonicalReadyOnlyDeadlineTransition);
+      expect(normalizedAuthority).toContain(canonicalReadyWindowCleanup);
+      expect(authority).not.toMatch(
+        /(?:\bor\s+consume\b|\bconsume\s+or\b)/iu,
+      );
       expect(authority).not.toMatch(
         /conflicting\s+target[\s\S]{0,120}(?:clear|invalidat)[\s\S]{0,80}(?:pending|reserved|reservation|workflow|capability|handoff)/iu,
       );
@@ -593,7 +608,7 @@ claimAuthenticator = HMAC-SHA256(claimAuthKey, canonicalClaimTranscript)
       /not\s+retained\s+through\s+the\s+30-second\s+retry\s+window/u,
     );
     expect(terminalCleanup).toMatch(
-      /At\s+retry-window\s+end\s+or\s+consume,[\s\S]{0,240}clears[\s\S]{0,160}`claimAuthKey`[\s\S]{0,240}minimum\s+durable\s+replay\s+and\s+tombstone\s+metadata/u,
+      /At\s+the\s+immutable\s+deadline,[\s\S]{0,160}`ready`\s+to\s+`consumed`[\s\S]{0,240}clears[\s\S]{0,200}`claimAuthKey`[\s\S]{0,260}minimum\s+durable\s+identifiers\s+and\s+consumed\s+tombstone\s+required\s+for\s+replay\s+rejection/u,
     );
     expect(replayRejection).toMatch(
       /Ready\s+retry[\s\S]{0,240}encrypted\s+`claimAuthKey`[\s\S]{0,240}does\s+not\s+require\s+retaining\s+or\s+reconstructing\s+the\s+raw\s+`pairingSecret`\s+after\s+`ready`/u,
