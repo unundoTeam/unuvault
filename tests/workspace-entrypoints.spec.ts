@@ -95,16 +95,27 @@ describe("workspace entrypoints", () => {
     }
   });
 
-  it("adds a JS CI workflow that runs the real root commands", () => {
+  it("keeps JS CI local and runs the real root commands", () => {
     const workflowPath = ".github/workflows/ci.yml";
 
     expect(existsSync(resolve(repoRoot, workflowPath))).toBe(true);
 
     const workflow = readText(workflowPath);
 
+    expect(workflow).toMatch(
+      /^\s{2}js:\n\s{4}runs-on: ubuntu-latest\n\s{4}timeout-minutes: 15/mu,
+    );
+    expect(workflow).toContain("actions/checkout@v5");
+    expect(workflow).toContain("actions/setup-node@v6");
+    expect(workflow).toContain('node-version: "22"');
+    expect(workflow).toContain("corepack enable");
+    expect(workflow).toContain("pnpm install --no-frozen-lockfile");
     expect(workflow).toContain("pnpm lint");
     expect(workflow).toContain("pnpm test");
     expect(workflow).not.toContain("cache: pnpm");
+    expect(workflow).not.toContain(
+      "unundoTeam/.github/.github/workflows/node-verify.yml",
+    );
   });
 
   it("adds an iOS workflow that calls the iOS wrapper", () => {

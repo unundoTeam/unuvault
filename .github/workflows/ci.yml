@@ -8,10 +8,14 @@ on:
 
 jobs:
   js:
-    uses: unundoTeam/.github/.github/workflows/node-verify.yml@main
-    with:
-      node_version: "22"
-      package_manager: pnpm
-      install_command: pnpm install --no-frozen-lockfile
-      lint_command: pnpm lint
-      test_command: pnpm test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - run: corepack enable
+      - run: pnpm install --no-frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm test
