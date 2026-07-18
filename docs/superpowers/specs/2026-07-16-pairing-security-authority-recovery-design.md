@@ -142,19 +142,31 @@ on main pending; exact-target security re-review pending`.
   server-owned `PAIRING_VERSION`, NFC `inviteSessionId`,
   `expiresAtEpochMilliseconds`, and `canonicalMacBaseURL` using the byte-exact
   claim-authentication HKDF above.
-- In the same issuance operation, the Mac atomically creates an encrypted
-  verifier envelope keyed by `inviteSessionId`; its immutable authenticated
-  plaintext payload contains exactly the 32-byte `claimAuthKey`, those
-  immutable transcript inputs, the envelope format and version, and an
-  immutable verifier provenance ID and envelope generation, with no
-  target-controlled field or mutable lifecycle state.
+- One issuance durable transaction commits all issuance authority together:
+  the outer lifecycle state `issued`, immutable verifier provenance ID and
+  envelope generation, the unique encrypted verifier ciphertext ownership or
+  reference, and every immutable transcript input required to authenticate the
+  first claim.
+- The encrypted verifier envelope is keyed by `inviteSessionId`; its immutable
+  authenticated plaintext payload contains exactly the 32-byte
+  `claimAuthKey`, those immutable transcript inputs, the envelope format and
+  version, and the same immutable verifier provenance ID and envelope
+  generation, with no target-controlled field or mutable lifecycle state.
 - Mutable lifecycle state (`issued`, `authorizing`, `sealing`, `ready`, or
   terminal) and the exact request and retry metadata exist only in the outer
   durable record or columns controlled by atomic compare-and-swap;
   `issued/unreserved` is never inside the encrypted envelope payload.
-- The QR becomes visible and active only after that envelope commits;
-  derivation, encryption, or persistence failure leaves no active invitation
-  and exposes no QR.
+- No issuance component is visible independently; a failed or unknown commit
+  keeps the QR hidden and inactive until one authoritative reread proves a
+  complete, internally consistent `issued` record whose provenance,
+  generation, ciphertext ownership, and transcript inputs all match.
+- If that reread cannot prove the complete record, activation fails closed and
+  idempotent recovery removes every orphaned ciphertext, ownership reference,
+  or incomplete outer record.
+- QR activation waits for the entire issuance transaction commit, never only
+  the ciphertext or verifier-envelope commit.
+- Crash recovery must never leave verifier ciphertext without its owning
+  `issued` record or an `issued` record without its verifier ciphertext.
 - The transcript uses one normative binary length-prefix encoding, fixed domain
   separation, fixed field order, strict canonical base64url, exact DER
   round-tripping, NFC UTF-8 text, canonical epoch milliseconds, and a bounded
@@ -254,7 +266,16 @@ on main pending; exact-target security re-review pending`.
   HMAC performs no mutation.
 - If the first-claim compare-and-swap returns false, or its commit
   acknowledgement or outcome is unknown, the request performs exactly one
-  authoritative durable reread before selecting any response.
+  authoritative durable reread before selecting any response; that reread,
+  matching-generation and state validation, and state-dependent response
+  selection execute inside one serializable transaction or record lock that is
+  mutually exclusive with every revoke, lock, lost-device, capability, expiry,
+  ready-window deadline, and terminal-cleanup compare-and-swap.
+- The transaction's reread-and-response-decision point is the linearization
+  point: if a terminal or trusted-security transition linearizes first, the
+  request returns the generic authentication failure; if authorized response
+  selection linearizes first, that selected response is defined to precede any
+  later revoke.
 - Only a winning reservation whose immutable verifier provenance ID and
   envelope generation both match the candidate invite envelope is a matching
   winner.
@@ -269,6 +290,9 @@ on main pending; exact-target security re-review pending`.
   restart, and persistence races; an unknown commit followed by a matching
   reservation uses that reservation as the only durable truth, and every other
   result fails closed.
+- After leaving the transaction, send exactly the selected response without
+  rereading or reselecting from an external stale snapshot; response
+  transmission itself never holds the transaction or record lock.
 - An unauthenticated or malformed request receives the same generic authentication failure, with no state disclosure or mutation.
 - A different valid authenticated retry identity while the encrypted `claimAuthKey` verifier exists after reservation receives terminal `handoff_consumed` and cannot mutate, replace, or extend the reservation.
 - While an encrypted `claimAuthKey` verifier exists in `authorizing`, `sealing`, or pre-deadline `ready`, the Mac authenticates the canonical request before selecting a state-dependent response: the reserved byte-identical identity receives only its allowed pending or ready behavior, while a different valid authenticated identity receives `handoff_consumed`.
