@@ -16,6 +16,10 @@
 - Current Mac companion source frame: `current/unuvault/mac-companion-core-flows-v1.3`.
 - Current iOS source frames: `current/unuvault/ios-product-composition-v1`
   and `current/unuvault/ios-pairing-invite-receive-v3`.
+- `docs/superpowers/specs/2026-07-10-authenticated-pairing-approval-design.md`
+  is `current-routed` for Pairing V2 protocol/security semantics only. Pairing
+  V2 implementation and exact-target security re-review remain pending. It is
+  not broad Pencil/current-UI authority.
 - Small UI copy or polish uses the `Lightweight UI Path` in the portfolio Pencil gate.
 - Historical design specs are planning context only unless the operating index or this repo-local entrypoint explicitly routes to them.
 - The legacy product-scope spec is routed only through `/Users/yuchen/Code/unu/unuOS/docs/portfolio/design-specs-inventory.md` as `current-routed` product scope and trust posture context; it is not broad Pencil or current UI authority.

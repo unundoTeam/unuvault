@@ -19,7 +19,57 @@ function readText(pathFromRepoRoot: string): string {
   return readFileSync(resolve(repoRoot, pathFromRepoRoot), "utf8");
 }
 
+function markdownSection(document: string, heading: string): string {
+  const headingMatch = /^(#+) [^\r\n]+$/u.exec(heading);
+  if (headingMatch === null) {
+    throw new Error(`Invalid Markdown heading: ${heading}`);
+  }
+
+  const headingLevel = headingMatch[1].length;
+  const normalizedDocument = document.replace(/\r\n?/gu, "\n");
+  const escapedHeading = heading.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+  const matches = [
+    ...normalizedDocument.matchAll(new RegExp(`^${escapedHeading}$`, "gmu")),
+  ];
+
+  if (matches.length === 0) {
+    throw new Error(`Missing Markdown section: ${heading}`);
+  }
+  if (matches.length > 1) {
+    throw new Error(`Duplicate Markdown section: ${heading}`);
+  }
+
+  const headingEnd = (matches[0].index ?? 0) + matches[0][0].length;
+  const contentStart =
+    normalizedDocument[headingEnd] === "\n" ? headingEnd + 1 : headingEnd;
+  const nextHeading = new RegExp(`^#{1,${headingLevel}}\\s`, "mu");
+  const relativeEnd = normalizedDocument.slice(contentStart).search(nextHeading);
+
+  return relativeEnd === -1
+    ? normalizedDocument.slice(contentStart)
+    : normalizedDocument.slice(contentStart, contentStart + relativeEnd);
+}
+
 describe("workspace entrypoints", () => {
+  it("normalizes line endings and enforces exact unique Markdown sections", () => {
+    expect(
+      markdownSection("## Required\r\nbody\r## Other\r\nnext\r\n", "## Required"),
+    ).toBe("body\n");
+    expect(markdownSection("## Required", "## Required")).toBe("");
+    expect(() => markdownSection("## Other\nbody\n", "## Required")).toThrow(
+      "Missing Markdown section: ## Required",
+    );
+    expect(() =>
+      markdownSection(
+        "## Required\nfirst\n## Other\nbody\n## Required\nsecond\n",
+        "## Required",
+      ),
+    ).toThrow("Duplicate Markdown section: ## Required");
+    expect(() =>
+      markdownSection("prefix ## Required\nbody\n", "## Required"),
+    ).toThrow("Missing Markdown section: ## Required");
+  });
+
   it("uses stable root test and lint wrappers", () => {
     const rootPackage = readJson<PackageManifest>("package.json");
 
@@ -45,16 +95,27 @@ describe("workspace entrypoints", () => {
     }
   });
 
-  it("adds a JS CI workflow that runs the real root commands", () => {
+  it("keeps JS CI local and runs the real root commands", () => {
     const workflowPath = ".github/workflows/ci.yml";
 
     expect(existsSync(resolve(repoRoot, workflowPath))).toBe(true);
 
     const workflow = readText(workflowPath);
 
+    expect(workflow).toMatch(
+      /^\s{2}js:\n\s{4}runs-on: ubuntu-latest\n\s{4}timeout-minutes: 15/mu,
+    );
+    expect(workflow).toContain("actions/checkout@v5");
+    expect(workflow).toContain("actions/setup-node@v6");
+    expect(workflow).toContain('node-version: "22"');
+    expect(workflow).toContain("corepack enable");
+    expect(workflow).toContain("pnpm install --no-frozen-lockfile");
     expect(workflow).toContain("pnpm lint");
     expect(workflow).toContain("pnpm test");
     expect(workflow).not.toContain("cache: pnpm");
+    expect(workflow).not.toContain(
+      "unundoTeam/.github/.github/workflows/node-verify.yml",
+    );
   });
 
   it("adds an iOS workflow that calls the iOS wrapper", () => {
@@ -203,8 +264,11 @@ describe("workspace entrypoints", () => {
   it("keeps agent design entrypoints aligned with portfolio routing", () => {
     const readme = readText("README.md");
     const agents = readText("AGENTS.md");
+    const readmeDesignAuthority = markdownSection(readme, "## Design Authority");
+    const agentDesignAuthority = markdownSection(agents, "## Design Authority");
+    const currentRoutes = [readmeDesignAuthority, agentDesignAuthority];
 
-    for (const entrypoint of [readme, agents]) {
+    for (const entrypoint of currentRoutes) {
       expect(entrypoint).toContain(
         "/Users/yuchen/Code/unu/unuOS/docs/portfolio/design-operating-index.md",
       );
@@ -224,12 +288,37 @@ describe("workspace entrypoints", () => {
         "`current-routed` product scope and trust posture context",
       );
       expect(entrypoint).toMatch(/not broad\s+Pencil or current UI authority/);
+      expect(entrypoint).toContain(
+        "docs/superpowers/specs/2026-07-10-authenticated-pairing-approval-design.md",
+      );
+      expect(entrypoint).toContain(
+        "`current-routed` for Pairing V2 protocol/security semantics only",
+      );
+      expect(entrypoint).toContain("not broad Pencil/current-UI authority");
+      expect(entrypoint.match(/^- Current design status: `[^`]+`\.$/gmu)).toEqual([
+        "- Current design status: `registered`.",
+      ]);
+      expect(entrypoint).toMatch(
+        /`docs\/superpowers\/specs\/2026-07-10-authenticated-pairing-approval-design\.md`\s+is `current-routed` for Pairing V2 protocol\/security semantics only\. Pairing\s+V2 implementation and exact-target security re-review remain pending\. It is\s+not broad Pencil\/current-UI authority\./u,
+      );
+      expect(entrypoint).not.toMatch(
+        /Pairing V2 (?:implementation|exact-target security re-review) (?:is |are )?(?:complete|cleared|approved)/iu,
+      );
+      expect(entrypoint).not.toMatch(
+        /Pairing V2 (?:is|serves as) (?:the )?(?:broad Pencil|current[- ]UI) authority/iu,
+      );
+      expect(entrypoint).not.toMatch(
+        /(?:at or after|latest main|46ae0c655deef0ef15cb0cd180b4844a32cac43d)/u,
+      );
     }
 
     expect(agents).toContain("current/unuvault/ios-product-composition-v1");
     expect(agents).toContain("current/unuvault/ios-pairing-invite-receive-v3");
-    expect(agents).not.toContain(
-      "`current/unuvault/ios-vault-home-native-locked-v1`\n  and `current/unuvault/ios-pairing-invite-receive-v2`.",
+    expect(agentDesignAuthority).not.toContain(
+      "current/unuvault/ios-vault-home-native-locked-v1",
+    );
+    expect(agentDesignAuthority).not.toContain(
+      "current/unuvault/ios-pairing-invite-receive-v2",
     );
   });
 
@@ -310,8 +399,8 @@ describe("workspace entrypoints", () => {
     expect(evidence).not.toContain(
       "approved `current/unuvault/ios-pairing-invite-receive-v2` SwiftUI receive",
     );
-    expect(evidence).toContain(
-      "This historical\n  `paired` record predates the import receipt and must not be cited as physical\n  decrypt/import proof.",
+    expect(evidence).toMatch(
+      /This historical\s+`paired` record predates the import receipt and must not be cited as physical\s+decrypt\/import proof\./u,
     );
   });
 
@@ -397,8 +486,12 @@ describe("workspace entrypoints", () => {
     const rootPackage = readJson<PackageManifest>("package.json");
     const wrapperPath = "scripts/testing/run-pairing-boundary.sh";
     const readme = readText("README.md");
+    const agentNotes = readText("AGENTS.md");
+    const iosReadme = readText("apps/ios/README.md");
     const mobileEvidence = readText("docs/design/mobile-native-adapter-evidence.md");
     const macEvidence = readText("docs/design/mac-companion-mvp-evidence.md");
+    const readmeRoute = markdownSection(readme, "## Design Authority");
+    const agentRoute = markdownSection(agentNotes, "## Design Authority");
 
     expect(existsSync(resolve(repoRoot, wrapperPath))).toBe(true);
     expect(rootPackage.scripts?.["test:pairing-boundary"]).toBe(
@@ -412,6 +505,26 @@ describe("workspace entrypoints", () => {
     expect(readme).toContain("pnpm test:pairing-boundary");
     expect(mobileEvidence).toContain("pnpm test:pairing-boundary");
     expect(macEvidence).toContain("pnpm test:pairing-boundary");
+    expect(readme).toMatch(
+      /claimant-key-bound handoff\s+open, AES-GCM encrypted local persistence, fresh reload, and read-only/,
+    );
+    expect(iosReadme).toContain(
+      "The current V1 claim does not authenticate that claimant as the intended iPhone.",
+    );
+    for (const entrypoint of [readmeRoute, agentRoute, iosReadme]) {
+      expect(entrypoint).toContain(
+        "docs/superpowers/specs/2026-07-10-authenticated-pairing-approval-design.md",
+      );
+    }
+    expect(readme).toContain("Pairing V1 remains the implemented proof boundary");
+    expect(readme).toContain(
+      "Pairing V2 implementation and exact-target security re-review remain pending",
+    );
+    expect(agentNotes).not.toContain(
+      "current/unuvault/mac-companion-pairing-approval-v2",
+    );
+    expect(agentNotes).toContain("current/unuvault/ios-product-composition-v1");
+    expect(agentNotes).toContain("current/unuvault/ios-pairing-invite-receive-v3");
   });
 
   it("records the LAN-address pairing smoke proof entrypoint", () => {

@@ -27,6 +27,13 @@ unlock, cloud sync, or a shipped full mobile vault workflow. Repo-level
 claim through a non-loopback LAN IPv4 base URL, but that command is still not a
 physical iPhone import receipt or camera QR scan proof.
 
+The current V1 claim does not authenticate that claimant as the intended iPhone.
+Target-claim authentication, fresh Mac owner approval, restart-persistent replay
+rejection, and V2-to-V1 no-downgrade semantics remain pending in
+`docs/superpowers/specs/2026-07-10-authenticated-pairing-approval-design.md`.
+That file is protocol/security authority only and does not change the current
+v3 composition or UI authority.
+
 Physical receipt proof is available only when a real trusted iPhone is
 connected:
 

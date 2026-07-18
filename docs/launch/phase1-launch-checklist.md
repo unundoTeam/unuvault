@@ -7,12 +7,11 @@ phase 1.
 
 ## Completed Evidence
 
-- [x] Implementation-time internal crypto review is complete for the client-side
-  security boundary
-- [x] `docs/operations/crypto-review-gate.md` now matches the current launch
-  policy and treats the current GA/public-launch crypto gate as an internal
-  iterative review loop with third-party review explicitly deferred by
-  `docs/operations/crypto-review-launch-exception.md`
+- [x] The historical implementation-time internal crypto review is complete for
+  the PR `#59` JavaScript client-side security boundary
+- [x] `docs/operations/crypto-review-gate.md` preserves the historical PR `#59`
+  internal iterative review and the explicit 2026-04-25 exception without
+  extending either record to the later native/cross-platform boundary
 - [x] A repo-backed internal preflight reply was recorded on `2026-04-23`, and
   the current phase-1 packet can rely on it for the internal sign-off boundary
 - [x] `docs/operations/crypto-legacy-smoke-checklist.md` is complete for Web,
@@ -63,24 +62,37 @@ phase 1.
 
 ## Carry-Forward Before GA/Public Launch
 
-- [x] Internal iterative crypto review loop is completed and recorded according
-  to `docs/operations/crypto-review-gate.md`
-- Third-party crypto review is deferred under
-  `docs/operations/crypto-review-launch-exception.md`, not completed.
-- The repo-owned launch packet has internal evidence and attempted external
-  dispatch history, but no real independent verdict.
+- Current preliminary cross-platform review verdict: `blocked`.
+- [ ] Implement Pairing V2 target-claim authentication.
+- [ ] Require fresh Mac owner authorization before the whole-vault snapshot
+  read.
+- [ ] Persist iOS replay rejection across app/process restart.
+- [ ] Resolve the local bridge authorization bearer mismatch as a separate
+  security boundary.
+- [ ] Review the remediated cross-platform implementation against one exact
+  merged `main` SHA.
+- [ ] Obtain a real independent third-party verdict for the expanded scope
+  before any independent-security or higher-risk public/paid launch claim.
+- Historical PR `#59` clearance remains scoped to its recorded target at
+  `46ae0c655deef0ef15cb0cd180b4844a32cac43d`; it does not clear the later
+  native/cross-platform boundary.
+- The 2026-04-25 third-party-review exception is historical. It does not convert
+  the current expanded gate into a completed review.
+- The repo-owned launch packet retains internal evidence and attempted external
+  dispatch history, but no real independent verdict exists for the expanded
+  scope.
 - Full review detail lives in:
   - `docs/operations/crypto-review-gate.md`
   - `docs/operations/secure-crypto-pr-audit-handoff.md`
 - This section tracks the GA/public-launch crypto approval boundary rather than
   the phase-1 beta or rehearsal gate.
-- This checklist tracks that the current internal iterative crypto gate is
-  cleared for the current scope.
+- This checklist keeps the historical JavaScript clearance separate from the
+  blocked expanded cross-platform gate.
 - A sent third-party request without a real external verdict does not clear this
   checklist item.
-- If the internal iterative review returns `cleared with follow-up`, record the
-  allowed launch limits in those gate docs before this checklist item is treated
-  as closed.
+- If the exact-target review returns `cleared with follow-up`, record the
+  allowed launch limits in those gate docs before any current checklist item is
+  treated as closed.
 
 ## Surface Map
 

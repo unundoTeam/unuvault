@@ -1,0 +1,717 @@
+# Authenticated Pairing Approval Design
+
+> Status: approved protocol/security design; implementation on main pending; exact-target security re-review pending.
+
+## Purpose And Authority Boundary
+
+This document is `current-routed` authority for Pairing V2 protocol/security
+semantics only. It does not approve a screen, interaction layout, visual
+hierarchy, accessibility treatment, Pencil frame, or other current UI state.
+
+Pairing V1 is the implemented proof boundary on `main`. Pairing V2
+implementation and an exact-target security re-review remain pending. Any
+future UI implementation must separately pass the normal design/Pencil gate
+before it can become current UI authority.
+
+## Current V1 Boundary
+
+The current iOS proof can:
+
+- parse the Mac pairing invite envelope and QR payload
+- submit a claimant-provided identity to `/v1/pairing/claim`
+- open the claimant-key-bound AES-GCM handoff locally
+- persist the received vault in the AES-GCM encrypted received-vault store
+- perform a fresh reload from that store
+- project read-only `label`, `username`, and `websiteOrigin` metadata without
+  passwords
+
+V1 does not authenticate that the claimant key belongs to the intended target
+iPhone. It also does not require fresh Mac owner approval before a whole-vault
+handoff. The current proof must not be described as authenticated production
+pairing merely because the claimant can open material encrypted to the key it
+submitted.
+
+## Threat Model And Security Invariants
+
+Pairing V2 assumes a hostile LAN and a racing local process that can observe,
+repeat, reorder, or submit requests before the intended iPhone. The trusted
+camera channel carrying a fresh secret is the target-authentication root.
+
+The following are public or attacker-influenceable facts and are not
+authentication:
+
+- public invitation fields
+- source IP address
+- device display name
+- a target-provided public-key fingerprint
+- LAN reachability
+- an existing unlocked-vault session
+
+The Mac must authenticate the target claim, obtain fresh owner authorization,
+bind the sealed handoff to that target, enforce single use across restarts, and
+fail closed without downgrading to V1.
+
+## Canonical Encoding
+
+The following byte definitions are normative. `ASCII(s)` is the exact ASCII
+byte sequence for `s`; `NFC-UTF8(s)` is the UTF-8 encoding of Unicode text
+after NFC normalization; `u16be`, `u32be`, and `u64be` are fixed-width unsigned
+big-endian integers; `||` is byte concatenation. The length-prefix primitive
+is:
+
+```text
+LP(bytes) = u32be(byteLength) || bytes
+```
+
+Every component shown in a transcript below is wrapped in exactly one `LP`,
+including fixed-width integers, fixed-size nonces, hashes, authenticators, and
+domain strings. The bytes inside `LP(...)` are raw bytes; an implementation
+must not put a base64url string, JSON spelling, field name, separator, or a
+second length prefix inside the component unless the definition explicitly
+says so. Fields must never be sorted, omitted, duplicated, or accepted through
+an alternate spelling.
+
+The protocol constants are:
+
+```text
+PAIRING_VERSION = u16be(2)
+CLAIM_DOMAIN = ASCII("unuvault-pairing-claim-v2")
+P256_SPKI_DER = canonical DER SubjectPublicKeyInfo for one P-256 public key
+```
+
+`P256_SPKI_DER` is one DER `SubjectPublicKeyInfo` container. Its
+`AlgorithmIdentifier` is exactly `id-ecPublicKey` (`1.2.840.10045.2.1`) with
+the named-curve parameter `prime256v1` (`1.2.840.10045.3.1.7`). Its subject
+public-key BIT STRING has zero unused bits and contains exactly the 65-byte
+ANSI X9.63 uncompressed point `0x04 || X || Y`, where `X` and `Y` are each
+32-byte unsigned big-endian coordinates. The point must be on P-256, must not
+be the point at infinity, and must use minimal definite-length DER with no
+trailing bytes. Parse-and-reserialize must reproduce the input byte-for-byte.
+Both `canonicalTargetIdentityDER` and `canonicalEphemeralPublicKeyDER` below
+use this same container and no other public-key representation.
+
+Binary values cross JSON or QR boundaries only as strict unpadded base64url.
+A decoder rejects padding, non-URL alphabet characters, non-minimal encodings,
+the wrong decoded length, or any value whose decode-and-re-encode result is not
+byte-identical to the input. `clientNonce` is exactly 32 cryptographically
+random bytes. The textual `inviteSessionId`, `targetDeviceId`, and
+`targetDisplayName` fields use `NFC-UTF8`; the fixed-size `claimId` and
+`handoffId` defined below are raw bytes and never use NFC or another string
+encoding inside a transcript. Expiry is
+`u64be(expiresAtEpochMilliseconds)` and must be a non-negative integer with no
+fractional or alternate textual form before conversion to bytes.
+
+`canonicalMacBaseURL` is produced by this single algorithm:
+
+1. Accept at most 512 ASCII bytes and parse them as one absolute URI. Reject
+   any percent-encoded octet, non-ASCII input, or alternate parser repair.
+2. Require the scheme to be the lowercase ASCII string `http` or `https`.
+3. Reject user info. Require one explicit decimal port in `1...65535`, with no
+   sign or leading zero.
+4. Require the host to be one of exactly these three ASCII encodings: canonical dotted-decimal IPv4, bracketed RFC 5952 IPv6, or a canonical DNS A-label host.
+   - IPv4 has four shortest-decimal octets in `0...255`, separated by `.`, with
+     no sign and no leading zero except the single digit `0`.
+   - Unscoped IPv6 is enclosed in `[` and `]`; the address text inside is the
+     unique lowercase RFC 5952 serialization, including its longest-leftmost
+     zero-run compression rule. IPv4-embedded IPv6 addresses always use the eight 16-bit hexadecimal fields as input to the same RFC 5952 algorithm;
+     mixed dotted-decimal notation is not accepted. This protocol choice
+     resolves RFC 5952 Section 5's context-dependent mixed-notation option to
+     one serialization.
+   - A DNS host contains lowercase canonical IDNA2008 A-labels separated by
+     `.`, with no trailing dot. Each label is 1...63 ASCII bytes, the total is
+     at most 253 bytes, and each label must pass an IDNA2008
+     decode-and-ToASCII round trip byte-for-byte. Raw Unicode and transitional
+     UTS #46 mappings are not alternate inputs.
+   Zone identifiers are not part of this URL encoding: `%`, `%25`, interface
+   names, and numeric zone spellings are rejected rather than normalized.
+   Scoped IPv6 endpoints require a separate endpoint-selection rule before
+   they can be represented; this does not declare unscoped IPv6 unsupported.
+5. Require an empty path and reject query and fragment components. A trailing
+   slash is therefore not an alternate accepted spelling.
+6. Serialize exactly `scheme || ASCII("://") || host || ASCII(":") ||
+   shortestDecimal(port)`. The input must already equal this serialization
+   byte-for-byte; there is no second accepted URL spelling.
+
+URL canonicalization is only a bounded authenticated encoding. Endpoint reachability, address-family support, and private-versus-public address admission are separate implementation/security policy; this specification neither approves nor rejects an endpoint because of its address class. No allowed host, source IP, URL, or LAN reachability is an authenticator.
+
+The canonical claim transcript is the concatenation of these fields in order:
+
+1. `LP(CLAIM_DOMAIN)`
+2. `LP(NFC-UTF8(inviteSessionId))`
+3. `LP(u64be(expiresAtEpochMilliseconds))`
+4. `LP(ASCII(canonicalMacBaseURL))`
+5. `LP(canonicalTargetIdentityDER)`
+6. `LP(NFC-UTF8(targetDeviceId))`
+7. `LP(NFC-UTF8(targetDisplayName))`
+8. `LP(clientNonce)`
+
+The claim transcript owns the invite session, expiry, and Mac URL fields. A
+client echo cannot replace any server-owned invitation value.
+
+## Target-Claim Authentication
+
+Each invitation contains a fresh cryptographically random 32-byte
+`pairingSecret` delivered through the QR camera channel. The target creates a
+fresh P256 key-agreement identity and a fresh client nonce for the claim.
+
+The claim-authentication KDF constants are:
+
+```text
+CLAIM_AUTH_SALT_DOMAIN = ASCII("unuvault-pairing-claim-auth-salt-v2")
+CLAIM_AUTH_INFO_DOMAIN = ASCII("unuvault-pairing-claim-auth-key-v2")
+CLAIM_AUTH_KEY_BYTES = 32
+```
+
+The exact HKDF-SHA256 salt and `info` are these ordered concatenations:
+
+```text
+claimAuthSalt =
+LP(CLAIM_AUTH_SALT_DOMAIN) ||
+LP(PAIRING_VERSION) ||
+LP(NFC-UTF8(inviteSessionId)) ||
+LP(u64be(expiresAtEpochMilliseconds)) ||
+LP(ASCII(canonicalMacBaseURL))
+
+claimAuthInfo =
+LP(CLAIM_AUTH_INFO_DOMAIN) ||
+LP(PAIRING_VERSION)
+```
+
+The fixed invitation-owned fields make the derivation session-bound without
+depending on any target-controlled claim field or on the authenticator itself.
+Both peers derive exactly:
+
+```text
+claimAuthKey = HKDF-SHA256(
+  IKM = pairingSecret,
+  salt = claimAuthSalt,
+  info = claimAuthInfo,
+  L = CLAIM_AUTH_KEY_BYTES
+)
+claimAuthenticator = HMAC-SHA256(claimAuthKey, canonicalClaimTranscript)
+```
+
+`claimAuthKey` is a 32-byte, session-bound, domain-separated key derived from
+the raw `pairingSecret` with HKDF-SHA256. Normatively, `claimAuthenticator` =
+HMAC-SHA256(`claimAuthKey`, `canonicalClaimTranscript`). The
+claim-authentication HKDF and the handoff-encryption HKDF use different domain
+constants, input keying material, salt, and info: claim authentication uses
+the QR secret as IKM, while handoff encryption uses the P256 ECDH shared X
+coordinate as IKM and binds the QR secret only inside its separately labeled
+salt. Neither derivation output may substitute for the other.
+
+Before an invitation QR may be displayed or activated, the Mac derives the
+32-byte `claimAuthKey` from the raw 32-byte `pairingSecret` and the immutable
+server-owned `PAIRING_VERSION`, NFC `inviteSessionId`,
+`expiresAtEpochMilliseconds`, and `canonicalMacBaseURL` using the byte-exact
+claim-authentication HKDF above.
+
+One issuance durable transaction commits all issuance authority together: the
+outer lifecycle state `issued`, immutable verifier provenance ID and envelope
+generation, the unique encrypted verifier ciphertext ownership or reference,
+and every immutable transcript input required to authenticate the first claim.
+
+The encrypted verifier envelope is keyed by `inviteSessionId`; its immutable
+authenticated plaintext payload contains exactly the 32-byte `claimAuthKey`,
+those immutable transcript inputs, the envelope format and version, and the
+same immutable verifier provenance ID and envelope generation, with no
+target-controlled field or mutable lifecycle state.
+
+Mutable lifecycle state (`issued`, `authorizing`, `sealing`, `ready`, or
+terminal) and the exact request and retry metadata exist only in the outer
+durable record or columns controlled by atomic compare-and-swap;
+`issued/unreserved` is never inside the encrypted envelope payload.
+
+No issuance component is visible independently; a failed or unknown commit
+keeps the QR hidden and inactive until one authoritative reread proves a
+complete, internally consistent `issued` record whose provenance, generation,
+ciphertext ownership, and transcript inputs all match.
+
+If that reread cannot prove the complete record, activation fails closed and
+idempotent recovery removes every orphaned ciphertext, ownership reference, or
+incomplete outer record.
+
+QR activation waits for the entire issuance transaction commit, never only the
+ciphertext or verifier-envelope commit.
+
+Crash recovery must never leave verifier ciphertext without its owning
+`issued` record or an `issued` record without its verifier ciphertext.
+
+On Mac process startup or recovery, before enabling claim handling or
+redisplaying any QR, every live `issued` record enters one atomic, mutually
+exclusive, and idempotent terminal transition to `invalidated`; the same commit
+deletes the invite verifier ciphertext ownership or reference, hides and
+revokes the old QR, preserves only the minimum tombstone, and requires a fresh
+invite.
+
+Recovery never accepts a claim from the durable `claimAuthKey` of a recovered
+`issued` record and never persists, reconstructs, or substitutes the raw
+`pairingSecret`.
+
+A failed or unknown recovery commit is resolved by one authoritative reread; if
+the record remains live `issued`, recovery repeats the same terminal
+transition, and claim handling and QR display stay disabled until the reread
+proves an `invalidated` tombstone with no verifier. At no intermediate or final
+durable point may a live verifier and terminal tombstone coexist.
+
+The Mac reconstructs the transcript from server-owned invite fields plus the
+submitted canonical target fields, recomputes the target fingerprint from the
+canonical DER, retrieves the candidate verifier key as ordered below, and
+verifies the HMAC in constant time. Expired, malformed,
+unknown-session, fingerprint-mismatch, transcript-mismatch, and HMAC-mismatch
+paths return one generic authentication failure and disclose no comparison
+detail.
+
+The claim-validation pipeline is normative and ordered:
+
+1. Enforce the raw HTTP entity-body cap of 4096 octets. Reject `Content-Length`
+   greater than 4096 before reading; for chunked or unknown-length input, use
+   one fixed bounded buffer and fail closed when the 4097th octet arrives.
+2. Perform JSON parsing, schema validation, strict base64url decoding, and
+   required-field checks.
+3. NFC-normalize text and enforce UTF-8 lengths of 1–128 bytes for
+   `targetDeviceId` and 1–256 bytes for `targetDisplayName`.
+4. Parse the target P256 SPKI DER and require canonical DER by exact
+   re-serialization before accepting the public key.
+5. Perform constant-shape verifier retrieval keyed only by the server-owned
+   `inviteSessionId`: make one bounded indexed verifier-record read; decrypt
+   the live encrypted `claimAuthKey` when present; for an absent, terminal,
+   non-live, or missing record, substitute an independent 32-byte process-owned
+   dummy key and continue through the same HMAC path. This step makes no
+   reservation-lifecycle or state-dependent response decision, never returns
+   or logs the candidate key, and never recreates a terminal verifier. It
+   does not claim perfect constant-time storage I/O; it requires only a fixed
+   bounded response and computation shape with one generic external result.
+6. Compute HMAC-SHA256 with the candidate key and compare the supplied
+   authenticator in constant time.
+7. Only when the HMAC authenticates with a live verifier, load the full
+   reservation state and apply the exact-retry, different-valid-retry, and
+   ready-security-invalidation rules. A dummy-key or invalid-authenticator path
+   returns the same generic authentication failure with no state disclosure or
+   mutation.
+
+Verifier retrieval is a minimal capability-key lookup, not an authenticated
+business-state lookup; the latter occurs only after HMAC authentication
+succeeds with a live verifier.
+
+Verifier retrieval obtains the live key and immutable transcript inputs from
+the encrypted invite envelope for a first claim or from the reservation verifier
+record after reservation; it reads no target-bound or business-lifecycle state
+before HMAC authentication.
+
+At process startup, the Mac generates an independent 32-byte process-owned
+dummy key with a CSPRNG and retains it only in mutable memory; it is never
+logged, returned, or persisted.
+
+Every request path—live invite-envelope candidate, live reservation-verifier
+candidate, and dummy candidate for a missing, terminal, or non-live
+record—enters one defer/finally cleanup scope before HMAC comparison and
+best-effort clears its request-local candidate plaintext and reference after
+comparison or error.
+
+Per-request cleanup never clears the process-owned dummy master buffer; it
+clears only the request-local candidate copy or reference, while the dummy
+master buffer remains mutable process-owned memory and is best-effort cleared
+only at process shutdown.
+
+An unauthenticated or malformed request receives the same generic authentication failure, with no state disclosure or mutation. The Mac owns the mutable QR-secret buffer from invite and claim authentication through sealing. The secret is used only for claim-authentication HKDF and handoff-encryption HKDF and is never logged or included in a response or persistent general storage.
+
+`claimAuthKey` is key-equivalent secret material. It is never logged, returned, or persisted in plaintext.
+
+## Fresh Mac Owner Authorization
+
+Before any vault read, the Mac presents the authenticated target identity and
+request expiry. Every `Confirm & send` attempt creates a fresh `LAContext` and
+evaluates `deviceOwnerAuthentication`, allowing Touch ID or the Mac login
+password according to the platform policy. An already unlocked vault session
+is necessary but not sufficient authorization.
+
+Fresh owner denial or cancellation ends the reserved workflow as `denied`.
+Owner-authentication unavailability or `LAContext` evaluation or system error
+ends the reserved workflow as `invalidated`. Both outcomes are terminal
+state-owning mutations for that reservation and clear its pending capability,
+raw secret, derived keys, private-key material, and plaintext buffers while
+preserving the required terminal tombstone.
+
+After successful authentication, the Mac rechecks the vault session identity,
+authenticated target, expiry, lock state, revoked or lost-device state, and
+the pending capability. Only then may it perform exactly one in-memory vault
+snapshot read. Cancellation, denial, unavailable authentication, evaluation
+or system error, changed state, or read failure creates no handoff and writes
+no plaintext to logs.
+
+## Target-Bound Handoff
+
+For each authorized handoff, the Mac creates a fresh ephemeral P256 key and
+performs P256 ECDH with the authenticated target identity. HKDF-SHA256 derives
+one 256-bit key. The ECDH input keying material is the raw 32-byte unsigned
+big-endian P-256 shared-point X coordinate; it is not a DER object, encoded
+point, or base64url text.
+
+The KDF and AAD constants are:
+
+```text
+ALGORITHM_ID = ASCII("P256-HKDF-SHA256-AES-GCM-256-V2")
+HKDF_SALT_DOMAIN = ASCII("unuvault-pairing-hkdf-salt-v2")
+HKDF_INFO_DOMAIN = ASCII("unuvault-pairing-handoff-key-v2")
+HANDOFF_AAD_DOMAIN = ASCII("unuvault-pairing-handoff-aad-v2")
+CLAIM_ID_BYTES = 32
+HANDOFF_ID_BYTES = 32
+AES_GCM_NONCE_BYTES = 12
+```
+
+The Mac generates both identifiers with a cryptographically secure random number generator. `claimId` is allocated inside the durable reservation transaction after target-claim authentication; `handoffId` is allocated inside the later atomic transition to `sealing` after fresh owner authorization and all rechecks pass. Each identifier is 32 uniformly random raw bytes, giving 256 bits of generation entropy, and its only JSON/wire spelling is strict unpadded base64url of exactly 32 raw bytes. The raw bytes, not the base64url spelling or NFC text, enter HKDF and AAD.
+
+Both identifier kinds share one Mac-installation-wide Pairing V2 uniqueness
+namespace. Before committing either transaction, the Mac checks the candidate
+against both identifier fields in every live, terminal, or retained tombstone
+record. A collision with any live, terminal, or retained tombstone record
+discards the candidate and draws a new 32-byte value, for at most 8 independent draws per identifier. If all 8 collide, the transaction fails with the generic internal
+failure, creates no reservation or handoff, and never reuses the colliding
+value. Randomness is the security basis; the collision check makes local
+uniqueness and recovery behavior deterministic.
+
+The exact HKDF-SHA256 salt is:
+
+```text
+LP(HKDF_SALT_DOMAIN) ||
+LP(pairingSecret)
+```
+
+`pairingSecret` is the raw 32-byte QR secret, not its base64url spelling. The
+exact HKDF-SHA256 `info` is the following ordered concatenation:
+
+```text
+LP(HKDF_INFO_DOMAIN) ||
+LP(ALGORITHM_ID) ||
+LP(PAIRING_VERSION) ||
+LP(NFC-UTF8(inviteSessionId)) ||
+LP(claimId) ||
+LP(handoffId) ||
+LP(u64be(expiresAtEpochMilliseconds)) ||
+LP(canonicalTargetIdentityDER) ||
+LP(canonicalEphemeralPublicKeyDER) ||
+LP(clientNonce)
+```
+
+HKDF expands exactly 32 output bytes and does not apply an additional label,
+separator, hash, string encoding, or length prefix beyond the salt and `info`
+above.
+
+AES-GCM seals one versioned vault snapshot. Its canonical AAD binds the exact
+algorithm identifier, protocol version, invite session, claim, handoff,
+authenticated target identity, expiry, and ephemeral public key in a fixed
+domain and field order. The exact AAD is:
+
+```text
+LP(HANDOFF_AAD_DOMAIN) ||
+LP(ALGORITHM_ID) ||
+LP(PAIRING_VERSION) ||
+LP(NFC-UTF8(inviteSessionId)) ||
+LP(claimId) ||
+LP(handoffId) ||
+LP(canonicalTargetIdentityDER) ||
+LP(u64be(expiresAtEpochMilliseconds)) ||
+LP(canonicalEphemeralPublicKeyDER)
+```
+
+The Mac generates a fresh uniformly random 12-byte AES-GCM nonce for the one
+sealed handoff. The raw 12 bytes are passed to AES-GCM; the response field is
+their strict unpadded base64url spelling. `sealedCiphertext` is strict unpadded
+base64url of `ciphertext || tag`, with the 16-byte GCM authentication tag last.
+The nonce is not prepended to `sealedCiphertext`, not derived from an
+identifier, and never reused with the derived key.
+
+The public response contains only the version, algorithm, identifiers, expiry,
+canonical ephemeral public key, AES-GCM nonce, ciphertext, and fields required
+to reconstruct the KDF context and AAD. It contains no `pairingSecret`, private
+key, ECDH secret, derived key, capability, vault plaintext, credential
+plaintext, or password.
+
+## Single Use And Persistent Replay Rejection
+
+The retry-identity domain is:
+
+```text
+RETRY_IDENTITY_DOMAIN = ASCII("unuvault-pairing-retry-identity-v2")
+```
+
+After successful target-claim authentication, the exact retry identity is:
+
+```text
+LP(RETRY_IDENTITY_DOMAIN) ||
+LP(canonicalClaimTranscript) ||
+LP(claimAuthenticator)
+```
+
+`canonicalClaimTranscript` is the complete byte string defined above and
+`claimAuthenticator` is the raw 32-byte HMAC-SHA256 output, not either value's
+base64url or JSON spelling. These bytes are the full authenticated retry
+identity: every request value used for target authentication, owner approval,
+key derivation, AAD, or response selection is either present in the canonical
+claim transcript or derived from it. The durable record retains the exact
+retry-identity bytes in encrypted storage and compares the transcript and
+authenticator byte-for-byte; a digest alone cannot substitute for the full
+identity.
+
+The reservation state machine is normative. Its success path is
+`issued` -> `authorizing` -> `sealing` -> `ready` -> `consumed`. The
+normative state machine permits `invalidated` from `authorizing` or `sealing`
+for the terminal owners classified below, and from `ready` only for an
+independent trusted local lock, revoke, lost-device, or capability invalidation
+event. No other owner-authentication, internal, persistence, process, or
+request-processing outcome may transition `ready` early.
+
+While an encrypted `claimAuthKey` verifier exists in `authorizing`, `sealing`,
+or pre-deadline `ready`, the Mac authenticates the canonical request before
+selecting a state-dependent response: the reserved byte-identical identity
+receives only its allowed pending or ready behavior, while a different valid
+authenticated identity receives `handoff_consumed`. An `inviteSessionId`
+lookup alone never authorizes `handoff_consumed`. After `consumed`, `denied`,
+`expired`, or `invalidated` clears the verifier, every request receives the
+generic authentication failure with no state disclosure or mutation, even when
+its `inviteSessionId` matches a terminal tombstone.
+
+After the first valid HMAC, one durable transaction atomically changes the outer
+state from `issued` to `authorizing`, binds the exact request and retry identity,
+allocates `claimId`, and moves the unique ownership or reference for the same
+immutable verifier ciphertext from the invite slot to the reservation slot
+without copying, re-deriving, or re-encrypting the key.
+
+Concurrent authenticated claims cannot create multiple reservations: exactly
+one compare-and-swap winner performs the ownership transfer, and every false or
+unknown outcome follows the single authoritative-reread rule; an invalid HMAC
+performs no mutation.
+
+If the first-claim compare-and-swap returns false, or its commit acknowledgement
+or outcome is unknown, the request performs exactly one authoritative durable
+reread before selecting any response; that reread, matching-generation and
+state validation, and state-dependent response selection execute inside one
+serializable transaction or record lock that is mutually exclusive with every
+revoke, lock, lost-device, capability, expiry, ready-window deadline, and
+terminal-cleanup compare-and-swap.
+
+The transaction's reread-and-response-authorization creation is the
+linearization point: if a terminal or trusted-security transition linearizes
+first, the request creates no send authorization and returns the generic
+authentication failure; if response authorization creation linearizes first,
+that authorization permits only its bound exact serialized response bytes to be
+sent once and cannot be retroactively revoked.
+
+Only a winning reservation whose immutable verifier provenance ID and envelope
+generation both match the candidate invite envelope is a matching winner.
+
+When that single reread proves a matching winner, that reservation is the sole
+durable truth and the request applies the existing byte-identical or
+different-valid retry semantics to it.
+
+If the reread finds no winning reservation, a terminal tombstone, a missing
+record, a verifier provenance or generation mismatch, or cannot prove the
+matching winner, the request returns the generic authentication failure with no
+mutation, state disclosure, or verifier reconstruction.
+
+The same single-reread rule resolves invitation expiry, revoke, process restart,
+and persistence races; an unknown commit followed by a matching reservation
+uses that reservation as the only durable truth, and every other result fails
+closed.
+
+After leaving the transaction, consume the request-local send authorization at
+most once and send only its bound exact serialized response bytes without
+rereading or reselecting from an external stale snapshot; response transmission
+itself never holds the transaction or record lock.
+
+Every state-dependent response-selection path—the `sealing` to `ready` first
+sealed-response publication, each pre-deadline byte-identical `ready` retry,
+and the failed or unknown first-claim compare-and-swap reread path—executes
+inside one serializable transaction or record lock that is mutually exclusive
+with every trusted lock, revoke, lost-device, capability invalidation, expiry,
+ready-window deadline, and terminal-cleanup compare-and-swap.
+
+Inside that transaction, the request rereads and validates the current state,
+verifier provenance and generation, the applicable invitation expiry or
+immutable ready deadline, and exact retry identity before selecting exact
+serialized response bytes; response selection atomically creates an
+irrevocable, request-local, single-use send authorization bound only to those
+exact bytes, and authorization creation is the response operation's
+linearization point.
+
+If a terminal or trusted-security transition linearizes first, no send
+authorization is created, no sealed response is sent, and the request returns
+the generic authentication failure. If send authorization creation linearizes
+first, a later trusted transition still terminates the reservation immediately
+and prevents every future selection, retry, or authorization, but it cannot
+retroactively revoke that one already-authorized send; the actual socket or
+network send may occur after the later transition commits, so this authority
+makes no physical-send-order claim.
+
+For first publication, the same transaction persists `readyAt`, the immutable
+deadline, and the exact serialized sealed response, changes `sealing` to
+`ready`, and selects those exact response bytes from its durable write set. They
+become sendable only after the commit succeeds; a false or unknown outcome
+follows the existing authoritative-reread rule.
+
+For each pre-deadline byte-identical `ready` retry, the transaction selects only
+the retained exact serialized response bytes from the validated durable `ready`
+record.
+
+After the transaction, the request may consume the authorization at most once
+and send only its bound exact bytes; it never rereads or reselects durable state,
+substitutes different bytes, reuses the authorization, sends a stale in-memory
+sealed response, or holds the transaction or record lock during network I/O.
+Send failure or an unknown send outcome creates no second authorization and
+does not extend the retry window.
+
+The send authorization is an ephemeral request-local decision capability, not a
+durable outbox, acknowledgement, or recoverable send lease. A process crash
+before transmission may lose that response; restart never restores or replays
+the old authorization, and the client may submit the existing byte-identical
+retry to request a new authorization only if the reservation is still
+pre-deadline `ready` and no trusted transition has terminated it.
+
+1. The Mac verifies the HMAC and canonical request first. An unauthenticated
+   or malformed request receives the same generic authentication failure, with
+   no state disclosure or mutation.
+2. For the first valid request, the compare-and-swap rechecks the unexpired
+   outer `issued` state plus the immutable verifier provenance ID and envelope
+   generation, persists the exact retry identity and original authenticated
+   `clientNonce`, consumes the invitation, and enters `authorizing`. The same
+   transaction moves the encrypted verifier ownership or reference into the
+   reservation rather than copying, re-deriving, re-encrypting, or separately
+   persisting its key. No retry window starts here. This compare-and-swap
+   atomically creates the durable reservation before fresh owner authorization.
+3. Exactly one worker for that reservation creates the fresh `LAContext`. A
+   byte-identical authenticated request received in `authorizing` or `sealing`
+   does not start another authorization, snapshot read, or seal; it receives
+   `handoff_response_not_ready` with no handoff payload, identifiers, or timing
+   metadata. A different valid authenticated retry identity while the encrypted
+   `claimAuthKey` verifier exists after reservation receives terminal
+   `handoff_consumed` and cannot mutate, replace, or extend the reservation. An
+   invalid authenticator still receives the same generic
+   authentication failure without state disclosure or mutation. Only the
+   reserved byte-identical retry may observe pending or ready behavior.
+4. After owner authorization succeeds, one atomic transaction rechecks the
+   reservation identity, vault session identity, authenticated target, expiry,
+   lock state, revoked or lost-device state, and pending capability. It then
+   allocates `handoffId` and changes `authorizing` to `sealing`. A failed recheck
+   makes the record terminal without a snapshot read.
+5. The reserved worker performs exactly one in-memory snapshot read after the `sealing` transition, creates one ephemeral key, derives one handoff key, and
+   seals once. No retry path can repeat any of those operations.
+6. The all-response-selection rule above governs first publication: its
+   serializable transaction rechecks the current `sealing` state, verifier
+   provenance and generation, expiry, and exact retry identity; persists the
+   exact serialized sealed response, `readyAt`, and immutable deadline; changes
+   `sealing` to `ready`; and selects the just-committed durable response bytes.
+   A read, derivation, sealing, persistence, recheck, or process failure follows
+   the exhaustive terminal classification below and publishes no handoff: the
+   worker records `invalidated` atomically when it can; if process failure
+   prevents that write, startup recovery applies the exhaustive
+   `issued`/`authorizing`/`sealing` invalidation mapping below. Volatile material
+   is never used to resume recovered work.
+
+The ready recovery window begins only when the durable reservation atomically transitions to `ready`; `readyAt` is the timestamp written by that same transaction, and the immutable deadline is `min(readyAt + 30 seconds, original invitation expiry)`. During that window, the Mac uses the encrypted `claimAuthKey` to authenticate every canonical request before comparing its retry identity. Only a request whose
+canonical claim transcript and authenticator
+are each byte-identical to the reservation, including the original authenticated `clientNonce`, receives the retained serialized response. The sealed response, including its AES-GCM nonce, is reused byte-for-byte; it is not reserialized or resealed, and retry does not move `readyAt` or extend the deadline. A different valid authenticated retry identity receives terminal `handoff_consumed` without mutating, replacing, or extending the reservation. Before the immutable deadline, processing the initial response, a byte-identical retry, a different valid authenticated retry identity, or an invalid authenticator does not by itself transition `ready` to `consumed` or `invalidated`, move `readyAt`, or shorten or extend the window. An independent trusted local lock, revoke, lost-device, or capability invalidation event during `ready` atomically transitions the reservation to `invalidated` immediately and clears the retained sealed response, retry identity, and encrypted `claimAuthKey`; security revocation takes priority over the recovery deadline. Before the deadline, an encrypted durable `ready` record and its response survive Mac process restart unless such a trusted local security invalidation occurs. At the immutable deadline, one atomic `ready` to `consumed` transition clears the retained sealed response, retry identity, and encrypted `claimAuthKey` and leaves only the minimum durable identifiers and consumed tombstone required for replay rejection. A terminal `invalidated` record is not eligible for that deadline transition.
+
+Ready retry uses the encrypted `claimAuthKey` to distinguish a different valid authenticated transcript from an invalid authenticator, then uses the stored exact request and retry identity to select the sealed response. It does not require retaining or reconstructing the raw `pairingSecret` after `ready`.
+
+iOS verifies and imports in one encrypted-store transaction. If either `claimId` or `handoffId` already exists in the consumed-ID store, iOS rejects
+the entire response as replay even when the other identifier is new. Otherwise
+the same transaction writes the credentials, `claimId`, and `handoffId`; no
+partial import or overwrite is permitted. Consumed IDs survive app and process
+restart and remain for the lifetime of the received-vault store unless an
+explicit secure reset deletes both the vault and replay store together. An
+in-memory replay set is insufficient.
+
+No V2 failure state permits a V1 whole-vault downgrade. A V2 client fails
+closed after authentication failure, `handoff_response_not_ready`, denial,
+expiry, invalidation, consumed response, persistence failure, or replay. Once
+V2 is the production requirement, the Mac must not return whole-vault material
+for a V1 claim.
+
+## Terminal Cleanup And Bounded Recovery
+
+`consumed`, `denied`, `expired`, and `invalidated` are terminal states. The only state-owning terminal mutations are exclusive and classified as follows: fresh owner denial or cancellation records `denied`; invitation expiry records `expired`; owner-authentication unavailability or `LAContext` evaluation or system error records `invalidated`; lock, revoke, lost-device, or capability invalidation records `invalidated`, including an immediate atomic `ready` to `invalidated` transition for an independent trusted local lifecycle event; reservation identity, vault session identity, or authenticated-target recheck failure records `invalidated`, while expiry and lifecycle outcomes discovered by that recheck remain classified under their preceding categories; internal read or snapshot, key-derivation, sealing, persistence, or process failure before `ready` records `invalidated` when the worker can commit the terminal write; restart recovery records any live `issued`, unfinished `authorizing`, or unfinished `sealing` record as `invalidated` before claim handling or QR display, using the atomic issued-recovery rule; and reaching the immutable ready-window deadline transitions `ready` to `consumed` only if no prior security invalidation occurred. Each such mutation clears the pending capability and unsealed handoff material while preserving required durable terminal tombstones.
+
+Every terminal cleanup is one atomic, mutually exclusive, and idempotently
+recoverable transition that replaces the live outer record with a minimum
+tombstone containing no verifier and deletes the verifier ciphertext ownership
+or reference in the same commit.
+
+Restart recovery may safely repeat that transition and must never leave both a
+live verifier and a terminal tombstone.
+
+The normative state machine permits `invalidated` from `authorizing` or
+`sealing` for the terminal owners classified below, and from `ready` only for
+an independent trusted local lock, revoke, lost-device, or capability
+invalidation event. No other owner-authentication, internal, persistence,
+process, or request-processing outcome may transition `ready` early.
+
+An unauthenticated or malformed request receives the same generic authentication failure, with no state disclosure or mutation. A different valid authenticated retry identity while the encrypted `claimAuthKey` verifier exists after reservation receives terminal `handoff_consumed` and cannot mutate, replace, or extend the reservation. Only the reserved byte-identical retry may observe pending or ready behavior.
+
+Before the immutable deadline, processing the initial response, a byte-identical retry, a different valid authenticated retry identity, or an invalid authenticator does not by itself transition `ready` to `consumed` or `invalidated`, move `readyAt`, or shorten or extend the window. An independent trusted local lock, revoke, lost-device, or capability invalidation event during `ready` atomically transitions the reservation to `invalidated` immediately and clears the retained sealed response, retry identity, and encrypted `claimAuthKey`; security revocation takes priority over the recovery deadline.
+
+During the ready identical-retry window, the Mac retains only the encrypted
+sealed response, encrypted `claimAuthKey`, exact retry-identity bytes,
+identifiers, immutable timestamps, state, and minimum authentication metadata.
+The encrypted `claimAuthKey` remains key-equivalent secret material and exists
+only to verify arbitrary claims during the ready retry window. It does not retain the plaintext
+snapshot, private ephemeral key, ECDH secret, or derived handoff key. When the
+window ends, the sealed response is removed while the durable consumed
+tombstone remains.
+
+At the atomic `ready` transition, the sealed byte-identical response, encrypted `claimAuthKey`, and minimum retry identity are durable. The raw `pairingSecret` is best-effort cleared immediately when the record enters `ready`; it is not retained through the 30-second retry window. The exhaustive classification above is the sole terminal-state mapping; no failure class outside it may own a terminal mutation. At the immutable deadline, one atomic `ready` to `consumed` transition clears the retained sealed response, retry identity, and encrypted `claimAuthKey` and leaves only the minimum durable identifiers and consumed tombstone required for replay rejection.
+
+Every pre-ready terminal path above clears `claimAuthKey` and the reservation's other owned secret material while preserving required terminal tombstones; the ready-window deadline instead clears the retained sealed response, retry identity, and encrypted `claimAuthKey` while preserving the consumed tombstone.
+
+Invitation expiry, lock, revoke, lost-device, capability invalidation,
+persistence failure, or restart before `ready` uses that atomic tombstone
+transition to remove the unique verifier ciphertext ownership or reference and
+clear its `claimAuthKey` as applicable, while preserving only the minimum
+terminal tombstone required to fail closed.
+
+Creating the encrypted verifier envelope neither transfers nor extends the raw
+`pairingSecret` lifetime: the Mac-owned mutable raw-secret buffer remains
+governed by the existing sealing and `ready` cleanup rules and is never
+reconstructed from the envelope.
+
+The iOS scanner or parser owns the received secret initially and transfers ownership exactly once to the pending import operation. That operation derives `claimAuthKey`, uses it only to create the claim HMAC, and may reuse the raw secret only for handoff HKDF/AEAD open; it never persists or logs either secret. The serialized byte-identical request, not `claimAuthKey`, is retained for pending retries. iOS clears `claimAuthKey` after claim serialization and holds the raw secret only until response authentication and open succeed and the encrypted received-vault plus both consumed IDs commit atomically, then clears it immediately. Any cancel, parse, authentication, open, import, or persistence error, expiry, or restart before commit clears every owned raw or derived secret and requires a fresh invite.
+
+All cleanup is best-effort cleanup of owned mutable buffers, not guaranteed zeroization of copies created by the Swift runtime. Recovery never mints a new capability, extends the invite TTL, changes the authenticated target, permits downgrade, or removes required durable reservation, replay, or terminal tombstones.
+
+A deployment rollback disables new whole-vault transfer and preserves every durable reservation and consumed-ID tombstone until a security-compatible forward migration can read them. If the older build cannot read the V2 state, it fails closed instead of deleting replay history or re-enabling V1 whole-vault transfer.
+
+## Separate Open Security Boundaries
+
+- Local bridge authorization remains a separate open blocker: Pairing V2 does
+  not resolve local bridge authorization or the bearer-contract mismatch.
+- Restart-persistent replay rejection is Pairing V2 implementation work and is
+  pending on `main`.
+- The bounded Argon2 hostile-parameter checkpoint is resolved, but it does not
+  clear Pairing V2, the bridge boundary, or the expanded review gate.
+- The final remediated cross-platform implementation requires a new review of
+  one exact merged `main` SHA.
+- No independent third-party verdict exists for the expanded scope. Independent
+  review and any paid/public-launch decision remain open.
+
+## Implementation And Review Exit Criteria
+
+Implementation commits are future work. The Pairing V2 gate can advance only
+after all protocol requirements above are implemented, focused and repo-wide
+verification is current, and the final packet records one exact merged
+implementation SHA. A branch name, range, historical target, or "latest main"
+cannot substitute for that immutable target.
+
+External status remains `not dispatched` until the exact SHA is recorded and
+the local remediation plus exact-target review evidence is attached. A request
+document alone is not dispatch or review evidence.
+
+## Design Gate
+
+- UI impact: none
+- Classification: no-ui-impact
+- Design review: not applicable
+- Pencil current read/mutation: not performed
+- Pencil draft mutation: not performed
+- Pencil sync: not applicable
+- Pencil lease: not applicable
+- Approval-frame authority: not restored

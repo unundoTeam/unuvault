@@ -122,6 +122,10 @@ browser-import workflow.
   `current/unuvault/mac-companion-core-flows-v1.3`.
 - Current iOS source frames: `current/unuvault/ios-product-composition-v1`
   and `current/unuvault/ios-pairing-invite-receive-v3`.
+- `docs/superpowers/specs/2026-07-10-authenticated-pairing-approval-design.md`
+  is `current-routed` for Pairing V2 protocol/security semantics only. Pairing
+  V2 implementation and exact-target security re-review remain pending. It is
+  not broad Pencil/current-UI authority.
 - Small UI copy or polish uses the `Lightweight UI Path` in the portfolio
   Pencil gate.
 - Historical design specs are planning context only unless the operating index
@@ -387,15 +391,17 @@ For the native Mac companion proof:
   This runs the iOS receive/client proof and the Mac companion pairing-boundary
   proof as one repo-level gate. It ties the iPhone target-claim client contract
   to the Mac runtime `/v1/pairing/claim` contract. The complete iOS XCTest suite
-  in this gate also proves the claimant-key-bound handoff can be opened locally,
-  persisted to an AES-GCM encrypted received-vault store, and projected through
-  an injectable store as read-only `label`, `username`, and `websiteOrigin`
-  metadata. The composition loads that app-default store on startup, selects
-  Vault only for non-empty metadata, keeps Pairing selected after import until
-  a fresh reload succeeds, and exposes safe retry states for load failure. This
-  is repo-level/simulator code proof; it does not prove physical-device local
-  open or reload, real LAN discovery, camera QR scanning, password reveal or
-  copy, editing, sync, or a complete daily-use mobile vault.
+  in this gate also proves claimant-key-bound handoff open, AES-GCM encrypted local persistence, fresh reload, and read-only
+  `label`, `username`, and `websiteOrigin` metadata projection through an injectable store. The
+  composition loads that app-default store on startup, selects Vault only for
+  non-empty metadata, keeps Pairing selected after import until a fresh reload
+  succeeds, and exposes safe retry states for load failure.
+  Pairing V1 remains the implemented proof boundary on main.
+  Pairing V2 implementation and exact-target security re-review remain pending.
+  This is repo-level/simulator
+  code proof; it does not prove physical-device local open or reload, real LAN
+  discovery, camera QR scanning, password reveal or copy, editing, sync, or a
+  complete daily-use mobile vault.
 - LAN-address pairing smoke proof is available through:
   `pnpm test:pairing-lan-smoke`
   This resolves or accepts `UNUVAULT_PAIRING_LAN_HOST`, starts the proof-mode

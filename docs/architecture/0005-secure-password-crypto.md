@@ -11,6 +11,20 @@ Phase 1 upgrades the client-side password and dev-secret crypto boundary to a sh
 - Randomness comes only from the crypto library or `crypto.getRandomValues`
 - Master password verification uses an `Argon2id`-based verifier string
 
+## Two Crypto Substrates
+
+The historical JavaScript substrate covers Web, browser-extension, and CLI
+password and developer-secret paths. It uses Argon2id with
+XChaCha20-Poly1305 through the shared async helpers in `packages/security`.
+
+The native Mac/iOS pairing substrate is separate. Current Pairing V1 uses a
+claimant-key-bound AES-GCM handoff for the implemented receive/import proof.
+The pending Pairing V2 design adds authenticated target claims, fresh Mac owner
+authorization, P256 ECDH, HKDF-SHA256, AES-GCM target binding, persistent replay
+rejection, and no-downgrade semantics. These substrates have different keys,
+transcripts, callers, and trust boundaries; evidence for one does not clear the
+other.
+
 ## Bounded Argon2 Policy
 
 - The implemented policy for current password-derived envelopes pins
@@ -54,15 +68,16 @@ Phase 1 upgrades the client-side password and dev-secret crypto boundary to a sh
 ## Residual Risks
 
 - Legacy compatibility keeps older payloads readable, so migration pressure still depends on user activity
-- Current-scope crypto launch approval uses the repo-backed internal iterative review gate in
-  `docs/operations/crypto-review-gate.md`
-- Third-party crypto review is deferred by
-  `docs/operations/crypto-review-launch-exception.md`; reopen it under that
-  policy before large-scale public risk, paid or compliance claims, material
-  crypto-boundary changes, or crypto incidents
-- The bounded Argon2 checkpoint does not complete or approve Pairing V2. Its
-  authenticated claim, owner-approval, bridge-authorization, and persistent
-  replay work remains outside this checkpoint
+- The bounded Argon2 checkpoint is resolved for hostile parameter allocation,
+  but it does not complete or approve Pairing V2
+- Pairing V2 target-claim authentication, fresh Mac owner authorization, and
+  restart-persistent replay rejection remain pending on `main`
+- Pairing V2 does not resolve local bridge authorization; the bearer-contract
+  mismatch remains a separate open blocker
+- The expanded native/cross-platform boundary requires remediation followed by
+  a new review against one exact merged implementation SHA
+- No independent third-party verdict exists for the expanded scope; independent
+  review and any higher-risk public/paid launch decision remain open
 - Public copy must not describe this crypto boundary as independently reviewed
   or third-party reviewed
 - Observability and incident runbook work remain out of this slice by design
