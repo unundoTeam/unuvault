@@ -306,11 +306,12 @@ Use this exact claim-authentication derivation and ownership model:
   selection execute inside one serializable transaction or record lock that is
   mutually exclusive with every revoke, lock, lost-device, capability, expiry,
   ready-window deadline, and terminal-cleanup compare-and-swap.
-- The transaction's reread-and-response-decision point is the linearization
-  point: if a terminal or trusted-security transition linearizes first, the
-  request returns the generic authentication failure; if authorized response
-  selection linearizes first, that selected response is defined to precede any
-  later revoke.
+- The transaction's reread-and-response-authorization creation is the
+  linearization point: if a terminal or trusted-security transition linearizes
+  first, the request creates no send authorization and returns the generic
+  authentication failure; if response authorization creation linearizes first,
+  that authorization permits only its bound exact serialized response bytes to
+  be sent once and cannot be retroactively revoked.
 - Only a winning reservation whose immutable verifier provenance ID and
   envelope generation both match the candidate invite envelope is a matching
   winner.
@@ -325,7 +326,8 @@ Use this exact claim-authentication derivation and ownership model:
   restart, and persistence races; an unknown commit followed by a matching
   reservation uses that reservation as the only durable truth, and every other
   result fails closed.
-- After leaving the transaction, send exactly the selected response without
+- After leaving the transaction, consume the request-local send authorization
+  at most once and send only its bound exact serialized response bytes without
   rereading or reselecting from an external stale snapshot; response
   transmission itself never holds the transaction or record lock.
 - Every state-dependent response-selection path—the `sealing` to `ready` first
@@ -337,13 +339,18 @@ Use this exact claim-authentication derivation and ownership model:
 - Inside that transaction, the request rereads and validates the current state,
   verifier provenance and generation, the applicable invitation expiry or
   immutable ready deadline, and exact retry identity before selecting exact
-  serialized response bytes; that response-selection decision is the
+  serialized response bytes; response selection atomically creates an
+  irrevocable, request-local, single-use send authorization bound only to those
+  exact bytes, and authorization creation is the response operation's
   linearization point.
-- If a terminal or trusted-security transition linearizes first, no sealed
-  response is selected or sent and the request returns the generic
-  authentication failure; if response selection linearizes first, sending
-  those selected bytes is strictly ordered before any later revoke or terminal
-  transition.
+- If a terminal or trusted-security transition linearizes first, no send
+  authorization is created, no sealed response is sent, and the request returns
+  the generic authentication failure. If send authorization creation linearizes
+  first, a later trusted transition still terminates the reservation immediately
+  and prevents every future selection, retry, or authorization, but it cannot
+  retroactively revoke that one already-authorized send; the actual socket or
+  network send may occur after the later transition commits, so this authority
+  makes no physical-send-order claim.
 - For first publication, the same transaction persists `readyAt`, the immutable
   deadline, and the exact serialized sealed response, changes `sealing` to
   `ready`, and selects those exact response bytes from its durable write set.
@@ -352,10 +359,18 @@ Use this exact claim-authentication derivation and ownership model:
 - For each pre-deadline byte-identical `ready` retry, the transaction selects
   only the retained exact serialized response bytes from the validated durable
   `ready` record.
-- After the transaction, response transmission uses only the exact bytes
-  selected inside it; it never rereads or reselects durable state, never sends
-  a stale in-memory sealed response, and never holds the transaction or record
-  lock during network I/O.
+- After the transaction, the request may consume the authorization at most once
+  and send only its bound exact bytes; it never rereads or reselects durable
+  state, substitutes different bytes, reuses the authorization, sends a stale
+  in-memory sealed response, or holds the transaction or record lock during
+  network I/O. Send failure or an unknown send outcome creates no second
+  authorization and does not extend the retry window.
+- The send authorization is an ephemeral request-local decision capability, not
+  a durable outbox, acknowledgement, or recoverable send lease. A process crash
+  before transmission may lose that response; restart never restores or replays
+  the old authorization, and the client may submit the existing byte-identical
+  retry to request a new authorization only if the reservation is still
+  pre-deadline `ready` and no trusted transition has terminated it.
 - Every terminal cleanup is one atomic, mutually exclusive, and idempotently
   recoverable transition that replaces the live outer record with a minimum
   tombstone containing no verifier and deletes the verifier ciphertext
