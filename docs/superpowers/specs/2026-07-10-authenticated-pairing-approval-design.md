@@ -237,6 +237,23 @@ ciphertext or verifier-envelope commit.
 Crash recovery must never leave verifier ciphertext without its owning
 `issued` record or an `issued` record without its verifier ciphertext.
 
+On Mac process startup or recovery, before enabling claim handling or
+redisplaying any QR, every live `issued` record enters one atomic, mutually
+exclusive, and idempotent terminal transition to `invalidated`; the same commit
+deletes the invite verifier ciphertext ownership or reference, hides and
+revokes the old QR, preserves only the minimum tombstone, and requires a fresh
+invite.
+
+Recovery never accepts a claim from the durable `claimAuthKey` of a recovered
+`issued` record and never persists, reconstructs, or substitutes the raw
+`pairingSecret`.
+
+A failed or unknown recovery commit is resolved by one authoritative reread; if
+the record remains live `issued`, recovery repeats the same terminal
+transition, and claim handling and QR display stay disabled until the reread
+proves an `invalidated` tombstone with no verifier. At no intermediate or final
+durable point may a live verifier and terminal tombstone coexist.
+
 The Mac reconstructs the transcript from server-owned invite fields plus the
 submitted canonical target fields, recomputes the target fingerprint from the
 canonical DER, retrieves the candidate verifier key as ordered below, and
@@ -501,6 +518,39 @@ After leaving the transaction, send exactly the selected response without
 rereading or reselecting from an external stale snapshot; response transmission
 itself never holds the transaction or record lock.
 
+Every state-dependent response-selection path—the `sealing` to `ready` first
+sealed-response publication, each pre-deadline byte-identical `ready` retry,
+and the failed or unknown first-claim compare-and-swap reread path—executes
+inside one serializable transaction or record lock that is mutually exclusive
+with every trusted lock, revoke, lost-device, capability invalidation, expiry,
+ready-window deadline, and terminal-cleanup compare-and-swap.
+
+Inside that transaction, the request rereads and validates the current state,
+verifier provenance and generation, the applicable invitation expiry or
+immutable ready deadline, and exact retry identity before selecting exact
+serialized response bytes; that response-selection decision is the
+linearization point.
+
+If a terminal or trusted-security transition linearizes first, no sealed
+response is selected or sent and the request returns the generic authentication
+failure; if response selection linearizes first, sending those selected bytes
+is strictly ordered before any later revoke or terminal transition.
+
+For first publication, the same transaction persists `readyAt`, the immutable
+deadline, and the exact serialized sealed response, changes `sealing` to
+`ready`, and selects those exact response bytes from its durable write set. They
+become sendable only after the commit succeeds; a false or unknown outcome
+follows the existing authoritative-reread rule.
+
+For each pre-deadline byte-identical `ready` retry, the transaction selects only
+the retained exact serialized response bytes from the validated durable `ready`
+record.
+
+After the transaction, response transmission uses only the exact bytes selected
+inside it; it never rereads or reselects durable state, never sends a stale
+in-memory sealed response, and never holds the transaction or record lock
+during network I/O.
+
 1. The Mac verifies the HMAC and canonical request first. An unauthenticated
    or malformed request receives the same generic authentication failure, with
    no state disclosure or mutation.
@@ -529,14 +579,17 @@ itself never holds the transaction or record lock.
    makes the record terminal without a snapshot read.
 5. The reserved worker performs exactly one in-memory snapshot read after the `sealing` transition, creates one ephemeral key, derives one handoff key, and
    seals once. No retry path can repeat any of those operations.
-6. Before publishing a response, one transaction rechecks expiry and the same
-   reservation, persists the exact serialized sealed response plus `readyAt`,
-   and changes `sealing` to `ready`. A read, derivation, sealing, persistence,
-   recheck, or process failure follows the exhaustive terminal classification
-   below and publishes no handoff: the worker records `invalidated` atomically
-   when it can; if process failure prevents that write, restart recovery records
-   `invalidated` for unfinished `authorizing` or `sealing` work. Volatile
-   material is never used to resume recovered work.
+6. The all-response-selection rule above governs first publication: its
+   serializable transaction rechecks the current `sealing` state, verifier
+   provenance and generation, expiry, and exact retry identity; persists the
+   exact serialized sealed response, `readyAt`, and immutable deadline; changes
+   `sealing` to `ready`; and selects the just-committed durable response bytes.
+   A read, derivation, sealing, persistence, recheck, or process failure follows
+   the exhaustive terminal classification below and publishes no handoff: the
+   worker records `invalidated` atomically when it can; if process failure
+   prevents that write, startup recovery applies the exhaustive
+   `issued`/`authorizing`/`sealing` invalidation mapping below. Volatile material
+   is never used to resume recovered work.
 
 The ready recovery window begins only when the durable reservation atomically transitions to `ready`; `readyAt` is the timestamp written by that same transaction, and the immutable deadline is `min(readyAt + 30 seconds, original invitation expiry)`. During that window, the Mac uses the encrypted `claimAuthKey` to authenticate every canonical request before comparing its retry identity. Only a request whose
 canonical claim transcript and authenticator
@@ -560,7 +613,7 @@ for a V1 claim.
 
 ## Terminal Cleanup And Bounded Recovery
 
-`consumed`, `denied`, `expired`, and `invalidated` are terminal states. The only state-owning terminal mutations are exclusive and classified as follows: fresh owner denial or cancellation records `denied`; invitation expiry records `expired`; owner-authentication unavailability or `LAContext` evaluation or system error records `invalidated`; lock, revoke, lost-device, or capability invalidation records `invalidated`, including an immediate atomic `ready` to `invalidated` transition for an independent trusted local lifecycle event; reservation identity, vault session identity, or authenticated-target recheck failure records `invalidated`, while expiry and lifecycle outcomes discovered by that recheck remain classified under their preceding categories; internal read or snapshot, key-derivation, sealing, persistence, or process failure before `ready` records `invalidated` when the worker can commit the terminal write; restart recovery of unfinished `authorizing` or `sealing` work records `invalidated` when a process failure prevented that write; and reaching the immutable ready-window deadline transitions `ready` to `consumed` only if no prior security invalidation occurred. Each such mutation clears the pending capability and unsealed handoff material while preserving required durable terminal tombstones.
+`consumed`, `denied`, `expired`, and `invalidated` are terminal states. The only state-owning terminal mutations are exclusive and classified as follows: fresh owner denial or cancellation records `denied`; invitation expiry records `expired`; owner-authentication unavailability or `LAContext` evaluation or system error records `invalidated`; lock, revoke, lost-device, or capability invalidation records `invalidated`, including an immediate atomic `ready` to `invalidated` transition for an independent trusted local lifecycle event; reservation identity, vault session identity, or authenticated-target recheck failure records `invalidated`, while expiry and lifecycle outcomes discovered by that recheck remain classified under their preceding categories; internal read or snapshot, key-derivation, sealing, persistence, or process failure before `ready` records `invalidated` when the worker can commit the terminal write; restart recovery records any live `issued`, unfinished `authorizing`, or unfinished `sealing` record as `invalidated` before claim handling or QR display, using the atomic issued-recovery rule; and reaching the immutable ready-window deadline transitions `ready` to `consumed` only if no prior security invalidation occurred. Each such mutation clears the pending capability and unsealed handoff material while preserving required durable terminal tombstones.
 
 Every terminal cleanup is one atomic, mutually exclusive, and idempotently
 recoverable transition that replaces the live outer record with a minimum

@@ -167,6 +167,20 @@ on main pending; exact-target security re-review pending`.
   the ciphertext or verifier-envelope commit.
 - Crash recovery must never leave verifier ciphertext without its owning
   `issued` record or an `issued` record without its verifier ciphertext.
+- On Mac process startup or recovery, before enabling claim handling or
+  redisplaying any QR, every live `issued` record enters one atomic, mutually
+  exclusive, and idempotent terminal transition to `invalidated`; the same
+  commit deletes the invite verifier ciphertext ownership or reference, hides
+  and revokes the old QR, preserves only the minimum tombstone, and requires a
+  fresh invite.
+- Recovery never accepts a claim from the durable `claimAuthKey` of a recovered
+  `issued` record and never persists, reconstructs, or substitutes the raw
+  `pairingSecret`.
+- A failed or unknown recovery commit is resolved by one authoritative reread;
+  if the record remains live `issued`, recovery repeats the same terminal
+  transition, and claim handling and QR display stay disabled until the reread
+  proves an `invalidated` tombstone with no verifier. At no intermediate or
+  final durable point may a live verifier and terminal tombstone coexist.
 - The transcript uses one normative binary length-prefix encoding, fixed domain
   separation, fixed field order, strict canonical base64url, exact DER
   round-tripping, NFC UTF-8 text, canonical epoch milliseconds, and a bounded
@@ -293,6 +307,34 @@ on main pending; exact-target security re-review pending`.
 - After leaving the transaction, send exactly the selected response without
   rereading or reselecting from an external stale snapshot; response
   transmission itself never holds the transaction or record lock.
+- Every state-dependent response-selection path—the `sealing` to `ready` first
+  sealed-response publication, each pre-deadline byte-identical `ready` retry,
+  and the failed or unknown first-claim compare-and-swap reread path—executes
+  inside one serializable transaction or record lock that is mutually exclusive
+  with every trusted lock, revoke, lost-device, capability invalidation,
+  expiry, ready-window deadline, and terminal-cleanup compare-and-swap.
+- Inside that transaction, the request rereads and validates the current state,
+  verifier provenance and generation, the applicable invitation expiry or
+  immutable ready deadline, and exact retry identity before selecting exact
+  serialized response bytes; that response-selection decision is the
+  linearization point.
+- If a terminal or trusted-security transition linearizes first, no sealed
+  response is selected or sent and the request returns the generic
+  authentication failure; if response selection linearizes first, sending
+  those selected bytes is strictly ordered before any later revoke or terminal
+  transition.
+- For first publication, the same transaction persists `readyAt`, the immutable
+  deadline, and the exact serialized sealed response, changes `sealing` to
+  `ready`, and selects those exact response bytes from its durable write set.
+  They become sendable only after the commit succeeds; a false or unknown
+  outcome follows the existing authoritative-reread rule.
+- For each pre-deadline byte-identical `ready` retry, the transaction selects
+  only the retained exact serialized response bytes from the validated durable
+  `ready` record.
+- After the transaction, response transmission uses only the exact bytes
+  selected inside it; it never rereads or reselects durable state, never sends
+  a stale in-memory sealed response, and never holds the transaction or record
+  lock during network I/O.
 - An unauthenticated or malformed request receives the same generic authentication failure, with no state disclosure or mutation.
 - A different valid authenticated retry identity while the encrypted `claimAuthKey` verifier exists after reservation receives terminal `handoff_consumed` and cannot mutate, replace, or extend the reservation.
 - While an encrypted `claimAuthKey` verifier exists in `authorizing`, `sealing`, or pre-deadline `ready`, the Mac authenticates the canonical request before selecting a state-dependent response: the reserved byte-identical identity receives only its allowed pending or ready behavior, while a different valid authenticated identity receives `handoff_consumed`.
@@ -328,7 +370,7 @@ on main pending; exact-target security re-review pending`.
   invalidation event.
 - No other owner-authentication, internal, persistence, process, or
   request-processing outcome may transition `ready` early.
-- The only state-owning terminal mutations are exclusive and classified as follows: fresh owner denial or cancellation records `denied`; invitation expiry records `expired`; owner-authentication unavailability or `LAContext` evaluation or system error records `invalidated`; lock, revoke, lost-device, or capability invalidation records `invalidated`, including an immediate atomic `ready` to `invalidated` transition for an independent trusted local lifecycle event; reservation identity, vault session identity, or authenticated-target recheck failure records `invalidated`, while expiry and lifecycle outcomes discovered by that recheck remain classified under their preceding categories; internal read or snapshot, key-derivation, sealing, persistence, or process failure before `ready` records `invalidated` when the worker can commit the terminal write; restart recovery of unfinished `authorizing` or `sealing` work records `invalidated` when a process failure prevented that write; and reaching the immutable ready-window deadline transitions `ready` to `consumed` only if no prior security invalidation occurred.
+- The only state-owning terminal mutations are exclusive and classified as follows: fresh owner denial or cancellation records `denied`; invitation expiry records `expired`; owner-authentication unavailability or `LAContext` evaluation or system error records `invalidated`; lock, revoke, lost-device, or capability invalidation records `invalidated`, including an immediate atomic `ready` to `invalidated` transition for an independent trusted local lifecycle event; reservation identity, vault session identity, or authenticated-target recheck failure records `invalidated`, while expiry and lifecycle outcomes discovered by that recheck remain classified under their preceding categories; internal read or snapshot, key-derivation, sealing, persistence, or process failure before `ready` records `invalidated` when the worker can commit the terminal write; restart recovery records any live `issued`, unfinished `authorizing`, or unfinished `sealing` record as `invalidated` before claim handling or QR display, using the atomic issued-recovery rule; and reaching the immutable ready-window deadline transitions `ready` to `consumed` only if no prior security invalidation occurred.
 - An unauthenticated or malformed request receives the same generic authentication failure, with no state disclosure or mutation. A different valid authenticated retry identity while the encrypted `claimAuthKey` verifier exists after reservation receives terminal `handoff_consumed` and cannot mutate, replace, or extend the reservation. Only the reserved byte-identical retry may observe pending or ready behavior.
 - Before the immutable deadline, processing the initial response, a byte-identical retry, a different valid authenticated retry identity, or an invalid authenticator does not by itself transition `ready` to `consumed` or `invalidated`, move `readyAt`, or shorten or extend the window.
 - An independent trusted local lock, revoke, lost-device, or capability invalidation event during `ready` atomically transitions the reservation to `invalidated` immediately and clears the retained sealed response, retry identity, and encrypted `claimAuthKey`; security revocation takes priority over the recovery deadline.

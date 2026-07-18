@@ -485,7 +485,7 @@ describe("launch packet contract", () => {
       "The ready recovery window begins only when the durable reservation atomically transitions to `ready`; `readyAt` is the timestamp written by that same transaction, and the immutable deadline is `min(readyAt + 30 seconds, original invitation expiry)`.",
     );
     const canonicalTerminalMutationClassification = normalizeWhitespace(
-      "The only state-owning terminal mutations are exclusive and classified as follows: fresh owner denial or cancellation records `denied`; invitation expiry records `expired`; owner-authentication unavailability or `LAContext` evaluation or system error records `invalidated`; lock, revoke, lost-device, or capability invalidation records `invalidated`, including an immediate atomic `ready` to `invalidated` transition for an independent trusted local lifecycle event; reservation identity, vault session identity, or authenticated-target recheck failure records `invalidated`, while expiry and lifecycle outcomes discovered by that recheck remain classified under their preceding categories; internal read or snapshot, key-derivation, sealing, persistence, or process failure before `ready` records `invalidated` when the worker can commit the terminal write; restart recovery of unfinished `authorizing` or `sealing` work records `invalidated` when a process failure prevented that write; and reaching the immutable ready-window deadline transitions `ready` to `consumed` only if no prior security invalidation occurred.",
+      "The only state-owning terminal mutations are exclusive and classified as follows: fresh owner denial or cancellation records `denied`; invitation expiry records `expired`; owner-authentication unavailability or `LAContext` evaluation or system error records `invalidated`; lock, revoke, lost-device, or capability invalidation records `invalidated`, including an immediate atomic `ready` to `invalidated` transition for an independent trusted local lifecycle event; reservation identity, vault session identity, or authenticated-target recheck failure records `invalidated`, while expiry and lifecycle outcomes discovered by that recheck remain classified under their preceding categories; internal read or snapshot, key-derivation, sealing, persistence, or process failure before `ready` records `invalidated` when the worker can commit the terminal write; restart recovery records any live `issued`, unfinished `authorizing`, or unfinished `sealing` record as `invalidated` before claim handling or QR display, using the atomic issued-recovery rule; and reaching the immutable ready-window deadline transitions `ready` to `consumed` only if no prior security invalidation occurred.",
     );
 
     for (const { name, text: authority } of authorities) {
@@ -1030,6 +1030,147 @@ claimAuthenticator = HMAC-SHA256(claimAuthKey, canonicalClaimTranscript)
         normalizeWhitespace(
           "The QR becomes visible and active only after that envelope commits",
         ),
+      );
+    }
+  });
+
+  it("invalidates every issued invite before restart claim handling or QR recovery", () => {
+    const authorities = [
+      markdownSection(
+        readText(
+          "docs/superpowers/specs/2026-07-16-pairing-security-authority-recovery-design.md",
+        ),
+        "### Target-Claim Authentication",
+      ),
+      markdownSection(
+        readText(
+          "docs/superpowers/plans/2026-07-16-pairing-security-authority-recovery.md",
+        ),
+        "### Task 1: Recover The UnuVault Pairing Security Authority",
+      ),
+      markdownSection(
+        readText(
+          "docs/superpowers/specs/2026-07-10-authenticated-pairing-approval-design.md",
+        ),
+        "## Target-Claim Authentication",
+      ),
+    ];
+    const issuedRestartRule = normalizeWhitespace(
+      "On Mac process startup or recovery, before enabling claim handling or redisplaying any QR, every live `issued` record enters one atomic, mutually exclusive, and idempotent terminal transition to `invalidated`; the same commit deletes the invite verifier ciphertext ownership or reference, hides and revokes the old QR, preserves only the minimum tombstone, and requires a fresh invite.",
+    );
+    const noSecretRecoveryRule = normalizeWhitespace(
+      "Recovery never accepts a claim from the durable `claimAuthKey` of a recovered `issued` record and never persists, reconstructs, or substitutes the raw `pairingSecret`.",
+    );
+    const unknownCommitRule = normalizeWhitespace(
+      "A failed or unknown recovery commit is resolved by one authoritative reread; if the record remains live `issued`, recovery repeats the same terminal transition, and claim handling and QR display stay disabled until the reread proves an `invalidated` tombstone with no verifier. At no intermediate or final durable point may a live verifier and terminal tombstone coexist.",
+    );
+
+    for (const authority of authorities) {
+      const normalizedAuthority = normalizeWhitespace(authority);
+      const issuedRestartStart = normalizedAuthority.indexOf(issuedRestartRule);
+      const noSecretRecoveryStart = normalizedAuthority.indexOf(
+        noSecretRecoveryRule,
+      );
+      const unknownCommitStart = normalizedAuthority.indexOf(unknownCommitRule);
+      expect(issuedRestartStart).toBeGreaterThan(-1);
+      expect(noSecretRecoveryStart).toBeGreaterThan(issuedRestartStart);
+      expect(unknownCommitStart).toBeGreaterThan(noSecretRecoveryStart);
+      expect(normalizedAuthority).not.toMatch(
+        /restart\s+recovery\s+of\s+unfinished\s+`authorizing`\s+or\s+`sealing`\s+work/iu,
+      );
+    }
+
+    const terminalAuthorities = [
+      markdownSection(
+        readText(
+          "docs/superpowers/specs/2026-07-16-pairing-security-authority-recovery-design.md",
+        ),
+        "### Terminal Cleanup And Bounded Recovery",
+      ),
+      markdownSection(
+        readText(
+          "docs/superpowers/plans/2026-07-16-pairing-security-authority-recovery.md",
+        ),
+        "### Task 1: Recover The UnuVault Pairing Security Authority",
+      ),
+      markdownSection(
+        readText(
+          "docs/superpowers/specs/2026-07-10-authenticated-pairing-approval-design.md",
+        ),
+        "## Terminal Cleanup And Bounded Recovery",
+      ),
+    ];
+    const exhaustiveOwnerRule = normalizeWhitespace(
+      "restart recovery records any live `issued`, unfinished `authorizing`, or unfinished `sealing` record as `invalidated` before claim handling or QR display, using the atomic issued-recovery rule",
+    );
+    for (const authority of terminalAuthorities) {
+      expect(normalizeWhitespace(authority)).toContain(exhaustiveOwnerRule);
+    }
+  });
+
+  it("linearizes every sealed-response selection against terminal security transitions", () => {
+    const authorities = [
+      markdownSection(
+        readText(
+          "docs/superpowers/specs/2026-07-16-pairing-security-authority-recovery-design.md",
+        ),
+        "### Single Use, Persistent Replay Rejection, And No Downgrade",
+      ),
+      markdownSection(
+        readText(
+          "docs/superpowers/plans/2026-07-16-pairing-security-authority-recovery.md",
+        ),
+        "### Task 1: Recover The UnuVault Pairing Security Authority",
+      ),
+      markdownSection(
+        readText(
+          "docs/superpowers/specs/2026-07-10-authenticated-pairing-approval-design.md",
+        ),
+        "## Single Use And Persistent Replay Rejection",
+      ),
+    ];
+    const allSelectionRule = normalizeWhitespace(
+      "Every state-dependent response-selection path—the `sealing` to `ready` first sealed-response publication, each pre-deadline byte-identical `ready` retry, and the failed or unknown first-claim compare-and-swap reread path—executes inside one serializable transaction or record lock that is mutually exclusive with every trusted lock, revoke, lost-device, capability invalidation, expiry, ready-window deadline, and terminal-cleanup compare-and-swap.",
+    );
+    const validationRule = normalizeWhitespace(
+      "Inside that transaction, the request rereads and validates the current state, verifier provenance and generation, the applicable invitation expiry or immutable ready deadline, and exact retry identity before selecting exact serialized response bytes; that response-selection decision is the linearization point.",
+    );
+    const orderingRule = normalizeWhitespace(
+      "If a terminal or trusted-security transition linearizes first, no sealed response is selected or sent and the request returns the generic authentication failure; if response selection linearizes first, sending those selected bytes is strictly ordered before any later revoke or terminal transition.",
+    );
+    const firstPublicationRule = normalizeWhitespace(
+      "For first publication, the same transaction persists `readyAt`, the immutable deadline, and the exact serialized sealed response, changes `sealing` to `ready`, and selects those exact response bytes from its durable write set. They become sendable only after the commit succeeds; a false or unknown outcome follows the existing authoritative-reread rule.",
+    );
+    const retryRule = normalizeWhitespace(
+      "For each pre-deadline byte-identical `ready` retry, the transaction selects only the retained exact serialized response bytes from the validated durable `ready` record.",
+    );
+    const sendRule = normalizeWhitespace(
+      "After the transaction, response transmission uses only the exact bytes selected inside it; it never rereads or reselects durable state, never sends a stale in-memory sealed response, and never holds the transaction or record lock during network I/O.",
+    );
+
+    for (const authority of authorities) {
+      const normalizedAuthority = normalizeWhitespace(authority);
+      const orderedRules = [
+        allSelectionRule,
+        validationRule,
+        orderingRule,
+        firstPublicationRule,
+        retryRule,
+        sendRule,
+      ];
+      let previousRuleEnd = -1;
+      for (const rule of orderedRules) {
+        const ruleStart = normalizedAuthority.indexOf(rule);
+        expect(ruleStart).toBeGreaterThan(previousRuleEnd);
+        previousRuleEnd = ruleStart + rule.length;
+      }
+      expect(normalizedAuthority).not.toContain(
+        normalizeWhitespace(
+          "Before publishing a response, one transaction rechecks expiry and the same reservation, persists the exact serialized sealed response plus `readyAt`, and changes `sealing` to `ready`.",
+        ),
+      );
+      expect(normalizedAuthority).not.toMatch(
+        /send(?:s|ing)?\s+(?:the\s+)?(?:sealed\s+)?response\s+from\s+(?:a|the)\s+stale\s+in-memory/iu,
       );
     }
   });
