@@ -309,8 +309,14 @@ hygiene cleanup.
   `paired` record predates the import receipt and must not be cited as physical
   decrypt/import proof.
 - `bash scripts/testing/run-ios.sh` runs the current iOS package gate.
-  It proves the approved `current/unuvault/ios-product-composition-v1` and
-  `current/unuvault/ios-pairing-invite-receive-v3` SwiftUI flows keep Vault and
+  The current runtime behavior is recorded in
+  `docs/architecture/0009-ios-product-composition-contract.md`. The portfolio
+  design authority names `current/unuvault/ios-vault-home-native-locked-v1`
+  and `current/unuvault/ios-vault-list-readonly-v1` as the registered iOS
+  frames. `current/unuvault/ios-product-composition-v1` and
+  `current/unuvault/ios-pairing-invite-receive-v3` are historical
+  implementation/visual evidence, not registered design-authority frames. The
+  SwiftUI flows keep Vault and
   Pairing reachable, load the app-default received-vault store, select Pairing
   for missing or empty metadata, and expose an explicit `.failed` state with a
   safe error and Retry when that store is unreadable. Import success alone does

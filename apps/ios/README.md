@@ -3,9 +3,10 @@
 This directory holds the SwiftUI iPhone app, AutoFill onboarding flows, and the
 repo-owned Mac pairing receive flow for unuvault.
 
-The iOS package exposes the native SwiftUI composition from
-`current/unuvault/ios-product-composition-v1` and the paste-invite flow from
-`current/unuvault/ios-pairing-invite-receive-v3`. Vault and Pairing remain
+The current SwiftUI product composition and Pairing runtime are recorded in
+`docs/architecture/0009-ios-product-composition-contract.md`. The registered
+Pencil frames are `current/unuvault/ios-vault-home-native-locked-v1` and
+`current/unuvault/ios-vault-list-readonly-v1`. Vault and Pairing remain
 reachable destinations. On startup, the app loads the app-default encrypted
 received-vault store: non-empty read-only metadata selects Vault, while an empty
 store selects Pairing. Import success alone does not switch destinations; only
@@ -32,7 +33,7 @@ Target-claim authentication, fresh Mac owner approval, restart-persistent replay
 rejection, and V2-to-V1 no-downgrade semantics remain pending in
 `docs/superpowers/specs/2026-07-10-authenticated-pairing-approval-design.md`.
 That file is protocol/security authority only and does not change the current
-v3 composition or UI authority.
+runtime-composition contract or registered iOS Pencil frame authority.
 
 Physical receipt proof is available only when a real trusted iPhone is
 connected:
@@ -62,7 +63,8 @@ Run:
 pnpm test:ios
 ```
 
-For simulator visual proof of the promoted product composition, run:
+For historical simulator runtime evidence of the product composition, which
+does not prove fresh Pencil parity, run:
 
 ```bash
 pnpm test:ios:ui-host

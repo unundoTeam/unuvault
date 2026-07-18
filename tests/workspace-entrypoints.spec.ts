@@ -312,13 +312,17 @@ describe("workspace entrypoints", () => {
       );
     }
 
-    expect(agents).toContain("current/unuvault/ios-product-composition-v1");
-    expect(agents).toContain("current/unuvault/ios-pairing-invite-receive-v3");
-    expect(agentDesignAuthority).not.toContain(
+    expect(agentDesignAuthority).toContain(
       "current/unuvault/ios-vault-home-native-locked-v1",
     );
+    expect(agentDesignAuthority).toContain(
+      "current/unuvault/ios-vault-list-readonly-v1",
+    );
     expect(agentDesignAuthority).not.toContain(
-      "current/unuvault/ios-pairing-invite-receive-v2",
+      "current/unuvault/ios-product-composition-v1",
+    );
+    expect(agentDesignAuthority).not.toContain(
+      "current/unuvault/ios-pairing-invite-receive-v3",
     );
   });
 
@@ -345,8 +349,21 @@ describe("workspace entrypoints", () => {
       "docs/design/evidence/2026-07-14-ios-product-composition/ios-product-composition-accessibility3.png",
     ];
 
-    expect(currentEvidence).toContain("current/unuvault/ios-product-composition-v1");
-    expect(currentEvidence).toContain("current/unuvault/ios-pairing-invite-receive-v3");
+    expect(currentEvidence).toContain(
+      "current/unuvault/ios-vault-home-native-locked-v1",
+    );
+    expect(currentEvidence).toContain(
+      "current/unuvault/ios-vault-list-readonly-v1",
+    );
+    expect(currentEvidence).toContain(
+      "docs/architecture/0009-ios-product-composition-contract.md",
+    );
+    expect(currentEvidence).not.toMatch(
+      /\b(?:current|approved|promoted)\s+`?current\/unuvault\/ios-(?:product-composition-v1|pairing-invite-receive-v3)/iu,
+    );
+    expect(currentEvidence).not.toMatch(
+      /current\/unuvault\/ios-(?:product-composition-v1|pairing-invite-receive-v3)[^\n]{0,220}\b(?:are|is)\s+(?:current|approved|promoted)\b/iu,
+    );
     expect(currentEvidence).not.toContain("current/unuvault/ios-pairing-invite-receive-v2");
     expect(evidence).toContain("IOSProductCompositionView");
     expect(evidence).toContain("current iOS package gate");
@@ -365,6 +382,8 @@ describe("workspace entrypoints", () => {
     expect(evidence).toContain("Dynamic Type");
     expect(evidence).toContain("VoiceOver");
     expect(evidence).toContain("44pt");
+    expect(evidence).toContain("Pencil sync: blocked");
+    expect(evidence).not.toContain("current matches implementation");
     expect(evidence).not.toContain("docs/design/evidence/2026-05-29-ios-ui-host");
     expect(evidence).not.toContain(
       "fails closed to an empty list when the received-vault store is missing or unreadable",
@@ -386,8 +405,21 @@ describe("workspace entrypoints", () => {
       "docs/design/evidence/2026-07-14-ios-product-composition/ios-product-composition-accessibility3.png",
     ];
 
-    expect(evidence).toContain("current/unuvault/ios-product-composition-v1");
-    expect(evidence).toContain("current/unuvault/ios-pairing-invite-receive-v3");
+    expect(evidence).toContain(
+      "current/unuvault/ios-vault-home-native-locked-v1",
+    );
+    expect(evidence).toContain(
+      "current/unuvault/ios-vault-list-readonly-v1",
+    );
+    expect(evidence).toContain(
+      "docs/architecture/0009-ios-product-composition-contract.md",
+    );
+    expect(evidence).not.toMatch(
+      /\b(?:current|approved|promoted)\s+`?current\/unuvault\/ios-(?:product-composition-v1|pairing-invite-receive-v3)/iu,
+    );
+    expect(evidence).not.toMatch(
+      /current\/unuvault\/ios-(?:product-composition-v1|pairing-invite-receive-v3)[^\n]{0,220}\b(?:are|is)\s+(?:current|approved|promoted)\b/iu,
+    );
     expect(evidence).toContain("fresh successful reload");
     expect(evidence).toContain("explicit `.failed` state");
     expect(evidence).toContain("Retry");
@@ -523,8 +555,12 @@ describe("workspace entrypoints", () => {
     expect(agentNotes).not.toContain(
       "current/unuvault/mac-companion-pairing-approval-v2",
     );
-    expect(agentNotes).toContain("current/unuvault/ios-product-composition-v1");
-    expect(agentNotes).toContain("current/unuvault/ios-pairing-invite-receive-v3");
+    expect(agentNotes).not.toContain(
+      "current/unuvault/ios-product-composition-v1",
+    );
+    expect(agentNotes).not.toContain(
+      "current/unuvault/ios-pairing-invite-receive-v3",
+    );
   });
 
   it("records the LAN-address pairing smoke proof entrypoint", () => {
