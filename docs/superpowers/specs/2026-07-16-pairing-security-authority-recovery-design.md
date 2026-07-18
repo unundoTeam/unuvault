@@ -137,6 +137,19 @@ on main pending; exact-target security re-review pending`.
 - Normatively, `claimAuthenticator` = HMAC-SHA256(`claimAuthKey`,
   `canonicalClaimTranscript`). Claim authentication and handoff encryption use
   distinct domains, salt, `info`, and input keying material.
+- Before an invitation QR may be displayed or activated, the Mac derives the
+  32-byte `claimAuthKey` from the raw 32-byte `pairingSecret` and the immutable
+  server-owned `PAIRING_VERSION`, NFC `inviteSessionId`,
+  `expiresAtEpochMilliseconds`, and `canonicalMacBaseURL` using the byte-exact
+  claim-authentication HKDF above.
+- In the same issuance operation, the Mac atomically creates an encrypted
+  verifier envelope keyed by `inviteSessionId`; its authenticated plaintext
+  payload contains exactly the 32-byte `claimAuthKey`, those immutable
+  transcript inputs, and an `issued/unreserved` marker, with no
+  target-controlled field.
+- The QR becomes visible and active only after that envelope commits;
+  derivation, encryption, or persistence failure leaves no active invitation
+  and exposes no QR.
 - The transcript uses one normative binary length-prefix encoding, fixed domain
   separation, fixed field order, strict canonical base64url, exact DER
   round-tripping, NFC UTF-8 text, canonical epoch milliseconds, and a bounded
@@ -161,8 +174,8 @@ on main pending; exact-target security re-review pending`.
      non-live, or missing record, substitute an independent 32-byte
      process-owned dummy key and continue through the same HMAC path. This step
      makes no reservation-lifecycle or state-dependent response decision,
-     never returns, retains, or logs the dummy key, and never recreates a
-     terminal verifier. It does not claim perfect constant-time storage I/O;
+     never returns or logs the candidate key, and never recreates a terminal
+     verifier. It does not claim perfect constant-time storage I/O;
      it requires only a fixed bounded response and computation shape with one
      generic external result.
   6. Compute HMAC-SHA256 with the candidate key and compare the supplied
@@ -175,6 +188,16 @@ on main pending; exact-target security re-review pending`.
 - Verifier retrieval is a minimal capability-key lookup, not an authenticated
   business-state lookup; the latter occurs only after HMAC authentication
   succeeds with a live verifier.
+- Verifier retrieval obtains the live key and immutable transcript inputs from
+  the encrypted invite envelope for a first claim or from the reservation
+  verifier record after reservation; it reads no target-bound or
+  business-lifecycle state before HMAC authentication.
+- At process startup, the Mac generates an independent 32-byte process-owned
+  dummy key with a CSPRNG and retains it only in mutable memory; it is never
+  logged, returned, or persisted. Every missing, terminal, or non-live verifier
+  path uses that key for the same HMAC computation, clears the request-local
+  candidate reference after comparison, and best-effort clears the dummy buffer
+  at process shutdown.
 - Public invite fields, source IP, display name, the target-provided
   fingerprint, or LAN reachability are not authentication.
 
@@ -209,6 +232,16 @@ on main pending; exact-target security re-review pending`.
 ### Single Use, Persistent Replay Rejection, And No Downgrade
 
 - A first valid claim creates one atomic reservation. Only the reserved byte-identical retry may observe pending or ready behavior.
+- After the first valid HMAC, one atomic compare-and-swap changes the matching
+  `issued/unreserved` envelope into the sole `authorizing` reservation, binds
+  the exact request and retry identity, allocates `claimId`, and transfers
+  ownership of the same encrypted `claimAuthKey` without copying or re-deriving
+  it.
+- Concurrent authenticated claims cannot create multiple reservations: exactly
+  one compare-and-swap winner performs the ownership transfer; authenticated
+  losers are re-evaluated against the winning reservation under the
+  byte-identical or different-valid retry rules, while an invalid HMAC performs
+  no mutation.
 - An unauthenticated or malformed request receives the same generic authentication failure, with no state disclosure or mutation.
 - A different valid authenticated retry identity while the encrypted `claimAuthKey` verifier exists after reservation receives terminal `handoff_consumed` and cannot mutate, replace, or extend the reservation.
 - While an encrypted `claimAuthKey` verifier exists in `authorizing`, `sealing`, or pre-deadline `ready`, the Mac authenticates the canonical request before selecting a state-dependent response: the reserved byte-identical identity receives only its allowed pending or ready behavior, while a different valid authenticated identity receives `handoff_consumed`.
@@ -243,11 +276,19 @@ on main pending; exact-target security re-review pending`.
 - Before the immutable deadline, processing the initial response, a byte-identical retry, a different valid authenticated retry identity, or an invalid authenticator does not by itself transition `ready` to `consumed` or `invalidated`, move `readyAt`, or shorten or extend the window.
 - An independent trusted local lock, revoke, lost-device, or capability invalidation event during `ready` atomically transitions the reservation to `invalidated` immediately and clears the retained sealed response, retry identity, and encrypted `claimAuthKey`; security revocation takes priority over the recovery deadline.
 - `claimAuthKey` is a 32-byte, session-bound, domain-separated key derived from the raw `pairingSecret` with HKDF-SHA256. Normatively, `claimAuthenticator` = HMAC-SHA256(`claimAuthKey`, `canonicalClaimTranscript`).
-- The Mac owns the mutable QR-secret buffer from invite and claim authentication through sealing. It uses the secret only for claim-authentication HKDF and handoff-encryption HKDF and never logs it or includes it in a response or persistent general storage. After the first valid claim, it retains `claimAuthKey` only in encrypted reservation storage as key-equivalent secret material.
+- The Mac owns the mutable QR-secret buffer from invite and claim authentication through sealing. It uses the secret only for claim-authentication HKDF and handoff-encryption HKDF and never logs it or includes it in a response or persistent general storage.
+- Creating the encrypted verifier envelope neither transfers nor extends the raw
+  `pairingSecret` lifetime: the Mac-owned mutable raw-secret buffer remains
+  governed by the existing sealing and `ready` cleanup rules and is never
+  reconstructed from the envelope.
 - `claimAuthKey` is key-equivalent secret material. It is never logged, returned, or persisted in plaintext.
 - At atomic `ready`, the sealed byte-identical response, minimum retry identity, and encrypted `claimAuthKey` are durable. The raw `pairingSecret` is best-effort cleared immediately when the record enters `ready` rather than retained through the 30-second retry window. The Mac retains the encrypted `claimAuthKey` only through the ready retry window so it can authenticate an arbitrary different transcript before returning `handoff_consumed`; invalid authenticators still receive the generic failure without mutation.
 - The exhaustive classification above is the sole terminal-state mapping; no failure class outside it may own a terminal mutation. At the immutable deadline, one atomic `ready` to `consumed` transition clears the retained sealed response, retry identity, and encrypted `claimAuthKey` and leaves only the minimum durable identifiers and consumed tombstone required for replay rejection.
 - Every pre-ready terminal path above clears `claimAuthKey` and the reservation's other owned secret material while preserving required terminal tombstones; the ready-window deadline instead clears the retained sealed response, retry identity, and encrypted `claimAuthKey` while preserving the consumed tombstone.
+- Invitation expiry, lock, revoke, lost-device, capability invalidation,
+  persistence failure, or restart before `ready` deletes the invite envelope or
+  reservation verifier and clears its `claimAuthKey` as applicable, while
+  preserving only the minimum terminal tombstone required to fail closed.
 - The iOS scanner or parser owns the received secret initially, then transfers ownership exactly once to the pending import operation. The import derives `claimAuthKey`, uses it only for claim HMAC, and retains the raw secret only for handoff HKDF/AEAD open; it never persists or logs either. iOS clears `claimAuthKey` after serializing the byte-identical retry request and holds the raw secret only until response authentication and open succeed and the encrypted received-vault plus both consumed IDs commit atomically, then clears it immediately. Cancel, parse, authentication, open, import, or persistence error, expiry, or restart before commit clears every owned raw or derived secret and requires a fresh invite.
 - Cleanup means best-effort cleanup of owned mutable buffers, not guaranteed zeroization of copies created by the Swift runtime.
 - No terminal mutation permits downgrade, and every path preserves the durable reservation, replay, or terminal tombstone metadata required to fail closed.

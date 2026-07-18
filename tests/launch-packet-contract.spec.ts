@@ -740,7 +740,7 @@ claimAuthenticator = HMAC-SHA256(claimAuthKey, canonicalClaimTranscript)
       "Perform JSON parsing, schema validation, strict base64url decoding, and required-field checks.",
       "NFC-normalize text and enforce UTF-8 lengths of 1–128 bytes for `targetDeviceId` and 1–256 bytes for `targetDisplayName`.",
       "Parse the target P256 SPKI DER and require canonical DER by exact re-serialization before accepting the public key.",
-      "Perform constant-shape verifier retrieval keyed only by the server-owned `inviteSessionId`: make one bounded indexed verifier-record read; decrypt the live encrypted `claimAuthKey` when present; for an absent, terminal, non-live, or missing record, substitute an independent 32-byte process-owned dummy key and continue through the same HMAC path. This step makes no reservation-lifecycle or state-dependent response decision, never returns, retains, or logs the dummy key, and never recreates a terminal verifier. It does not claim perfect constant-time storage I/O; it requires only a fixed bounded response and computation shape with one generic external result.",
+      "Perform constant-shape verifier retrieval keyed only by the server-owned `inviteSessionId`: make one bounded indexed verifier-record read; decrypt the live encrypted `claimAuthKey` when present; for an absent, terminal, non-live, or missing record, substitute an independent 32-byte process-owned dummy key and continue through the same HMAC path. This step makes no reservation-lifecycle or state-dependent response decision, never returns or logs the candidate key, and never recreates a terminal verifier. It does not claim perfect constant-time storage I/O; it requires only a fixed bounded response and computation shape with one generic external result.",
       "Compute HMAC-SHA256 with the candidate key and compare the supplied authenticator in constant time.",
       "Only when the HMAC authenticates with a live verifier, load the full reservation state and apply the exact-retry, different-valid-retry, and ready-security-invalidation rules. A dummy-key or invalid-authenticator path returns the same generic authentication failure with no state disclosure or mutation.",
     ].map(normalizeWhitespace);
@@ -796,6 +796,76 @@ claimAuthenticator = HMAC-SHA256(claimAuthKey, canonicalClaimTranscript)
       expect(normalizedAuthority).toContain(liveVerifierRule);
       expect(normalizedAuthority).toContain(noSessionLookupRule);
       expect(normalizedAuthority).toContain(terminalRule);
+    }
+  });
+
+  it("bootstraps the claim verifier before QR activation and transfers it exactly once", () => {
+    const authorities = [
+      readText(
+        "docs/superpowers/specs/2026-07-16-pairing-security-authority-recovery-design.md",
+      ),
+      markdownSection(
+        readText(
+          "docs/superpowers/plans/2026-07-16-pairing-security-authority-recovery.md",
+        ),
+        "### Task 1: Recover The UnuVault Pairing Security Authority",
+      ),
+      readText(
+        "docs/superpowers/specs/2026-07-10-authenticated-pairing-approval-design.md",
+      ),
+    ];
+    const inviteBootstrapRule = normalizeWhitespace(
+      "Before an invitation QR may be displayed or activated, the Mac derives the 32-byte `claimAuthKey` from the raw 32-byte `pairingSecret` and the immutable server-owned `PAIRING_VERSION`, NFC `inviteSessionId`, `expiresAtEpochMilliseconds`, and `canonicalMacBaseURL` using the byte-exact claim-authentication HKDF above.",
+    );
+    const envelopeRule = normalizeWhitespace(
+      "In the same issuance operation, the Mac atomically creates an encrypted verifier envelope keyed by `inviteSessionId`; its authenticated plaintext payload contains exactly the 32-byte `claimAuthKey`, those immutable transcript inputs, and an `issued/unreserved` marker, with no target-controlled field.",
+    );
+    const activationGateRule = normalizeWhitespace(
+      "The QR becomes visible and active only after that envelope commits; derivation, encryption, or persistence failure leaves no active invitation and exposes no QR.",
+    );
+    const retrievalRule = normalizeWhitespace(
+      "Verifier retrieval obtains the live key and immutable transcript inputs from the encrypted invite envelope for a first claim or from the reservation verifier record after reservation; it reads no target-bound or business-lifecycle state before HMAC authentication.",
+    );
+    const transferRule = normalizeWhitespace(
+      "After the first valid HMAC, one atomic compare-and-swap changes the matching `issued/unreserved` envelope into the sole `authorizing` reservation, binds the exact request and retry identity, allocates `claimId`, and transfers ownership of the same encrypted `claimAuthKey` without copying or re-deriving it.",
+    );
+    const concurrencyRule = normalizeWhitespace(
+      "Concurrent authenticated claims cannot create multiple reservations: exactly one compare-and-swap winner performs the ownership transfer; authenticated losers are re-evaluated against the winning reservation under the byte-identical or different-valid retry rules, while an invalid HMAC performs no mutation.",
+    );
+    const inviteCleanupRule = normalizeWhitespace(
+      "Invitation expiry, lock, revoke, lost-device, capability invalidation, persistence failure, or restart before `ready` deletes the invite envelope or reservation verifier and clears its `claimAuthKey` as applicable, while preserving only the minimum terminal tombstone required to fail closed.",
+    );
+    const secretLifetimeRule = normalizeWhitespace(
+      "Creating the encrypted verifier envelope neither transfers nor extends the raw `pairingSecret` lifetime: the Mac-owned mutable raw-secret buffer remains governed by the existing sealing and `ready` cleanup rules and is never reconstructed from the envelope.",
+    );
+    const dummyLifecycleRule = normalizeWhitespace(
+      "At process startup, the Mac generates an independent 32-byte process-owned dummy key with a CSPRNG and retains it only in mutable memory; it is never logged, returned, or persisted. Every missing, terminal, or non-live verifier path uses that key for the same HMAC computation, clears the request-local candidate reference after comparison, and best-effort clears the dummy buffer at process shutdown.",
+    );
+
+    for (const authority of authorities) {
+      const normalizedAuthority = normalizeWhitespace(authority);
+      expect(normalizedAuthority).toContain(inviteBootstrapRule);
+      expect(normalizedAuthority).toContain(envelopeRule);
+      expect(normalizedAuthority).toContain(activationGateRule);
+      expect(normalizedAuthority).toContain(retrievalRule);
+      expect(normalizedAuthority).toContain(transferRule);
+      expect(normalizedAuthority).toContain(concurrencyRule);
+      expect(normalizedAuthority).toContain(inviteCleanupRule);
+      expect(normalizedAuthority).toContain(secretLifetimeRule);
+      expect(normalizedAuthority).toContain(dummyLifecycleRule);
+      expect(normalizedAuthority).not.toContain(
+        normalizeWhitespace(
+          "After the first valid claim, the reservation retains the `claimAuthKey` only in encrypted storage",
+        ),
+      );
+      expect(normalizedAuthority).not.toContain(
+        normalizeWhitespace(
+          "derives the same `claimAuthKey`, and verifies the HMAC",
+        ),
+      );
+      expect(normalizedAuthority).not.toContain(
+        normalizeWhitespace("never returns, retains, or logs the dummy key"),
+      );
     }
   });
 
