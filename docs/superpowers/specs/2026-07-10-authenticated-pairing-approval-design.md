@@ -207,9 +207,16 @@ server-owned `PAIRING_VERSION`, NFC `inviteSessionId`,
 claim-authentication HKDF above.
 
 In the same issuance operation, the Mac atomically creates an encrypted
-verifier envelope keyed by `inviteSessionId`; its authenticated plaintext
-payload contains exactly the 32-byte `claimAuthKey`, those immutable transcript
-inputs, and an `issued/unreserved` marker, with no target-controlled field.
+verifier envelope keyed by `inviteSessionId`; its immutable authenticated
+plaintext payload contains exactly the 32-byte `claimAuthKey`, those immutable
+transcript inputs, the envelope format and version, and an immutable verifier
+provenance ID and envelope generation, with no target-controlled field or
+mutable lifecycle state.
+
+Mutable lifecycle state (`issued`, `authorizing`, `sealing`, `ready`, or
+terminal) and the exact request and retry metadata exist only in the outer
+durable record or columns controlled by atomic compare-and-swap;
+`issued/unreserved` is never inside the encrypted envelope payload.
 
 The QR becomes visible and active only after that envelope commits; derivation,
 encryption, or persistence failure leaves no active invitation and exposes no
@@ -262,10 +269,18 @@ before HMAC authentication.
 
 At process startup, the Mac generates an independent 32-byte process-owned
 dummy key with a CSPRNG and retains it only in mutable memory; it is never
-logged, returned, or persisted. Every missing, terminal, or non-live verifier
-path uses that key for the same HMAC computation, clears the request-local
-candidate reference after comparison, and best-effort clears the dummy buffer
-at process shutdown.
+logged, returned, or persisted.
+
+Every request path—live invite-envelope candidate, live reservation-verifier
+candidate, and dummy candidate for a missing, terminal, or non-live
+record—enters one defer/finally cleanup scope before HMAC comparison and
+best-effort clears its request-local candidate plaintext and reference after
+comparison or error.
+
+Per-request cleanup never clears the process-owned dummy master buffer; it
+clears only the request-local candidate copy or reference, while the dummy
+master buffer remains mutable process-owned memory and is best-effort cleared
+only at process shutdown.
 
 An unauthenticated or malformed request receives the same generic authentication failure, with no state disclosure or mutation. The Mac owns the mutable QR-secret buffer from invite and claim authentication through sealing. The secret is used only for claim-authentication HKDF and handoff-encryption HKDF and is never logged or included in a response or persistent general storage.
 
@@ -408,7 +423,7 @@ authenticator byte-for-byte; a digest alone cannot substitute for the full
 identity.
 
 The reservation state machine is normative. Its success path is
-`unreserved` -> `authorizing` -> `sealing` -> `ready` -> `consumed`. The
+`issued` -> `authorizing` -> `sealing` -> `ready` -> `consumed`. The
 normative state machine permits `invalidated` from `authorizing` or `sealing`
 for the terminal owners classified below, and from `ready` only for an
 independent trusted local lock, revoke, lost-device, or capability invalidation
@@ -425,26 +440,49 @@ lookup alone never authorizes `handoff_consumed`. After `consumed`, `denied`,
 generic authentication failure with no state disclosure or mutation, even when
 its `inviteSessionId` matches a terminal tombstone.
 
-After the first valid HMAC, one atomic compare-and-swap changes the matching
-`issued/unreserved` envelope into the sole `authorizing` reservation, binds the
-exact request and retry identity, allocates `claimId`, and transfers ownership
-of the same encrypted `claimAuthKey` without copying or re-deriving it.
+After the first valid HMAC, one durable transaction atomically changes the outer
+state from `issued` to `authorizing`, binds the exact request and retry identity,
+allocates `claimId`, and moves the unique ownership or reference for the same
+immutable verifier ciphertext from the invite slot to the reservation slot
+without copying, re-deriving, or re-encrypting the key.
 
 Concurrent authenticated claims cannot create multiple reservations: exactly
-one compare-and-swap winner performs the ownership transfer; authenticated
-losers are re-evaluated against the winning reservation under the byte-identical
-or different-valid retry rules, while an invalid HMAC performs no mutation.
+one compare-and-swap winner performs the ownership transfer, and every false or
+unknown outcome follows the single authoritative-reread rule; an invalid HMAC
+performs no mutation.
+
+If the first-claim compare-and-swap returns false, or its commit acknowledgement
+or outcome is unknown, the request performs exactly one authoritative durable
+reread before selecting any response.
+
+Only a winning reservation whose immutable verifier provenance ID and envelope
+generation both match the candidate invite envelope is a matching winner.
+
+When that single reread proves a matching winner, that reservation is the sole
+durable truth and the request applies the existing byte-identical or
+different-valid retry semantics to it.
+
+If the reread finds no winning reservation, a terminal tombstone, a missing
+record, a verifier provenance or generation mismatch, or cannot prove the
+matching winner, the request returns the generic authentication failure with no
+mutation, state disclosure, or verifier reconstruction.
+
+The same single-reread rule resolves invitation expiry, revoke, process restart,
+and persistence races; an unknown commit followed by a matching reservation
+uses that reservation as the only durable truth, and every other result fails
+closed.
 
 1. The Mac verifies the HMAC and canonical request first. An unauthenticated
    or malformed request receives the same generic authentication failure, with
    no state disclosure or mutation.
 2. For the first valid request, the compare-and-swap rechecks the unexpired
-   `issued/unreserved` envelope, persists the exact retry identity and original
-   authenticated `clientNonce`, consumes the invitation, and enters
-   `authorizing`. It transfers the encrypted verifier into the reservation
-   rather than copying, re-deriving, or separately persisting its key. No retry
-   window starts here. This compare-and-swap atomically creates the durable
-   reservation before fresh owner authorization.
+   outer `issued` state plus the immutable verifier provenance ID and envelope
+   generation, persists the exact retry identity and original authenticated
+   `clientNonce`, consumes the invitation, and enters `authorizing`. The same
+   transaction moves the encrypted verifier ownership or reference into the
+   reservation rather than copying, re-deriving, re-encrypting, or separately
+   persisting its key. No retry window starts here. This compare-and-swap
+   atomically creates the durable reservation before fresh owner authorization.
 3. Exactly one worker for that reservation creates the fresh `LAContext`. A
    byte-identical authenticated request received in `authorizing` or `sealing`
    does not start another authorization, snapshot read, or seal; it receives
@@ -495,6 +533,14 @@ for a V1 claim.
 
 `consumed`, `denied`, `expired`, and `invalidated` are terminal states. The only state-owning terminal mutations are exclusive and classified as follows: fresh owner denial or cancellation records `denied`; invitation expiry records `expired`; owner-authentication unavailability or `LAContext` evaluation or system error records `invalidated`; lock, revoke, lost-device, or capability invalidation records `invalidated`, including an immediate atomic `ready` to `invalidated` transition for an independent trusted local lifecycle event; reservation identity, vault session identity, or authenticated-target recheck failure records `invalidated`, while expiry and lifecycle outcomes discovered by that recheck remain classified under their preceding categories; internal read or snapshot, key-derivation, sealing, persistence, or process failure before `ready` records `invalidated` when the worker can commit the terminal write; restart recovery of unfinished `authorizing` or `sealing` work records `invalidated` when a process failure prevented that write; and reaching the immutable ready-window deadline transitions `ready` to `consumed` only if no prior security invalidation occurred. Each such mutation clears the pending capability and unsealed handoff material while preserving required durable terminal tombstones.
 
+Every terminal cleanup is one atomic, mutually exclusive, and idempotently
+recoverable transition that replaces the live outer record with a minimum
+tombstone containing no verifier and deletes the verifier ciphertext ownership
+or reference in the same commit.
+
+Restart recovery may safely repeat that transition and must never leave both a
+live verifier and a terminal tombstone.
+
 The normative state machine permits `invalidated` from `authorizing` or
 `sealing` for the terminal owners classified below, and from `ready` only for
 an independent trusted local lock, revoke, lost-device, or capability
@@ -519,9 +565,10 @@ At the atomic `ready` transition, the sealed byte-identical response, encrypted 
 Every pre-ready terminal path above clears `claimAuthKey` and the reservation's other owned secret material while preserving required terminal tombstones; the ready-window deadline instead clears the retained sealed response, retry identity, and encrypted `claimAuthKey` while preserving the consumed tombstone.
 
 Invitation expiry, lock, revoke, lost-device, capability invalidation,
-persistence failure, or restart before `ready` deletes the invite envelope or
-reservation verifier and clears its `claimAuthKey` as applicable, while
-preserving only the minimum terminal tombstone required to fail closed.
+persistence failure, or restart before `ready` uses that atomic tombstone
+transition to remove the unique verifier ciphertext ownership or reference and
+clear its `claimAuthKey` as applicable, while preserving only the minimum
+terminal tombstone required to fail closed.
 
 Creating the encrypted verifier envelope neither transfers nor extends the raw
 `pairingSecret` lifetime: the Mac-owned mutable raw-secret buffer remains
