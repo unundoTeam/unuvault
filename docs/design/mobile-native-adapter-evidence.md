@@ -17,9 +17,11 @@ evidence backlog, but it does not claim mobile/native adapter adoption.
 - Pencil draft:
   `/Users/yuchen/Design/unu/unuvault/unuvault.draft.pen`
 - Design-system frame: `current/unuvault/design-system-v1`
-- iOS Pencil source frames:
-  `current/unuvault/ios-product-composition-v1`,
-  `current/unuvault/ios-pairing-invite-receive-v3`
+- Registered iOS design-authority frames:
+  `current/unuvault/ios-vault-home-native-locked-v1`,
+  `current/unuvault/ios-vault-list-readonly-v1`
+- Current runtime-composition contract:
+  `docs/architecture/0009-ios-product-composition-contract.md`
 
 ## Adapter Implementation Paths
 
@@ -64,11 +66,11 @@ evidence backlog, but it does not claim mobile/native adapter adoption.
 | --- | --- | --- |
 | Native implementation path | SwiftUI views and an iOS Swift package implement the always-reachable Vault/Pairing composition, Mac invite parsing, target identity and claim exchange, recipient-bound handoff open, AES-GCM encrypted received-vault persistence, fresh reload, and read-only vault metadata projection. Password reveal/copy, editing, search, biometric unlock, cloud sync, and a shipped full mobile vault remain out of scope. | partial |
 | Platform token mapping | The receive-invite view uses repo-local neutral gray, secure green, danger red, radius, and typography constants aligned with the approved source frame; formal mobile primitive mapping is not claimed. | partial |
-| Safe-area and touch target behavior | The approved product composition and pairing v3 frames use native safe-area layout. `IOSProductCompositionUIContract` and `PairingInviteAccessibilityContract` pin 44pt minimum targets and 48pt primary/Retry actions; `bash scripts/testing/run-ios-ui-host.sh` launches the composition in an iPhone simulator and captures empty, vault, reload-failed, and `accessibility3` evidence. | partial |
+| Safe-area and touch target behavior | `IOSProductCompositionUIContract` and `PairingInviteAccessibilityContract` pin 44pt minimum targets and 48pt primary/Retry actions; `bash scripts/testing/run-ios-ui-host.sh` launches the composition in an iPhone simulator and captures empty, vault, reload-failed, and `accessibility3` evidence. Runtime behavior routes through architecture 0009; the registered design-authority frames are the home/list frames above. | partial |
 | Auth or vault action review/recovery mapping | The receive flow disables import until invite validation, fails closed on expired invites, opens only a claimant-key-bound handoff, and persists encrypted imported credentials. A missing or valid empty received-vault store selects Pairing. An unreadable store instead enters an explicit `.failed` state, shows a safe error, and exposes Retry without displaying sensitive values. Import success alone does not switch destinations; only a fresh successful reload with non-empty metadata selects Vault. | partial |
 | Repo-owned iOS verification command | `bash scripts/testing/run-ios.sh` runs the current iOS package gate on an available iPhone simulator; `pnpm test:pairing-boundary` runs that iOS receive/client proof with the Mac companion pairing-boundary proof as one repo-level gate; `pnpm test:pairing-lan-smoke` proves the Mac runtime can accept a target claim through a non-loopback LAN IPv4 base URL; `pnpm test:pairing-physical-receipt` is the connected-device receipt harness; `bash scripts/testing/run-ios-ui-host.sh` builds and launches the composition host for four-state screenshot proof. | available |
 | Physical iPhone receipt evidence | On 2026-07-08, a local hardware run of `corepack pnpm test:pairing-physical-receipt` passed against a connected, unlocked, trusted iPhone and captured `UNUVAULT_IOS_PAIRING_RECEIPT paired handoffId=physical-receipt-session-25B426DF-4FB2-4AA3-B51F-0022286AB270 targetDeviceId=ios-device-d5185f1f-c612-4987-9a68-6a90a3ab8313 material=AES-GCM-256`; the source commit under test, `ec20f52`, also passed GitHub Actions CI run `28897875643` (`js / Node Verify`) on `main`. | recorded |
-| Visual/accessibility proof | `current/unuvault/ios-product-composition-v1` and `current/unuvault/ios-pairing-invite-receive-v3` are promoted. The SwiftUI composition keeps Vault and Pairing reachable, exposes selected/unselected semantics without color-only state, announces loading/failure/recovery, and the host captures empty, vault, reload-failed, and `accessibility3` screenshots; no manual VoiceOver rotor run is recorded yet. | partial |
+| Visual/accessibility proof | `current/unuvault/ios-product-composition-v1` and `current/unuvault/ios-pairing-invite-receive-v3` are historical implementation/visual evidence, not registered design-authority frames. Architecture 0009 records runtime behavior, while the registered home/list frames above are the portfolio design authority. The SwiftUI composition keeps Vault and Pairing reachable, exposes selected/unselected semantics without color-only state, announces loading/failure/recovery, and the host captures empty, vault, reload-failed, and `accessibility3` screenshots; no manual VoiceOver rotor run is recorded yet. | partial |
 | Dynamic Type | The composition and receive flow scale text and target metrics, wrap content, and preserve both destinations. The host's `accessibility3` fixture records the largest required proof state without claiming manual rotor behavior. | partial |
 | VoiceOver | Static labels cover both destinations, selected state, progress, recognized Mac, import, status, error, and recovery. Composition announcements and receive-flow labels are covered by the current iOS package gate; manual rotor path proof is not recorded yet. | partial |
 | 44pt targets | `IOSProductCompositionUIContract` and `PairingInviteAccessibilityContract` pin 44pt minimum targets and 48pt primary/Retry actions; tests cover those contracts and the four host screenshots provide layout evidence. | partial |
@@ -85,10 +87,11 @@ pnpm test:pairing-physical-receipt
 bash scripts/testing/run-ios-ui-host.sh
 ```
 
-Current proof from this lane is limited to the iOS package, the promoted
-product-composition and pairing v3 Pencil source frames, plus
-the current Swift package gate and four XcodeGen-backed simulator host
-screenshots. The
+Current proof from this lane is limited to the iOS package, retained historical
+implementation/visual evidence from product-composition-v1 and pairing-v3, the
+current Swift package gate, and four XcodeGen-backed simulator host screenshots.
+Architecture 0009 is the runtime contract; the registered home/list frames
+above remain the portfolio design authority. The
 tests assert minimal SwiftUI copy for login and AutoFill onboarding, plus an
 `IOSProductCompositionView` that keeps Vault and Pairing reachable, loads the
 app-default received store, selects Pairing for missing or empty metadata, and
@@ -157,8 +160,8 @@ This lane stays below `adapter-mapped` until future iOS UI slices supply:
 - disabled/loading/error or recovery proof where the surface exposes actions
 - camera QR or copy handoff evidence when the handoff method is implemented
 
-Current Pencil sync label for this lane:
-`current matches implementation`.
+Pencil sync: blocked. The registered home/list frames are insufficient to prove
+fresh product-composition and Pairing parity against current design authority.
 
 Draft cleanup label for `draft/unuvault/ios-pairing-invite-receive-v2`
 (`Uz6n3`): `deleted after approval` during the 2026-07-02 design hygiene

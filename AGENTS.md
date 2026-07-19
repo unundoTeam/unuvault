@@ -14,8 +14,9 @@
 - Current design-system frame: `current/unuvault/design-system-v1`.
 - Current web source frame: `current/unuvault/web-vault-management-v1`.
 - Current Mac companion source frame: `current/unuvault/mac-companion-core-flows-v1.3`.
-- Current iOS source frames: `current/unuvault/ios-product-composition-v1`
-  and `current/unuvault/ios-pairing-invite-receive-v3`.
+- Current iOS source frames:
+  `current/unuvault/ios-vault-home-native-locked-v1` and
+  `current/unuvault/ios-vault-list-readonly-v1`.
 - `docs/superpowers/specs/2026-07-10-authenticated-pairing-approval-design.md`
   is `current-routed` for Pairing V2 protocol/security semantics only. Pairing
   V2 implementation and exact-target security re-review remain pending. It is

@@ -95,6 +95,8 @@ browser-import workflow.
 - `docs/architecture/0008-personal-local-first-product-split.md` for the
   personal full password manager posture, future local/lite extraction, and
   Core / Local App / Cloud and Sync layer boundaries
+- `docs/architecture/0009-ios-product-composition-contract.md` for current iOS
+  runtime-composition invariants, unimplemented requirements, and proof gaps
 - `docs/superpowers/plans/2026-03-14-chinese-password-manager-phase1-roadmap.md`
   for the engineering roadmap
 - this README for contributor-facing local entrypoints and current contract
@@ -120,8 +122,9 @@ browser-import workflow.
 - Current web source frame: `current/unuvault/web-vault-management-v1`.
 - Current Mac companion source frame:
   `current/unuvault/mac-companion-core-flows-v1.3`.
-- Current iOS source frames: `current/unuvault/ios-product-composition-v1`
-  and `current/unuvault/ios-pairing-invite-receive-v3`.
+- Current iOS source frames:
+  `current/unuvault/ios-vault-home-native-locked-v1` and
+  `current/unuvault/ios-vault-list-readonly-v1`.
 - `docs/superpowers/specs/2026-07-10-authenticated-pairing-approval-design.md`
   is `current-routed` for Pairing V2 protocol/security semantics only. Pairing
   V2 implementation and exact-target security re-review remain pending. It is
@@ -437,9 +440,9 @@ For the native Mac companion proof:
   This proves the iPhone app can parse the Mac pairing invite envelope and QR
   payload, reject expired, invalid-version, malformed, or unsupported-endpoint
   payloads, and build a target-device identity claim with `deviceId`,
-  `displayName`, and `publicKeyFingerprint`. It also proves the approved
-  `current/unuvault/ios-product-composition-v1` and
-  `current/unuvault/ios-pairing-invite-receive-v3` SwiftUI flows. On startup,
+  `displayName`, and `publicKeyFingerprint`. It also proves the current
+  SwiftUI product-composition and Pairing behavior recorded in
+  `docs/architecture/0009-ios-product-composition-contract.md`. On startup,
   the composition loads the app-default encrypted received-vault store: stored
   metadata selects Vault, while an empty store selects Pairing. A successful
   import does not switch destinations by itself; only a fresh successful reload
@@ -456,17 +459,19 @@ For the native Mac companion proof:
   unlock, cloud sync, or a shipped full mobile vault workflow.
 - iOS product-composition simulator visual proof is available through:
   `pnpm test:ios:ui-host`
-  This uses XcodeGen to build a simulator host app for
-  `current/unuvault/ios-product-composition-v1`, launches deterministic
-  metadata-only composition states, and writes:
+  This uses XcodeGen to build a simulator host app for the runtime composition
+  recorded in `docs/architecture/0009-ios-product-composition-contract.md`,
+  launches deterministic metadata-only composition states, and writes:
   - `docs/design/evidence/2026-07-14-ios-product-composition/ios-product-composition-empty.png`
   - `docs/design/evidence/2026-07-14-ios-product-composition/ios-product-composition-vault.png`
   - `docs/design/evidence/2026-07-14-ios-product-composition/ios-product-composition-reload-failed.png`
   - `docs/design/evidence/2026-07-14-ios-product-composition/ios-product-composition-accessibility3.png`
-  These screenshots prove simulator composition and Dynamic Type layout,
-  including the `accessibility3` fixture. They do not prove manual VoiceOver
-  rotor behavior, physical-device import, camera QR scanning, or a shipped full
-  mobile vault workflow.
+  These screenshots are historical implementation/visual evidence for
+  `current/unuvault/ios-product-composition-v1`, not registered
+  design-authority evidence. They prove simulator composition and Dynamic Type
+  layout, including the `accessibility3` fixture. They do not prove fresh Pencil
+  parity, manual VoiceOver rotor behavior, physical-device import, camera QR
+  scanning, or a shipped full mobile vault workflow.
 - current implementation evidence is recorded in
   `docs/design/mac-companion-mvp-evidence.md`
 
