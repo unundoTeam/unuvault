@@ -2,9 +2,9 @@
 
 ## Purpose
 
-This document records the explicit crypto-review policy exception used when
-`unuvault` relies on a repo-backed iterative review loop instead of treating an
-independent third-party crypto verdict as the current launch gate.
+This document preserves the explicit 2026-04-25 crypto-review policy exception
+for its historical PR `#59` target. It is not a standing exception for later
+native/cross-platform crypto boundaries.
 
 It exists so the launch packet can stay honest:
 
@@ -15,13 +15,14 @@ It exists so the launch packet can stay honest:
 - the replacement gate is an explicit internal review/fix/review loop, not a
   silent removal of crypto review
 
-## Current Exception Status (2026-04-25)
+## Historical Exception Status (2026-04-25)
 
 - Third-party crypto review is deferred under this exception.
 - No real external reviewer, vendor, or third-party verdict is currently
   recorded in the launch packet.
-- Phase 1 and bounded GA/public launch readiness rely on the internal iterative
-  crypto review gate in `docs/operations/crypto-review-gate.md`.
+- The recorded Phase 1 and bounded launch decision relied on the internal
+  iterative crypto review gate in `docs/operations/crypto-review-gate.md` for
+  the exact historical target below.
 - The product must not claim that the crypto boundary is independently reviewed
   unless a real external reviewer or vendor later returns a verdict.
 
@@ -39,6 +40,10 @@ It exists so the launch packet can stay honest:
   - browser extension unlock, popup read, and autofill-read paths
   - CLI developer-secret read/import paths
   - the shared helper layer in `packages/security`
+
+This historical exception does not authorize the later native/cross-platform boundary.
+It also does not authorize Pairing V2, whole-product security,
+independent-security, paid/public-launch, or future exact-target review claims.
 
 ## Why The Exception Exists
 
@@ -62,9 +67,10 @@ The replacement gate is:
 4. Codex reviews again.
 5. The loop repeats until the current scoped review has no unresolved blocker.
 
-The result may be recorded as `internal iterative review cleared for current
-scope`. It must not be recorded or described as `independently reviewed` or
-`third-party reviewed`.
+The historical result may remain recorded as `internal iterative review cleared
+for current scope`, where "current scope" means the recorded PR `#59` target at
+the time of the decision. It must not be expanded or described as
+`independently reviewed` or `third-party reviewed`.
 
 ## Evidence Reused By This Exception
 
@@ -87,8 +93,11 @@ scope`. It must not be recorded or described as `independently reviewed` or
 
 - This is not an independent third-party security verdict.
 - This exception only covers the merged `main` review target described above.
-- Any material crypto-boundary change after that target should force this
-  exception to be re-reviewed instead of silently carried forward.
+- Pairing V2 and the later Mac/iOS native substrate are material
+  crypto-boundary changes after that target; this exception cannot be silently
+  carried forward to them.
+- Any renewed exception must name the one exact merged implementation SHA it
+  covers and follow the new exact-target cross-platform review.
 - Any crypto, unlock, or developer-secret incident should reopen the release
   decision instead of treating this waiver as permanent.
 - Any future real external reviewer path should supersede this exception.
@@ -112,10 +121,10 @@ these changes:
 
 ## Result
 
-- For the current phase-1 launch packet and bounded GA/public launch readiness,
-  the third-party crypto-review requirement is deferred through this explicit
-  exception.
-- The active security gate is the internal iterative review loop.
-- Third-party crypto review remains deferred, not completed.
+- For the historical PR `#59` phase-1 launch packet, the third-party
+  crypto-review requirement was deferred through this explicit exception.
+- The expanded native/cross-platform security gate is blocked pending
+  remediation and one exact-target re-review.
+- Independent third-party review for the expanded scope is not dispatched.
 - No new external contact path, vendor assignment, secret rotation, or wider
   launch approval is implied by this exception alone.

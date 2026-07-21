@@ -11,14 +11,16 @@
 - Current design status: `registered`.
 - Native Pencil current: `/Users/yuchen/Design/unu/unuvault/unuvault.current.pen`.
 - Native design-system frame: `current/unuvault/design-system-v1`.
-- Active macOS source frames:
-  `current/unuvault/mac-companion-core-flows-v1.3` and
-  `current/unuvault/mac-companion-pairing-approval-v2`.
-- Mac authenticated-pairing protocol and approval interaction authority:
+- Active macOS source frame: `current/unuvault/mac-companion-core-flows-v1.3`.
+- Active iOS source frames:
+  `current/unuvault/ios-vault-home-native-locked-v1` and
+  `current/unuvault/ios-vault-list-readonly-v1`.
+- Pairing V2 protocol/security authority:
   `docs/superpowers/specs/2026-07-10-authenticated-pairing-approval-design.md`
-  (`approved design`; implementation and security re-review remain pending).
-- Active iOS source frames: `current/unuvault/ios-product-composition-v1`
-  and `current/unuvault/ios-pairing-invite-receive-v3`.
+  is `current-routed` for Pairing V2 protocol/security semantics only.
+  Pairing V2 is protocol/security-only.
+  Pairing V2 implementation and exact-target security re-review remain pending.
+  It is not broad Pencil/current-UI authority.
 - For Native work, confirm direction/spec in brainstorming Visual Companion, directly update the relevant frame in `unuvault.current.pen`, show and correct the actual Pencil result, then verify the real app/simulator/device; direction approval is not visual acceptance.
 - Web and browser-extension surfaces use no product Pencil. Follow `/Users/yuchen/Code/unu/unuOS/docs/portfolio/web-design-foundation.md`, repo-local overrides/components, code under `apps/web/` or `apps/browser-extension/`, and the shown real browser result; important results require user confirmation.
 - Web frames inside `unuvault.current.pen`, including `current/unuvault/web-vault-management-v1`, are historical/reference-only, not Web implementation or parity sources.

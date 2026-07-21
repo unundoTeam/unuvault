@@ -1,6 +1,14 @@
 # Secure Crypto PR And Audit Handoff
 
+> Document authority: the current expanded native/cross-platform gate is
+> `blocked` pending remediation and one exact-target re-review. The 2026-04 PR
+> `#59` internal loop, result, recorded replies, dispatch, and packet-refresh
+> records are historical JavaScript-substrate evidence only. They describe the
+> then-current PR `#59` scope and do not clear the expanded gate.
+
 ## Bounded Argon2 Policy Checkpoint (2026-07-10)
+
+Bounded Argon2 checkpoint: `resolved`.
 
 This independently reviewable checkpoint addresses only the hostile Argon2
 parameter-limit gap. It does not remediate or clear Pairing V2, local bridge
@@ -39,7 +47,7 @@ Review status remains open: this checkpoint has not produced an independent
 third-party verdict and must not be used to describe Pairing V2 or the whole
 crypto boundary as complete or approved.
 
-## Scope of Change
+## Historical PR #59 Scope of Change
 
 - Replace the weak shared crypto helpers in `packages/security` with one async sodium-backed core
 - Upgrade new write formats to:
@@ -50,46 +58,74 @@ crypto boundary as complete or approved.
 - Migrate Web, browser extension, and CLI call chains to explicit async crypto helpers
 - Remove runtime-exported legacy write helpers so fixed test fixtures own the remaining weak sample generation
 
-## Design / Requirement Link
+## Historical PR #59 Design / Requirement Link
 
 - `docs/superpowers/plans/2026-04-14-unuvault-secure-crypto-phase1.md`
 - `docs/architecture/0005-secure-password-crypto.md`
 - `docs/operations/crypto-review-gate.md`
 - `docs/operations/crypto-legacy-smoke-checklist.md`
 
-## Launch Packet Status (2026-04-21)
+## Historical PR #59 Launch Packet Status (2026-04-21)
 
-This document is the secure-crypto launch-review packet for phase-1 beta or
-rehearsal, and the handoff packet for the current internal iterative review
-gate.
+This section preserves the historical secure-crypto launch-review packet for
+phase-1 beta or rehearsal. The document now also hands off the blocked expanded
+native/cross-platform boundary without relabeling historical evidence as
+current clearance.
 
 - Internal crypto evidence is attached below and remains reusable.
 - The prior reviewer request packet was sent, but it did not produce a real
   independent third-party verdict.
-- Third-party crypto review is deferred by
-  `docs/operations/crypto-review-launch-exception.md`, so GA/public-launch
-  crypto approval now depends on the internal iterative review gate.
-- Phase-1 beta/rehearsal now relies on the repo-owned packet plus the recorded
-  internal preflight reply below.
-- The packet refresh on 2026-04-21 now has fresh repo-owned verification
-  evidence for lint, repo-wide tests, focused secure-crypto coverage, the
-  iOS gate, and the phase-1 Web/API/browser-extension surface checks.
-- The launch packet now has repo-owned proof for the current web
-  login/register trust-copy surface as well.
+- The 2026-04-25 deferral in
+  `docs/operations/crypto-review-launch-exception.md` is historical and applies
+  only to its recorded PR `#59` target.
+- At the time of PR `#59`, phase-1 beta/rehearsal relied on the repo-owned
+  packet plus the recorded internal preflight reply below.
+- The historical packet refresh on 2026-04-21 recorded fresh repo-owned
+  verification evidence for lint, repo-wide tests, focused secure-crypto
+  coverage, the iOS gate, and the then-current phase-1
+  Web/API/browser-extension surface checks.
+- That historical launch packet also recorded repo-owned proof for the
+  then-current web login/register trust-copy surface.
 - GitHub metadata checked on `2026-04-25` shows PR `#59` merged on `main`, but
   no PR review or issue-comment artifact is recorded there for an external
   crypto verdict.
+- The expanded native/cross-platform gate is blocked pending remediation and a
+  new review against one exact future merged implementation SHA.
 
-## Current Review Target
+## Historical PR #59 Review Target
 
 - GitHub PR: `#59` `[codex] finalize unuvault phase-1 launch packet`
 - PR URL: `https://github.com/unundoTeam/unuvault/pull/59`
-- Current base branch: `main`
+- Recorded base branch: `main`
 - Merge commit on `main`: `46ae0c655deef0ef15cb0cd180b4844a32cac43d`
-- Use the merged `main` state at or after that commit as the review target for
-  the internal iterative review loop, plus any later commits that update this
-  gate or review evidence. If a real external reviewer path is reopened, use the
-  same merged-main anchor for that review.
+- This exact target records the historical Web/browser-extension/CLI and
+  `packages/security` JavaScript substrate review. It cannot substitute for the
+  later native/cross-platform Pairing V2 target.
+
+## Current Cross-Platform Preliminary Findings
+
+Cross-platform preliminary verdict: `blocked`.
+
+- Target claim is unauthenticated: V1 accepts claimant-provided identity without
+  proof that it is the intended iPhone.
+- Fresh Mac owner authorization is missing before the whole-vault snapshot read;
+  an existing unlocked session is not sufficient.
+- iOS replay rejection is in-memory only and does not survive app/process
+  restart.
+- Local bridge authorization has a separate bearer-contract mismatch and is not
+  solved by Pairing V2.
+
+Required remediation is defined by
+`docs/superpowers/specs/2026-07-10-authenticated-pairing-approval-design.md`:
+authenticate the target claim, require a fresh `LAContext` owner approval,
+persist replay rejection atomically, enforce V2 no-downgrade, and resolve the
+local bridge authorization blocker. After remediation, run a new cross-platform
+review against one exact merged implementation SHA; no range, branch name,
+historical target, or "latest main" may substitute.
+
+No independent third-party verdict exists for the expanded scope. External
+dispatch remains `not dispatched` until the exact SHA and local
+remediation/re-review evidence are attached.
 
 ## Historical External Review Dispatch Record
 
@@ -113,8 +149,9 @@ returns a verdict.
 Do not fill `Contact path` or `Tracking link` with repo-local docs, PR URLs, or
 launch-packet references alone. Those can support the review, but they do not
 prove the request reached a real external reviewer or vendor queue.
-For the current launch packet, shared chat can assist with introductions, but
-the authoritative handoff must still live in an email thread or vendor ticket.
+For that historical launch packet, shared chat could assist with introductions,
+but the authoritative handoff still had to live in an email thread or vendor
+ticket.
 
 ## Historical External Review Result
 - Reviewer or vendor: `pending`
@@ -124,40 +161,49 @@ the authoritative handoff must still live in an email thread or vendor ticket.
 - Findings: `pending`
 - Required remediation: `pending`
 - Accepted follow-up limits: `pending`
-- Launch checklist still matches the reviewed crypto boundary: `pending`
+- Historical launch-checklist match status for this dispatch: `pending`
 
-As of `2026-04-25`, the request has been sent by email, but the checked-in
-packet still has no independent third-party verdict attached. GitHub review
+As of `2026-04-25`, the request had been sent by email, but the checked-in
+packet had no independent third-party verdict attached. GitHub review
 metadata checked on `2026-04-25` also records no PR review or issue-comment
-artifact that can serve as an external crypto verdict. The current blocker is
-the replacement internal iterative review loop rather than the historical
-external dispatch path.
+artifact that can serve as an external crypto verdict. The later internal loop
+was the replacement gate for the then-current PR `#59` JavaScript substrate;
+neither path clears the current expanded native/cross-platform gate.
 
-This external dispatch record is historical. The current launch gate is the
-internal iterative review loop recorded in `docs/operations/crypto-review-gate.md`.
+This external dispatch record and its replacement loop are historical PR `#59`
+JavaScript-substrate evidence. The active expanded gate is the blocked state in
+`## Current Cross-Platform Preliminary Findings` and
+`docs/operations/crypto-review-gate.md`.
 
-## Internal Iterative Review Loop
+## Historical PR #59 Internal Iterative Review Loop
+
+This historical PR `#59` loop covered only the then-current Web,
+browser-extension, CLI, and `packages/security` JavaScript substrate. It does
+not clear the current expanded native/cross-platform gate.
 
 - Gate authority: `docs/operations/crypto-review-gate.md`
 - Deferral authority: `docs/operations/crypto-review-launch-exception.md`
-- Loop status: `completed for current scope`
+- Historical loop status: `completed for the then-current PR #59 JavaScript substrate scope`
 - Reviewer: `Codex repo-backed review loop`
-- Current-scope verdict: `internal iterative review cleared for current scope`
-- Required loop:
-  1. review current crypto boundary and launch-packet evidence
+- Historical-scope verdict: `internal iterative review cleared the then-current PR #59 JavaScript substrate scope`
+- Required historical loop:
+  1. review the then-current PR `#59` JavaScript crypto boundary and launch-packet evidence
   2. fix any blocker found in code, tests, or docs
   3. rerun focused verification
   4. review again
   5. repeat until no unresolved blocker remains
 
-The final current-scope result must not be described as independent third-party
-approval.
+The historical result must not be described as independent third-party
+approval or as clearance of the current expanded native/cross-platform gate.
 
-## Internal Iterative Review Result (2026-04-25)
+## Historical PR #59 Internal Iterative Review Result (2026-04-25)
+
+This is the historical PR `#59` result for the then-current JavaScript
+substrate. It does not clear the current expanded native/cross-platform gate.
 
 - Reviewer: `Codex repo-backed review loop`
 - Review date: `2026-04-25`
-- Verdict: `internal iterative review cleared for current scope`
+- Verdict: `internal iterative review cleared the then-current PR #59 JavaScript substrate scope`
 - Reviewed surfaces:
   - shared helper layer in `packages/security`
   - Web unlock, reveal, copy, and secure rewrite paths
@@ -169,15 +215,15 @@ approval.
     instead of requiring `developer-secret-blob`
   - browser-extension autofill candidate reads trusted request-body `pageUrl`
     instead of the content-script caller URL
-  - no additional blocker was found in active Web writes, extension popup reads,
-    CLI stdout/stderr behavior, or legacy compatibility evidence after
-    remediation
+  - no additional blocker was found in the then-active Web writes, extension
+    popup reads, CLI stdout/stderr behavior, or legacy compatibility evidence
+    after remediation
 - Required remediation:
-  - `packages/security/src/developer-secret-envelope.ts` now requires
+  - `packages/security/src/developer-secret-envelope.ts` was changed to require
     `purpose: "developer-secret-blob"` for secure developer-secret envelopes
-  - `apps/browser-extension/src/background/runtime.ts` now derives autofill
-    candidate origin from trusted content caller context and fails closed for
-    popup/internal callers
+  - `apps/browser-extension/src/background/runtime.ts` was changed to derive
+    autofill candidate origin from trusted content caller context and fail
+    closed for popup/internal callers
   - focused regression tests were added in
     `packages/security/tests/developer-secret-envelope.spec.ts`,
     `apps/browser-extension/tests/background-unlocked-vault.spec.ts`, and
@@ -188,22 +234,24 @@ approval.
     third-party reviewed
   - manual legacy smoke remains the attached `2026-04-18` evidence because this
     review did not change legacy reader formats or storage keys
-- Launch checklist still matches the reviewed crypto boundary: `yes`
+- Historical launch checklist matched the reviewed PR `#59` JavaScript
+  boundary: `yes`
 
-Fresh verification for this review:
+Historical verification recorded for this review:
 
 - `./node_modules/.bin/vitest --run packages/security/tests/developer-secret-envelope.spec.ts apps/browser-extension/tests/background-unlocked-vault.spec.ts apps/browser-extension/tests/autofill.spec.ts` passed on `2026-04-25`
 - `pnpm lint` passed on `2026-04-25`
 - `pnpm test` passed on `2026-04-25`
 
-## Recorded Thread Reply (2026-04-23)
+## Historical PR #59 Recorded Thread Reply (2026-04-23)
 
-The review thread now has recorded repo-backed internal replies, but they are
+The historical review thread records repo-backed internal replies, but they are
 not independent third-party crypto verdicts.
 
-The original reply wording still used the older phase-1 blocker framing. Under
-the current launch policy, treat that unresolved requirement as historical
-context superseded by the internal iterative review gate.
+The original reply wording still used the older phase-1 blocker framing. The
+later `2026-04-25` PR `#59` decision treated that requirement as historical for
+the same then-current JavaScript substrate only. Neither the reply nor that
+decision clears the current expanded native/cross-platform gate.
 
 - Reply type: `repo-backed internal preflight`
 - Reviewer: `chen yu (repo-backed internal preflight, not independent third-party)`
@@ -217,10 +265,10 @@ context superseded by the internal iterative review gate.
 - Findings:
   - no blocker found in the repo-owned secure-crypto helper layer, secure write
     formats, verifier upgrade rules, or CLI failure handling
-  - legacy compatibility evidence in the launch packet still matches the
-    current secure boundary
+  - legacy compatibility evidence in the launch packet matched the then-current
+    PR `#59` JavaScript secure boundary
   - this reply is not an independent third-party review verdict
-  - current web/popup/login jsdom reruns are blocked by a local Vitest
+  - the then-current web/popup/login jsdom reruns were blocked by a local Vitest
     matcher-harness issue, so those UI-facing packet proofs remain
     packet-backed rather than freshly rerun in this reply
 - Required remediation:
@@ -231,17 +279,19 @@ context superseded by the internal iterative review gate.
 - Accepted follow-up limits:
   - repo-owned internal evidence can continue to travel in the launch packet as
     supporting material
-  - phase-1 beta/rehearsal can proceed without a third-party verdict, but
-    GA/public launch stayed blocked under the previous policy until the
-    `2026-04-25` deferral decision replaced that requirement with the internal
-    iterative review gate
-- Launch checklist still matches the reviewed crypto boundary: `yes`
+  - the historical phase-1 beta/rehearsal decision allowed proceeding without a
+    third-party verdict, while GA/public launch stayed blocked under the
+    previous policy until the `2026-04-25` deferral replaced that requirement
+    for the same PR `#59` JavaScript substrate
+- Historical launch checklist matched the reviewed PR `#59` JavaScript
+  boundary: `yes`
 
-This recorded reply is enough to document the internal sign-off boundary for
-phase 1. It does not clear the current internal iterative gate by itself, and it
-does not count as independent third-party approval.
+This recorded reply documents the historical internal sign-off boundary for
+the then-current PR `#59` phase-1 JavaScript substrate. It does not clear the
+current expanded native/cross-platform gate, and it does not count as
+independent third-party approval.
 
-## Recorded Thread Reply (2026-04-25)
+## Historical PR #59 Recorded Thread Reply (2026-04-25)
 
 A follow-up repo-backed internal confirmation was sent after the external
 request left the repo. It confirms the request and packet framing only. It is
@@ -258,8 +308,9 @@ not an independent third-party crypto review verdict.
   - secure crypto PR/audit handoff packet
   - phase-1 launch checklist references
 - Findings:
-  - the request is correctly scoped as a GA/public-launch independent crypto
-    review gate, not a phase-1 beta/rehearsal blocker
+  - at that time, the request was scoped as a GA/public-launch independent
+    crypto review gate for the PR `#59` JavaScript substrate, not a phase-1
+    beta/rehearsal blocker
   - the packet links are present and point to the expected launch packet
     materials
   - no independent third-party verdict is provided by this reply
@@ -274,13 +325,13 @@ not an independent third-party crypto review verdict.
     status
   - this internal confirmation may travel with the packet as supporting context,
     but it does not clear crypto review by itself
-- Launch checklist still matches the reviewed crypto boundary: `yes, for the
-  request and packet framing reviewed here; no independent crypto approval is
+- Historical launch checklist matched the reviewed PR `#59` request and packet
+  framing: `yes; no independent crypto approval or expanded-gate clearance was
   granted by this reply`
 - Gate effect: `supports packet tracking only; does not clear crypto review by
   itself`
 
-## Verification Commands
+## Historical PR #59 Verification Commands
 
 - `bash scripts/testing/lint-runner.sh`
 - `bash scripts/testing/test-runner.sh`
@@ -289,7 +340,7 @@ not an independent third-party crypto review verdict.
 - `./node_modules/.bin/vitest --run apps/web/tests/security-page.spec.tsx apps/web/tests/import-page.spec.tsx apps/api/tests/imports.spec.ts apps/api/tests/devices.spec.ts apps/api/tests/activity.spec.ts apps/api/tests/vault-sync.spec.ts apps/browser-extension/tests/popup.spec.tsx apps/browser-extension/tests/autofill.spec.ts apps/browser-extension/tests/background-unlocked-vault.spec.ts apps/browser-extension/tests/packaging-build.spec.ts`
 - `./node_modules/.bin/vitest --run apps/web/tests/login-page.spec.tsx apps/web/tests/register-page.spec.tsx`
 
-## Packet Refresh Result (2026-04-21)
+## Historical PR #59 Packet Refresh Result (2026-04-21)
 
 - `bash scripts/testing/lint-runner.sh` passed on 2026-04-21
 - `bash scripts/testing/test-runner.sh` passed on 2026-04-21
@@ -304,15 +355,15 @@ not an independent third-party crypto review verdict.
   - `AutofillOnboardingViewTests.testAutofillOnboardingShowsEnableAutofill`
   - `LoginViewTests.testLoginViewShowsSecureSyncMessage`
 - Focused onboarding trust-copy matrix passed on 2026-04-21, pinning the
-  current login/register launch copy
+  then-current login/register launch copy
 - `docs/help/account-recovery.md` and
   `docs/help/import-troubleshooting.md` were reviewed on 2026-04-21 before
   external testing
-- Manual legacy smoke checklist was not rerun in this packet refresh; the
-  current launch packet still uses the completed 2026-04-18 manual smoke
-  evidence below
+- Manual legacy smoke checklist was not rerun in this historical packet
+  refresh; the PR `#59` launch packet used the completed 2026-04-18 manual
+  smoke evidence below
 
-## Extension Real-Page Autofill Refresh (2026-04-25)
+## Historical PR #59 Extension Real-Page Autofill Refresh (2026-04-25)
 
 - `pnpm --filter @unuvault/browser-extension build` passed on 2026-04-25
 - `./node_modules/.bin/vitest --run apps/browser-extension/tests/packaging-build.spec.ts apps/browser-extension/tests/autofill.spec.ts apps/browser-extension/tests/popup.spec.tsx`
@@ -387,22 +438,24 @@ not an independent third-party crypto review verdict.
     - `purpose: "developer-secret-blob"`
 - Manual legacy smoke checklist is complete for Web, browser extension, and CLI on 2026-04-18
 
-## Docs Impact
+## Historical PR #59 Docs Impact
 
 - ADR added for the secure crypto boundary
 - Internal crypto review gate added
-- Launch checklist updated to separate the current internal iterative review gate
-  from the deferred third-party audit path
+- Launch checklist was updated to separate the then-current PR `#59` JavaScript
+  internal loop from the deferred third-party audit path; this historical docs
+  change does not clear the current expanded native/cross-platform gate
 - Fixed legacy fixture set and manual smoke checklist added for review and audit reuse
-- Runtime code now keeps legacy read compatibility without exporting weak helper writers for production reuse
+- The PR `#59` runtime change preserved legacy read compatibility without
+  exporting weak helper writers for production reuse
 
 ## Risks
 
-- Third-party security review is deferred under
-  `docs/operations/crypto-review-launch-exception.md`; public claims must not
-  describe this packet as independently reviewed
-- The internal iterative review loop is complete for the current scope, but it
-  is still not independent third-party approval
+- The 2026-04-25 third-party-review exception and internal loop are historical
+  PR `#59` evidence; they do not clear the expanded native/cross-platform scope
+- The expanded scope remains blocked and has no independent third-party verdict;
+  public claims must not describe this packet as independently reviewed
+- The future review target must be one exact merged implementation SHA
 - Legacy compatibility depends on user activity to trigger reseal of old values
 - Observability and incident runbook expansion are intentionally not part of this slice
 
@@ -418,8 +471,8 @@ not an independent third-party crypto review verdict.
 - No browser storage key rename
 - No CLI flag or target-shape change
 - If a future external audit vendor or reviewer path is reopened, inspect Web,
-  extension, and CLI call chains together because they now share one crypto
-  substrate
+  extension, and CLI call chains together with the separate native Mac/iOS
+  pairing substrate
 
 ## Launch Packet Attachments
 
