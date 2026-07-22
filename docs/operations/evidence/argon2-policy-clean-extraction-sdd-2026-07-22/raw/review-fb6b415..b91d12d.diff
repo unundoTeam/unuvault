@@ -1,0 +1,1764 @@
+# Review package: fb6b4159455effdbad520c253d8d0f58e9a923d2..b91d12d291d0352de62eb061107d581eaf4ed11a
+
+## Commits
+b91d12d docs: map argon2 extraction commits
+b8a6e91 security: close legacy argon2 input bounds
+6db3a42 docs: record bounded argon2 policy
+9b78f24 test: align web verifier fixture with argon2 policy
+b54a083 security: centralize argon2 verifier policy
+6b10af4 security: bound password-derived envelopes
+5c769b8 security: reject hostile argon2 metadata before kdf
+c775c25 security: pin argon2 parameter policy
+
+## Files changed
+ .../src/popup/master-password-storage.ts           |  40 +++----
+ .../tests/master-password-storage.spec.ts          |  59 +++++++++
+ .../components/vault/master-password-storage.ts    |  42 +------
+ apps/web/tests/master-password-storage.spec.ts     |  23 ++++
+ apps/web/tests/vault-page.spec.tsx                 |  93 ++++++++------
+ docs/architecture/0005-secure-password-crypto.md   |  31 ++++-
+ docs/operations/crypto-review-gate.md              |  23 ++++
+ docs/operations/secure-crypto-pr-audit-handoff.md  |  38 ++++++
+ packages/security/src/argon2-policy.ts             | 127 ++++++++++++++++++++
+ packages/security/src/developer-secret-envelope.ts |  19 ++-
+ packages/security/src/master-password-verifier.ts  |  60 ++++++++--
+ packages/security/src/sodium.ts                    |  30 ++++-
+ packages/security/src/vault-envelope.ts            |   7 ++
+ packages/security/tests/argon2-policy.spec.ts      | 133 +++++++++++++++++++++
+ .../tests/developer-secret-envelope.spec.ts        |  28 +++++
+ .../tests/master-password-verifier.spec.ts         |  61 ++++++++++
+ packages/security/tests/sodium.spec.ts             |  91 +++++++++++++-
+ packages/security/tests/vault-envelope.spec.ts     |  43 +++++++
+ 18 files changed, 830 insertions(+), 118 deletions(-)
+
+## Diff
+diff --git a/apps/browser-extension/src/popup/master-password-storage.ts b/apps/browser-extension/src/popup/master-password-storage.ts
+index d652d1d..e8716aa 100644
+--- a/apps/browser-extension/src/popup/master-password-storage.ts
++++ b/apps/browser-extension/src/popup/master-password-storage.ts
+@@ -1,68 +1,68 @@
+-import type { MasterPasswordVerifier } from "../../../../packages/security/src/master-password-verifier";
++import {
++  type MasterPasswordVerifier,
++  parseStoredMasterPasswordVerifier,
++} from "../../../../packages/security/src/master-password-verifier";
+ 
+ const MASTER_PASSWORD_VERIFIER_STORAGE_KEY =
+   "unuvault.extension.master-password-verifier";
++const MAX_MASTER_PASSWORD_VERIFIER_JSON_CHARACTERS = 512;
+ 
+ type ExtensionStorageArea = {
+   get(keys: string | string[] | Record<string, unknown>): Promise<Record<string, unknown>>;
+   set(items: Record<string, unknown>): Promise<void>;
+   remove(keys: string | string[]): Promise<void>;
+ };
+ 
+ function getExtensionStorageArea(): ExtensionStorageArea | null {
+   return (
+     (globalThis as {
+       chrome?: {
+         storage?: {
+           local?: ExtensionStorageArea;
+         };
+       };
+     }).chrome?.storage?.local ?? null
+   );
+ }
+ 
+-function isMasterPasswordVerifier(
+-  value: unknown,
+-): value is MasterPasswordVerifier {
+-  const partial = value as Partial<MasterPasswordVerifier> | null;
+-
+-  return (
+-    !!partial &&
+-    typeof partial === "object" &&
+-    (partial.version === 1
+-      ? typeof partial.salt === "string" && typeof partial.check === "string"
+-      : partial.version === 2
+-        ? partial.algorithm === "argon2id13" &&
+-          typeof partial.passwordHash === "string"
+-        : false)
+-  );
+-}
+-
+ export async function readMasterPasswordVerifier(): Promise<MasterPasswordVerifier | null> {
+   const storage = getExtensionStorageArea();
+ 
+   if (!storage) {
+     return null;
+   }
+ 
+   try {
+     const stored = await storage.get(MASTER_PASSWORD_VERIFIER_STORAGE_KEY);
+     const rawValue = stored[MASTER_PASSWORD_VERIFIER_STORAGE_KEY];
+ 
+     if (typeof rawValue !== "string") {
+-      return isMasterPasswordVerifier(rawValue) ? rawValue : null;
++      const serialized = JSON.stringify(rawValue);
++
++      if (
++        typeof serialized !== "string" ||
++        serialized.length > MAX_MASTER_PASSWORD_VERIFIER_JSON_CHARACTERS
++      ) {
++        return null;
++      }
++
++      return parseStoredMasterPasswordVerifier(JSON.parse(serialized));
++    }
++
++    if (rawValue.length > MAX_MASTER_PASSWORD_VERIFIER_JSON_CHARACTERS) {
++      return null;
+     }
+ 
+     const parsed = JSON.parse(rawValue) as unknown;
+ 
+-    return isMasterPasswordVerifier(parsed) ? parsed : null;
++    return parseStoredMasterPasswordVerifier(parsed);
+   } catch {
+     return null;
+   }
+ }
+ 
+ export async function writeMasterPasswordVerifier(
+   verifier: MasterPasswordVerifier,
+ ): Promise<void> {
+   const storage = getExtensionStorageArea();
+ 
+diff --git a/apps/browser-extension/tests/master-password-storage.spec.ts b/apps/browser-extension/tests/master-password-storage.spec.ts
+index fc2d276..0347873 100644
+--- a/apps/browser-extension/tests/master-password-storage.spec.ts
++++ b/apps/browser-extension/tests/master-password-storage.spec.ts
+@@ -58,28 +58,87 @@ describe("extension master password storage", () => {
+   });
+ 
+   it("round-trips a stored verifier", async () => {
+     const verifier = await createMasterPasswordVerifier("correct horse");
+ 
+     await writeMasterPasswordVerifier(verifier);
+ 
+     await expect(readMasterPasswordVerifier()).resolves.toEqual(verifier);
+   });
+ 
++  it("preserves compatibility with raw-object verifiers", async () => {
++    const verifier = await createMasterPasswordVerifier("correct horse");
++    installChromeStorageMock(verifier);
++
++    await expect(readMasterPasswordVerifier()).resolves.toEqual(verifier);
++  });
++
++  it("rejects oversized or unserializable raw-object verifiers", async () => {
++    const verifier = await createMasterPasswordVerifier("correct horse");
++    installChromeStorageMock({ ...verifier, padding: "A".repeat(512) });
++
++    await expect(readMasterPasswordVerifier()).resolves.toBeNull();
++
++    const cyclicVerifier: Record<string, unknown> = { ...verifier };
++    cyclicVerifier.self = cyclicVerifier;
++    installChromeStorageMock(cyclicVerifier);
++
++    await expect(readMasterPasswordVerifier()).resolves.toBeNull();
++  });
++
++  it("rejects overlong raw-object V1 verifier fields", async () => {
++    installChromeStorageMock({
++      version: 1,
++      salt: "AQIDBAUGBwgJCgsMA",
++      check: "716ba384",
++    });
++
++    await expect(readMasterPasswordVerifier()).resolves.toBeNull();
++  });
++
+   it("returns null when no verifier exists", async () => {
+     await expect(readMasterPasswordVerifier()).resolves.toBeNull();
+   });
+ 
+   it("fails closed for malformed stored verifier values", async () => {
+     installChromeStorageMock("{bad json");
+ 
+     await expect(readMasterPasswordVerifier()).resolves.toBeNull();
+   });
+ 
++  it("rejects a string verifier with hostile Argon2 memory parameters", async () => {
++    const verifier = await createMasterPasswordVerifier("correct horse");
++    installChromeStorageMock(
++      JSON.stringify({
++        ...verifier,
++        passwordHash: verifier.passwordHash.replace("m=65536", "m=1048576"),
++      }),
++    );
++
++    await expect(readMasterPasswordVerifier()).resolves.toBeNull();
++  });
++
++  it("rejects a raw-object verifier with hostile Argon2 memory parameters", async () => {
++    const verifier = await createMasterPasswordVerifier("correct horse");
++    installChromeStorageMock({
++      ...verifier,
++      passwordHash: verifier.passwordHash.replace("m=65536", "m=1048576"),
++    });
++
++    await expect(readMasterPasswordVerifier()).resolves.toBeNull();
++  });
++
++  it("rejects oversized stored verifier JSON before parsing", async () => {
++    const verifier = await createMasterPasswordVerifier("correct horse");
++    installChromeStorageMock(JSON.stringify(verifier).padEnd(513, " "));
++
++    await expect(readMasterPasswordVerifier()).resolves.toBeNull();
++  });
++
+   it("clears the stored verifier", async () => {
+     await writeMasterPasswordVerifier(await createMasterPasswordVerifier("correct horse"));
+ 
+     await clearMasterPasswordVerifier();
+ 
+     await expect(readMasterPasswordVerifier()).resolves.toBeNull();
+   });
+ });
+diff --git a/apps/web/src/components/vault/master-password-storage.ts b/apps/web/src/components/vault/master-password-storage.ts
+index b2dccd6..3af1603 100644
+--- a/apps/web/src/components/vault/master-password-storage.ts
++++ b/apps/web/src/components/vault/master-password-storage.ts
+@@ -1,69 +1,39 @@
+ import {
+-  type LegacyMasterPasswordVerifier,
+   type MasterPasswordVerifier,
+-  type SecureMasterPasswordVerifier,
++  parseStoredMasterPasswordVerifier,
+ } from "../../../../../packages/security/src/master-password-verifier";
+ 
+ const MASTER_PASSWORD_VERIFIER_STORAGE_KEY =
+   "unuvault.web.master-password-verifier";
+ 
+-function isLegacyMasterPasswordVerifier(
+-  value: unknown,
+-): value is LegacyMasterPasswordVerifier {
+-  return (
+-    !!value &&
+-    typeof value === "object" &&
+-    (value as Partial<LegacyMasterPasswordVerifier>).version === 1 &&
+-    typeof (value as Partial<LegacyMasterPasswordVerifier>).salt === "string" &&
+-    typeof (value as Partial<LegacyMasterPasswordVerifier>).check === "string"
+-  );
+-}
+-
+-function isSecureMasterPasswordVerifier(
+-  value: unknown,
+-): value is SecureMasterPasswordVerifier {
+-  return (
+-    !!value &&
+-    typeof value === "object" &&
+-    (value as Partial<SecureMasterPasswordVerifier>).version === 2 &&
+-    (value as Partial<SecureMasterPasswordVerifier>).algorithm === "argon2id13" &&
+-    typeof (value as Partial<SecureMasterPasswordVerifier>).passwordHash === "string"
+-  );
+-}
+-
+-function isMasterPasswordVerifier(
+-  value: unknown,
+-): value is MasterPasswordVerifier {
+-  return (
+-    isLegacyMasterPasswordVerifier(value) ||
+-    isSecureMasterPasswordVerifier(value)
+-  );
+-}
+-
+ export function readMasterPasswordVerifier(): MasterPasswordVerifier | null {
+   if (typeof window === "undefined") {
+     return null;
+   }
+ 
+   const rawValue = window.localStorage.getItem(
+     MASTER_PASSWORD_VERIFIER_STORAGE_KEY,
+   );
+ 
+   if (!rawValue) {
+     return null;
+   }
+ 
++  if (rawValue.length > 512) {
++    return null;
++  }
++
+   try {
+     const parsed = JSON.parse(rawValue) as unknown;
+ 
+-    return isMasterPasswordVerifier(parsed) ? parsed : null;
++    return parseStoredMasterPasswordVerifier(parsed);
+   } catch {
+     return null;
+   }
+ }
+ 
+ export function writeMasterPasswordVerifier(
+   verifier: MasterPasswordVerifier,
+ ): void {
+   if (typeof window === "undefined") {
+     return;
+diff --git a/apps/web/tests/master-password-storage.spec.ts b/apps/web/tests/master-password-storage.spec.ts
+index 809d306..b24cf50 100644
+--- a/apps/web/tests/master-password-storage.spec.ts
++++ b/apps/web/tests/master-password-storage.spec.ts
+@@ -24,20 +24,43 @@ describe("master password storage helper", () => {
+   it("returns null when no verifier is stored", () => {
+     expect(readMasterPasswordVerifier()).toBeNull();
+   });
+ 
+   it("fails closed for malformed stored verifier values", () => {
+     window.localStorage.setItem("unuvault.web.master-password-verifier", "{bad json");
+ 
+     expect(readMasterPasswordVerifier()).toBeNull();
+   });
+ 
++  it("rejects a stored verifier with hostile Argon2 memory parameters", async () => {
++    const verifier = await createMasterPasswordVerifier("correct horse");
++    window.localStorage.setItem(
++      "unuvault.web.master-password-verifier",
++      JSON.stringify({
++        ...verifier,
++        passwordHash: verifier.passwordHash.replace("m=65536", "m=1048576"),
++      }),
++    );
++
++    expect(readMasterPasswordVerifier()).toBeNull();
++  });
++
++  it("rejects oversized stored verifier JSON before parsing", async () => {
++    const verifier = await createMasterPasswordVerifier("correct horse");
++    window.localStorage.setItem(
++      "unuvault.web.master-password-verifier",
++      JSON.stringify(verifier).padEnd(513, " "),
++    );
++
++    expect(readMasterPasswordVerifier()).toBeNull();
++  });
++
+   it("clears the stored verifier", async () => {
+     writeMasterPasswordVerifier(
+       await createMasterPasswordVerifier("correct horse"),
+     );
+ 
+     clearMasterPasswordVerifier();
+ 
+     expect(readMasterPasswordVerifier()).toBeNull();
+   });
+ });
+diff --git a/apps/web/tests/vault-page.spec.tsx b/apps/web/tests/vault-page.spec.tsx
+index 04d442f..4b8823a 100644
+--- a/apps/web/tests/vault-page.spec.tsx
++++ b/apps/web/tests/vault-page.spec.tsx
+@@ -60,59 +60,74 @@ const {
+ 
+ const mocks = {
+   clearLocalCredentialBridgeSession,
+   getSession,
+   getMacCompanionStatus,
+   importWebAccountVaultItemsToMacCompanion,
+   publishLocalCredentialBridgeSession,
+   syncVault,
+ };
+ 
+-vi.mock("../../../packages/security/src/sodium", () => ({
+-  createPasswordHash: async (password: string) => `test-password-hash:${password}`,
+-  verifyPasswordHash: async (passwordHash: string, password: string) =>
+-    passwordHash === `test-password-hash:${password}`,
+-  sealWithPassword: async (plaintext: string, password: string, purpose: string) => {
+-    if (!password) {
+-      throw new Error("sealWithPassword requires a non-empty password.");
+-    }
+-
+-    if (!purpose) {
+-      throw new Error("sealWithPassword requires a non-empty purpose tag.");
+-    }
+-
+-    return {
+-      cipher: "xchacha20poly1305-ietf",
+-      purpose,
+-      encryptedPayload: `${Buffer.from(password).toString("base64url")}.${Buffer.from(
+-        plaintext,
+-      ).toString("base64url")}`,
+-      nonce: "test-nonce",
+-      salt: "test-salt",
+-      opsLimit: 1,
+-      memLimit: 1,
+-      keyDerivation: "argon2id13",
+-    };
+-  },
+-  openWithPassword: async (
+-    ciphertext: { encryptedPayload: string },
+-    password: string,
+-  ) => {
+-    const [passwordTag, plaintext] = ciphertext.encryptedPayload.split(".");
+-
+-    if (passwordTag !== Buffer.from(password).toString("base64url") || !plaintext) {
+-      return "";
+-    }
+-
+-    return Buffer.from(plaintext, "base64url").toString("utf8");
+-  },
+-}));
++vi.mock("../../../packages/security/src/sodium", () => {
++  const passwordsByHash = new Map<string, string>();
++  let nextHashId = 1;
++
++  return {
++    createPasswordHash: async (password: string) => {
++      const hashBytes = Buffer.alloc(32);
++      hashBytes.writeUInt32BE(nextHashId++, 28);
++      const passwordHash = [
++        "$argon2id$v=19$m=65536,t=2,p=1",
++        Buffer.alloc(16, 1).toString("base64").replace(/=+$/u, ""),
++        hashBytes.toString("base64").replace(/=+$/u, ""),
++      ].join("$");
++      passwordsByHash.set(passwordHash, password);
++      return passwordHash;
++    },
++    verifyPasswordHash: async (passwordHash: string, password: string) =>
++      passwordsByHash.get(passwordHash) === password,
++    sealWithPassword: async (plaintext: string, password: string, purpose: string) => {
++      if (!password) {
++        throw new Error("sealWithPassword requires a non-empty password.");
++      }
++
++      if (!purpose) {
++        throw new Error("sealWithPassword requires a non-empty purpose tag.");
++      }
++
++      return {
++        cipher: "xchacha20poly1305-ietf",
++        purpose,
++        encryptedPayload: `${Buffer.from(password).toString("base64url")}.${Buffer.from(
++          plaintext,
++        ).toString("base64url")}`,
++        nonce: "test-nonce",
++        salt: "test-salt",
++        opsLimit: 1,
++        memLimit: 1,
++        keyDerivation: "argon2id13",
++      };
++    },
++    openWithPassword: async (
++      ciphertext: { encryptedPayload: string },
++      password: string,
++    ) => {
++      const [passwordTag, plaintext] = ciphertext.encryptedPayload.split(".");
++
++      if (passwordTag !== Buffer.from(password).toString("base64url") || !plaintext) {
++        return "";
++      }
++
++      return Buffer.from(plaintext, "base64url").toString("utf8");
++    },
++  };
++});
+ 
+ beforeEach(() => {
+   mocks.clearLocalCredentialBridgeSession.mockResolvedValue({ ok: true });
+   mocks.getMacCompanionStatus.mockResolvedValue({
+     ok: true,
+     state: "unlocked",
+   });
+   mocks.importWebAccountVaultItemsToMacCompanion.mockResolvedValue({
+     ok: true,
+     source: "web-account-unlocked-vault",
+diff --git a/docs/architecture/0005-secure-password-crypto.md b/docs/architecture/0005-secure-password-crypto.md
+index 36ce12c..077d56b 100644
+--- a/docs/architecture/0005-secure-password-crypto.md
++++ b/docs/architecture/0005-secure-password-crypto.md
+@@ -4,36 +4,65 @@
+ 
+ Phase 1 upgrades the client-side password and dev-secret crypto boundary to a shared async sodium-backed substrate.
+ 
+ ## Core Algorithms
+ 
+ - Password envelopes and developer secret blobs use `XChaCha20-Poly1305`
+ - Password derivation uses `Argon2id`
+ - Randomness comes only from the crypto library or `crypto.getRandomValues`
+ - Master password verification uses an `Argon2id`-based verifier string
+ 
++## Bounded Argon2 Policy
++
++- The implemented policy for current password-derived envelopes pins
++  libsodium's interactive Argon2id13 tuple to `opsLimit = 2` and
++  `memLimit = 67_108_864` bytes. Current PHC verifiers pin
++  `$argon2id$v=19$m=65536,t=2,p=1`.
++- Salt and XChaCha20 nonce fields are canonical unpadded Base64URL encoding of
++  exactly `16` and `24` bytes. The authenticated ciphertext is bounded from the
++  `16`-byte AEAD tag through `1_048_592` bytes, corresponding to at most
++  `1_048_576` plaintext bytes. Purpose tags accepted for password-derived
++  envelope reads are non-empty and at most `128` UTF-8 bytes.
++- PHC verifier strings are printable ASCII, use canonical unpadded Base64 for
++  the fixed `16`-byte salt and `32`-byte hash fields, and are at most `127`
++  characters. Web and extension serialized verifier storage is rejected above
++  `512` characters.
++- Vault and developer-secret envelope JSON is rejected above `1_400_171`
++  characters, before `JSON.parse`. This bound applies to legacy and current
++  envelopes; there is no unbounded runtime fallback.
++- Incoming current envelopes and verifiers are checked against these bounds,
++  the exact tuple, and the loaded sodium runtime before
++  `crypto_pwhash`/`crypto_pwhash_str_verify`. Unsupported input fails closed
++  without starting the password KDF. New writes also fail if the runtime drifts
++  from the pinned policy.
++
+ ## Compatibility Rules
+ 
+-- Read legacy plaintext, legacy envelope formats, and legacy verifier formats
++- Continue reading vault `v1` plaintext and XOR `v2`, developer-secret XOR
++  `v1`, and master-password verifier `v1` through their explicit compatibility
++  readers, subject to the bounded serialized-input guards above
+ - Write only the newest secure versions
+ - Rewrite legacy verifier material to `v2` after a successful unlock or setup
+ - Rewrite legacy password and dev-secret material to the newest version after save, edit, import, or rewrap
+ 
+ ## Public Surface
+ 
+ - `VaultEnvelope` is a union of legacy plaintext, XOR `v2`, and secure `v3`
+ - `DeveloperSecretEnvelope` is a union of `v1` and `v2`
+ - `MasterPasswordVerifier` is a union of `v1` and `v2`
+ - Security helpers are async so the browser, extension, and CLI can share the same boundary
+ 
+ ## Residual Risks
+ 
+ - Legacy compatibility keeps older payloads readable, so migration pressure still depends on user activity
+ - Current-scope crypto launch approval uses the repo-backed internal iterative review gate in
+   `docs/operations/crypto-review-gate.md`
+ - Third-party crypto review is deferred by
+   `docs/operations/crypto-review-launch-exception.md`; reopen it under that
+   policy before large-scale public risk, paid or compliance claims, material
+   crypto-boundary changes, or crypto incidents
++- The bounded Argon2 checkpoint does not complete or approve Pairing V2. Its
++  authenticated claim, owner-approval, bridge-authorization, and persistent
++  replay work remains outside this checkpoint
+ - Public copy must not describe this crypto boundary as independently reviewed
+   or third-party reviewed
+ - Observability and incident runbook work remain out of this slice by design
+diff --git a/docs/operations/crypto-review-gate.md b/docs/operations/crypto-review-gate.md
+index e708254..c39b417 100644
+--- a/docs/operations/crypto-review-gate.md
++++ b/docs/operations/crypto-review-gate.md
+@@ -16,20 +16,43 @@ independently reviewed or third-party reviewed.
+   loop.
+ - Repo-backed internal preflight and follow-up confirmation replies are recorded
+   for the packet.
+ - The attempted third-party request path did not produce a real independent
+   reviewer or vendor verdict.
+ - The decision owner approved replacing the current third-party requirement with
+   an internal iterative review gate on `2026-04-25`.
+ - Current internal iterative review status: `cleared for current scope`.
+ - Third-party crypto review status: `deferred by explicit launch exception`.
+ 
++## Bounded Argon2 Checkpoint
++
++The current JavaScript security boundary pins password-derived envelopes to
++Argon2id13 `opsLimit = 2` and `memLimit = 67_108_864` bytes, and pins verifier
++strings to `$argon2id$v=19$m=65536,t=2,p=1`. It also requires canonical
++unpadded encodings and exact `16`-byte salts and `24`-byte nonces.
++
++The accepted plaintext and authenticated-ciphertext maxima are `1_048_576` and
++`1_048_592` bytes respectively; accepted purpose tags are at most `128` UTF-8
++bytes; PHC verifier strings are at most `127` printable ASCII characters; Web
++and extension serialized verifier values are at most `512` characters; and
++vault/developer-secret envelope JSON is at most `1_400_171` characters.
++
++Envelope metadata, verifier syntax, encoded-field bounds, and runtime-policy
++compatibility are rejected before password KDF calls. Vault `v1`/`v2`,
++developer-secret `v1`, and master-password verifier `v1` readers remain
++supported behind the bounded parsers. No unbounded legacy fallback is allowed.
++
++This checkpoint closes only the implementation gap for hostile Argon2 metadata.
++It does not approve Pairing V2 or produce an independent third-party verdict,
++and it does not alter the broader gate state recorded in this document. Public
++copy must not claim independent or third-party review from this checkpoint.
++
+ ## Current Review Target
+ 
+ - GitHub PR: `#59` `[codex] finalize unuvault phase-1 launch packet`
+ - PR URL: `https://github.com/unundoTeam/unuvault/pull/59`
+ - Current base branch: `main`
+ - Merge commit on `main`: `46ae0c655deef0ef15cb0cd180b4844a32cac43d`
+ - The internal iterative review should anchor to the merged `main` state at or
+   after that commit, plus any later commits that update this gate or review
+   evidence.
+ 
+diff --git a/docs/operations/secure-crypto-pr-audit-handoff.md b/docs/operations/secure-crypto-pr-audit-handoff.md
+index ca83059..4b5cf28 100644
+--- a/docs/operations/secure-crypto-pr-audit-handoff.md
++++ b/docs/operations/secure-crypto-pr-audit-handoff.md
+@@ -1,12 +1,50 @@
+ # Secure Crypto PR And Audit Handoff
+ 
++## Bounded Argon2 Policy Checkpoint (2026-07-10)
++
++This independently reviewable checkpoint addresses only the hostile Argon2
++parameter-limit gap. It does not remediate or clear Pairing V2, local bridge
++authorization, owner-approval, or restart-persistent replay concerns.
++
++- Implemented envelope tuple: Argon2id13 `opsLimit = 2`,
++  `memLimit = 67_108_864` bytes, with a canonical `16`-byte salt and `24`-byte
++  XChaCha20 nonce.
++- Implemented PHC tuple: `$argon2id$v=19$m=65536,t=2,p=1`, with a canonical
++  unpadded Base64 `16`-byte salt and `32`-byte hash, printable ASCII only, and a
++  `127`-character maximum.
++- Implemented payload bounds: `1_048_576` plaintext bytes,
++  `1_048_592` authenticated-ciphertext bytes including the `16`-byte AEAD tag,
++  `128` UTF-8 bytes for accepted purpose tags, and `1_400_171` characters for
++  serialized vault or developer-secret envelopes. Web and extension serialized
++  verifier storage is bounded to `512` characters.
++- Rejection occurs before `crypto_pwhash` or
++  `crypto_pwhash_str_verify`; non-canonical encodings, runtime-policy drift,
++  non-finite or non-integer numeric metadata, different tuples, and over-limit
++  inputs fail closed.
++- Legacy readers remain explicit for vault `v1`/`v2`, developer-secret `v1`,
++  and master-password verifier `v1`. The serialized envelope bound applies to
++  legacy input too; over-limit recovery requires the preceding trusted release
++  in an offline environment followed by resealing, not an unbounded fallback.
++- Source implementation commits map into this clean extraction as
++  `bfdc8b2` -> `c775c25`, `8cbfa25` -> `5c769b8`, `354380b` -> `6b10af4`, and
++  `8952a82` -> `b54a083`. The complete clean-extraction range is
++  `c775c25^..b8a6e91`; its later checkpoints are `9b78f24` (Web verifier test
++  fixture alignment), `6db3a42` (bounded-policy documentation), and `b8a6e91`
++  (legacy Argon2 input-bound closure).
++- Repo gate for this docs checkpoint: `git diff --check`, `pnpm lint`, and
++  `pnpm test`.
++
++Review status remains open: this checkpoint has not produced an independent
++third-party verdict and must not be used to describe Pairing V2 or the whole
++crypto boundary as complete or approved.
++
+ ## Scope of Change
+ 
+ - Replace the weak shared crypto helpers in `packages/security` with one async sodium-backed core
+ - Upgrade new write formats to:
+   - vault password envelope `v3`
+   - master password verifier `v2`
+   - developer secret blob `v2`
+ - Keep server API shape and storage keys unchanged while preserving legacy read compatibility
+ - Migrate Web, browser extension, and CLI call chains to explicit async crypto helpers
+ - Remove runtime-exported legacy write helpers so fixed test fixtures own the remaining weak sample generation
+diff --git a/packages/security/src/argon2-policy.ts b/packages/security/src/argon2-policy.ts
+new file mode 100644
+index 0000000..ff120d4
+--- /dev/null
++++ b/packages/security/src/argon2-policy.ts
+@@ -0,0 +1,127 @@
++import type {
++  PasswordDerivedCiphertext,
++  ReadySodium,
++} from "./sodium";
++
++const MAX_PLAINTEXT_BYTES = 1_048_576;
++const AEAD_TAG_BYTES = 16;
++const MAX_CIPHERTEXT_BYTES = MAX_PLAINTEXT_BYTES + AEAD_TAG_BYTES;
++const BASE64URL = /^[A-Za-z0-9_-]+$/;
++const ARGON2ID_VERIFIER = /^\$argon2id\$v=([0-9]+)\$m=([0-9]+),t=([0-9]+),p=([0-9]+)\$([A-Za-z0-9+/]{22})\$([A-Za-z0-9+/]{43})$/;
++
++export const ARGON2ID_V3_POLICY = Object.freeze({
++  opsLimit: 2,
++  memLimit: 67_108_864,
++  version: 19,
++  memoryKiB: 65_536,
++  iterations: 2,
++  parallelism: 1,
++  saltBytes: 16,
++  nonceBytes: 24,
++  maxVerifierCharacters: 127,
++  maxPlaintextBytes: MAX_PLAINTEXT_BYTES,
++  maxCiphertextBytes: MAX_CIPHERTEXT_BYTES,
++  maxCiphertextBase64URLCharacters: Math.ceil((MAX_CIPHERTEXT_BYTES * 4) / 3),
++});
++
++export const MAX_PASSWORD_ENVELOPE_JSON_CHARACTERS =
++  ARGON2ID_V3_POLICY.maxCiphertextBase64URLCharacters + 2_048;
++
++function isFiniteSafeInteger(value: unknown): value is number {
++  return typeof value === "number" && Number.isFinite(value) && Number.isSafeInteger(value);
++}
++
++function decodeCanonicalBase64URL(
++  value: string,
++  ready: ReadySodium,
++): Uint8Array | null {
++  if (!value || !BASE64URL.test(value) || value.includes("=")) return null;
++  try {
++    const decoded = ready.from_base64(
++      value,
++      ready.base64_variants.URLSAFE_NO_PADDING,
++    );
++    return ready.to_base64(
++      decoded,
++      ready.base64_variants.URLSAFE_NO_PADDING,
++    ) === value
++      ? decoded
++      : null;
++  } catch {
++    return null;
++  }
++}
++
++function isCanonicalOriginalNoPadding(value: string): boolean {
++  try {
++    const padded = value + "=".repeat((4 - (value.length % 4)) % 4);
++    const decoded = atob(padded);
++    return btoa(decoded).replace(/=+$/u, "") === value;
++  } catch {
++    return false;
++  }
++}
++
++export function runtimeMatchesArgon2Policy(ready: ReadySodium): boolean {
++  return ready.crypto_pwhash_OPSLIMIT_INTERACTIVE === ARGON2ID_V3_POLICY.opsLimit &&
++    ready.crypto_pwhash_MEMLIMIT_INTERACTIVE === ARGON2ID_V3_POLICY.memLimit &&
++    ready.crypto_pwhash_SALTBYTES === ARGON2ID_V3_POLICY.saltBytes &&
++    ready.crypto_aead_xchacha20poly1305_ietf_NPUBBYTES === ARGON2ID_V3_POLICY.nonceBytes &&
++    ready.crypto_aead_xchacha20poly1305_ietf_ABYTES === AEAD_TAG_BYTES &&
++    ready.crypto_pwhash_STRBYTES - 1 === ARGON2ID_V3_POLICY.maxVerifierCharacters &&
++    ready.crypto_pwhash_STRPREFIX === "$argon2id$" &&
++    ready.crypto_pwhash_ALG_DEFAULT === ready.crypto_pwhash_ALG_ARGON2ID13;
++}
++
++export function isSupportedPasswordDerivedCiphertext(
++  value: PasswordDerivedCiphertext,
++  ready: ReadySodium,
++): boolean {
++  if (!runtimeMatchesArgon2Policy(ready) ||
++      !isFiniteSafeInteger(value.opsLimit) ||
++      !isFiniteSafeInteger(value.memLimit) ||
++      value.opsLimit !== ARGON2ID_V3_POLICY.opsLimit ||
++      value.memLimit !== ARGON2ID_V3_POLICY.memLimit ||
++      value.purpose.length === 0 ||
++      new TextEncoder().encode(value.purpose).byteLength > 128 ||
++      value.salt.length !== 22 ||
++      value.nonce.length !== 32 ||
++      value.encryptedPayload.length < 22 ||
++      value.encryptedPayload.length > ARGON2ID_V3_POLICY.maxCiphertextBase64URLCharacters) {
++    return false;
++  }
++
++  const salt = decodeCanonicalBase64URL(value.salt, ready);
++  const nonce = decodeCanonicalBase64URL(value.nonce, ready);
++  const ciphertext = decodeCanonicalBase64URL(value.encryptedPayload, ready);
++  return salt?.byteLength === ARGON2ID_V3_POLICY.saltBytes &&
++    nonce?.byteLength === ARGON2ID_V3_POLICY.nonceBytes &&
++    !!ciphertext &&
++    ciphertext.byteLength >= AEAD_TAG_BYTES &&
++    ciphertext.byteLength <= ARGON2ID_V3_POLICY.maxCiphertextBytes;
++}
++
++export function isSupportedArgon2idVerifier(
++  value: string,
++  ready: ReadySodium,
++): boolean {
++  return runtimeMatchesArgon2Policy(ready) &&
++    isPinnedArgon2idVerifierSyntax(value);
++}
++
++export function isPinnedArgon2idVerifierSyntax(value: string): boolean {
++  if (value.length > ARGON2ID_V3_POLICY.maxVerifierCharacters ||
++      !/^[\x20-\x7E]+$/.test(value)) {
++    return false;
++  }
++
++  const match = ARGON2ID_VERIFIER.exec(value);
++  if (!match) return false;
++  const [, version, memoryKiB, iterations, parallelism, salt, hash] = match;
++  return version === "19" &&
++    memoryKiB === "65536" &&
++    iterations === "2" &&
++    parallelism === "1" &&
++    isCanonicalOriginalNoPadding(salt) &&
++    isCanonicalOriginalNoPadding(hash);
++}
+diff --git a/packages/security/src/developer-secret-envelope.ts b/packages/security/src/developer-secret-envelope.ts
+index 9316093..7c3cadb 100644
+--- a/packages/security/src/developer-secret-envelope.ts
++++ b/packages/security/src/developer-secret-envelope.ts
+@@ -1,15 +1,16 @@
+ import {
+   openWithPassword,
+   sealWithPassword,
+   type PasswordDerivedCiphertext,
+ } from "./sodium";
++import { MAX_PASSWORD_ENVELOPE_JSON_CHARACTERS } from "./argon2-policy";
+ 
+ type LegacyDeveloperSecretEnvelope = {
+   version: 1;
+   cipher: "xor-stream-v1";
+   encryptedPayload: string;
+   keyDerivation: "master-password-v1";
+   salt: string;
+   tag: string;
+ };
+ 
+@@ -102,20 +103,30 @@ function isSecureDeveloperSecretEnvelope(
+     (value as Partial<SecureDeveloperSecretEnvelope>).purpose ===
+       "developer-secret-blob" &&
+     typeof (value as Partial<SecureDeveloperSecretEnvelope>).encryptedPayload === "string" &&
+     typeof (value as Partial<SecureDeveloperSecretEnvelope>).nonce === "string" &&
+     typeof (value as Partial<SecureDeveloperSecretEnvelope>).salt === "string" &&
+     typeof (value as Partial<SecureDeveloperSecretEnvelope>).opsLimit === "number" &&
+     typeof (value as Partial<SecureDeveloperSecretEnvelope>).memLimit === "number"
+   );
+ }
+ 
++function parseDeveloperSecretEnvelope(ciphertext: string): unknown | null {
++  if (ciphertext.length > MAX_PASSWORD_ENVELOPE_JSON_CHARACTERS) return null;
++
++  try {
++    return JSON.parse(ciphertext) as unknown;
++  } catch {
++    return null;
++  }
++}
++
+ export async function sealDeveloperSecretBlob(
+   plaintext: string,
+   masterPassword: string,
+ ): Promise<string> {
+   const sealed = await sealWithPassword(
+     plaintext,
+     masterPassword,
+     "developer-secret-blob",
+   );
+ 
+@@ -126,27 +137,23 @@ export async function sealDeveloperSecretBlob(
+ }
+ 
+ export async function openDeveloperSecretBlob(
+   ciphertext: string,
+   masterPassword: string,
+ ): Promise<string> {
+   if (!ciphertext || !masterPassword) {
+     return "";
+   }
+ 
+-  let parsed: unknown;
++  const parsed = parseDeveloperSecretEnvelope(ciphertext);
+ 
+-  try {
+-    parsed = JSON.parse(ciphertext) as unknown;
+-  } catch {
+-    return "";
+-  }
++  if (!parsed) return "";
+ 
+   if (isSecureDeveloperSecretEnvelope(parsed)) {
+     return openWithPassword(parsed, masterPassword);
+   }
+ 
+   if (!isLegacyDeveloperSecretEnvelope(parsed)) {
+     return "";
+   }
+ 
+   try {
+diff --git a/packages/security/src/master-password-verifier.ts b/packages/security/src/master-password-verifier.ts
+index deb38ad..8869f21 100644
+--- a/packages/security/src/master-password-verifier.ts
++++ b/packages/security/src/master-password-verifier.ts
+@@ -1,14 +1,15 @@
+ import {
+   createPasswordHash,
+   verifyPasswordHash,
+ } from "./sodium";
++import { isPinnedArgon2idVerifierSyntax } from "./argon2-policy";
+ 
+ export type LegacyMasterPasswordVerifier = {
+   version: 1;
+   salt: string;
+   check: string;
+ };
+ 
+ export type SecureMasterPasswordVerifier = {
+   version: 2;
+   algorithm: "argon2id13";
+@@ -22,84 +23,119 @@ export type MasterPasswordVerifier =
+ export type VerifyMasterPasswordResult =
+   | {
+       success: false;
+     }
+   | {
+       success: true;
+       upgradedVerifier?: SecureMasterPasswordVerifier;
+     };
+ 
+ const textEncoder = new TextEncoder();
++const LEGACY_SALT_BASE64 = /^[A-Za-z0-9+/]{16}$/;
++const LEGACY_CHECK_HEX = /^[0-9a-f]{8}$/;
++
++function isCanonicalLegacySalt(value: string): boolean {
++  if (!LEGACY_SALT_BASE64.test(value)) return false;
++
++  try {
++    const decoded = atob(value);
++    return decoded.length === 12 && btoa(decoded) === value;
++  } catch {
++    return false;
++  }
++}
+ 
+ function hashToHex(input: string): string {
+   let hash = 0x811c9dc5;
+   const bytes = textEncoder.encode(input);
+ 
+   for (const value of bytes) {
+     hash ^= value;
+     hash = Math.imul(hash >>> 0, 0x01000193);
+   }
+ 
+   return (hash >>> 0).toString(16).padStart(8, "0");
+ }
+ 
+ function isLegacyMasterPasswordVerifier(
+   value: unknown,
+ ): value is LegacyMasterPasswordVerifier {
++  const candidate = value as Partial<LegacyMasterPasswordVerifier> | null;
++
+   return (
+-    !!value &&
+-    typeof value === "object" &&
+-    (value as Partial<LegacyMasterPasswordVerifier>).version === 1 &&
+-    typeof (value as Partial<LegacyMasterPasswordVerifier>).salt === "string" &&
+-    typeof (value as Partial<LegacyMasterPasswordVerifier>).check === "string"
++    !!candidate &&
++    typeof candidate === "object" &&
++    candidate.version === 1 &&
++    typeof candidate.salt === "string" &&
++    isCanonicalLegacySalt(candidate.salt) &&
++    typeof candidate.check === "string" &&
++    LEGACY_CHECK_HEX.test(candidate.check)
+   );
+ }
+ 
+ function isSecureMasterPasswordVerifier(
+   value: unknown,
+ ): value is SecureMasterPasswordVerifier {
+   return (
+     !!value &&
+     typeof value === "object" &&
+     (value as Partial<SecureMasterPasswordVerifier>).version === 2 &&
+     (value as Partial<SecureMasterPasswordVerifier>).algorithm === "argon2id13" &&
+     typeof (value as Partial<SecureMasterPasswordVerifier>).passwordHash === "string"
+   );
+ }
+ 
++export function parseStoredMasterPasswordVerifier(
++  value: unknown,
++): MasterPasswordVerifier | null {
++  if (isLegacyMasterPasswordVerifier(value)) return value;
++  if (
++    !isSecureMasterPasswordVerifier(value) ||
++    !isPinnedArgon2idVerifierSyntax(value.passwordHash)
++  ) {
++    return null;
++  }
++  return value;
++}
++
+ export async function createMasterPasswordVerifier(
+   masterPassword: string,
+ ): Promise<SecureMasterPasswordVerifier> {
+   return {
+     version: 2,
+     algorithm: "argon2id13",
+     passwordHash: await createPasswordHash(masterPassword),
+   };
+ }
+ 
+ export async function verifyMasterPassword(
+   verifier: unknown,
+   masterPassword: string,
+ ): Promise<VerifyMasterPasswordResult> {
+   if (!masterPassword) {
+     return { success: false };
+   }
+ 
+-  if (isSecureMasterPasswordVerifier(verifier)) {
+-    return (await verifyPasswordHash(verifier.passwordHash, masterPassword))
+-      ? { success: true }
+-      : { success: false };
+-  }
++  const parsedVerifier = parseStoredMasterPasswordVerifier(verifier);
+ 
+-  if (!isLegacyMasterPasswordVerifier(verifier)) {
++  if (!parsedVerifier) {
+     return { success: false };
+   }
+ 
+-  if (hashToHex(`${masterPassword}:${verifier.salt}`) !== verifier.check) {
++  if (parsedVerifier.version === 2) {
++    return (await verifyPasswordHash(parsedVerifier.passwordHash, masterPassword))
++      ? { success: true }
++      : { success: false };
++  }
++
++  if (
++    hashToHex(`${masterPassword}:${parsedVerifier.salt}`) !==
++    parsedVerifier.check
++  ) {
+     return { success: false };
+   }
+ 
+   return {
+     success: true,
+     upgradedVerifier: await createMasterPasswordVerifier(masterPassword),
+   };
+ }
+diff --git a/packages/security/src/sodium.ts b/packages/security/src/sodium.ts
+index 1669dca..10a8429 100644
+--- a/packages/security/src/sodium.ts
++++ b/packages/security/src/sodium.ts
+@@ -1,19 +1,25 @@
+ import sodiumModule from "libsodium-wrappers-sumo";
++import {
++  ARGON2ID_V3_POLICY,
++  isSupportedArgon2idVerifier,
++  isSupportedPasswordDerivedCiphertext,
++  runtimeMatchesArgon2Policy,
++} from "./argon2-policy";
+ 
+ const sodium = sodiumModule as typeof import("libsodium-wrappers-sumo");
+ 
+ const PWHASH_ALGORITHM = "argon2id13" as const;
+ const AEAD_CIPHER = "xchacha20poly1305-ietf" as const;
+ const BASE64_VARIANT = sodium.base64_variants.URLSAFE_NO_PADDING;
+ 
+-type ReadySodium = typeof sodium;
++export type ReadySodium = typeof sodium;
+ 
+ export type PasswordDerivedCiphertext = {
+   cipher: typeof AEAD_CIPHER;
+   purpose: string;
+   encryptedPayload: string;
+   nonce: string;
+   salt: string;
+   opsLimit: number;
+   memLimit: number;
+   keyDerivation: typeof PWHASH_ALGORITHM;
+@@ -21,36 +27,40 @@ export type PasswordDerivedCiphertext = {
+ 
+ let sodiumReadyPromise: Promise<ReadySodium> | null = null;
+ 
+ export async function getSodium(): Promise<ReadySodium> {
+   sodiumReadyPromise ??= sodium.ready.then(() => sodium);
+   return sodiumReadyPromise;
+ }
+ 
+ export async function createPasswordHash(password: string): Promise<string> {
+   const ready = await getSodium();
++  if (!runtimeMatchesArgon2Policy(ready)) {
++    throw new Error("Unsupported Argon2 runtime policy.");
++  }
+   return ready.crypto_pwhash_str(
+     password,
+     ready.crypto_pwhash_OPSLIMIT_INTERACTIVE,
+     ready.crypto_pwhash_MEMLIMIT_INTERACTIVE,
+   );
+ }
+ 
+ export async function verifyPasswordHash(
+   passwordHash: string,
+   password: string,
+ ): Promise<boolean> {
+   if (!passwordHash || !password) {
+     return false;
+   }
+ 
+   const ready = await getSodium();
++  if (!isSupportedArgon2idVerifier(passwordHash, ready)) return false;
+ 
+   try {
+     return ready.crypto_pwhash_str_verify(passwordHash, password);
+   } catch {
+     return false;
+   }
+ }
+ 
+ export async function sealWithPassword(
+   plaintext: string,
+@@ -58,21 +68,34 @@ export async function sealWithPassword(
+   purpose: string,
+ ): Promise<PasswordDerivedCiphertext> {
+   if (!password) {
+     throw new Error("sealWithPassword requires a non-empty password.");
+   }
+ 
+   if (!purpose) {
+     throw new Error("sealWithPassword requires a non-empty purpose tag.");
+   }
+ 
++  const textEncoder = new TextEncoder();
++
++  if (textEncoder.encode(purpose).byteLength > 128) {
++    throw new Error("sealWithPassword purpose tag exceeds the supported policy.");
++  }
++
++  if (textEncoder.encode(plaintext).byteLength > ARGON2ID_V3_POLICY.maxPlaintextBytes) {
++    throw new Error("sealWithPassword plaintext exceeds the supported policy.");
++  }
++
+   const ready = await getSodium();
++  if (!runtimeMatchesArgon2Policy(ready)) {
++    throw new Error("Unsupported Argon2 runtime policy.");
++  }
+   const salt = ready.randombytes_buf(ready.crypto_pwhash_SALTBYTES, "uint8array");
+   const nonce = ready.randombytes_buf(
+     ready.crypto_aead_xchacha20poly1305_ietf_NPUBBYTES,
+     "uint8array",
+   );
+   const opsLimit = ready.crypto_pwhash_OPSLIMIT_INTERACTIVE;
+   const memLimit = ready.crypto_pwhash_MEMLIMIT_INTERACTIVE;
+   const key = ready.crypto_pwhash(
+     ready.crypto_aead_xchacha20poly1305_ietf_KEYBYTES,
+     password,
+@@ -109,33 +132,34 @@ export async function sealWithPassword(
+ }
+ 
+ export async function openWithPassword(
+   ciphertext: PasswordDerivedCiphertext,
+   password: string,
+ ): Promise<string> {
+   if (!password) {
+     return "";
+   }
+ 
+-  const ready = await getSodium();
+-
+   if (
+     ciphertext.cipher !== AEAD_CIPHER ||
+     ciphertext.keyDerivation !== PWHASH_ALGORITHM ||
+     !ciphertext.purpose ||
+     !ciphertext.encryptedPayload ||
+     !ciphertext.nonce ||
+     !ciphertext.salt
+   ) {
+     return "";
+   }
+ 
++  const ready = await getSodium();
++  if (!isSupportedPasswordDerivedCiphertext(ciphertext, ready)) return "";
++
+   let key: Uint8Array | null = null;
+ 
+   try {
+     key = ready.crypto_pwhash(
+       ready.crypto_aead_xchacha20poly1305_ietf_KEYBYTES,
+       password,
+       ready.from_base64(ciphertext.salt, BASE64_VARIANT),
+       ciphertext.opsLimit,
+       ciphertext.memLimit,
+       ready.crypto_pwhash_ALG_ARGON2ID13,
+diff --git a/packages/security/src/vault-envelope.ts b/packages/security/src/vault-envelope.ts
+index c01ec16..a89dd4e 100644
+--- a/packages/security/src/vault-envelope.ts
++++ b/packages/security/src/vault-envelope.ts
+@@ -2,20 +2,21 @@
+  * WARNING: these helpers provide local compatibility for current unuvault storage shapes.
+  * Version 1 stores plaintext. Version 2 uses a custom XOR stream and non-cryptographic
+  * hashing. Version 3 is the current libsodium-backed format for new writes.
+  */
+ 
+ import {
+   openWithPassword,
+   sealWithPassword,
+   type PasswordDerivedCiphertext,
+ } from "./sodium";
++import { MAX_PASSWORD_ENVELOPE_JSON_CHARACTERS } from "./argon2-policy";
+ 
+ /**
+  * @deprecated Version 1 stores the password as plaintext and only exists for explicit
+  * legacy fixtures and migration compatibility.
+  */
+ type LegacyVaultEnvelope = {
+   version: 1;
+   cipher: "xchacha20-poly1305";
+   encryptedPayload: string;
+   keyDerivation: "argon2id";
+@@ -127,20 +128,22 @@ function isSecureEnvelope(
+     value.purpose === "vault-password" &&
+     typeof value.encryptedPayload === "string" &&
+     typeof value.nonce === "string" &&
+     typeof value.salt === "string" &&
+     typeof value.opsLimit === "number" &&
+     typeof value.memLimit === "number"
+   );
+ }
+ 
+ function parseVaultEnvelope(ciphertext: string): Partial<VaultEnvelope> | null {
++  if (ciphertext.length > MAX_PASSWORD_ENVELOPE_JSON_CHARACTERS) return null;
++
+   try {
+     return JSON.parse(ciphertext) as Partial<VaultEnvelope>;
+   } catch {
+     return null;
+   }
+ }
+ 
+ export function isPassphraseProtectedVaultPassword(ciphertext: string): boolean {
+   if (!ciphertext) {
+     return false;
+@@ -207,20 +210,24 @@ export async function openVaultPassword(
+ }
+ 
+ export async function openStoredVaultPassword(
+   ciphertext: string,
+   passphrase?: string,
+ ): Promise<string> {
+   if (!ciphertext) {
+     return "";
+   }
+ 
++  if (ciphertext.length > MAX_PASSWORD_ENVELOPE_JSON_CHARACTERS) {
++    return "";
++  }
++
+   const openedEnvelope = await openVaultPassword(ciphertext, passphrase);
+ 
+   if (openedEnvelope) {
+     return openedEnvelope;
+   }
+ 
+   const trimmed = ciphertext.trimStart();
+ 
+   if (
+     trimmed.startsWith("{") ||
+diff --git a/packages/security/tests/argon2-policy.spec.ts b/packages/security/tests/argon2-policy.spec.ts
+new file mode 100644
+index 0000000..c7f8ba9
+--- /dev/null
++++ b/packages/security/tests/argon2-policy.spec.ts
+@@ -0,0 +1,133 @@
++import { describe, expect, it } from "vitest";
++import {
++  ARGON2ID_V3_POLICY,
++  isPinnedArgon2idVerifierSyntax,
++  isSupportedArgon2idVerifier,
++  isSupportedPasswordDerivedCiphertext,
++  runtimeMatchesArgon2Policy,
++} from "../src/argon2-policy";
++import { getSodium } from "../src/sodium";
++
++const validEnvelope = {
++  cipher: "xchacha20poly1305-ietf" as const,
++  purpose: "vault-password",
++  encryptedPayload: "AAAAAAAAAAAAAAAAAAAAAA",
++  nonce: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
++  salt: "AAAAAAAAAAAAAAAAAAAAAA",
++  opsLimit: 2,
++  memLimit: 67_108_864,
++  keyDerivation: "argon2id13" as const,
++};
++
++const validVerifier =
++  "$argon2id$v=19$m=65536,t=2,p=1$AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
++
++describe("argon2 parameter policy", () => {
++  it("matches the pinned libsodium interactive runtime", async () => {
++    const ready = await getSodium();
++    expect(runtimeMatchesArgon2Policy(ready)).toBe(true);
++    expect(ARGON2ID_V3_POLICY).toMatchObject({
++      opsLimit: 2,
++      memLimit: 67_108_864,
++      version: 19,
++      memoryKiB: 65_536,
++      iterations: 2,
++      parallelism: 1,
++      saltBytes: 16,
++      nonceBytes: 24,
++    });
++  });
++
++  it("rejects default-algorithm and PHC-prefix runtime drift", async () => {
++    const ready = await getSodium();
++    expect(runtimeMatchesArgon2Policy({
++      ...ready,
++      crypto_pwhash_STRPREFIX: "$argon2i$",
++    } as typeof ready)).toBe(false);
++    expect(runtimeMatchesArgon2Policy({
++      ...ready,
++      crypto_pwhash_ALG_DEFAULT: ready.crypto_pwhash_ALG_ARGON2I13,
++    } as typeof ready)).toBe(false);
++  });
++
++  it.each([NaN, Infinity, 1.5, -1, 1, 3, Number.MAX_SAFE_INTEGER + 1])(
++    "rejects hostile opsLimit %s",
++    async (opsLimit) => {
++      const ready = await getSodium();
++      expect(
++        isSupportedPasswordDerivedCiphertext({ ...validEnvelope, opsLimit }, ready),
++      ).toBe(false);
++    },
++  );
++
++  it.each([NaN, Infinity, 1.5, -1, 67_108_863, 67_108_865])(
++    "rejects hostile memLimit %s",
++    async (memLimit) => {
++      const ready = await getSodium();
++      expect(
++        isSupportedPasswordDerivedCiphertext({ ...validEnvelope, memLimit }, ready),
++      ).toBe(false);
++    },
++  );
++
++  it("rejects non-canonical or wrong-length salt and nonce fields", async () => {
++    const ready = await getSodium();
++
++    for (const candidate of [
++      { ...validEnvelope, salt: `${validEnvelope.salt}=` },
++      { ...validEnvelope, salt: "AAAAAAAAAAAAAAAAAAAA" },
++      { ...validEnvelope, salt: "AAAAAAAAAAAAAAAAAAAAAAA" },
++      { ...validEnvelope, nonce: `${validEnvelope.nonce}=` },
++      { ...validEnvelope, nonce: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" },
++      { ...validEnvelope, nonce: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" },
++      { ...validEnvelope, salt: "AAAAAAAAAAAAAAAAAAAAAB" },
++    ]) {
++      expect(isSupportedPasswordDerivedCiphertext(candidate, ready)).toBe(false);
++    }
++  });
++
++  it("rejects ciphertext below the AEAD tag or above the one MiB policy", async () => {
++    const ready = await getSodium();
++    const oversized = "A".repeat(ARGON2ID_V3_POLICY.maxCiphertextBase64URLCharacters + 1);
++
++    expect(
++      isSupportedPasswordDerivedCiphertext(
++        { ...validEnvelope, encryptedPayload: "AA" },
++        ready,
++      ),
++    ).toBe(false);
++    expect(
++      isSupportedPasswordDerivedCiphertext(
++        { ...validEnvelope, encryptedPayload: oversized },
++        ready,
++      ),
++    ).toBe(false);
++  });
++
++  it("accepts only the canonical supported Argon2id verifier tuple", async () => {
++    const ready = await getSodium();
++    const valid = validVerifier;
++
++    expect(isSupportedArgon2idVerifier(valid, ready)).toBe(true);
++    expect(isPinnedArgon2idVerifierSyntax(valid)).toBe(true);
++    for (const malicious of [
++      valid.replace("$argon2id$", "$argon2i$"),
++      valid.replace("v=19", "v=16"),
++      valid.replace("v=19", "v=019"),
++      valid.replace("m=65536", "m=65535"),
++      valid.replace("m=65536", "m=065536"),
++      valid.replace("m=65536", "m=1048576"),
++      valid.replace("t=2", "t=3"),
++      valid.replace("p=1", "p=2"),
++      valid.replace(
++        "$AAAAAAAAAAAAAAAAAAAAAA$",
++        "$AAAAAAAAAAAAAAAAAAAAAB$",
++      ),
++      `${valid.slice(0, -1)}B`,
++      `${valid}A`.repeat(2),
++    ]) {
++      expect(isSupportedArgon2idVerifier(malicious, ready)).toBe(false);
++      expect(isPinnedArgon2idVerifierSyntax(malicious)).toBe(false);
++    }
++  });
++});
+diff --git a/packages/security/tests/developer-secret-envelope.spec.ts b/packages/security/tests/developer-secret-envelope.spec.ts
+index 967f012..2e50c36 100644
+--- a/packages/security/tests/developer-secret-envelope.spec.ts
++++ b/packages/security/tests/developer-secret-envelope.spec.ts
+@@ -2,26 +2,54 @@ import { afterEach, describe, expect, it, vi } from "vitest";
+ import {
+   openDeveloperSecretBlob,
+   sealDeveloperSecretBlob,
+ } from "../src/developer-secret-envelope";
+ import { sealWithPassword } from "../src/sodium";
+ import {
+   LEGACY_FIXTURE_DEVELOPER_SECRET_BLOB_V1,
+   LEGACY_FIXTURE_DEV_SECRET_DOTENV,
+   LEGACY_FIXTURE_MASTER_PASSWORD,
+ } from "../../../tests/fixtures/crypto-legacy-fixtures";
++import { ARGON2ID_V3_POLICY } from "../src/argon2-policy";
++
++const jsonBound =
++  ARGON2ID_V3_POLICY.maxCiphertextBase64URLCharacters + 2_048;
+ 
+ describe("developer secret envelope helpers", () => {
+   afterEach(() => {
++    vi.restoreAllMocks();
+     vi.unstubAllGlobals();
+   });
+ 
++  it("rejects oversized envelope JSON before parsing", async () => {
++    const parse = vi.spyOn(JSON, "parse").mockImplementation(() => {
++      throw new Error("unexpected JSON.parse call");
++    });
++    const oversized = "A".repeat(jsonBound + 1);
++
++    await expect(
++      openDeveloperSecretBlob(oversized, "correct horse"),
++    ).resolves.toBe("");
++    expect(parse).not.toHaveBeenCalled();
++  });
++
++  it("parses envelope JSON at the size limit", async () => {
++    const parse = vi.spyOn(JSON, "parse").mockImplementation(() => {
++      throw new Error("unexpected JSON.parse call");
++    });
++
++    await expect(
++      openDeveloperSecretBlob("A".repeat(jsonBound), "correct horse"),
++    ).resolves.toBe("");
++    expect(parse).toHaveBeenCalledOnce();
++  });
++
+   it("round-trips a dotenv blob with the master password", async () => {
+     const sealed = await sealDeveloperSecretBlob(
+       "SUPABASE_URL=https://example.supabase.co\nSUPABASE_ANON_KEY=anon-key\n",
+       "correct horse",
+     );
+ 
+     expect(sealed).not.toBe("");
+     expect(sealed).not.toContain("SUPABASE_URL=https://example.supabase.co");
+     await expect(openDeveloperSecretBlob(sealed, "correct horse")).resolves.toBe(
+       "SUPABASE_URL=https://example.supabase.co\nSUPABASE_ANON_KEY=anon-key\n",
+diff --git a/packages/security/tests/master-password-verifier.spec.ts b/packages/security/tests/master-password-verifier.spec.ts
+index 51e31fb..76a5dea 100644
+--- a/packages/security/tests/master-password-verifier.spec.ts
++++ b/packages/security/tests/master-password-verifier.spec.ts
+@@ -1,13 +1,14 @@
+ import { describe, expect, it } from "vitest";
+ import {
+   createMasterPasswordVerifier,
++  parseStoredMasterPasswordVerifier,
+   verifyMasterPassword,
+ } from "../src/master-password-verifier";
+ import {
+   LEGACY_FIXTURE_MASTER_PASSWORD,
+   LEGACY_FIXTURE_MASTER_PASSWORD_VERIFIER_V1,
+   LEGACY_FIXTURE_WRONG_MASTER_PASSWORD,
+ } from "../../../tests/fixtures/crypto-legacy-fixtures";
+ 
+ describe("master password verifier helpers", () => {
+   it("validates the same master password that created the secure verifier", async () => {
+@@ -19,20 +20,47 @@ describe("master password verifier helpers", () => {
+   });
+ 
+   it("rejects an incorrect master password for secure verifiers", async () => {
+     const verifier = await createMasterPasswordVerifier("correct horse");
+ 
+     await expect(verifyMasterPassword(verifier, "wrong battery")).resolves.toEqual({
+       success: false,
+     });
+   });
+ 
++  it("rejects a secure verifier with hostile Argon2 memory parameters", async () => {
++    const verifier = await createMasterPasswordVerifier("correct horse");
++
++    await expect(
++      verifyMasterPassword(
++        {
++          ...verifier,
++          passwordHash: verifier.passwordHash.replace("m=65536", "m=1048576"),
++        },
++        "correct horse",
++      ),
++    ).resolves.toEqual({ success: false });
++  });
++
++  it("rejects a 128-character secure verifier", async () => {
++    await expect(
++      verifyMasterPassword(
++        {
++          version: 2,
++          algorithm: "argon2id13",
++          passwordHash: "A".repeat(128),
++        },
++        "correct horse",
++      ),
++    ).resolves.toEqual({ success: false });
++  });
++
+   it("upgrades a legacy verifier after successful verification", async () => {
+     const result = await verifyMasterPassword(
+       LEGACY_FIXTURE_MASTER_PASSWORD_VERIFIER_V1,
+       LEGACY_FIXTURE_MASTER_PASSWORD,
+     );
+ 
+     expect(result.success).toBe(true);
+     expect(result).toMatchObject({
+       upgradedVerifier: {
+         version: 2,
+@@ -43,20 +71,53 @@ describe("master password verifier helpers", () => {
+ 
+   it("rejects an incorrect master password for legacy verifiers", async () => {
+     await expect(
+       verifyMasterPassword(
+         LEGACY_FIXTURE_MASTER_PASSWORD_VERIFIER_V1,
+         LEGACY_FIXTURE_WRONG_MASTER_PASSWORD,
+       ),
+     ).resolves.toEqual({ success: false });
+   });
+ 
++  it("accepts only the canonical historical V1 verifier structure", () => {
++    expect(
++      parseStoredMasterPasswordVerifier(
++        LEGACY_FIXTURE_MASTER_PASSWORD_VERIFIER_V1,
++      ),
++    ).toEqual(LEGACY_FIXTURE_MASTER_PASSWORD_VERIFIER_V1);
++
++    expect(
++      parseStoredMasterPasswordVerifier({
++        ...LEGACY_FIXTURE_MASTER_PASSWORD_VERIFIER_V1,
++        salt: "AQIDBAUGBwgJCgsMA",
++      }),
++    ).toBeNull();
++    expect(
++      parseStoredMasterPasswordVerifier({
++        ...LEGACY_FIXTURE_MASTER_PASSWORD_VERIFIER_V1,
++        salt: "AQIDBAUGBwgJCgs=",
++      }),
++    ).toBeNull();
++    expect(
++      parseStoredMasterPasswordVerifier({
++        ...LEGACY_FIXTURE_MASTER_PASSWORD_VERIFIER_V1,
++        check: "716BA384",
++      }),
++    ).toBeNull();
++    expect(
++      parseStoredMasterPasswordVerifier({
++        ...LEGACY_FIXTURE_MASTER_PASSWORD_VERIFIER_V1,
++        check: "716ba3840",
++      }),
++    ).toBeNull();
++  });
++
+   it("fails closed for malformed verifier values", async () => {
+     await expect(
+       verifyMasterPassword(
+         {
+           version: 1,
+           salt: "abc",
+         },
+         "correct horse",
+       ),
+     ).resolves.toEqual({ success: false });
+diff --git a/packages/security/tests/sodium.spec.ts b/packages/security/tests/sodium.spec.ts
+index b309edc..44f59fc 100644
+--- a/packages/security/tests/sodium.spec.ts
++++ b/packages/security/tests/sodium.spec.ts
+@@ -1,19 +1,34 @@
+-import { describe, expect, it } from "vitest";
++import { afterEach, describe, expect, it, vi } from "vitest";
+ import {
+   createPasswordHash,
+   getSodium,
+   openWithPassword,
+   sealWithPassword,
+   verifyPasswordHash,
+ } from "../src/sodium";
+ 
++const fixedStructurallyValidCiphertext = {
++  cipher: "xchacha20poly1305-ietf" as const,
++  purpose: "vault-password",
++  encryptedPayload: "AAAAAAAAAAAAAAAAAAAAAA",
++  nonce: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
++  salt: "AAAAAAAAAAAAAAAAAAAAAA",
++  opsLimit: 2,
++  memLimit: 67_108_864,
++  keyDerivation: "argon2id13" as const,
++};
++const fixedStructurallyValidVerifier =
++  "$argon2id$v=19$m=65536,t=2,p=1$AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
++
++afterEach(() => vi.restoreAllMocks());
++
+ describe("libsodium substrate", () => {
+   it("initializes libsodium and exposes argon2id + xchacha20", async () => {
+     const sodium = await getSodium();
+ 
+     expect(sodium.crypto_pwhash_ALG_ARGON2ID13).toBeTypeOf("number");
+     expect(sodium.crypto_aead_xchacha20poly1305_ietf_KEYBYTES).toBeGreaterThan(0);
+   });
+ 
+   it("round-trips payloads with argon2id-derived xchacha20poly1305", async () => {
+     const sealed = await sealWithPassword(
+@@ -31,11 +46,85 @@ describe("libsodium substrate", () => {
+ 
+   it("hashes and verifies passwords with libsodium pwhash strings", async () => {
+     const passwordHash = await createPasswordHash("correct horse battery staple");
+ 
+     expect(passwordHash.startsWith("$argon2")).toBe(true);
+     expect(
+       await verifyPasswordHash(passwordHash, "correct horse battery staple"),
+     ).toBe(true);
+     expect(await verifyPasswordHash(passwordHash, "wrong battery staple")).toBe(false);
+   });
++
++  it("rejects hostile envelope parameters before crypto_pwhash", async () => {
++    const ready = await getSodium();
++    const pwhash = vi.spyOn(ready, "crypto_pwhash").mockImplementation(() => {
++      throw new Error("unexpected KDF call");
++    });
++
++    await expect(
++      openWithPassword(
++        { ...fixedStructurallyValidCiphertext, memLimit: 1_073_741_824 },
++        "correct horse",
++      ),
++    ).resolves.toBe("");
++    expect(pwhash).not.toHaveBeenCalled();
++  });
++
++  it("rejects hostile verifier parameters before crypto_pwhash_str_verify", async () => {
++    const ready = await getSodium();
++    const verify = vi.spyOn(ready, "crypto_pwhash_str_verify").mockImplementation(() => {
++      throw new Error("unexpected verifier call");
++    });
++
++    await expect(
++      verifyPasswordHash(
++        fixedStructurallyValidVerifier.replace("m=65536", "m=1048576"),
++        "correct horse",
++      ),
++    ).resolves.toBe(false);
++    expect(verify).not.toHaveBeenCalled();
++  });
++
++  it("rejects oversized plaintext before randomness or crypto_pwhash", async () => {
++    const ready = await getSodium();
++    const random = vi.spyOn(ready, "randombytes_buf").mockImplementation(() => {
++      throw new Error("unexpected randomness call");
++    });
++    const pwhash = vi.spyOn(ready, "crypto_pwhash").mockImplementation(() => {
++      throw new Error("unexpected KDF call");
++    });
++
++    await expect(
++      sealWithPassword("A".repeat(1_048_577), "correct horse", "vault-password"),
++    ).rejects.toThrow("exceeds the supported policy");
++    expect(random).not.toHaveBeenCalled();
++    expect(pwhash).not.toHaveBeenCalled();
++  });
++
++  it("bounds purpose tags by UTF-8 bytes before randomness or crypto_pwhash", async () => {
++    const acceptedPurpose = "é".repeat(64);
++    const sealed = await sealWithPassword(
++      "hunter2",
++      "correct horse",
++      acceptedPurpose,
++    );
++    expect(sealed.purpose).toBe(acceptedPurpose);
++
++    const ready = await getSodium();
++    const random = vi.spyOn(ready, "randombytes_buf").mockImplementation(() => {
++      throw new Error("unexpected randomness call");
++    });
++    const pwhash = vi.spyOn(ready, "crypto_pwhash").mockImplementation(() => {
++      throw new Error("unexpected KDF call");
++    });
++
++    await expect(
++      sealWithPassword(
++        "hunter2",
++        "correct horse",
++        `${acceptedPurpose}A`,
++      ),
++    ).rejects.toThrow("purpose tag exceeds the supported policy");
++    expect(random).not.toHaveBeenCalled();
++    expect(pwhash).not.toHaveBeenCalled();
++  });
+ });
+diff --git a/packages/security/tests/vault-envelope.spec.ts b/packages/security/tests/vault-envelope.spec.ts
+index d087bec..4c66fa9 100644
+--- a/packages/security/tests/vault-envelope.spec.ts
++++ b/packages/security/tests/vault-envelope.spec.ts
+@@ -4,26 +4,56 @@ import {
+   openVaultPassword,
+   openStoredVaultPassword,
+   sealVaultPassword,
+ } from "../src/vault-envelope";
+ import {
+   LEGACY_FIXTURE_MASTER_PASSWORD,
+   LEGACY_FIXTURE_VAULT_ENVELOPE_V1,
+   LEGACY_FIXTURE_VAULT_ENVELOPE_V2,
+   LEGACY_FIXTURE_VAULT_PASSWORD_PLAINTEXT,
+ } from "../../../tests/fixtures/crypto-legacy-fixtures";
++import {
++  ARGON2ID_V3_POLICY,
++  MAX_PASSWORD_ENVELOPE_JSON_CHARACTERS,
++} from "../src/argon2-policy";
++
++const jsonBound =
++  ARGON2ID_V3_POLICY.maxCiphertextBase64URLCharacters + 2_048;
+ 
+ describe("vault envelope helpers", () => {
+   afterEach(() => {
++    vi.restoreAllMocks();
+     vi.unstubAllGlobals();
+   });
+ 
++  it("rejects oversized envelope JSON before parsing", async () => {
++    const parse = vi.spyOn(JSON, "parse").mockImplementation(() => {
++      throw new Error("unexpected JSON.parse call");
++    });
++    const oversized = "A".repeat(jsonBound + 1);
++
++    await expect(openVaultPassword(oversized, "correct horse")).resolves.toBe("");
++    expect(isPassphraseProtectedVaultPassword(oversized)).toBe(false);
++    expect(parse).not.toHaveBeenCalled();
++  });
++
++  it("parses envelope JSON at the size limit", async () => {
++    const parse = vi.spyOn(JSON, "parse").mockImplementation(() => {
++      throw new Error("unexpected JSON.parse call");
++    });
++
++    await expect(
++      openVaultPassword("A".repeat(jsonBound), "correct horse"),
++    ).resolves.toBe("");
++    expect(parse).toHaveBeenCalledOnce();
++  });
++
+   it("round-trips a plaintext password through a secure envelope", async () => {
+     const sealed = await sealVaultPassword("hunter2", "correct horse");
+ 
+     expect(sealed).not.toBe("");
+     expect(sealed).not.toBe("hunter2");
+     await expect(openVaultPassword(sealed, "correct horse")).resolves.toBe("hunter2");
+   });
+ 
+   it("writes secure version 3 envelopes", async () => {
+     const sealed = await sealVaultPassword("hunter2", "correct horse");
+@@ -61,20 +91,33 @@ describe("vault envelope helpers", () => {
+ 
+   it("opens legacy plaintext password values through the storage helper", async () => {
+     await expect(
+       openStoredVaultPassword(
+         LEGACY_FIXTURE_VAULT_PASSWORD_PLAINTEXT,
+         LEGACY_FIXTURE_MASTER_PASSWORD,
+       ),
+     ).resolves.toBe("hunter2");
+   });
+ 
++  it("rejects oversized legacy plaintext before envelope parsing or fallback", async () => {
++    const oversizedPlaintext = "A".repeat(
++      MAX_PASSWORD_ENVELOPE_JSON_CHARACTERS + 1,
++    );
++
++    await expect(
++      openStoredVaultPassword(oversizedPlaintext, LEGACY_FIXTURE_MASTER_PASSWORD),
++    ).resolves.toBe("");
++    await expect(
++      openStoredVaultPassword("short legacy plaintext", LEGACY_FIXTURE_MASTER_PASSWORD),
++    ).resolves.toBe("short legacy plaintext");
++  });
++
+   it("opens legacy version 1 envelope values through the storage helper", async () => {
+     await expect(
+       openStoredVaultPassword(
+         LEGACY_FIXTURE_VAULT_ENVELOPE_V1,
+         LEGACY_FIXTURE_MASTER_PASSWORD,
+       ),
+     ).resolves.toBe("hunter2");
+   });
+ 
+   it("opens legacy version 2 envelope values through the storage helper", async () => {
