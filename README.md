@@ -114,32 +114,49 @@ browser-import workflow.
   `/Users/yuchen/Code/unu/unuOS/docs/portfolio/design-operating-index.md`;
   it is the only first-read design authority.
 - Current design status: `registered`.
-- Pencil current:
+- Native Pencil current:
   `/Users/yuchen/Design/unu/unuvault/unuvault.current.pen`.
-- Pencil draft:
-  `/Users/yuchen/Design/unu/unuvault/unuvault.draft.pen`.
-- Current design-system frame: `current/unuvault/design-system-v1`.
-- Current web source frame: `current/unuvault/web-vault-management-v1`.
-- Current Mac companion source frame:
+- Native design-system frame: `current/unuvault/design-system-v1`.
+- Active macOS source frame:
   `current/unuvault/mac-companion-core-flows-v1.3`.
-- Current iOS source frames:
+- Active iOS source frames:
   `current/unuvault/ios-vault-home-native-locked-v1` and
   `current/unuvault/ios-vault-list-readonly-v1`.
-- `docs/superpowers/specs/2026-07-10-authenticated-pairing-approval-design.md`
-  is `current-routed` for Pairing V2 protocol/security semantics only. Pairing
-  V2 implementation and exact-target security re-review remain pending. It is
-  not broad Pencil/current-UI authority.
+- Pairing V2 protocol/security authority:
+  `docs/superpowers/specs/2026-07-10-authenticated-pairing-approval-design.md`
+  is `current-routed` for Pairing V2 protocol/security semantics only.
+  Pairing V2 is protocol/security-only.
+  Pairing V2 implementation and exact-target security re-review remain pending.
+  It is not broad Pencil/current-UI authority.
+- Native workflow: use brainstorming Visual Companion to confirm direction and
+  specification, directly update the relevant approved frame in
+  `unuvault.current.pen`, show and correct the actual Pencil result, then
+  compare the implemented app on the real simulator or device. The rule is:
+  direction approval is not visual acceptance.
+- Web and browser-extension surfaces use no product Pencil. Follow
+  `/Users/yuchen/Code/unu/unuOS/docs/portfolio/web-design-foundation.md`,
+  repo-local overrides/components, code under `apps/web/` or
+  `apps/browser-extension/`, and the shown real browser result. Important Web
+  results require user confirmation.
+- Web frames inside `unuvault.current.pen`, including
+  `current/unuvault/web-vault-management-v1`, are
+  historical/reference-only and are not Web implementation or parity sources.
+- `/Users/yuchen/Design/unu/unuvault/unuvault.draft.pen` as a whole is inactive
+  historical/reference-only. Product draft files are never promoted or
+  backwritten; Native comparisons live only in brainstorming Visual Companion.
 - Small UI copy or polish uses the `Lightweight UI Path` in the portfolio
-  Pencil gate.
+  Pencil gate for Native or `Fast Path Escalation` in
+  `web-design-foundation.md` for Web.
 - Historical design specs are planning context only unless the operating index
   or this repo-local entrypoint explicitly routes to them.
 - The legacy product-scope spec named above is routed only through
   `/Users/yuchen/Code/unu/unuOS/docs/portfolio/design-specs-inventory.md`
   as `current-routed` product scope and trust posture context; it is not broad
   Pencil or current UI authority.
-- Future material web, extension, or iOS UI changes start in the registered
-  draft file, promote only approved frames into current, and keep the current
-  screen/state frame aligned with the shipped UI.
+- Native acceptance and Web acceptance remain separate: Native closes on the
+  shown/corrected current frame plus real app/device parity; Web closes on
+  fresh real-browser visual and accessibility evidence plus applicable user
+  confirmation.
 
 ### Runtime Authority
 

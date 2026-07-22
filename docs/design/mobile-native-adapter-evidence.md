@@ -14,8 +14,9 @@ evidence backlog, but it does not claim mobile/native adapter adoption.
   `/Users/yuchen/Code/unu/unuOS/docs/portfolio/shared-interface-primitives.md`
 - Pencil current:
   `/Users/yuchen/Design/unu/unuvault/unuvault.current.pen`
-- Pencil draft:
-  `/Users/yuchen/Design/unu/unuvault/unuvault.draft.pen`
+- Historical-only Pencil draft artifact:
+  `/Users/yuchen/Design/unu/unuvault/unuvault.draft.pen` is inactive
+  historical/reference-only, not a Native design workflow or promotion source
 - Design-system frame: `current/unuvault/design-system-v1`
 - Registered iOS design-authority frames:
   `current/unuvault/ios-vault-home-native-locked-v1`,
@@ -163,7 +164,8 @@ This lane stays below `adapter-mapped` until future iOS UI slices supply:
 Pencil sync: blocked. The registered home/list frames are insufficient to prove
 fresh product-composition and Pairing parity against current design authority.
 
-Draft cleanup label for `draft/unuvault/ios-pairing-invite-receive-v2`
+Historical `2026-07-02` draft cleanup label for
+`draft/unuvault/ios-pairing-invite-receive-v2`
 (`Uz6n3`): `deleted after approval` during the 2026-07-02 design hygiene
 cleanup.
 

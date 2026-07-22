@@ -280,7 +280,26 @@ describe("workspace entrypoints", () => {
         "/Users/yuchen/Design/unu/unuvault/unuvault.draft.pen",
       );
       expect(entrypoint).toContain("current/unuvault/design-system-v1");
-      expect(entrypoint).toContain("current/unuvault/web-vault-management-v1");
+      expect(entrypoint).toContain(
+        "current/unuvault/ios-vault-home-native-locked-v1",
+      );
+      expect(entrypoint).toContain(
+        "current/unuvault/ios-vault-list-readonly-v1",
+      );
+      expect(entrypoint).toContain("current/unuvault/mac-companion-core-flows-v1.3");
+      expect(entrypoint).not.toContain(
+        "current/unuvault/mac-companion-pairing-approval-v2",
+      );
+      expect(entrypoint).not.toContain("current/unuvault/ios-product-composition-v1");
+      expect(entrypoint).not.toContain("current/unuvault/ios-pairing-invite-receive-v3");
+      expect(entrypoint).toContain("directly update");
+      expect(entrypoint).toContain("direction approval is not visual acceptance");
+      expect(entrypoint).toContain("web-design-foundation.md");
+      expect(entrypoint).toContain("real browser");
+      expect(entrypoint).toContain("historical/reference-only");
+      expect(entrypoint).toMatch(/Web frames[\s\S]{0,180}historical\/reference-only/i);
+      expect(entrypoint).toMatch(/unuvault\.draft\.pen[\s\S]{0,180}historical\/reference-only/i);
+      expect(entrypoint).not.toMatch(/Future material web[\s\S]{0,180}draft/i);
       expect(entrypoint).toContain("Lightweight UI Path");
       expect(entrypoint).toContain("Historical design specs are planning context only");
       expect(entrypoint).toContain("design-specs-inventory.md");
@@ -294,13 +313,14 @@ describe("workspace entrypoints", () => {
       expect(entrypoint).toContain(
         "`current-routed` for Pairing V2 protocol/security semantics only",
       );
+      expect(entrypoint).toContain("Pairing V2 is protocol/security-only");
+      expect(entrypoint).toContain(
+        "Pairing V2 implementation and exact-target security re-review remain pending",
+      );
       expect(entrypoint).toContain("not broad Pencil/current-UI authority");
       expect(entrypoint.match(/^- Current design status: `[^`]+`\.$/gmu)).toEqual([
         "- Current design status: `registered`.",
       ]);
-      expect(entrypoint).toMatch(
-        /`docs\/superpowers\/specs\/2026-07-10-authenticated-pairing-approval-design\.md`\s+is `current-routed` for Pairing V2 protocol\/security semantics only\. Pairing\s+V2 implementation and exact-target security re-review remain pending\. It is\s+not broad Pencil\/current-UI authority\./u,
-      );
       expect(entrypoint).not.toMatch(
         /Pairing V2 (?:implementation|exact-target security re-review) (?:is |are )?(?:complete|cleared|approved)/iu,
       );
@@ -326,6 +346,21 @@ describe("workspace entrypoints", () => {
     );
   });
 
+  it("keeps Web adapter evidence blocked without fresh browser and accessibility proof", () => {
+    const evidence = readText("docs/design/react-css-adapter-evidence.md");
+
+    expect(evidence).toContain("Current status: `blocked-needs-evidence`");
+    expect(evidence).toMatch(/fresh real-browser\s+visual and accessibility proof/);
+    expect(evidence).toContain("historical provenance only");
+    expect(evidence).toMatch(/not current Web adapter, adoption, or\s+parity authority/);
+    expect(evidence).toContain("Native current frames do not support this Web lane");
+    expect(evidence).not.toMatch(/Status:[\s\S]{0,180}Pencil current and browser\s+visual proof now reflect/i);
+    expect(evidence).not.toMatch(/^- Pencil current:/m);
+    expect(evidence).not.toMatch(/^- Pencil source frame:/m);
+    expect(evidence).not.toMatch(/Current Pencil sync label for this lane:/);
+    expect(evidence).not.toMatch(/enough to record[\s\S]{0,120}`adapter-mapped`/i);
+  });
+
   it("records the current iOS mobile adapter evidence boundary", () => {
     const evidencePath = "docs/design/mobile-native-adapter-evidence.md";
 
@@ -335,6 +370,10 @@ describe("workspace entrypoints", () => {
 
     expect(evidence).toContain("Adapter lane: mobile/non-SwiftUI native adapter");
     expect(evidence).toContain("Status: `partial-native-proof`");
+    expect(evidence).toMatch(
+      /unuvault\.draft\.pen[\s\S]{0,180}inactive\s+historical\/reference-only/i,
+    );
+    expect(evidence).toContain("not a Native design workflow or promotion source");
     expect(evidence).toContain("apps/ios/App/Sources/Features/Auth/LoginView.swift");
     expect(evidence).toContain("apps/ios/App/Sources/Features/Vault/VaultListView.swift");
     expect(evidence).toContain(
